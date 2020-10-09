@@ -1,0 +1,157 @@
+# These colors come from the ImportLDraw blender plugin.
+# The author says they got them from a piece of software called LGEO
+# and provides a link to a page that doesn't seem to exist.
+colors = {}
+colors[0]  = ( 33,  33,  33)
+colors[1]  = ( 13, 105, 171)
+colors[2]  = ( 40, 127,  70)
+colors[3]  = (  0, 143, 155)
+colors[4]  = (196,  40,  27)
+colors[5]  = (205,  98, 152)
+colors[6]  = ( 98,  71,  50)
+colors[7]  = (161, 165, 162)
+colors[8]  = (109, 110, 108)
+colors[9]  = (180, 210, 227)
+colors[10] = ( 75, 151,  74)
+colors[11] = ( 85, 165, 175)
+colors[12] = (242, 112,  94)
+colors[13] = (252, 151, 172)
+colors[14] = (245, 205,  47)
+colors[15] = (242, 243, 242)
+colors[17] = (194, 218, 184)
+colors[18] = (249, 233, 153)
+colors[19] = (215, 197, 153)
+colors[20] = (193, 202, 222)
+colors[21] = (224, 255, 176)
+colors[22] = (107,  50, 123)
+colors[23] = ( 35,  71, 139)
+colors[25] = (218, 133,  64)
+colors[26] = (146, 57/  120)
+colors[27] = (164, 189,  70)
+colors[28] = (149, 138, 115)
+colors[29] = (228, 173, 200)
+colors[30] = (172, 120, 186)
+colors[31] = (225, 213, 237)
+colors[32] = (  0,  20,  20)
+colors[33] = (123, 182, 232)
+colors[34] = (132, 182, 141)
+colors[35] = (217, 228, 167)
+colors[36] = (205,  84,  75)
+colors[37] = (228, 173, 200)
+colors[38] = (255,  43,   0)
+colors[40] = (166, 145, 130)
+colors[41] = (170, 229, 255)
+colors[42] = (198, 255,   0)
+colors[43] = (193, 223, 240)
+colors[44] = (150, 112, 159)
+colors[46] = (247, 241, 141)
+colors[47] = (252, 252, 252)
+colors[52] = (156, 149, 199)
+colors[54] = (255, 246, 123)
+colors[57] = (226, 176,  96)
+colors[65] = (236, 201,  53)
+colors[66] = (202, 176,   0)
+colors[67] = (255, 255, 255)
+colors[68] = (243, 207, 155)
+colors[69] = (142,  66, 133)
+colors[70] = (105,  64,  39)
+colors[71] = (163, 162, 164)
+colors[72] = ( 99,  95,  97)
+colors[73] = (110, 153, 201)
+colors[74] = (161, 196, 139)
+colors[77] = (220, 144, 149)
+colors[78] = (246, 215, 179)
+colors[79] = (255, 255, 255)
+colors[80] = (140, 140, 140)
+colors[82] = (219, 172,  52)
+colors[84] = (170, 125,  85)
+colors[85] = ( 52,  43, 117)
+colors[86] = (124,  92,  69)
+colors[89] = (155, 178, 239)
+colors[92] = (204, 142, 104)
+colors[100]= (238, 196, 182)
+colors[115]= (199, 210,  60)
+colors[134]= (174, 122,  89)
+colors[135]= (171, 173, 172)
+colors[137]= (106, 122, 150)
+colors[142]= (220, 188, 129)
+colors[148]= ( 62,  60,  57)
+colors[151]= ( 14,  94,  77)
+colors[179]= (160, 160, 160)
+colors[183]= (242, 243, 242)
+colors[191]= (248, 187,  61)
+colors[212]= (159, 195, 233)
+colors[216]= (143,  76,  42)
+colors[226]= (253, 234, 140)
+colors[232]= (125, 187, 221)
+colors[256]= ( 33,  33,  33)
+colors[272]= ( 32,  58,  86)
+colors[273]= ( 13, 105, 171)
+colors[288]= ( 39,  70,  44)
+colors[294]= (189, 198, 173)
+colors[297]= (170, 127,  46)
+colors[308]= ( 53,  33,   0)
+colors[313]= (171, 217, 255)
+colors[320]= (123,  46,  47)
+colors[321]= ( 70, 155, 195)
+colors[322]= (104, 195, 226)
+colors[323]= (211, 242, 234)
+colors[324]= (196,   0,  38)
+colors[326]= (226, 249, 154)
+colors[330]= (119, 119,  78)
+colors[334]= (187, 165,  61)
+colors[335]= (149, 121, 118)
+colors[366]= (209, 131,   4)
+colors[373]= (135, 124, 144)
+colors[375]= (193, 194, 193)
+colors[378]= (120, 144, 129)
+colors[379]= ( 94, 116, 140)
+colors[383]= (224, 224, 224)
+colors[406]= (  0,  29, 104)
+colors[449]= (129,   0, 123)
+colors[450]= (203, 132,  66)
+colors[462]= (226, 155,  63)
+colors[484]= (160,  95,  52)
+colors[490]= (215, 240,   0)
+colors[493]= (101, 103,  97)
+colors[494]= (208, 208, 208)
+colors[496]= (163, 162, 164)
+colors[503]= (199, 193, 183)
+colors[504]= (137, 135, 136)
+colors[511]= (250, 250, 250)
+
+def halton_sequence(index, base):
+    f = 1
+    r = 0
+    
+    while index > 0:
+        f = f/base
+        r = r + f * (index % base)
+        index = index // base
+    
+    return r
+
+def index_to_color(index):
+    index += 1
+    r = halton_sequence(index, 2)
+    #r = round(r * 255) / 255
+    g = halton_sequence(index, 3)
+    #g = round(g * 255) / 255
+    b = halton_sequence(index, 5)
+    #b = round(b * 255) / 255
+    
+    return r,g,b
+
+mask_color_indices = {}
+for i in range(10000):
+    float_color = index_to_color(i)
+    color = tuple(round(c*255) for c in float_color)
+    mask_color_indices[color] = i
+    
+    '''
+    if i <= 50:
+        print('==')
+        print(color)
+        print(float_color)
+        print(tuple(f * 255 for f in float_color))
+    '''
