@@ -8,9 +8,9 @@ import io_scene_importldraw.loadldraw.loadldraw as loadldraw
 # to fix a light/lamp naming issue
 loadldraw.globalLightBricks = {}
 
-part_directory = '/media/awalsman/data_drive/lego_dataset/ldraw/parts'
-obj_directory = '/media/awalsman/data_drive/lego_dataset/obj_export'
-ldraw_directory = '/media/awalsman/data_drive/lego_dataset/ldraw'
+part_directory = '/media/awalsman/data_drive/brick_gym/data/ldraw/parts'
+obj_directory = '/media/awalsman/data_drive/brick_gym/data/obj'
+ldraw_directory = '/media/awalsman/data_drive/brick_gym/data/ldraw'
 
 if not os.path.exists(obj_directory):
     os.makedirs(obj_directory)
