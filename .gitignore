@@ -3,3 +3,4 @@ data
 demo
 *.swp
 *.swo
+*.egg-info

@@ -91,18 +91,6 @@ def mpd_to_renderpy(mpd_data,
             'image_light_ks' : 0.2,
             'image_light_blur_reflection' : 3.0
         }
-    '''
-    renderpy_data['materials']['TEMP'] = {
-        'texture' : (numpy.ones((16,16,3)) * 208).tolist(),
-        'ka' : 1.0,
-        'kd' : 0.0,
-        'ks' : 0.0,
-        'shine' : 1.0,
-        'image_light_kd' : 0.8,
-        'image_light_ks' : 0.2,
-        'image_light_blur_reflection' : 3.0
-    }
-    '''
     
     # instances
     for i, part in enumerate(parts):
