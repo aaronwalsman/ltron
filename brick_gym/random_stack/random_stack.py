@@ -1,7 +1,12 @@
 import random
+import os
+
+import tqdm
+
 import numpy
 
-# brick shape (w, h)
+# brick shape (w, d)
+# brick location (x, z, y, o)
 
 def create_empty_occupancy(w, d, h):
     return numpy.zeros((w, d, h), bool)
@@ -23,7 +28,6 @@ def brick_fits(location, shape, occupancy):
     return numpy.sum(occupancy[x:x+w, z:z+d, y]) == 0
 
 def free_brick_locations(brick_shape, occupancy):
-    #return [(0,0,0,0)]
     w, d, h = occupancy.shape
     bw, bd = brick_shape
     
@@ -31,7 +35,6 @@ def free_brick_locations(brick_shape, occupancy):
     for hh in range(h):
         for dd in range(d-bd+1):
             for ww in range(w-bw+1):
-                #if numpy.sum(occupancy[ww:ww+bw, dd:dd+bd, hh]) == 0:
                 if brick_fits((ww, dd, hh, 0), brick_shape, occupancy):
                     free_locations.append((ww, dd, hh, 0))
     
@@ -40,7 +43,6 @@ def free_brick_locations(brick_shape, occupancy):
         for hh in range(h):
             for dd in range(d-bw+1):
                 for ww in range(w-bd+1):
-                    #if numpy.sum(occupancy[ww:ww+bd, dd:dd+bw, hh]) == 0:
                     if brick_fits((ww, dd, hh, 1), brick_shape, occupancy):
                         free_locations.append((ww, dd, hh, 1))
     
@@ -52,8 +54,6 @@ def free_attachment_locations(bricks, new_brick_shape, occupancy):
     free_locations = []
     if not len(bricks):
         return free_brick_locations(new_brick_shape, occupancy[:,:,[0]])
-    
-    #return [(0,0,1,1)]
     
     for brick in bricks:
         brick_shape, brick_location = brick
@@ -112,12 +112,13 @@ def update_occupancy(brick_shape, location, occupancy):
     
     occupancy[x:x+w, z:z+d, y] = True
 
-def sample_model(
-        min_bricks=3,
+def sample_stack(
+        min_bricks=4,
         max_bricks=8,
-        w = 10,
-        d = 10,
-        h = 10):
+        w = 16,
+        d = 16,
+        h = 8,
+        verbose = True):
     
     brick_shapes = [
         (1,1),
@@ -141,25 +142,19 @@ def sample_model(
         location = random.choice(locations)
         bricks.append((brick_shape, location))
         update_occupancy(brick_shape, location, occupancy)
-        print(brick_shape)
-        print(location)
-        for hh in range(h):
-            print('-'*40)
-            print(occupancy[:,:,hh].astype(int))
-        print('='*40)
+        if verbose:
+            print(brick_shape)
+            print(location)
+            for hh in range(h):
+                print('-'*40)
+                print(occupancy[:,:,hh].astype(int))
+            print('='*40)
     
     return bricks
 
 def compute_brick_transforms(bricks):
     stud_width = 20.
     brick_height = 24.
-    
-    #y_up = numpy.eye(4)
-    #y_up = numpy.array([
-    #        [1, 0, 0, 0],
-    #        [0,-1, 0, 0],
-    #        [0, 0,-1, 0],
-    #        [0, 0, 0, 1]])
     
     transforms = []
     for brick_shape, brick_location in bricks:
@@ -168,7 +163,6 @@ def compute_brick_transforms(bricks):
         if not o:
             rotation_offset = numpy.eye(4)
         else:
-            #rotation_offset = numpy.eye(4)
             rotation_offset = numpy.array([
                     [ 0, 0,-1, 0],
                     [ 0, 1, 0, 0],
@@ -182,7 +176,7 @@ def compute_brick_transforms(bricks):
                 [0, 0, 0, 1]])
         
         translation_offset = numpy.eye(4)
-        translation_offset[:3,3] = x*stud_width, y*brick_height, z*stud_width
+        translation_offset[:3,3] = x*stud_width, -y*brick_height, z*stud_width
         if o:
             translation_offset[0,3] += (brick_d-1) * stud_width
         
@@ -190,12 +184,11 @@ def compute_brick_transforms(bricks):
                 translation_offset,
                 rotation_offset,
                 pivot_offset)))
-                #y_up)))
 
     return transforms
 
 
-def bricks_to_mpd(bricks):
+def bricks_to_mpd(bricks, edges=()):
     transforms = compute_brick_transforms(bricks)
     
     shapes_to_parts = {
@@ -230,10 +223,107 @@ def bricks_to_mpd(bricks):
                 transform[2,2],
                 shapes_to_parts[shape])
     
+    for edge in edges:
+        mpd += '0 EDGE %i,%i\n'%edge
+    
     return mpd
 
-def test():
-    bricks = sample_model()
-    mpd = bricks_to_mpd(bricks)
-    with open('test.mpd', 'w') as f:
+def bricks_connect(brick_a, brick_b):
+    shape_a, location_a = brick_a
+    xa, za, ya, oa = location_a
+    shape_b, location_b = brick_b
+    xb, zb, yb, ob = location_b
+    
+    if abs(ya-yb) != 1:
+        return False
+
+    if not oa:
+        wa, da = shape_a
+    else:
+        da, wa = shape_a
+    if not ob:
+        wb, db = shape_b
+    else:
+        db, wb = shape_b
+    
+    min_xa = xa
+    max_xa = xa + wa
+    min_za = za
+    max_za = za + da
+    
+    min_xb = xb
+    max_xb = xb + wb
+    min_zb = zb
+    max_zb = zb + db
+    
+    if (min_xa < max_xb and
+        min_xb < max_xa and
+        min_za < max_zb and
+        min_zb < max_za):
+        return True
+    
+    else:
+        return False
+
+def get_edges(bricks, verbose=True):
+    edges = []
+    for i, brick_a in enumerate(bricks):
+        for j, brick_b in enumerate(bricks[i+1:]):
+            j = j+i+1
+            if bricks_connect(brick_a, brick_b):
+                edges.append((i,j))
+                if verbose:
+                    print('Edge: %i,%i'%(i,j))
+    
+    return edges
+
+def sample_mpd(
+        out_path = 'test.mpd',
+        min_bricks = 4,
+        max_bricks = 8,
+        w = 16,
+        d = 16,
+        h = 8,
+        verbose=True):
+    bricks = sample_stack(
+            min_bricks = min_bricks,
+            max_bricks = max_bricks,
+            w = w,
+            d = d,
+            h = h,
+            verbose = verbose)
+    edges = get_edges(bricks, verbose = verbose)
+    mpd = bricks_to_mpd(bricks, edges)
+    with open(out_path, 'w') as f:
         f.write(mpd)
+
+def sample_dataset(
+        out_directory,
+        train_size = 50000,
+        test_size = 10000,
+        min_bricks = 4,
+        max_bricks = 8,
+        w = 16,
+        d = 16,
+        h = 8,
+        verbose=False):
+    
+    train_directory = os.path.join(out_directory, 'train')
+    test_directory = os.path.join(out_directory, 'test')
+    for directory in out_directory, train_directory, test_directory:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    
+    for size, directory in (
+            (train_size, train_directory), (test_size, test_directory)):
+        print('%s: %i'%(directory, size))
+        for i in tqdm.tqdm(range(size)):
+            path = os.path.join(directory, 'model_%06i.mpd'%i)
+            sample_mpd(
+                    out_path = path,
+                    min_bricks = min_bricks,
+                    max_bricks = max_bricks,
+                    w = w,
+                    d = d,
+                    h = h,
+                    verbose = verbose)
