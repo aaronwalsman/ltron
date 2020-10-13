@@ -4,11 +4,8 @@ import configparser
 root_path = os.path.join(os.path.dirname(__file__), '..')
 setup_cfg_path = os.path.join(root_path, 'setup.cfg')
 
-print(setup_cfg_path)
-
 parser = configparser.ConfigParser()
 parser.read(setup_cfg_path)
-print(parser.sections())
 
 def resolve_path(path):
     if os.path.isabs(path):
