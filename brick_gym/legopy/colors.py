@@ -147,11 +147,3 @@ for i in range(10000):
     float_color = index_to_color(i)
     color = tuple(round(c*255) for c in float_color)
     mask_color_indices[color] = i
-    
-    '''
-    if i <= 50:
-        print('==')
-        print(color)
-        print(float_color)
-        print(tuple(f * 255 for f in float_color))
-    '''
