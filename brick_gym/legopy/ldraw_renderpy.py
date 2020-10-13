@@ -8,6 +8,8 @@ import renderpy.camera as camera
 import mpd
 import colors
 
+import brick_gym.config as config
+
 upright = numpy.array([
     [-1, 0, 0, 0],
     [ 0,-1, 0, 0],
@@ -15,11 +17,11 @@ upright = numpy.array([
     [ 0, 0, 0, 1]])
 
 def mpd_to_renderpy(mpd_data,
-        obj_directory,
         image_light_directory = None,
         ambient_color = (0,0,0)):
     
-    external_parts = os.listdir('../ldraw/parts')
+    obj_directory = config.paths['obj']
+    external_parts = os.listdir(os.path.join(config.paths['ldraw'], 'parts'))
     
     parts = mpd.parts_from_mpd(mpd_data, external_parts)
     unique_dats = set(part['file_name'] for part in parts)
@@ -40,7 +42,7 @@ def mpd_to_renderpy(mpd_data,
         'point_lights' : {},
         'direction_lights' : {},
         'camera' : {
-            'pose' : [0.0, 0, 0, 150, 0, 0],
+            'pose' : [0.0, -0.3, 0, 600, 0, 0],
             'projection' : projection
         }
     }

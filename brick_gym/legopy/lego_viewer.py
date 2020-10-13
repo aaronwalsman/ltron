@@ -8,7 +8,10 @@ import renderpy.core as core
 import renderpy.camera as camera
 import renderpy.interactive_camera as interactive_camera
 
-import colors
+import brick_gym.legopy.colors as colors
+import brick_gym.legopy.ldraw_renderpy as ldraw_renderpy
+
+default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/marienplatz'
 
 def start_viewer(
         file_path,
@@ -39,7 +42,16 @@ def start_viewer(
                 change_time = os.stat(file_path).st_mtime
                 if change_time != state['recent_file_change_time']:
                     camera_pose = renderer.get_camera_pose()
-                    renderer.load_scene(file_path, clear_existing=True)
+                    
+                    path, ext = os.path.splitext(file_path)
+                    if ext == '.json':
+                        scene = file_path
+                    elif ext in ('.ldr', '.mpd'):
+                        scene = ldraw_renderpy.mpd_to_renderpy(
+                                open(file_path),
+                                image_light_directory = default_image_light)
+                    
+                    renderer.load_scene(scene, clear_existing=True)
                     if state['recent_file_change_time'] != -1:
                         renderer.set_camera_pose(camera_pose)
                     state['recent_file_change_time'] = change_time
