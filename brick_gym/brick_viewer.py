@@ -8,10 +8,10 @@ import renderpy.core as core
 import renderpy.camera as camera
 import renderpy.interactive_camera as interactive_camera
 
-import brick_gym.legopy.colors as colors
-import brick_gym.legopy.ldraw_renderpy as ldraw_renderpy
+import brick_gym.ldraw.colors as colors
+import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
-default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/marienplatz'
+default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
 
 def start_viewer(
         file_path,
@@ -105,6 +105,10 @@ def start_viewer(
                 mesh_name = instance_data[instance_name]['mesh_name']
                 part_id = mesh_name.split('_')[-1]
                 print('Part ID: %s'%part_id)
+                print('Translation: %f, %f, %f'%(
+                        instance_data[instance_name]['transform'][0,3],
+                        instance_data[instance_name]['transform'][1,3],
+                        instance_data[instance_name]['transform'][2,3]))
         
         elif key == b'h':
             instance_id = get_instance_at_location(x, y)
