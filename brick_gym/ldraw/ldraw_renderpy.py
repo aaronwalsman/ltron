@@ -5,8 +5,8 @@ import numpy
 
 import renderpy.camera as camera
 
-import mpd
-import colors
+import brick_gym.ldraw.mpd as mpd
+import brick_gym.ldraw.colors as colors
 
 import brick_gym.config as config
 
@@ -29,9 +29,6 @@ def mpd_to_renderpy(mpd_data,
             os.path.splitext(unique_dat)[0] + '.obj'
             for unique_dat in unique_dats]
     
-    projection = camera.projection_matrix(
-            math.radians(70), 1, 1, 5000).tolist()
-    
     renderpy_data = {
         'image_lights' : {},
         'active_image_light' : 'background',
@@ -41,10 +38,6 @@ def mpd_to_renderpy(mpd_data,
         'ambient_color' : ambient_color,
         'point_lights' : {},
         'direction_lights' : {},
-        'camera' : {
-            'pose' : [0.0, -0.3, 0, 600, 0, 0],
-            'projection' : projection
-        }
     }
     
     if image_light_directory is not None:
@@ -73,8 +66,8 @@ def mpd_to_renderpy(mpd_data,
     unique_colors = set(part['color'] for part in parts)
     for unique_color in unique_colors:
         unique_color = int(unique_color)
-        if unique_color in colors.colors:
-            color = colors.colors[unique_color]
+        if unique_color in colors.color_index_to_alt_rgb:
+            color = colors.color_index_to_alt_rgb[unique_color]
         else:
             color = (128, 128, 128)
         texture = numpy.ones((16,16,3))
@@ -89,23 +82,66 @@ def mpd_to_renderpy(mpd_data,
             'kd' : 0.0,
             'ks' : 0.0,
             'shine' : 1.0,
-            'image_light_kd' : 0.8,
-            'image_light_ks' : 0.2,
-            'image_light_blur_reflection' : 3.0
+            'image_light_kd' : 0.75,
+            'image_light_ks' : 0.25,
+            'image_light_blur_reflection' : 2.0
         }
     
     # instances
+    min_x = float('inf')
+    min_y = float('inf')
+    min_z = float('inf')
+    max_x = float('-inf')
+    max_y = float('-inf')
+    max_z = float('-inf')
     for i, part in enumerate(parts):
         mesh_name = os.path.splitext(part['file_name'])[0]
         instance_name = 'instance_%i'%i
         part_count[mesh_name] += 1
         material_name = 'mat_%s'%part['color']
-        instance_mask_color = colors.index_to_color(i)
+        instance_mask_color = colors.index_to_mask_color(i)
+        part_transform = numpy.dot(upright, part['transform'])
         renderpy_data['instances'][instance_name] = {
             'mesh_name' : mesh_name,
             'material_name' : material_name,
-            'transform' : numpy.dot(upright, part['transform']).tolist(),
+            'transform' : part_transform.tolist(),
             'mask_color' : instance_mask_color
         }
+        x = part_transform[0,3]
+        y = part_transform[1,3]
+        z = part_transform[2,3]
+        min_x = min(min_x, x)
+        min_y = min(min_y, y)
+        min_z = min(min_z, z)
+        max_x = max(max_x, x)
+        max_y = max(max_y, y)
+        max_z = max(max_z, z)
+    
+    range_x = max_x - min_x
+    range_y = max_y - min_y
+    range_z = max_z - min_z
+    
+    center_x = range_x * 0.5 + min_x
+    center_y = range_y * 0.5 + min_y
+    center_z = range_z * 0.5 + min_z
+    
+    distance = max(range_x, range_y, range_z)*3
+    
+    camera_pose = camera.azimuthal_pose_to_matrix(
+            [-0.6, -0.3, 0, distance, 0, 0])
+    
+    center_translation = numpy.eye(4)
+    center_translation[0,3] -= center_x
+    center_translation[1,3] -= center_y
+    center_translation[2,3] -= center_z
+    camera_pose = numpy.dot(camera_pose, center_translation)
+    
+    projection = camera.projection_matrix(
+            math.radians(70), 1, 1, 5000).tolist()
+    
+    renderpy_data['camera'] = {
+        'pose' : camera_pose,
+        'projection' : projection
+    }
     
     return renderpy_data
