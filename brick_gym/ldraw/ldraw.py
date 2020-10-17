@@ -6,7 +6,7 @@ ldraw_parts_directories = [
         os.path.join(ldraw_directory, parts_directory
         for parts_directory in 'parts', 'p', 'models']
 
-def ldraw_to_numpy_matrix(elements):
+def matrix_ldraw_to_numpy(elements):
     assert len(elements) == 12
     (x, y, z,
      xx, xy, xz,
@@ -22,7 +22,7 @@ def ldraw_to_numpy_matrix(elements):
             [zx, zy, zz, z],
             [ 0,  0,  0, 1]])
 
-def ldraw_to_numpy_vectors(elements):
+def vectors_ldraw_to_numpy(elements):
     assert len(elements)%3 == 0
     return numpy.array([
             elements[0::3],
@@ -30,7 +30,7 @@ def ldraw_to_numpy_vectors(elements):
             elements[2::3],
             [1] * len(elements) // 3])
 
-def numpy_to_ldraw_vectors(vectors):
+def vectors_numpy_to_ldraw(vectors):
     num_elements = 3 * vectors.shape[1]
     vectors = vectors[:3,:]
     vectors = tuple(vectors.T.reshape(-1).tolist())
@@ -52,12 +52,6 @@ def resolve_ldraw_part_filepath(file_name):
         #    return os.path.join(parts_directory, file_name)
     
     raise LDRAWReferenceNotFoundError('Could not find part %s'%file_name)
-
-def ldraw_color_to_hex(color):
-    raise NotImplementedError
-
-def ldraw_color_to_complement_hex(color):
-    raise NotImplementedError
 
 def resolve_ldraw_references(
         ldraw_text,
