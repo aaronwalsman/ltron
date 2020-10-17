@@ -1,6 +1,7 @@
 __pycache__
 data
 demo
+runs
 *.swp
 *.swo
 *.egg-info

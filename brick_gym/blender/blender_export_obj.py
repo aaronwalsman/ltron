@@ -32,6 +32,7 @@ axis_forward = 'Z'
 axis_up = '-Y'
 
 def clear_scene(scene_name):
+    
     # if this scene name already exists somewhere, get rid of it
     for scene in bpy.data.scenes:
         if scene.name == scene_name:
@@ -48,6 +49,10 @@ def clear_scene(scene_name):
     for scene in bpy.data.scenes:
         if scene.name != scene_name:
             bpy.data.scenes.remove(scene)
+    
+    # HAHAHAHA, this just stops script execution.
+    # OOPS, it also forgets all your plugins!
+    #bpy.ops.wm.read_factory_settings(use_empty=True)
 
 def export_brick(brick, overwrite=False):
     brick_name, brick_ext = os.path.splitext(brick)
@@ -128,10 +133,20 @@ def export_carbon_star(overwrite=False):
             '50951.dat'):
         export_brick(brick, overwrite=overwrite)
 
+def export_test(overwrite=False):
+    for brick in ('87079.dat', '3068b.dat'):
+        export_brick(brick, overwrite=overwrite)
+
 def export_all(overwrite=False):
     bricks = os.listdir(part_directory)
+    with open('/home/awalsman/tmp.txt', 'w') as f:
+        f.write('\n'.join(bricks))
     for brick in bricks:
         import_brick_path = os.path.join(part_directory, brick)
         if os.path.isdir(import_brick_path):
             continue
         export_brick(brick, overwrite=overwrite)
+    
+        #if brick == '3002.dat':
+        #    print('bailing early!')
+        #    break
