@@ -4,7 +4,7 @@ import torch
 import tqdm
 
 import brick_gym.config as config
-import brick_gym.random_stack.random_stack_dataset as random_stack_dataset
+import brick_gym.random_stack.dataset as random_stack_dataset
 
 class SimpleEdgeModel(torch.nn.Module):
     def __init__(self,
