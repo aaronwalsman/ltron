@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import torch
 
+import numpy
+
 import PIL.Image as Image
 
 import tqdm
@@ -11,10 +13,13 @@ import brick_gym.config as config
 import brick_gym.ldraw.colors as colors
 import brick_gym.random_stack.dataset as random_stack_dataset
 
-train_dataset = random_stack_dataset.RandomStackSegmentationDataset(
-        config.paths['random_stack'], 'train', subset=None)
-train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=32, shuffle=True)
+mode = 'test' # train/test
+
+if mode == 'train':
+    train_dataset = random_stack_dataset.RandomStackSegmentationDataset(
+            config.paths['random_stack'], 'train', subset=None)
+    train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=32, shuffle=True)
 
 test_dataset = random_stack_dataset.RandomStackSegmentationDataset(
         config.paths['random_stack'], 'test', subset=None)
@@ -31,27 +36,7 @@ optim = torch.optim.Adam(model.parameters(), lr=3e-4)
 
 num_epochs = 10
 
-for epoch in range(1, num_epochs+1):
-    print('Epoch: %i'%epoch)
-    print('Train')
-    train_iterate = tqdm.tqdm(train_loader)
-    for images, targets in train_iterate:
-        images = images.cuda()
-        targets = targets.cuda()
-        logits = model(images)
-        loss = torch.nn.functional.cross_entropy(logits, targets)
-        
-        loss.backward()
-        optim.step()
-        optim.zero_grad()
-        
-        train_iterate.set_description('Loss: %.04f'%float(loss))
-    
-    checkpoint_path = './segmentation_checkpoint_%04i.pt'%epoch
-    print('Saving Checkpoint to: %s'%checkpoint_path)
-    torch.save(model.state_dict(), checkpoint_path)
-    
-    print('Test')
+def test_epoch(epoch):
     with torch.no_grad():
         correct = 0
         total = 0
@@ -72,7 +57,7 @@ for epoch in range(1, num_epochs+1):
             total_no_background += torch.sum(targets != 0)
             
             if i == 0:
-                # make some mask images
+                # make some images
                 batch_size, _, height, width = images.shape
                 target_mask_images = torch.zeros(
                         batch_size, 3, height, width, dtype=torch.uint8)
@@ -91,6 +76,11 @@ for epoch in range(1, num_epochs+1):
                             (prediction.cpu() == j).unsqueeze(1) * mask_color)
                 
                 for j in range(batch_size):
+                    color_image = images[j].permute(1,2,0).cpu().numpy()
+                    color_image = Image.fromarray(
+                            (color_image * 255).astype(numpy.uint8))
+                    color_image.save(
+                            './color_%i_%i.png'%(epoch, j))
                     target_mask_image = Image.fromarray(
                             target_mask_images[j].permute(1,2,0).numpy())
                     target_mask_image.save(
@@ -103,3 +93,34 @@ for epoch in range(1, num_epochs+1):
         print('Accuracy:               %f'%(float(correct)/total))
         print('Accuracy No Background: %f'%(
                 float(correct_no_background)/float(total_no_background)))
+
+if mode == 'train':
+    for epoch in range(1, num_epochs+1):
+        print('Epoch: %i'%epoch)
+        print('Train')
+        train_iterate = tqdm.tqdm(train_loader)
+        for images, targets in train_iterate:
+            images = images.cuda()
+            targets = targets.cuda()
+            logits = model(images)
+            loss = torch.nn.functional.cross_entropy(logits, targets)
+            
+            loss.backward()
+            optim.step()
+            optim.zero_grad()
+            
+            train_iterate.set_description('Loss: %.04f'%float(loss))
+        
+        checkpoint_path = './segmentation_checkpoint_%04i.pt'%epoch
+        print('Saving Checkpoint to: %s'%checkpoint_path)
+        torch.save(model.state_dict(), checkpoint_path)
+        
+        print('Test')
+        test_epoch(epoch)
+
+elif mode == 'test':
+    checkpoint = (
+            '../../runs/segmentation_train_001/segmentation_checkpoint_0010.pt')
+    state_dict = torch.load(checkpoint)
+    model.load_state_dict(state_dict)
+    test_epoch(10)

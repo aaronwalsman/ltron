@@ -68,7 +68,7 @@ class RandomStackEdgeDataset(Dataset):
         model_files = sorted(
                 model_file for model_file in os.listdir(model_directory)
                 if model_file[-4:] == '.mpd')
-        if subset:
+        if subset is not None:
             model_files = model_files[:subset]
         
         bricks, edges = bricks_edges_from_model_files(
@@ -85,16 +85,19 @@ class RandomStackEdgeDataset(Dataset):
 
 class RandomStackSegmentationDataset(Dataset):
     def __init__(self, directory, split, max_bricks_per_model=8, subset=None):
+        self.max_bricks_per_model = max_bricks_per_model
         self.image_directory = os.path.join(directory, split + '_render')
         self.image_files = sorted(
                 image_file for image_file in os.listdir(self.image_directory)
-                if image_file[-4:] == '.png')
-        if subset:
+                if image_file[:5] == 'color')
+        if subset is not None:
             self.image_files = self.image_files[:subset]
         
+        '''
         self.mask_files = [
                 image_file.replace('color_', 'mask_').replace('.png', '.npy')
                 for image_file in self.image_files]
+        '''
         
         model_directory = os.path.join(directory, split)
         model_files = list(sorted(set('model_%s.mpd'%(image_file.split('_')[1])
@@ -113,11 +116,26 @@ class RandomStackSegmentationDataset(Dataset):
         image_file = self.image_files[index]
         image_path = os.path.join(self.image_directory, image_file)
         image = transforms.functional.to_tensor(Image.open(image_path))
+        _, height, width = image.shape
         
-        # load mask
-        mask_file = self.mask_files[index]
+        # load masks
+        #mask_file = self.mask_files[index]
+        masks = numpy.zeros(
+                (height, width, self.max_bricks_per_model*2),
+                dtype = numpy.uint8)
+        for i in range(self.max_bricks_per_model*2):
+            mask_path = image_path.replace('color', 'mask')
+            mask_path = mask_path.replace('.png', '_%02i.png'%i)
+            try:
+                mask = numpy.array(Image.open(mask_path))
+                masks[:,:,i] = mask
+            except FileNotFoundError:
+                break
+        
+        '''
         mask_path = os.path.join(self.image_directory, mask_file)
         masks = numpy.load(open(mask_path, 'rb'))
+        '''
         target = torch.zeros((masks.shape[0], masks.shape[1]), dtype=torch.long)
         
         model_id = self.image_index_to_model_index[index]

@@ -73,19 +73,18 @@ def render_random_stack_dataset(
         
             renderer.set_camera_pose(camera_transform)
             
-            t0 = time.time()
             manager.enable_frame('color')
             renderer.color_render()
             color_image = manager.read_pixels('color')
-            t0 = time.time()
             color_path = os.path.join(
                     output_directory, 'color_%06i_%04i.png'%(i,j))
             color_image = Image.fromarray(color_image)
             color_image.save(color_path)
-            t0 = time.time()
+            '''
             mask_data = numpy.zeros(
                     (height, width, max_bricks_per_model*2),
                     dtype=numpy.uint8)
+            '''
             manager.enable_frame('mask')
             renderer.mask_render()
             occluded_mask = manager.read_pixels('mask')
@@ -95,17 +94,26 @@ def render_random_stack_dataset(
                 mask_color = instance_data['mask_color']
                 mask_color = colors.color_floats_to_ints(mask_color)
                 mask = colors.get_mask(occluded_mask, mask_color)
-                mask_data[:,:,instance_id*2] = mask
+                mask_path = os.path.join(
+                        output_directory,
+                        'mask_%06i_%04i_%02i.png'%(i,j,instance_id*2))
+                mask_image = Image.fromarray(mask)
+                mask_image.save(mask_path)
+                #mask_data[:,:,instance_id*2] = mask
                 
                 renderer.mask_render([instance_name])
                 unoccluded_mask = manager.read_pixels('mask')
                 mask = colors.get_mask(unoccluded_mask, mask_color)
-                mask_data[:,:,instance_id*2+1] = mask
-            t0 = time.time()
-            mask_path = os.path.join(
-                    output_directory, 'mask_%06i_%04i.npy'%(i,j))
-            with open(mask_path, 'wb') as f:
-                numpy.save(f, mask_data)
+                mask_path = os.path.join(
+                        output_directory,
+                        'mask_%06i_%04i_%02i.png'%(i,j,instance_id*2+1))
+                mask_image = Image.fromarray(mask)
+                mask_image.save(mask_path)
+                #mask_data[:,:,instance_id*2+1] = mask
+            #mask_path = os.path.join(
+            #        output_directory, 'mask_%06i_%04i.npy'%(i,j))
+            #with open(mask_path, 'wb') as f:
+            #    numpy.save(f, mask_data)
 
 if __name__ == '__main__':
     render_random_stack_dataset(
