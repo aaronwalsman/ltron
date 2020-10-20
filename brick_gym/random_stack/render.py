@@ -118,4 +118,4 @@ def render_random_stack_dataset(
 if __name__ == '__main__':
     render_random_stack_dataset(
             config.paths['random_stack'],
-            'test')
+            'train')
