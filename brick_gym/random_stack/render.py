@@ -15,7 +15,7 @@ import renderpy.core as core
 import renderpy.camera as camera
 
 import brick_gym.config as config
-import brick_gym.ldraw.colors as colors
+import brick_gym.ldraw.masks as masks
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
 default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
@@ -92,8 +92,8 @@ def render_random_stack_dataset(
             for instance_name, instance_data in scene['instances'].items():
                 instance_id = int(instance_name.split('_')[-1])
                 mask_color = instance_data['mask_color']
-                mask_color = colors.color_floats_to_ints(mask_color)
-                mask = colors.get_mask(occluded_mask, mask_color)
+                mask_color = masks.color_floats_to_ints(mask_color)
+                mask = masks.get_mask(occluded_mask, mask_color)
                 mask_path = os.path.join(
                         output_directory,
                         'mask_%06i_%04i_%02i.png'%(i,j,instance_id*2))
@@ -103,7 +103,7 @@ def render_random_stack_dataset(
                 
                 renderer.mask_render([instance_name])
                 unoccluded_mask = manager.read_pixels('mask')
-                mask = colors.get_mask(unoccluded_mask, mask_color)
+                mask = masks.get_mask(unoccluded_mask, mask_color)
                 mask_path = os.path.join(
                         output_directory,
                         'mask_%06i_%04i_%02i.png'%(i,j,instance_id*2+1))

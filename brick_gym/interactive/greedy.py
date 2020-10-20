@@ -11,13 +11,13 @@ def train_greedy(
         num_batches = 128,
         batch_size = 16):
     
-    for batch in tqdm.tqdm(num_batches):
+    for batch in tqdm.tqdm(range(num_batches)):
         observations = []
         rewards = torch.zeros(batch_size, num_actions)
         for b in range(batch_size):
             observation = env.reset()
             state = env.get_state()
-            for i, action in range(num_actions):
+            for i, action in enumerate(range(num_actions)):
                 _, reward, _, info = env.step(action)
                 env.reset(state = state, render=False)
                 rewards[b,i] = reward

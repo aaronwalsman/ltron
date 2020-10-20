@@ -160,6 +160,7 @@ color_index_to_alt_rgb[503]= (199, 193, 183)
 color_index_to_alt_rgb[504]= (137, 135, 136)
 color_index_to_alt_rgb[511]= (250, 250, 250)
 
+'''
 def halton_sequence(index, base):
     f = 1
     r = 0
@@ -181,14 +182,6 @@ def halton_mask_color(index):
     #b = round(b * 255) / 255
     
     return r,g,b
-
-'''
-def float_to_color_byte(f):
-    if f >= 1.0:
-        return 255
-    else:
-        return int(f * 256)
-'''
 
 def color_float_to_int(f):
     return round(f * 255)
@@ -230,45 +223,4 @@ def get_mask(mask, mask_color):
     close_enough = difference <= 1
     mask = numpy.all(close_enough, axis=2)
     return mask
-'''
-for i in range(10000):
-    index_to_mask_color(i)
-
-print(halton_index)
-ljlkjl
-'''
-
-'''
-for i in range(10000):
-    float_color = index_to_mask_color(i)
-    color = tuple(float_to_color_byte(c) for c in float_color)
-    #mask_color_indices[color] = i
-    
-    for r in -1, 0, 1:
-        for g in -1, 0, 1:
-            for b in -1, 0, 1:
-                offset_color = (color[0]+r, color[1]+g, color[2]+b)
-                if offset_color in mask_color_indices:
-                    print('Collision at index %i'%i)
-                mask_color_indices[offset_color] = i
-'''
-'''
-def mask_color_to_index(mask_color):
-    offsets = [
-        ( 0, 0, 0),
-        ( 1, 0, 0),
-        ( 0, 1, 0),
-        ( 0, 0, 1),
-        (-1, 0, 0),
-        ( 0,-1, 0),
-        ( 0, 0,-1),
-        ( 1, 1, 0),
-        ( 1, 0, 1),
-        ( 0, 1, 1),
-        (-1
-    for offset in offsets:
-        try:
-            return mask_color_indices[mask_color]
-        except KeyError:
-            pass
 '''

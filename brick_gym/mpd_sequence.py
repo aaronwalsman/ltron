@@ -44,10 +44,16 @@ class MPDSequence:
         # initialize renderpy
         self.manager = buffer_manager.initialize_shared_buffer_manager(
                 width, height)
-        self.manager.add_frame(
-                'color', width=width, height=height, anti_aliasing=True)
-        self.manager.add_frame(
-                'mask', width=width, height=height, anti_aliasing=True)
+        try:
+            self.manager.add_frame(
+                    'color', width=width, height=height, anti_aliasing=True)
+        except buffer_manager.FrameExistsError:
+            pass
+        try:
+            self.manager.add_frame(
+                    'mask', width=width, height=height, anti_aliasing=True)
+        except buffer_manager.FrameExistsError:
+            pass
         self.renderer = core.Renderpy()
         self.first_load = False
     
@@ -89,12 +95,14 @@ class MPDSequence:
         self.manager.enable_frame('color')
         self.renderer.color_render()
         color_image = self.manager.read_pixels('color')
+        self.recent_color = color_image
         
         self.manager.enable_frame('mask')
         self.renderer.mask_render()
         mask_image = self.manager.read_pixels('mask')
+        self.recent_mask = mask_image
         
-        return color_image, mask_image
+        return color_image
     
     def render(self, mode='human', close=False):
         # TODO : Make this happen

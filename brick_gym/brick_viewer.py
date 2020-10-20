@@ -8,7 +8,7 @@ import renderpy.core as core
 import renderpy.camera as camera
 import renderpy.interactive_camera as interactive_camera
 
-import brick_gym.ldraw.colors as colors
+import brick_gym.ldraw.masks as masks
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
 default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
@@ -83,7 +83,7 @@ def start_viewer(
         color = tuple(state['part_mask'][y,x])
         if color == (0,0,0):
             return None
-        instance_id = colors.mask_color_indices[color]
+        instance_id = masks.mask_color_indices[color]
         return instance_id
     
     def keypress(key, x, y):

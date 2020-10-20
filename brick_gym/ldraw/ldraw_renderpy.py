@@ -6,6 +6,7 @@ import numpy
 import renderpy.camera as camera
 
 import brick_gym.ldraw.mpd as mpd
+import brick_gym.masks as masks
 import brick_gym.ldraw.colors as colors
 
 import brick_gym.config as config
@@ -99,7 +100,7 @@ def mpd_to_renderpy(mpd_data,
         instance_name = 'instance_%i'%i
         part_count[mesh_name] += 1
         material_name = 'mat_%s'%part['color']
-        instance_mask_color = colors.index_to_mask_color(i)
+        instance_mask_color = masks.index_to_mask_color(i)
         part_transform = numpy.dot(upright, part['transform'])
         renderpy_data['instances'][instance_name] = {
             'mesh_name' : mesh_name,

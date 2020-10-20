@@ -2,7 +2,7 @@ import math
 
 import gym
 
-from brick_gym.viewpoint import AzimuthElevationViewpoint
+from brick_gym.viewpoint_control import AzimuthElevationViewpointControl
 from brick_gym.mpd_sequence import MPDSequence
 
 class ViewpointEnv(gym.Env):
@@ -20,7 +20,7 @@ class ViewpointEnv(gym.Env):
             elevation_range = (-math.pi/3, math.pi/3),
             subset=None):
         
-        self.viewpoint = AzimuthElevationViewpoint(
+        self.viewpoint = AzimuthElevationViewpointControl(
                 distance = distance,
                 azimuth_steps = azimuth_steps,
                 elevation_steps = elevation_steps,
@@ -50,10 +50,11 @@ class ViewpointEnv(gym.Env):
     
     def step(self, action):
         self.viewpoint.step(action)
-        camera_pose = viewpoint.get_transform()
+        camera_pose = self.viewpoint.get_transform()
         self.mpd_sequence.set_camera_pose(camera_pose)
-        observation, instance_mask = self.mpd_sequence.observe()
-        reward = self.reward_function(observation, instance_mask)
+        observation = self.mpd_sequence.observe()
+        reward = self.reward_function(
+                observation, self.mpd_sequence.recent_mask)
         done = False
         
         return observation, reward, done, {}

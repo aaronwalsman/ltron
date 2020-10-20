@@ -10,7 +10,7 @@ import tqdm
 import segmentation_models_pytorch
 
 import brick_gym.config as config
-import brick_gym.ldraw.colors as colors
+import brick_gym.ldraw.masks as masks
 import brick_gym.random_stack.dataset as random_stack_dataset
 
 mode = 'test' # train/test
@@ -64,8 +64,8 @@ def test_epoch(epoch):
                 predicted_mask_images = torch.zeros(
                         batch_size, 3, height, width, dtype=torch.uint8)
                 for j in range(7):
-                    mask_color = colors.color_floats_to_ints(
-                            colors.index_to_mask_color(j))
+                    mask_color = masks.color_floats_to_ints(
+                            masks.index_to_mask_color(j))
                     mask_color = torch.ByteTensor(mask_color)
                     mask_color = (
                             mask_color.unsqueeze(0).unsqueeze(2).unsqueeze(3))

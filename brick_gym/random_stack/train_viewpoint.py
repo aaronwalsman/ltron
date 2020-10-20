@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import torch
+from torchvision.transforms.functional import to_tensor
 
 import numpy
 
@@ -13,12 +14,12 @@ import segmentation_models_pytorch
 
 import brick_gym
 import brick_gym.config as config
-import brick_gym.ldraw.colors as colors
+import brick_gym.masks as masks
 import brick_gym.interactive.greedy as greedy
 
 mode = 'train' # train/test
 
-score_model = segmentation_models_pytorch.FPN(
+segmentation_model = segmentation_models_pytorch.FPN(
         encoder_name = 'se_resnext50_32x4d',
         encoder_weights = 'imagenet',
         classes = 7,
@@ -26,12 +27,16 @@ score_model = segmentation_models_pytorch.FPN(
 checkpoint = (
         '../../runs/segmentation_train_001/segmentation_checkpoint_0010.pt')
 state_dict = torch.load(checkpoint)
-score_model.load_state_dict(state_dict)
+segmentation_model.load_state_dict(state_dict)
 
 def reward_function(image, mask):
-    print(image.shape)
-    print(mask.shape)
-    return 1.0
+    image = to_tensor(image).unsqueeze(0).cuda()
+    logits = segmentation_model(image)
+    
+    for i in range(7):
+        mask = masks.get_mask
+    with torch.no_grad():
+        
 
 if mode == 'train':
     train_env = gym.make('viewpoint-v0',
@@ -44,9 +49,29 @@ test_env = gym.make('viewpoint-v0',
         split = 'test',
         reward_function = reward_function)
 
-model = Thing
+class ViewpointModel(torch.nn.Module):
+    def __init__(self, segmentation_model):
+        super(ViewpointModel, self).__init__()
+        self.segmentation_model = segmentation_model
+        self.linear1 = torch.nn.Linear(2048, 512)
+        self.linear2 = torch.nn.Linear(512, 512)
+        self.linear3 = torch.nn.Linear(512, 512)
+        self.linear4 = torch.nn.Linear(512, 5)
+    
+    def forward(self, x):
+        x = self.segmentation_model.encoder(x)[-1]
+        x = torch.mean(x, dim=(2,3))
+        x = self.linear1(x)
+        x = torch.nn.functional.relu(x)
+        x = self.linear2(x)
+        x = torch.nn.functional.relu(x)
+        x = self.linear3(x)
+        x = torch.nn.functional.relu(x)
+        return self.linear4(x)
 
-optim = torch.optim.Adam(model.parameters(), lr=3e-4)
+viewpoint_model = ViewpointModel(segmentation_model)
+
+optimizer = torch.optim.Adam(viewpoint_model.parameters(), lr=3e-4)
 
 num_epochs = 10
 
@@ -78,8 +103,8 @@ def test_epoch(epoch):
                 predicted_mask_images = torch.zeros(
                         batch_size, 3, height, width, dtype=torch.uint8)
                 for j in range(7):
-                    mask_color = colors.color_floats_to_ints(
-                            colors.index_to_mask_color(j))
+                    mask_color = masks.color_floats_to_ints(
+                            masks.index_to_mask_color(j))
                     mask_color = torch.ByteTensor(mask_color)
                     mask_color = (
                             mask_color.unsqueeze(0).unsqueeze(2).unsqueeze(3))
@@ -114,7 +139,8 @@ if mode == 'train':
         print('Train')
         greedy.train_greedy(
                 train_env,
-                model,
+                viewpoint_model,
+                optimizer,
                 num_actions = 5,
                 num_batches = 128,
                 batch_size = 16)

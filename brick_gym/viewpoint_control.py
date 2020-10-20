@@ -4,16 +4,19 @@ from gym import spaces
 
 import renderpy.camera as camera
 
-class AzimuthElevationViewpoint:
+class AzimuthElevationViewpointControl:
     def __init__(self,
             distance = 500,
             azimuth_steps = 24,
             elevation_steps = 7,
-            elevation_range = (-math.pi/3, math.pi/3)):
+            elevation_range = (-math.pi/3, math.pi/3),
+            viewpoint_reset_mode = 'centered'):
         
+        self.distance = distance
         self.azimuth_steps = azimuth_steps
         self.elevation_steps = elevation_steps
         self.elevation_range = elevation_range
+        self.viewpoint_reset_mode = viewpoint_reset_mode
         
         self.azimuth_index = 0
         self.elevation_index = 0
@@ -27,7 +30,9 @@ class AzimuthElevationViewpoint:
                 (self.elevation_range[1] - self.elevation_range[0]) +
                 self.elevation_range[0])
         
-        return camera.whatever
+        return camera.azimuthal_pose_to_matrix(
+                [self.azimuth, self.elevation, 0.0, self.distance, 0.0, 0.0],
+                center=(0,0,0))
     
     def get_state(self):
         return self.azimuth_index, self.elevation_index
@@ -57,6 +62,9 @@ class AzimuthElevationViewpoint:
             if self.viewpoint_reset_mode == 'random':
                 self.azimuth_index = random.randint(0, self.azimuth_steps-1)
                 self.elevation_index = random.randint(0, self.elevation_steps-1)
+            elif self.viewpoint_reset_mode == 'centered':
+                self.azimuth_index = 0
+                self.elevation_index = math.ceil(self.elevation_steps/2)
             elif isinstance(self.viewpoint_reset_mode, tuple):
                 self.azimuth_index = self.viewpoint_reset_mode[0]
                 self.elevation_index = self.viewpoint_reset_mode[1]
