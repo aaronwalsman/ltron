@@ -12,9 +12,10 @@ import gym
 
 import segmentation_models_pytorch
 
+import renderpy.masks as masks
+
 import brick_gym
 import brick_gym.config as config
-import brick_gym.masks as masks
 import brick_gym.interactive.greedy as greedy
 
 mode = 'train' # train/test
@@ -30,13 +31,21 @@ state_dict = torch.load(checkpoint)
 segmentation_model.load_state_dict(state_dict)
 
 def reward_function(image, mask):
-    image = to_tensor(image).unsqueeze(0).cuda()
-    logits = segmentation_model(image)
-    
-    for i in range(7):
-        mask = masks.get_mask
+    #print('0 vvv this is the non-writable numpy thing')
+    image = to_tensor(image.copy()).unsqueeze(0).cuda()
+    #print('A')
+    #mimage = Image.fromarray(mask)
+    #mimage.save('./tmp.png')
+    #print(numpy.max(mask))
+    target = torch.LongTensor(
+            masks.color_byte_to_index(mask)).unsqueeze(0).cuda()
+    #print(torch.max(target))
     with torch.no_grad():
-        
+        logits = segmentation_model(image)
+        reward = -torch.nn.functional.cross_entropy(logits, target)
+        #print(reward)
+    
+    return reward
 
 if mode == 'train':
     train_env = gym.make('viewpoint-v0',

@@ -60,8 +60,10 @@ class ViewpointEnv(gym.Env):
         return observation, reward, done, {}
     
     def reset(self, state=None, render=True):
-        self.episode_steps = 0
-        self.viewpoint.reset(state)
+        self.mpd_sequence.increment_scene()
+        center = self.mpd_sequence.scene_center
+        distance = self.mpd_sequence.scene_distance
+        self.viewpoint.reset(state, center=center, distance=distance)
         self.mpd_sequence.set_camera_pose(self.viewpoint.get_transform())
         
         if render:

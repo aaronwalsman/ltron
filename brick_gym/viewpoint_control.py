@@ -7,12 +7,14 @@ import renderpy.camera as camera
 class AzimuthElevationViewpointControl:
     def __init__(self,
             distance = 500,
+            center = (0,0,0),
             azimuth_steps = 24,
             elevation_steps = 7,
             elevation_range = (-math.pi/3, math.pi/3),
             viewpoint_reset_mode = 'centered'):
         
         self.distance = distance
+        self.center = center
         self.azimuth_steps = azimuth_steps
         self.elevation_steps = elevation_steps
         self.elevation_range = elevation_range
@@ -32,7 +34,7 @@ class AzimuthElevationViewpointControl:
         
         return camera.azimuthal_pose_to_matrix(
                 [self.azimuth, self.elevation, 0.0, self.distance, 0.0, 0.0],
-                center=(0,0,0))
+                center=self.center)
     
     def get_state(self):
         return self.azimuth_index, self.elevation_index
@@ -54,7 +56,11 @@ class AzimuthElevationViewpointControl:
         elif action == 4:
             pass
     
-    def reset(self, state=None):
+    def reset(self, state=None, center=None, distance=None):
+        if center is not None:
+            self.center = center
+        if distance is not None:
+            self.distance = distance
         if state is not None:
             self.azimuth_index = state[0]
             self.elevation_index = state[1]

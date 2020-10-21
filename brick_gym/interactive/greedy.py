@@ -15,6 +15,7 @@ def train_greedy(
         observations = []
         rewards = torch.zeros(batch_size, num_actions)
         for b in range(batch_size):
+            print(b)
             observation = env.reset()
             state = env.get_state()
             for i, action in enumerate(range(num_actions)):

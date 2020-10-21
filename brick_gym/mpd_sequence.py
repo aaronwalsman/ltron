@@ -9,8 +9,17 @@ import renderpy.buffer_manager_glut as buffer_manager
 import renderpy.core as core
 
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
+import brick_gym.random_stack.dataset as random_stack_dataset
 
-default_image_light = '/home/awalsman/Development/renderpy/renderpy/            example_image_lights/grey_cube'
+default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
+
+mesh_indices = {
+    '3005' : 1,
+    '3004' : 2,
+    '3003' : 3,
+    '3002' : 4,
+    '3001' : 5,
+    '2456' : 6}
 
 class MPDSequence:
     def __init__(self,
@@ -20,6 +29,9 @@ class MPDSequence:
             model_selection_mode = 'random',
             width = 256,
             height = 256):
+        
+        self.scene_center = (0,0,0)
+        self.scene_distance = 0
         
         self.observation_space = spaces.Box(
                 low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
@@ -36,10 +48,10 @@ class MPDSequence:
         self.model_selection_mode = model_selection_mode
         if self.model_selection_mode == 'random':
             self.model_id = random.randint(0, len(self.model_files)-1)
-        elif model_selection_mode == 'sequential':
+        elif self.model_selection_mode == 'sequential':
             self.model_id = 0
-        elif isinstance(model_selection_mode, int):
-            self.model_id = model_selection_mode
+        elif isinstance(self.model_selection_mode, int):
+            self.model_id = self.model_selection_mode
         
         # initialize renderpy
         self.manager = buffer_manager.initialize_shared_buffer_manager(
@@ -51,7 +63,7 @@ class MPDSequence:
             pass
         try:
             self.manager.add_frame(
-                    'mask', width=width, height=height, anti_aliasing=True)
+                    'mask', width=width, height=height, anti_aliasing=False)
         except buffer_manager.FrameExistsError:
             pass
         self.renderer = core.Renderpy()
@@ -59,7 +71,8 @@ class MPDSequence:
     
     def load_model_file(self):
         # convert the mpd file to a renderpy scene
-        model_path = self.model_files[self.model_id]
+        model_path = os.path.join(
+                self.model_directory, self.model_files[self.model_id])
         with open(model_path, 'r') as model_file:
             scene_data = ldraw_renderpy.mpd_to_renderpy(
                     model_file,
@@ -68,23 +81,30 @@ class MPDSequence:
         # clear and load just the new instances, we don't need to reload meshes
         # this is awkward, renderpy should add a function to do this
         if not self.first_load:
-            renderer.load_scene(scene_data, clear_existing=True)
+            self.renderer.load_scene(scene_data, clear_existing=True)
         else:
-            renderer.clear_instances()
+            self.renderer.clear_instances()
             for mesh, mesh_data in scene_data['meshes'].items():
-                if not renderer.mesh_exists(mesh):
-                    renderer.load_mesh(mesh, **mesh_data)
-            renderer.load_scene(
+                if not self.renderer.mesh_exists(mesh):
+                    self.renderer.load_mesh(mesh, **mesh_data)
+            self.renderer.load_scene(
                     {'instances' : scene_data['instances'],
                      'camera' : scene_data['camera']},
                     clear_existing = False)
+        
+        bbox_min, bbox_max = self.renderer.get_instance_center_bbox()
+        bbox_range = bbox_max - bbox_min
+        self.scene_center = bbox_min + bbox_range * 0.5
+        self.scene_distance = numpy.max(bbox_range) * 3
+        
+        self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
     
     def increment_scene(self):
-        if model_selection_mode == 'random':
-            self.model_id = random.randint(0, len(self.model_files-1))
+        if self.model_selection_mode == 'random':
+            self.model_id = random.randint(0, len(self.model_files)-1)
             self.load_model_file()
         
-        elif model_selection_mode == 'sequential':
+        elif self.model_selection_mode == 'sequential':
             self.model_id = (self.model_id + 1)%len(self.model_files)
             self.load_model_file()
     
