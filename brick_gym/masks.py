@@ -68,3 +68,6 @@ def get_mask(mask, mask_color):
     close_enough = difference <= 1
     mask = numpy.all(close_enough, axis=2)
     return mask
+
+def segmentation_target(mask):
+    
