@@ -1,9 +1,12 @@
+#!/usr/bin/env python
 import random
 import os
 
 import tqdm
 
 import numpy
+
+import brick_gym.config as config
 
 # brick shape (w, d)
 # brick location (x, z, y, o)
@@ -327,3 +330,7 @@ def sample_dataset(
                     d = d,
                     h = h,
                     verbose = verbose)
+
+if __name__ == '__main__':
+    random.seed(1234)
+    sample_dataset(config.paths['random_stack'])

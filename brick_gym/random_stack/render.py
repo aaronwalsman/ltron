@@ -15,7 +15,6 @@ import renderpy.core as core
 import renderpy.camera as camera
 
 import brick_gym.config as config
-import brick_gym.ldraw.masks as masks
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
 default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
@@ -41,8 +40,14 @@ def render_random_stack_dataset(
     
     manager = buffer_manager.initialize_shared_buffer_manager(width, height)
     renderer = core.Renderpy()
-    manager.add_frame('color', width, height, anti_aliasing=True)
-    manager.add_frame('mask', width, height, anti_aliasing=False)
+    try:
+        manager.add_frame('color', width, height, anti_aliasing=True)
+    except buffer_manager.FrameExistsError:
+        pass
+    try:
+        manager.add_frame('mask', width, height, anti_aliasing=False)
+    except buffer_manager.FrameExistsError:
+        pass
     
     for i, model_file in enumerate(tqdm.tqdm(model_files)):
         with open(os.path.join(model_directory, model_file)) as f:
@@ -88,9 +93,15 @@ def render_random_stack_dataset(
             manager.enable_frame('mask')
             renderer.mask_render()
             occluded_mask = manager.read_pixels('mask')
+            occluded_mask_image = Image.fromarray(occluded_mask)
+            mask_path = os.path.join(
+                    output_directory,
+                    'mask_%06i_%04i.png'%(i,j))
+            occluded_mask_image.save(mask_path)
             
             for instance_name, instance_data in scene['instances'].items():
                 instance_id = int(instance_name.split('_')[-1])
+                '''
                 mask_color = instance_data['mask_color']
                 mask_color = masks.color_floats_to_ints(mask_color)
                 mask = masks.get_mask(occluded_mask, mask_color)
@@ -100,9 +111,10 @@ def render_random_stack_dataset(
                 mask_image = Image.fromarray(mask)
                 mask_image.save(mask_path)
                 #mask_data[:,:,instance_id*2] = mask
-                
+                '''
                 renderer.mask_render([instance_name])
                 unoccluded_mask = manager.read_pixels('mask')
+                '''
                 mask = masks.get_mask(unoccluded_mask, mask_color)
                 mask_path = os.path.join(
                         output_directory,
@@ -110,12 +122,23 @@ def render_random_stack_dataset(
                 mask_image = Image.fromarray(mask)
                 mask_image.save(mask_path)
                 #mask_data[:,:,instance_id*2+1] = mask
+                '''
+                mask_path = os.path.join(
+                        output_directory,
+                        'mask_%06i_%04i_%02i.png'%(i,j,instance_id))
+                mask_image = Image.fromarray(unoccluded_mask)
+                mask_image.save(mask_path)
+                
             #mask_path = os.path.join(
             #        output_directory, 'mask_%06i_%04i.npy'%(i,j))
             #with open(mask_path, 'wb') as f:
             #    numpy.save(f, mask_data)
 
 if __name__ == '__main__':
+    random.seed(1234)
+    #render_random_stack_dataset(
+    #        config.paths['random_stack'],
+    #        'test')
     render_random_stack_dataset(
             config.paths['random_stack'],
             'train')
