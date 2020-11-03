@@ -9,11 +9,11 @@ import renderpy.camera as camera
 
 # TODO: Inherit from superclass ViewpointControl that contains camera projection
 
-class AzimuthElevationViewpoint:
+class AzimuthalViewpoint:
     def __init__(self,
             bbox = ((0,0,0), (0,0,0))):
         
-        self.action_space = spaces.discrete(1)
+        self.action_space = spaces.Discrete(1)
         self.observation_space = None # TODO
         
         self.set_bbox(bbox)
@@ -21,9 +21,9 @@ class AzimuthElevationViewpoint:
     def set_bbox(self, bbox):
         self.bbox = bbox
         bbox_min, bbox_max = bbox
-        box_range = numpy.array(bbox_max) - numpy.array(bbox_min)
+        bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
         self.center = bbox_min + bbox_range * 0.5
-        self.distance = numpy.max(bbox_range) * 3
+        self.distance = numpy.max(bbox_range) * 3.0
     
     def get_azimuth_elevation(self):
         return NotImplementedError

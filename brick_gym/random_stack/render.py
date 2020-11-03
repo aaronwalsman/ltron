@@ -34,7 +34,7 @@ def render_random_stack_dataset(
             model_file for model_file in os.listdir(model_directory)
             if model_file[-4:] == '.mpd')
     
-    output_directory = os.path.join(directory, split + '_render')
+    output_directory = os.path.join(directory, split + '_%i_render'%width)
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
     
@@ -136,9 +136,9 @@ def render_random_stack_dataset(
 
 if __name__ == '__main__':
     random.seed(1234)
-    #render_random_stack_dataset(
-    #        config.paths['random_stack'],
-    #        'test')
     render_random_stack_dataset(
             config.paths['random_stack'],
-            'train')
+            'test', width=128, height=128)
+    render_random_stack_dataset(
+            config.paths['random_stack'],
+            'train', width=128, height=128)

@@ -25,4 +25,4 @@ if os.path.exists(config.paths['ldraw']):
 else:
     print('extracting LDraw contents to: %s'%config.paths['ldraw'])
     with zipfile.ZipFile(complete_zip_path, 'r') as z:
-        z.extractall(config.paths['ldraw'])
+        z.extractall(config.paths['data'])

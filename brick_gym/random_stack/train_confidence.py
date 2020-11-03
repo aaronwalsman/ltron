@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
         '--train-on-test', action='store_true')
 
-confidence_class_weights = torch.FloatTensor([10, 0.1]).cuda()
+confidence_class_weights = torch.FloatTensor([1, 0.01]).cuda()
 
 args = parser.parse_args()
 

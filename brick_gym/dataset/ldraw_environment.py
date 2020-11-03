@@ -7,7 +7,9 @@ from gym import spaces
 
 import renderpy.buffer_manager_glut as buffer_manager
 import renderpy.core as core
+import renderpy.masks as masks
 
+#import brick_gym.dataset.path_list as path_list
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 import brick_gym.random_stack.dataset as random_stack_dataset
 
@@ -21,22 +23,42 @@ mesh_indices = {
     '3001' : 5,
     '2456' : 6}
 
-class MPDSequence:
+'''
+class LDrawLoader:
+    def __init__(self,
+            dataset_directory,
+            split_name,
+            subset,
+            rank = 0,
+            size = 1):
+        
+        self.paths = path_list.PathList(
+                dataset_directory,
+                split_name,
+                subset,
+                rank,
+                size)
+    
+    def load_model(self, model_id, force=False):
+        #if model_id != self.loaded_model_id or force:
+        # convert the mpd file to a renderpy scene
+        model_path = os.path.join(
+                self.model_directory, self.paths[model_id])
+        self.environment.load_model(model_path, force=force)
+'''
+
+class LDrawEnvironment:
     def __init__(self,
             viewpoint_control,
-            directory,
-            split,
-            subset = None,
-            reset_mode = 'random',
             width = 256,
             height = 256):
         
         self.viewpoint_control = viewpoint_control
         self.action_space = self.viewpoint_control.action_space
-        
         self.observation_space = spaces.Box(
                 low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
         
+        '''
         # find all model files
         self.model_directory = os.path.join(directory, split)
         self.model_files = sorted(
@@ -44,10 +66,10 @@ class MPDSequence:
                 if model_file[-4:] == '.mpd')
         if subset is not None:
             self.model_files = self.model_files[:subset]
-        
-        # initialize the loaded_model_id
-        self.reset_mode = reset_mode
-        self.loaded_model_id = None
+        '''
+        # initialize the loaded_model_path
+        #self.reset_mode = reset_mode
+        self.loaded_model_path = None
         
         # initialize renderpy
         self.manager = buffer_manager.initialize_shared_buffer_manager(
@@ -65,11 +87,9 @@ class MPDSequence:
         self.renderer = core.Renderpy()
         self.first_load = False
     
-    def load_model_file(self, model_id, force=False):
-        if model_id != self.loaded_model_id or force:
+    def load_path(self, model_path, force=False):
+        if model_path != self.loaded_model_path or force:
             # convert the mpd file to a renderpy scene
-            model_path = os.path.join(
-                    self.model_directory, self.model_files[model_id])
             with open(model_path, 'r') as model_file:
                 scene_data = ldraw_renderpy.mpd_to_renderpy(
                         model_file,
@@ -95,19 +115,34 @@ class MPDSequence:
             
             self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
             
-            self.loaded_model_id = model_id
+            self.loaded_model_path = model_path
     
-    def get_state(self):
-        return self.loaded_model_id, self.viewpoint_control.get_state()
+    def get_brick_at_pixel(self, x, y):
+        self.manager.enable_frame('mask')
+        instance_indices = {
+                name:int(name.split('_')[-1])
+                for name in self.renderer.list_instances()}
+        self.renderer.set_instance_masks_to_instance_indices(instance_indices)
+        self.renderer.mask_render()
+        mask = self.manager.read_pixels('mask')
+        self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
+        
+        indices = masks.color_byte_to_index(mask)
+        instance_index = indices[y,x]
+        if instance_index == 0:
+            return None
+        else:
+            instance_name = 'instance_%i'%instance_index
+            return instance_name
     
-    def set_state(self, state):
-        model_id, viewpoint_state = state
-        if viewpoint_state is not None:
-            self.viewpoint_control.set_state(viewpoint_state)
-        self.load_model_file(model_id)
+    def hide_brick_at_pixel(self, x, y):
+        instance_name = self.get_brick_at_pixel(x, y)
+        if instance_name is not None:
+            self.renderer.hide_instance(instance_name)
     
     def reset_state(self):
         self.viewpoint_control.reset()
+        '''
         if self.reset_mode == 'random':
             model_id = random.randint(0, len(self.model_files)-1)
         elif self.reset_mode == 'sequential':
@@ -119,26 +154,30 @@ class MPDSequence:
             model_id = self.reset_mode
         
         self.set_state((model_id, None))
+        '''
     
     def reset(self):
         self.reset_state()
         return self.observe()
     
-    def observe(self):
-        self.renderer.set_camera_pose(self.viewpoint_control.get_transform())
+    def observe(self, mode='color'):
+        self.renderer.set_camera_pose(self.viewpoint_control.observe())
         
-        self.manager.enable_frame('color')
-        self.renderer.color_render()
-        color_image = self.manager.read_pixels('color')
+        if mode == 'color':
+            self.manager.enable_frame('color')
+            self.renderer.color_render()
+            image = self.manager.read_pixels('color')
         
-        self.manager.enable_frame('mask')
-        self.renderer.mask_render()
-        mask_image = self.manager.read_pixels('mask')
+        elif mode == 'mask':
+            self.manager.enable_frame('mask')
+            self.renderer.mask_render()
+            image = self.manager.read_pixels('mask')
         
-        return color_image, mask_image
+        return image
     
     def step(self, action):
         self.viewpoint_control.step(action)
+        return self.observe('color'), 0.0, False, {}
     
     def render(self, mode='human', close=False):
         self.manager.show_window()

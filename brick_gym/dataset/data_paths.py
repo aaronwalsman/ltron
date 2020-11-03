@@ -3,12 +3,7 @@ import os
 import glob
 import json
 
-def data_paths(self,
-        dataset_directory,
-        split_name,
-        subset=None,
-        rank=0,
-        size=1):
+def data_paths(dataset_directory, split_name, subset=None, rank=0, size=1):
     dataset_directory = os.path.expanduser(dataset_directory)
     split_file = os.path.join(dataset_directory, 'splits.json')
     with open(split_file, 'r') as f:
@@ -23,4 +18,4 @@ def data_paths(self,
         all_file_paths = all_file_paths[slice(*subset)]
     
     stride = math.ceil(len(all_file_paths) / size)
-    return all_file_paths[rank*stride, (rank+1)*stride]
+    return all_file_paths[rank*stride:(rank+1)*stride]
