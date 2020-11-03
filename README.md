@@ -3,7 +3,7 @@
 ## Dependencies:
 - python 3 (recommend using [anaconda](http://www.anaconda.com))
 - [pytorch](http://www.pytorch.org)
-- [blender 2.90+](http://www.blender.com) with [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) (optional for building brick obj files)
+- [blender 2.90+](http://www.blender.org) with [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) (optional for building brick obj files)
 
 ### LDraw
 run `bin/install_ldraw`
