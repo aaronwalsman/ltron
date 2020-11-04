@@ -23,30 +23,6 @@ mesh_indices = {
     '3001' : 5,
     '2456' : 6}
 
-'''
-class LDrawLoader:
-    def __init__(self,
-            dataset_directory,
-            split_name,
-            subset,
-            rank = 0,
-            size = 1):
-        
-        self.paths = path_list.PathList(
-                dataset_directory,
-                split_name,
-                subset,
-                rank,
-                size)
-    
-    def load_model(self, model_id, force=False):
-        #if model_id != self.loaded_model_id or force:
-        # convert the mpd file to a renderpy scene
-        model_path = os.path.join(
-                self.model_directory, self.paths[model_id])
-        self.environment.load_model(model_path, force=force)
-'''
-
 class LDrawEnvironment:
     def __init__(self,
             viewpoint_control,
