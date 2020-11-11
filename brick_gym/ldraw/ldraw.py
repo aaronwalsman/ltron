@@ -11,7 +11,21 @@ ALL_CONTENT_TYPES = ('comments', 'draw')
 
 LDRAW_FILES = {}
 SHADOW_FILES = {}
-for reference_type in EXTERNAL_REFERENCE_TYPES:
+for path_name, FILES in (('ldraw',LDRAW_FILES), ('shadow_ldraw',SHADOW_FILES)):
+    for reference_type in EXTERNAL_REFERENCE_TYPES:
+        FILES[reference_type] = {}
+        reference_directory = os.path.join(
+                config.paths[path_name], reference_type)
+        for root, dirs, files in os.walk(reference_directory):
+            local_root = root.replace(reference_directory, '').lower()
+            if len(local_root) and local_root[0] == '/':
+                local_root = local_root[1:]
+            FILES[reference_type].update({
+                    os.path.join(local_root, f.lower()) :
+                    os.path.join(root, f)
+                    for f in files})
+        
+    '''   
     LDRAW_FILES[reference_type] = {}
     reference_ldraw_directory = os.path.join(
             config.paths['ldraw'], reference_type)
@@ -23,34 +37,17 @@ for reference_type in EXTERNAL_REFERENCE_TYPES:
                 os.path.join(local_root, f.lower()) :
                 os.path.join(reference_ldraw_directory, root, f)
                 for f in files})
-
-'''
-ldraw_directory = config.paths['ldraw']
-reference_directories = {
-    reference_type : os.path.join(ldraw_directory, reference_type)
-    for reference_type in EXTERNAL_REFERENCE_TYPES
-}
-
-reference_files = {}
-for reference_type, directory in reference_directories.items():
-    reference_files[reference_type] = {}
-    for root, dirs, files in os.walk(directory):
-        local_root = root.replace(directory, '').lower()
+    '''
+    '''
+    reference_shadow_directory = os.path.join(
+            config_paths['shadow_ldraw'], reference_type)
+    for root, dirs, files in os.walk(reference_shadow_directory):
+        local_root = root.replace(reference_shadow_directory, '').lower()
         if len(local_root) and local_root[0] == '/':
             local_root = local_root[1:]
-        reference_files[reference_type].update({
-                os.path.join(local_root, f.lower()) :
-                os.path.join(directory, root, f) for f in files})
-
-shadow_ldraw_directory = config.paths['shadow_ldraw']
-shadow_reference_directories = {}
-for reference_type in reference_directories:
-    shadow_reference_directory = os.path.join(
-            shadow_ldraw_directory, reference_type)
-    if os.path.isdir(shadow_reference_directory):
-        shadow_reference_directories[reference_type] = (
-            shadow_reference_directory)
-'''
+        SHADOW_FILES[reference_type].update({
+                os.path.join(
+    '''
 
 def matrix_ldraw_to_list(elements):
     assert len(elements) == 12
@@ -72,9 +69,9 @@ class LDrawReferenceNotFoundError(Exception):
 
 def parse_mpd(
         ldraw_data,
-        #reference_types = ALL_REFERENCE_TYPES,
         recursion_types = ALL_REFERENCE_TYPES,
-        content_types = ALL_CONTENT_TYPES):
+        content_types = ALL_CONTENT_TYPES,
+        include_shadow = False):
     if isinstance(ldraw_data, str):
         ldraw_lines = ldraw_data.splitlines()
     else:
@@ -101,7 +98,6 @@ def parse_mpd(
     ldraw_data = parse_ldraw(
             main_file,
             nested_files,
-            #reference_types,
             recursion_types,
             content_types)
     
@@ -110,9 +106,9 @@ def parse_mpd(
 def parse_ldraw(
         ldraw_data,
         nested_files = None,
-        #reference_types = ('models', 'parts', 'p'),
         recursion_types = ALL_REFERENCE_TYPES,
-        content_types = ALL_CONTENT_TYPES):
+        content_types = ALL_CONTENT_TYPES,
+        include_shadow = False):
     if isinstance(ldraw_data, str):
         ldraw_lines = ldraw_data.splitlines()
     else:
@@ -127,7 +123,7 @@ def parse_ldraw(
     result = {
         'files' : [],
     }
-    for reference_type in ALL_REFERENCE_TYPES: #reference_types:
+    for reference_type in ALL_REFERENCE_TYPES:
         result[reference_type] = []
     for content_type in content_types:
         result[content_type] = []
@@ -147,50 +143,22 @@ def parse_ldraw(
             
             if reference_name in nested_files:
                 reference_type = 'files'
-                recursion_data = nested_files[reference_name]
-                '''
-                reference_data = parse_ldraw(
-                        nested_files[reference_name],
-                        nested_files,
-                        #reference_types,
-                        recursion_types,
-                        content_types)
-                '''
+                reference_contents = nested_files[reference_name]
             else:
-                for reference_type in EXTERNAL_REFERENCE_TYPES:#reference_types:
-                    #directory = reference_directories[reference_type]
-                    try:
-                        clean_name = reference_name.lower().replace('\\', '/')
-                        file_name = (
-                            LDRAW_FILES[reference_type][clean_name])
-                    except KeyError:
-                        continue
-                    
-                    '''
-                    if reference_type in recursion_types:
-                        file_path = os.path.join(directory, file_name)
-                        with open(file_path, 'r') as f:
-                            reference_data = parse_ldraw(
-                                    f,
-                                    nested_files,
-                                    #reference_types,
-                                    recursion_types,
-                                    content_types)
-                    else:
-                        reference_data = {}
-                    '''
-                    #recursion_path = os.path.join(directory, file_name)
-                    print(file_name)
-                    recursion_data = open(file_name)
-                    
-                    break
+                clean_name = reference_name.lower().replace('\\', '/')
+                for reference_type in EXTERNAL_REFERENCE_TYPES:
+                    file_name = LDRAW_FILES[reference_type].get(
+                            clean_name, None)
+                    if file_name is not None:
+                        reference_contents = open(file_name)
+                        break
                 
                 else:
                     raise LDrawReferenceNotFoundError(reference_name)
             
             if reference_type in recursion_types:
                 reference_data = parse_ldraw(
-                        recursion_data,
+                        reference_contents,
                         nested_files,
                         recursion_types,
                         content_types)
