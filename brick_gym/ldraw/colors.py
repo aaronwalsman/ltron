@@ -6,10 +6,24 @@ import brick_gym.config as config
 
 # faster that PIL.ImageColor.getrgb
 def hex_to_rgb(rgb):
-    return (int(rgb[1:3], 16), int(rgb[3:5], 16), int(rgb[5:7], 16))
+    if rgb[0] == '#':
+        rgb = rgb[1:]
+    elif rgb[:2] == '0x':
+        rgb = rgb[2:]
+    return (int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16))
 
 def rgb_to_hex(rgb):
     return '#' + ''.join(['0'*(c <= 16) + hex(c)[2:] for c in rgb]).upper()
+
+'''
+def ldraw_color_to_rgb(color, mapping='ldraw'):
+    if color[0] == '#' or color[:2] = '0x':
+        return hex_to_rgb(color)
+    else:
+        index = int(color)
+        if mapping == 'ldraw':
+            return color_index_to_rgb[index]
+'''
 
 ldconfig_path = os.path.join(config.paths['ldraw'], 'LDConfig.ldr')
 color_name_to_index = {}
@@ -159,68 +173,3 @@ color_index_to_alt_rgb[496]= (163, 162, 164)
 color_index_to_alt_rgb[503]= (199, 193, 183)
 color_index_to_alt_rgb[504]= (137, 135, 136)
 color_index_to_alt_rgb[511]= (250, 250, 250)
-
-'''
-def halton_sequence(index, base):
-    f = 1
-    r = 0
-    
-    while index > 0:
-        f = f/base
-        r = r + f * (index % base)
-        index = index // base
-    
-    return r
-
-def halton_mask_color(index):
-    index += 1
-    r = halton_sequence(index, 2)
-    #r = round(r * 255) / 255
-    g = halton_sequence(index, 3)
-    #g = round(g * 255) / 255
-    b = halton_sequence(index, 5)
-    #b = round(b * 255) / 255
-    
-    return r,g,b
-
-def color_float_to_int(f):
-    return round(f * 255)
-
-def color_floats_to_ints(fs):
-    return tuple(color_float_to_int(c) for c in fs)
-
-def neighboring_colors(color):
-    neighbors = []
-    for r in -1, 0, 1:
-        for g in -1, 0, 1:
-            for b in -1, 0, 1:
-                neighbors.append((color[0]+r, color[1]+g, color[2]+b))
-    return neighbors
-
-halton_index = [0]
-index_mask_colors = {}
-mask_color_indices = {}
-
-def index_to_mask_color(index):
-    if index not in index_mask_colors:
-        while True:
-            color_floats = halton_mask_color(halton_index[0])
-            halton_index[0] += 1
-            color_ints = color_floats_to_ints(color_floats)
-            neighbors = neighboring_colors(color_ints)
-            if any(neighbor in mask_color_indices for neighbor in neighbors):
-                continue
-            
-            index_mask_colors[index] = color_floats
-            for neighbor in neighbors:
-                mask_color_indices[neighbor] = index
-            break
-    
-    return index_mask_colors[index]
-
-def get_mask(mask, mask_color):
-    difference = numpy.abs(mask - numpy.array([[mask_color]]))
-    close_enough = difference <= 1
-    mask = numpy.all(close_enough, axis=2)
-    return mask
-'''

@@ -1,8 +1,9 @@
 import re
 
 import brick_gym.config as config
+import brick_gym.ldraw.paths as ldraw_paths
 
-import brick_gym.ldraw.ldraw as ldraw
+SHADOW_FILES = ldraw_paths.get_ldraw_part_paths(config.paths['shadow_ldraw'])
 
 def get_ldcad_flags(arguments):
     ldcad_command, arguments = arguments.split(None, 1)
@@ -14,6 +15,26 @@ def get_ldcad_flags(arguments):
         flags[flag.strip()] = value.strip()
     
     return ldcad_command, flags
+
+def parse_ldcad_line(line):
+    line_parts = line.split(None, 2)
+    if len(line_parts) != 2:
+        return False, None, []
+    
+    command, arguments = line_parts
+    if command != '0':
+        return False, None, []
+    
+    argument_parts = arguments.split(None, 2)
+    if len(argument_parts) != 2:
+        return False, None, []
+
+    LDCAD, arguments = argument_parts
+    if LDCAD != '!LDCAD':
+        return False, None, []
+
+    ldcad_command, ldcad_arguments = get_ldcad_flags(arguments)
+    return True, ldcad_command, ldcad_arguments
 
 def griderate(grid, transform):
     if grid is None:
@@ -55,6 +76,30 @@ def griderate(grid, transform):
     
     return grid_transforms
 
+def import_shadow(name):
+    clean_name = ldraw_paths.clean_path(name)
+    shadow_file_name = SHADOW_FILES.get(clean_name, None)
+    print(clean_name, shadow_file_name)
+    if shadow_file_name is None:
+        return []
+
+    shadow_lines = open(shadow_file_name).readlines()
+    resolved_lines = []
+    for line in shadow_lines:
+        is_ldcad, ldcad_command, ldcad_arguments = parse_ldcad_line(line)
+        
+        if is_ldcad and ldcad_command == 'SNAP_INCL':
+            file_reference = ldcad_arguments['ref']
+            referenced_contents = import_shadow_contents(file_reference)
+        else:
+            referenced_contents = []
+        
+        resolved_lines.append((line, referenced_contents))
+    
+    return resolved_lines
+        
+        
+'''
 def get_connection_points(
         ldraw_text,
         connection_points = None,
@@ -104,6 +149,7 @@ def get_connection_points(
                     **flags)
     
     return connection_points
+'''
 
 def SNAP_CLEAR(connection_points, id=None):
     if id is None:

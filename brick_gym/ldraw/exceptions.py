@@ -1,0 +1,2 @@
+class LDrawException(Exception):
+    pass

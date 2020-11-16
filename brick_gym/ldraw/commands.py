@@ -1,0 +1,163 @@
+import re
+
+import numpy
+from brick_gym.ldraw.exceptions import *
+import brick_gym.ldraw.paths as ldraw_paths
+
+class InvalidLDrawCommand(LDrawException):
+    pass
+
+def matrix_ldraw_to_numpy(elements):
+    assert len(elements) == 12
+    elements = [float(element) for element in elements]
+    (x, y, z,
+     xx, xy, xz,
+     yx, yy, yz, 
+     zx, zy, zz) = elements
+    return numpy.array([
+            [xx, xy, xz, x],
+            [yx, yy, yz, y],
+            [zx, zy, zz, z],
+            [ 0,  0,  0, 1]])
+
+def vertices_ldraw_to_numpy(elements):
+    assert len(elements)%3 == 0
+    elements = [float(element) for element in elements]
+    vertices = [elements[i::3] for i in range(3)]
+    vertices.append([1] * (len(elements)//3))
+    return numpy.array(vertices)
+
+def parse_ldcad_flags(arguments):
+    ldcad_contents = arguments.split(None, 1)
+    if len(ldcad_contents) == 1:
+        return ldcad_contents[0], {}
+    
+    ldcad_command, flag_string = ldcad_contents
+    
+    flag_tokens = re.findall('\[[^\]]+\]', flag_string)
+    flags = {}
+    for flag_token in flag_tokens:
+        flag_token = flag_token[1:-1]
+        flag, value = flag_token.split('=')
+        flags[flag.strip()] = value.strip()
+
+    return ldcad_command, flags
+
+class LDrawCommand:
+    @staticmethod
+    def parse_commands(lines):
+        commands = []
+        for line in lines:
+            try:
+                commands.append(LDrawCommand.parse_command(line))
+            except InvalidLDrawCommand:
+                pass
+        return commands
+    
+    @staticmethod
+    def parse_command(line):
+        line = re.sub('[^!-~]+', ' ', line).strip()
+        line_contents = line.split(None, 1)
+        if len(line_contents) != 2:
+            raise InvalidLDrawCommand('Requires at least two tokens: %s'%line)
+        
+        command, arguments = line_contents
+        if command == '0':
+            return LDrawComment.parse_comment(arguments)
+        elif command == '1':
+            return LDrawImportCommand(arguments)
+        elif command == '2':
+            return LDrawLineCommand(arguments)
+        elif command == '3':
+            return LDrawTriangleCommand(arguments)
+        elif command == '4':
+            return LDrawQuadCommand(arguments)
+        elif command == '5':
+            return LDrawOptionalLineCommand(arguments)
+        else:
+            raise InvalidLDrawCommand(
+                    'Unknown LDRAW Command %s: %s'%(command,line))
+
+class LDrawComment(LDrawCommand):
+    command = '0'
+    
+    @staticmethod
+    def parse_comment(arguments):
+        argument_contents = arguments.strip().split(None, 1)
+        if len(argument_contents) == 2:
+            comment_type, comment_arguments = argument_contents
+            if comment_type == 'FILE':
+                return LDrawFileComment(comment_arguments)
+            elif comment_type == '!LDCAD':
+                return LDCadCommand.parse_ldcad(comment_arguments)
+        return LDrawComment(arguments)
+        
+    def __init__(self, comment):
+        self.comment = comment
+    
+    def __str__(self):
+        return '%s %s'%(self.command, self.comment)
+
+class LDrawFileComment(LDrawComment):
+    def __init__(self, file_name):
+        self.comment = 'FILE ' + file_name
+        self.file_name = file_name
+        self.clean_name = ldraw_paths.clean_name(file_name)
+
+class LDCadCommand(LDrawComment):
+    
+    @staticmethod
+    def parse_ldcad(arguments):
+        ldcad_command, flags = parse_ldcad_flags(arguments)
+        if ldcad_command == 'SNAP_INCL':
+            return LDCadSnapInclCommand(ldcad_command, flags)
+        elif ldcad_command == 'SNAP_CLEAR':
+            return LDCadSnapClearCommand(ldcad_command, flags)
+        return LDCadCommand(ldcad_command, flags)
+    
+    def __init__(self, ldcad_command, flags):
+        self.comment = '!LDCAD ' + ldcad_command + ' ' + ' '.join(
+                '[%s=%s]'%flag for flag in flags.items())
+        self.ldcad_command = ldcad_command
+        self.flags = flags
+
+class LDCadSnapInclCommand(LDCadCommand):
+    pass
+
+class LDCadSnapClearCommand(LDCadCommand):
+    pass
+
+class LDrawImportCommand(LDrawCommand):
+    command = '1'
+    def __init__(self, arguments):
+        (self.color,
+         *matrix_elements,
+         self.reference_name) = arguments.split(None, 13)
+        self.clean_reference_name = ldraw_paths.clean_name(self.reference_name)
+        self.transform = matrix_ldraw_to_numpy(matrix_elements)
+    
+    def __str__(self):
+        return '%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s'%(
+                self.command,
+                self.color,
+                self.transform[0,3], self.transform[1,3], self.transform[2,3],
+                self.transform[0,0], self.transform[0,1], self.transform[0,2],
+                self.transform[1,0], self.transform[1,1], self.transform[1,2],
+                self.transform[2,0], self.transform[2,1], self.transform[2,2])
+
+class LDrawContentCommand(LDrawCommand):
+    def __init__(self, arguments):
+        self.color, *vertex_elements = arguments.split()
+        self.vertices = vertices_ldraw_to_numpy(vertex_elements)
+
+class LDrawLineCommand(LDrawContentCommand):
+    command = '2'
+
+class LDrawTriangleCommand(LDrawContentCommand):
+    command = '3'
+
+class LDrawQuadCommand(LDrawContentCommand):
+    command = '4'
+
+class LDrawOptionalLineCommand(LDrawContentCommand):
+    command = '5'

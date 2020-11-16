@@ -24,7 +24,7 @@ def mpd_to_renderpy(mpd_data,
     obj_directory = config.paths['obj']
     external_parts = os.listdir(os.path.join(config.paths['ldraw'], 'parts'))
     
-    parts = mpd.parts_from_mpd(mpd_data, external_parts)
+    parts, complete = mpd.parts_from_mpd(mpd_data, external_parts)
     unique_dats = set(part['file_name'] for part in parts)
     unique_objs = [
             os.path.splitext(unique_dat)[0] + '.obj'
