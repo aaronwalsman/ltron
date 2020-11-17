@@ -101,6 +101,8 @@ class BrickVectorEdgeModel(torch.nn.Module):
     def __init__(self):
         super(BrickVectorEdgeModel, self).__init__()
         
+        self.linear_xy = torch.nn.Linear(2, 512)
+        
         self.linear_a = torch.nn.Linear(args.brick_vector_dimension, 512)
         self.linear_b = torch.nn.Linear(512, 512)
         
@@ -109,10 +111,11 @@ class BrickVectorEdgeModel(torch.nn.Module):
         self.combination_c = torch.nn.Linear(512, 512)
         self.edge_out = torch.nn.Linear(512,2)
         
-    def forward(self, brick_vectors):
+    def forward(self, brick_vectors, xy):
         batch_size, bricks_per_model, _ = brick_vectors.shape
         brick_vectors = brick_vectors.view(-1, args.brick_vector_dimension)
-        brick_features = self.linear_a(brick_vectors)
+        xy = xy.view(-1, 2)
+        brick_features = self.linear_a(brick_vectors) + self.linear_xy(xy)
         brick_features = torch.nn.functional.relu(brick_features)
         brick_features = self.linear_b(brick_features)
         brick_features = torch.nn.functional.relu(brick_features)
@@ -314,12 +317,12 @@ def train_epoch(epoch):
             rollout(epoch, train_paths, args.episodes_per_train_epoch))
     valid_entries = set(valid_entries)
     
-    '''
+    
     model.train()
     brick_classifier.train()
     confidence_classifier.train()
     edge_classifier.train()
-    '''
+    
     
     # train on the newly generated data
     for mini_epoch in range(1, args.num_mini_epochs+1):
@@ -352,9 +355,9 @@ def train_epoch(epoch):
                         segmentation_targets[episodes, j].cuda())
                 
                 brick_vectors = model(batch_images)
-                batch_actions = actions[episodes, j]
-                x = batch_actions[:,0]
-                y = batch_actions[:,1]
+                step_actions = actions[episodes, j]
+                x = step_actions[:,0]
+                y = step_actions[:,1]
                 selected_brick_vectors.append(
                         brick_vectors[range(batch_size),:,y,x])
                 class_logits = brick_classifier(brick_vectors)
@@ -405,7 +408,11 @@ def train_epoch(epoch):
             
             # edge-prediction forward pass
             selected_brick_vectors = torch.stack(selected_brick_vectors, 1)
-            edge_logits = edge_classifier(selected_brick_vectors)
+            #selected_locations = torch.stack(selected_locations, 1)
+            batch_actions = actions[episodes].detach().float().cuda()
+            batch_actions[:,:,0] /= float(width)
+            batch_actions[:,:,1] /= float(height)
+            edge_logits = edge_classifier(selected_brick_vectors, batch_actions)
             batch_size, steps, _, _ = edge_logits.shape
             
             # edge-prediction target (bs, steps, steps)
@@ -527,9 +534,9 @@ def test_epoch(epoch, mark_selection=False):
                         segmentation_targets[episodes, j].cuda())
                 
                 brick_vectors = model(batch_images)
-                batch_actions = actions[episodes, j]
-                x = batch_actions[:,0]
-                y = batch_actions[:,1]
+                step_actions = actions[episodes, j]
+                x = step_actions[:,0]
+                y = step_actions[:,1]
                 selected_brick_vectors.append(
                         brick_vectors[range(batch_size),:,y,x])
                 #class_logits = brick_classifier(brick_vectors)
@@ -568,7 +575,10 @@ def test_epoch(epoch, mark_selection=False):
             
             # edge-prediction forward pass
             selected_brick_vectors = torch.stack(selected_brick_vectors, 1)
-            edge_logits = edge_classifier(selected_brick_vectors)
+            batch_actions = actions[episodes].detach().float().cuda()
+            batch_actions[:,:,0] /= float(width)
+            batch_actions[:,:,1] /= float(height)
+            edge_logits = edge_classifier(selected_brick_vectors, batch_actions)
             batch_size, steps, _, _ = edge_logits.shape
             
             # edge-prediction target (bs, steps, steps)
@@ -611,11 +621,9 @@ if args.test:
             './confidence_checkpoint_%04i.pt'%args.num_epochs)
     confidence_classifier.load_state_dict(torch.load(confidence_checkpoint))
     
-    '''
     edge_checkpoint = (
             './edge_checkpoint_%04i.pt'%args.num_epochs)
     edge_classifier.load_state_dict(torch.load(edge_checkpoint))
-    '''
     
     test_epoch(args.num_epochs, mark_selection=True)
 
