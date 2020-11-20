@@ -20,6 +20,23 @@ def matrix_ldraw_to_numpy(elements):
             [zx, zy, zz, z],
             [ 0,  0,  0, 1]])
 
+def matrix_ldcad_to_numpy(flags):
+    if 'pos' in flags:
+        x, y, z = [float(xyz) for xyz in flags['pos'].split()]
+    else:
+        x, y, z = 0., 0., 0.
+    if 'ori' in flags:
+        xx, xy, xz, yx, yy, yz, zx, zy, zz = [
+                float(xyz) for xyz in flags['ori'].split()]
+    else:
+        xx, xy, xz, yx, yy, yz, zx, zy, zz = 1., 0., 0., 0., 1., 0., 0., 0., 1.
+    
+    return numpy.array([
+            [xx, xy, xz, x],
+            [yx, yy, yz, y],
+            [zx, zy, zz, z],
+            [ 0,  0,  0, 1]])
+
 def vertices_ldraw_to_numpy(elements):
     assert len(elements)%3 == 0
     elements = [float(element) for element in elements]
@@ -39,7 +56,7 @@ def parse_ldcad_flags(arguments):
     for flag_token in flag_tokens:
         flag_token = flag_token[1:-1]
         flag, value = flag_token.split('=')
-        flags[flag.strip()] = value.strip()
+        flags[flag.strip().lower()] = value.strip()
 
     return ldcad_command, flags
 
@@ -105,7 +122,6 @@ class LDrawFileComment(LDrawComment):
         self.clean_name = ldraw_paths.clean_name(file_name)
 
 class LDCadCommand(LDrawComment):
-    
     @staticmethod
     def parse_ldcad(arguments):
         ldcad_command, flags = parse_ldcad_flags(arguments)
@@ -113,6 +129,16 @@ class LDCadCommand(LDrawComment):
             return LDCadSnapInclCommand(ldcad_command, flags)
         elif ldcad_command == 'SNAP_CLEAR':
             return LDCadSnapClearCommand(ldcad_command, flags)
+        elif ldcad_command == 'SNAP_CYL':
+            return LDCadSnapCylCommand(ldcad_command, flags)
+        elif ldcad_command == 'SNAP_CLP':
+            return LDCadSnapClpCommand(ldcad_command, flags)
+        elif ldcad_command == 'SNAP_FGR':
+            return LDCadSnapFgrCommand(ldcad_command, flags)
+        elif ldcad_command == 'SNAP_GEN':
+            return LDCadSnapGenCommand(ldcad_command, flags)
+        elif ldcad_command == 'SNAP_SPH':
+            return LDCadSnapSphCommand(ldcad_command, flags)
         return LDCadCommand(ldcad_command, flags)
     
     def __init__(self, ldcad_command, flags):
@@ -122,9 +148,35 @@ class LDCadCommand(LDrawComment):
         self.flags = flags
 
 class LDCadSnapInclCommand(LDCadCommand):
-    pass
+    def __init__(self, ldcad_command, flags):
+        super(LDCadSnapInclCommand, self).__init__(ldcad_command, flags)
+        self.clean_reference_name = ldraw_paths.clean_name(flags['ref'])
+        self.transform = matrix_ldcad_to_numpy(flags)
 
 class LDCadSnapClearCommand(LDCadCommand):
+    def __init__(self, ldcad_command, flags):
+        super(LDCadSnapClearCommand, self).__init__(ldcad_command, flags)
+        self.id = flags.get('id', '')
+
+class LDCadSnapStyleCommand(LDCadCommand):
+    def __init__(self, ldcad_command, flags):
+        super(LDCadSnapStyleCommand, self).__init__(ldcad_command, flags)
+        self.id = flags.get('id', '')
+        self.transform = matrix_ldcad_to_numpy(flags)
+
+class LDCadSnapCylCommand(LDCadSnapStyleCommand):
+    pass
+
+class LDCadSnapClpCommand(LDCadSnapStyleCommand):
+    pass
+
+class LDCadSnapFgrCommand(LDCadSnapStyleCommand):
+    pass
+
+class LDCadSnapGenCommand(LDCadSnapStyleCommand):
+    pass
+
+class LDCadSnapSphCommand(LDCadSnapStyleCommand):
     pass
 
 class LDrawImportCommand(LDrawCommand):
