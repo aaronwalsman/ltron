@@ -1,105 +1,209 @@
+import os
+
 import numpy
 
 import brick_gym.config as config
-ldraw_directory = config.paths['ldraw']
-ldraw_parts_directories = [
-        os.path.join(ldraw_directory, parts_directory
-        for parts_directory in 'parts', 'p', 'models']
 
-def matrix_ldraw_to_numpy(elements):
+EXTERNAL_REFERENCE_TYPES = ('models', 'parts', 'p')
+INTERNAL_REFERENCE_TYPES = ('files',)
+ALL_REFERENCE_TYPES = EXTERNAL_REFERENCE_TYPES + INTERNAL_REFERENCE_TYPES
+ALL_CONTENT_TYPES = ('comments', 'draw')
+
+LDRAW_FILES = {}
+SHADOW_FILES = {}
+for reference_type in EXTERNAL_REFERENCE_TYPES:
+    LDRAW_FILES[reference_type] = {}
+    reference_ldraw_directory = os.path.join(
+            config.paths['ldraw'], reference_type)
+    for root, dirs, files in os.walk(reference_ldraw_directory):
+        local_root = root.replace(reference_ldraw_directory, '').lower()
+        if len(local_root) and local_root[0] == '/':
+            local_root = local_root[1:]
+        LDRAW_FILES[reference_type].update({
+                os.path.join(local_root, f.lower()) :
+                os.path.join(reference_ldraw_directory, root, f)
+                for f in files})
+
+'''
+ldraw_directory = config.paths['ldraw']
+reference_directories = {
+    reference_type : os.path.join(ldraw_directory, reference_type)
+    for reference_type in EXTERNAL_REFERENCE_TYPES
+}
+
+reference_files = {}
+for reference_type, directory in reference_directories.items():
+    reference_files[reference_type] = {}
+    for root, dirs, files in os.walk(directory):
+        local_root = root.replace(directory, '').lower()
+        if len(local_root) and local_root[0] == '/':
+            local_root = local_root[1:]
+        reference_files[reference_type].update({
+                os.path.join(local_root, f.lower()) :
+                os.path.join(directory, root, f) for f in files})
+
+shadow_ldraw_directory = config.paths['shadow_ldraw']
+shadow_reference_directories = {}
+for reference_type in reference_directories:
+    shadow_reference_directory = os.path.join(
+            shadow_ldraw_directory, reference_type)
+    if os.path.isdir(shadow_reference_directory):
+        shadow_reference_directories[reference_type] = (
+            shadow_reference_directory)
+'''
+
+def matrix_ldraw_to_list(elements):
     assert len(elements) == 12
     (x, y, z,
      xx, xy, xz,
-     yx, yy, yz,
+     yx, yy, yz, 
      zx, zy, zz) = elements
     x, y, z = float(x), float(y), float(z)
     xx, xy, xz = float(xx), float(xy), float(xz)
     yx, yy, yz = float(yx), float(yy), float(yz)
     zx, zy, zz = float(zx), float(zy), float(zz)
-    return numpy.array([
-            [xx, xy, xz, x],
+    return [[xx, xy, xz, x],
             [yx, yy, yz, y],
             [zx, zy, zz, z],
-            [ 0,  0,  0, 1]])
+            [ 0,  0,  0, 1]]
 
-def vectors_ldraw_to_numpy(elements):
-    assert len(elements)%3 == 0
-    return numpy.array([
-            elements[0::3],
-            elements[1::3],
-            elements[2::3],
-            [1] * len(elements) // 3])
-
-def vectors_numpy_to_ldraw(vectors):
-    num_elements = 3 * vectors.shape[1]
-    vectors = vectors[:3,:]
-    vectors = tuple(vectors.T.reshape(-1).tolist())
-    return ('_'.join(['%s']*num_elements))%vectors
-
-class LDRAWReferenceNotFoundError(Exception):
+class LDrawReferenceNotFoundError(Exception):
     pass
 
-def resolve_ldraw_part_filepath(file_name):
-    if os.path.exists(file_name):
-        return file_name
+def parse_mpd(
+        ldraw_data,
+        #reference_types = ALL_REFERENCE_TYPES,
+        recursion_types = ALL_REFERENCE_TYPES,
+        content_types = ALL_CONTENT_TYPES):
+    if isinstance(ldraw_data, str):
+        ldraw_lines = ldraw_data.splitlines()
+    else:
+        try:
+            ldraw_lines = ldraw_data.readlines()
+        except AttributeError:
+            ldraw_lines = ldraw_data
     
-    for parts_directory in ldraw_parts_directories:
-        candidate = os.path.join(parts_directory, file_name)
-        if os.path.exists(candidate):
-            return candidate
-        #part_files = os.listdir(parts_directory)
-        #if file_name in part_files:
-        #    return os.path.join(parts_directory, file_name)
+    # first find all internal files
+    nested_files = {}
+    for i, line in enumerate(ldraw_lines):
+        if i == 0 or line[:7] == '0 FILE ':
+            if i == 0:
+                file_name = 'main'
+            else:
+                file_name = line[7:].strip()
+            current_file = []
+            if not len(nested_files):
+                main_file = current_file
+            nested_files[file_name] = current_file
+        
+        current_file.append(line)
     
-    raise LDRAWReferenceNotFoundError('Could not find part %s'%file_name)
+    ldraw_data = parse_ldraw(
+            main_file,
+            nested_files,
+            #reference_types,
+            recursion_types,
+            content_types)
+    
+    return ldraw_data
 
-def resolve_ldraw_references(
-        ldraw_text,
-        reference_color = default_brick_color,
-        reference_complement_color = default_brick_complement_color,
-        reference_transform = None):
+def parse_ldraw(
+        ldraw_data,
+        nested_files = None,
+        #reference_types = ('models', 'parts', 'p'),
+        recursion_types = ALL_REFERENCE_TYPES,
+        content_types = ALL_CONTENT_TYPES):
+    if isinstance(ldraw_data, str):
+        ldraw_lines = ldraw_data.splitlines()
+    else:
+        try:
+            ldraw_lines = ldraw_data.readlines()
+        except AttributeError:
+            ldraw_lines = ldraw_data
     
-    lines = ldraw_text.splitlines()
-    resolved_lines = []
-    for line in lines:
+    if nested_files is None:
+        nested_files = {}
+    
+    result = {
+        'files' : [],
+    }
+    for reference_type in ALL_REFERENCE_TYPES: #reference_types:
+        result[reference_type] = []
+    for content_type in content_types:
+        result[content_type] = []
+    
+    for line in ldraw_lines:
         line_contents = line.split(None, 1)
         if len(line_contents) != 2:
-            resolved_lines.append(line)
             continue
         
         command, arguments = line_contents
-        if command == '1':
-            # file reference
-            # extract color and transform, then recurse
-            color, *matrix_elements, file_name = arguments.split(None, 13)
-            color = ldraw_color_to_hex(color)
-            complement_color = ldraw_color_to_complement_hex(color)
-            transform = ldraw_to_numpy_matrix(matrix_elements)
-            file_path = resolve_ldraw_part_filepath(file_name)
-            with open(file_path, 'r') as f:
-                sub_ldraw_text = f.read()
-            subfile_contents = resolve_ldraw_references(
-                    sub_ldraw_text,
-                    reference_color = color,
-                    reference_complement_color = complement_color,
-                    reference_transform = transform)
-            resolved_lines.append(subfile_contents)
-        
-        elif command in ('2', '3', '4', '5'):
-            # update vertices and color based on reference transform and color
-            color, *vector_elements = arguments.split()
-            if color == '16':
-                color = reference_color
-            elif color == '24':
-                color = reference_complement_color
+        if command == '0' and 'comments' in content_types:
+            result['comments'].append(line)
+        elif command == '1':
+            color, *matrix_elements, reference_name = arguments.split(None, 13)
+            transform = matrix_ldraw_to_list(matrix_elements)
+            reference_name = reference_name.strip()
             
-            if reference_transform is not None:
-                vectors = numpy.dot(
-                        reference_transform,
-                        ldraw_to_numpy_vectors(vector_elements))
-                vectors = numpy_to_ldraw_vectors(vectors)
+            if reference_name in nested_files:
+                reference_type = 'files'
+                recursion_data = nested_files[reference_name]
+                '''
+                reference_data = parse_ldraw(
+                        nested_files[reference_name],
+                        nested_files,
+                        #reference_types,
+                        recursion_types,
+                        content_types)
+                '''
+            else:
+                for reference_type in EXTERNAL_REFERENCE_TYPES:#reference_types:
+                    #directory = reference_directories[reference_type]
+                    try:
+                        clean_name = reference_name.lower().replace('\\', '/')
+                        file_name = (
+                            LDRAW_FILES[reference_type][clean_name])
+                    except KeyError:
+                        continue
+                    
+                    '''
+                    if reference_type in recursion_types:
+                        file_path = os.path.join(directory, file_name)
+                        with open(file_path, 'r') as f:
+                            reference_data = parse_ldraw(
+                                    f,
+                                    nested_files,
+                                    #reference_types,
+                                    recursion_types,
+                                    content_types)
+                    else:
+                        reference_data = {}
+                    '''
+                    #recursion_path = os.path.join(directory, file_name)
+                    print(file_name)
+                    recursion_data = open(file_name)
+                    
+                    break
+                
+                else:
+                    raise LDrawReferenceNotFoundError(reference_name)
             
-            resolved_lines.append(' '.join((command, color, vectors)))
+            if reference_type in recursion_types:
+                reference_data = parse_ldraw(
+                        recursion_data,
+                        nested_files,
+                        recursion_types,
+                        content_types)
+            else:
+                reference_data = {}
+            
+            reference_data['name'] = reference_name
+            reference_data['color'] = color
+            reference_data['transform'] = transform
+            reference_data['reference_type'] = reference_type
+            result[reference_type].append(reference_data)
+            
+        elif command in ('2', '3', '4', '5') and 'draw' in content_types:
+            result['draw'].append(line)
         
-        else:
-            resolved_lines.append(line)
+    return result
