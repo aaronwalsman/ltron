@@ -13,11 +13,14 @@ import PIL.Image as Image
 
 import tqdm
 
+import matplotlib.pyplot as pyplot
+
 import segmentation_models_pytorch
 
 import renderpy.masks as masks
 
 import brick_gym.config as config
+import brick_gym.evaluation as evaluation
 from brick_gym.dataset.data_paths import data_paths
 import brick_gym.dataset.ldraw_environment as ldraw_environment
 import brick_gym.viewpoint.azimuth_elevation as azimuth_elevation
@@ -447,7 +450,7 @@ def train_epoch(epoch):
                         float(edge_loss)/num_steps * args.edge_weight))
 
 # Test an epoch
-def test_epoch(epoch, mark_selection=False):
+def test_epoch(epoch, mark_selection=False, graph=False):
     print('Test Epoch: %i'%epoch)
     print('Generating Data')
     (images,
@@ -507,8 +510,12 @@ def test_epoch(epoch, mark_selection=False):
     with torch.no_grad():
         num_episodes, num_steps = actions.shape[:2]
         episode_order = list(range(num_episodes))
-        edge_correct = 0
-        edge_total = 0
+        edge_true_positive = 0
+        edge_false_negative = 0
+        edge_false_positive = 0
+        edge_scores = []
+        edge_ground_truth = []
+        #edge_total = 0
         test_iterate = tqdm.tqdm(range(0, num_episodes, args.batch_size))
         for i in test_iterate:
             episodes = episode_order[i:i+args.batch_size]
@@ -539,39 +546,6 @@ def test_epoch(epoch, mark_selection=False):
                 y = step_actions[:,1]
                 selected_brick_vectors.append(
                         brick_vectors[range(batch_size),:,y,x])
-                #class_logits = brick_classifier(brick_vectors)
-                #confidence_logits = confidence_classifier(brick_vectors)
-                
-                # brick class loss
-                #class_loss = torch.nn.functional.cross_entropy(
-                #        class_logits, batch_segmentation_targets,
-                #        weight=brick_weights, reduction='none')
-                #class_loss = class_loss * batch_valid_entries
-                #class_loss = torch.mean(class_loss)
-                #episode_class_loss = episode_class_loss + class_loss
-                
-                # confidence loss
-                #predictions = torch.argmax(class_logits, dim=1).detach()
-                #confidence_target = (predictions == batch_segmentation_targets)
-                
-                #confidence_loss = torch.nn.functional.cross_entropy(
-                #        confidence_logits,
-                #        confidence_target.long(),
-                #        weight = confidence_weights,
-                #        reduction = 'none')
-                #confidence_loss = confidence_loss * batch_valid_entries
-                #confidence_loss = torch.mean(confidence_loss)
-                #episode_confidence_loss = (
-                #        episode_confidence_loss + confidence_loss)
-                
-                # combine loss
-                #loss = (class_loss * args.class_weight +
-                #        confidence_loss * args.confidence_weight)
-                
-                # backprop
-                #loss.backward()
-                #optimizer.step()
-                #optimizer.zero_grad()
             
             # edge-prediction forward pass
             selected_brick_vectors = torch.stack(selected_brick_vectors, 1)
@@ -583,31 +557,79 @@ def test_epoch(epoch, mark_selection=False):
             
             # edge-prediction target (bs, steps, steps)
             batch_edge_targets = edge_targets[episodes].cuda()
-            batch_edge_prediction = torch.argmax(edge_logits, dim=-1)
+            #batch_edge_prediction = torch.argmax(edge_logits, dim=-1)
+            for j in range(num_steps-1):
+                for k in range(j+1, num_steps):
+                    logits = edge_logits[:,j,k]
+                    edge_probability = torch.softmax(logits, dim=-1)[:,-1]
+                    edge_scores.extend(edge_probability.cpu().tolist())
+                    edge_target = batch_edge_targets[:,j,k]
+                    edge_ground_truth.extend(edge_target.cpu().tolist())
+                    #logits_b = edge_logits[:,k,j]
+                    #logits = logits_a + logits_b
+                    '''
+                    edge_prediction = torch.argmax(logits, dim=-1)
+                    edge_target = batch_edge_targets[:,j,k]
+                    tp, fp, fn = evaluation.tp_fp_fn(
+                            edge_prediction.cpu().numpy(),
+                            edge_target.cpu().numpy())
+                    edge_true_positive += int(numpy.sum(tp))
+                    edge_false_positive += int(numpy.sum(fp))
+                    edge_false_negative += int(numpy.sum(fn))
+                    '''
             
-            for k in range(4):
-                print('Edge Targets:')
-                print(batch_edge_targets[k].cpu())
-                print('Edge Prediction:')
-                print(batch_edge_prediction[k].cpu())
-                print('Valid Edge Entries:')
-                print(valid_edge_entries[k])
+            '''
+            if i == 0:
+                for j in range(4):
+                    print('Edge Targets:')
+                    print(batch_edge_targets[j].cpu())
+                    print('Edge Prediction:')
+                    print(batch_edge_prediction[j].cpu())
+                    print('Valid Edge Entries:')
+                    print(valid_edge_entries[j])
+            '''
+            #batch_edge_correct = batch_edge_prediction == batch_edge_targets
+            #batch_edge_correct = batch_edge_correct * valid_edge_entries
+            #edge_correct += float(torch.sum(batch_edge_correct))
+            #edge_total += float(torch.sum(valid_edge_entries))
+            #test_iterate.set_description(
+            #        'Edge Acc: %.04f'%(edge_correct/edge_total))
+        #print('Final Edge Accuracy: %.04f'%(edge_correct/edge_total))
+        '''
+        p, r = evaluation.precision_recall(
+                edge_true_positive, edge_false_positive, edge_false_negative)
+        f1 = evaluation.f1(p, r)
+        print('Edge Precision: %f'%p)
+        print('Edge Recall: %f'%r)
+        print('Edge F1: %f'%f1)
+        '''
+        pr, concave_pr, ap = evaluation.ap(
+                edge_scores, edge_ground_truth, 0)
+        concave_pr.append([0,1])
+        
+        '''
+        random_pr, random_concave_pr, random_ap = evaluation.ap(
+                [random.random() for _ in edge_scores], edge_ground_truth, 0)
+        random_concave_pr.append([0,1])
+        '''
+        
+        print('AP: %f'%ap)
+        edge_density = sum(edge_ground_truth) / len(edge_ground_truth)
+        print('Edge Density: %f'%edge_density)
+        if graph:
+            x, y = zip(*concave_pr)
+            pyplot.plot(x, y, label='ours')
             
-            #print(batch_edge_prediction[0])
-            #print(batch_edge_targets[0])
-            batch_edge_correct = batch_edge_prediction == batch_edge_targets
-            batch_edge_correct = batch_edge_correct * valid_edge_entries
-            edge_correct += float(torch.sum(batch_edge_correct))
-            edge_total += float(torch.sum(valid_edge_entries))
-            test_iterate.set_description(
-                    'Edge Acc: %.04f'%(edge_correct/edge_total))
-            #edge_loss = torch.nn.functional.cross_entropy(
-            #        edge_logits.view(-1,2),
-            #        batch_edge_targets.view(-1),
-            #        reduction='none').view(batch_size, steps, steps)
-            #edge_loss = edge_loss * valid_edge_entries
-            #edge_loss = torch.mean(edge_loss)
-        print('Final Edge Accuracy: %.04f'%(edge_correct/edge_total))
+            #x2, y2 = zip(*random_concave_pr)
+            #pyplot.plot(x2, y2)
+            
+            random_concave_pr = [
+                    [0,1], [edge_density, 1], [edge_density, 0], [1,0]]
+            x2, y2 = zip(*random_concave_pr)
+            pyplot.plot(x2, y2, label='random')
+            
+            pyplot.legend()
+            pyplot.savefig('./ap_%i.png'%epoch)
 
 if args.test:
     model_checkpoint = './model_checkpoint_%04i.pt'%args.num_epochs
@@ -625,7 +647,7 @@ if args.test:
             './edge_checkpoint_%04i.pt'%args.num_epochs)
     edge_classifier.load_state_dict(torch.load(edge_checkpoint))
     
-    test_epoch(args.num_epochs, mark_selection=True)
+    test_epoch(args.num_epochs, mark_selection=True, graph=True)
 
 else:
     for epoch in range(1, args.num_epochs+1):
