@@ -228,7 +228,7 @@ def train_epoch(epoch):
             # confidence loss
             confidence_logits = logits[:,-2:]
             
-            predictions = torch.argmax(logits, dim=1).detach()
+            predictions = torch.argmax(class_logits, dim=1).detach()
             confidence_target = (predictions == batch_targets)
             
             confidence_loss = torch.nn.functional.cross_entropy(

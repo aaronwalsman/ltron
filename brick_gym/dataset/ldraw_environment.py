@@ -1,5 +1,6 @@
 import random
 import os
+import multiprocessing
 
 import numpy
 
@@ -34,17 +35,7 @@ class LDrawEnvironment:
         self.observation_space = spaces.Box(
                 low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
         
-        '''
-        # find all model files
-        self.model_directory = os.path.join(directory, split)
-        self.model_files = sorted(
-                model_file for model_file in os.listdir(self.model_directory)
-                if model_file[-4:] == '.mpd')
-        if subset is not None:
-            self.model_files = self.model_files[:subset]
-        '''
         # initialize the loaded_model_path
-        #self.reset_mode = reset_mode
         self.loaded_model_path = None
         
         # initialize renderpy
@@ -62,6 +53,7 @@ class LDrawEnvironment:
             pass
         self.renderer = core.Renderpy()
         self.first_load = False
+        self.edges = []
     
     def load_path(self, model_path, force=False):
         if model_path != self.loaded_model_path or force:
@@ -89,9 +81,26 @@ class LDrawEnvironment:
             bbox = self.renderer.get_instance_center_bbox()
             self.viewpoint_control.set_bbox(bbox)
             
-            self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
+            #self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
             
             self.loaded_model_path = model_path
+            
+            # temp hack to deal with random_stack edges
+            self.edges = []
+            with open(model_path, 'r') as f:
+                for line in f.readlines():
+                    line_parts = line.split()
+                    if (len(line_parts) >= 3 and
+                            line_parts[0] == '0' and
+                            line_parts[1] == 'EDGE'):
+                        a, b = line_parts[2].split(',')
+                        a = int(a)
+                        b = int(b)
+                        self.edges.append((a,b))
+        
+        else:
+            for instance_name in self.renderer.list_instances():
+                self.renderer.show_instance(instance_name)
     
     def get_brick_at_pixel(self, x, y):
         self.manager.enable_frame('mask')
@@ -104,17 +113,37 @@ class LDrawEnvironment:
         self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
         
         indices = masks.color_byte_to_index(mask)
-        instance_index = indices[y,x]
+        brick_index = indices[y,x]
+        return brick_index
+        '''
         if instance_index == 0:
             return None
         else:
             instance_name = 'instance_%i'%instance_index
             return instance_name
+        '''
+    
+    def hide_brick(self, brick_index):
+        if brick_index != 0:
+            brick_name = 'instance_%i'%brick_index
+            self.renderer.hide_instance(brick_name)
+            return brick_name
+        
+        return None
     
     def hide_brick_at_pixel(self, x, y):
-        instance_name = self.get_brick_at_pixel(x, y)
-        if instance_name is not None:
-            self.renderer.hide_instance(instance_name)
+        brick_index = self.get_brick_at_pixel(x, y)
+        instance_name = self.hide_brick(brick_index)
+        
+        return instance_name
+    
+    def get_instance_brick_types(self):
+        instance_types = {}
+        for instance_name in self.renderer.list_instances():
+            instance_id = int(instance_name.split('_')[-1])
+            instance_types[instance_id] = self.renderer.get_instance_mesh_name(
+                    instance_name)
+        return instance_types
     
     def reset_state(self):
         self.viewpoint_control.reset()
@@ -143,9 +172,20 @@ class LDrawEnvironment:
             self.manager.enable_frame('color')
             self.renderer.color_render()
             image = self.manager.read_pixels('color')
-        
+        elif mode == 'instance_mask':
+            self.manager.enable_frame('mask')
+            '''
+            instance_indices = {
+                    name:int(name.split('_')[-1])
+                    for name in self.renderer.list_instances()}
+            self.renderer.set_instance_masks_to_instance_indices(
+                    instance_indices)
+            '''
+            self.renderer.mask_render()
+            image = self.manager.read_pixels('mask')
         elif mode == 'mask':
             self.manager.enable_frame('mask')
+            self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
             self.renderer.mask_render()
             image = self.manager.read_pixels('mask')
         
@@ -159,3 +199,115 @@ class LDrawEnvironment:
         self.manager.show_window()
         self.manager.enable_window()
         self.manager.color_render()
+
+def ldraw_process(
+        connection,
+        width, height,
+        viewpoint_control):
+    
+    environment = LDrawEnvironment(
+            viewpoint_control,
+            width=width,
+            height=height)
+    
+    while True:
+        instruction, args = connection.recv()
+        if instruction == 'load_path':
+            #print('Loading scene: %s'%args)
+            environment.load_path(args)
+        
+        elif instruction == 'hide_brick':
+            #print('Hiding brick: %i'%args)
+            environment.hide_brick(args)
+        
+        elif instruction == 'observe':
+            #print('Observing: ' + ' '.join(args))
+            observations = []
+            for mode in args:
+                observation = environment.observe(mode)
+                observations.append(observation)
+            connection.send(observations)
+        
+        elif instruction == 'get_instance_brick_types':
+            #print('Getting instance brick types')
+            instance_types = {}
+            connection.send(environment.get_instance_brick_types())
+        
+        if instruction == 'shutdown':
+            #print('Shutting down')
+            break
+
+class MultiLDrawEnvironment:
+    def __init__(self,
+            num_processes,
+            width, height,
+            viewpoint_control):
+        
+        self.num_processes = num_processes
+        self.width = width
+        self.height = height
+        self.viewpoint_control = viewpoint_control
+        self.connections = []
+        self.processes = []
+    
+    def start_processes(self):
+        for i in range(self.num_processes):
+            parent_connection, child_connection = multiprocessing.Pipe()
+            self.connections.append(parent_connection)
+            process_args = (
+                    child_connection,
+                    self.width,
+                    self.height,
+                    self.viewpoint_control)
+            process = multiprocessing.Process(
+                    target = ldraw_process, args = process_args)
+            process.start()
+            self.processes.append(process)
+    
+    def shutdown_processes(self):
+        for connection in self.connections:
+            connection.send(('shutdown',None))
+        
+        for process in self.processes:
+            process.join()
+        
+        self.connections = []
+        self.processes = []
+    
+    def load_paths(self, paths):
+        assert(len(paths) <= self.num_processes)
+        for path, connection in zip(paths, self.connections):
+            connection.send(('load_path', path))
+    
+    def observe(self, modes):
+        for connection in self.connections:
+            connection.send(('observe', modes))
+        observations = []
+        for connection in self.connections:
+            observation = connection.recv()
+            observations.append(observation)
+        
+        return observations
+    
+    def get_instance_brick_types(self):
+        for connection in self.connections:
+            connection.send(('get_instance_brick_types', None))
+        instance_brick_types = []
+        for connection in self.connections:
+            instance_brick_types.append(connection.recv())
+        
+        return instance_brick_types
+    
+    def hide_bricks(self, bricks):
+        assert(len(bricks) <= self.num_processes)
+        for brick, connection in zip(bricks, self.connections):
+            connection.send(('hide_brick', brick))
+    
+    def __del__(self):
+        self.shutdown_processes()
+    
+    def __enter__(self):
+        self.start_processes()
+    
+    def __exit__(self, type, value, traceback):
+        self.shutdown_processes()
