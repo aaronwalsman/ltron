@@ -14,7 +14,8 @@ import PIL.Image as Image
 import tqdm
 
 import segmentation_models_pytorch
-from brick_gym.random_stack.HarDNet import hardnet
+import brick_gym.model.offset2d as offset2d
+#from brick_gym.random_stack.HarDNet import hardnet
 
 import renderpy.masks as masks
 
@@ -81,6 +82,8 @@ test_paths = data_paths(config.paths['random_stack'], 'test_mpd')
 width, height = args.image_size.split('x')
 width = int(width)
 height = int(height)
+downsample_width = 32
+downsample_height = 32
 viewpoint_control = azimuth_elevation.FixedAzimuthalViewpoint(
         azimuth = math.radians(30), elevation = -math.radians(45))
 '''
@@ -97,14 +100,16 @@ multi_environment = ldraw_environment.MultiLDrawEnvironment(
         viewpoint_control = viewpoint_control)
 
 # Build the model
-'''
-model = segmentation_models_pytorch.FPN(
+feature_channels = 256
+fcn = segmentation_models_pytorch.FPN(
         encoder_name = args.encoder,
         encoder_weights = args.encoder_weights,
-        classes = 7 + 2,
+        classes = feature_channels,
         activation = None).cuda()
-'''
-model = hardnet(n_classes=7+2).cuda()
+model = offset2d.Offset2DSegmentationModel(
+        fcn,
+        feature_channels,
+        7 + 2 + 2)
 
 # Build the optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -119,6 +124,15 @@ def get_instance_class_lookup(instance_brick_types):
         lookup[instance_id] = mesh_indices[mesh_name]
     return lookup
 
+def downsample_indices(indices, num_classes=9):
+    indices = torch.LongTensor(indices).cuda().unsqueeze(0)
+    accumulator = torch.zeros(num_classes, 256, 256).cuda()
+    accumulator.scatter_(0, indices, 1)
+    accumulator = torch.nn.functional.avg_pool2d(accumulator, 32, 32)
+    non_empty = accumulator[0] != 1.0
+    result = (torch.argmax(accumulator[1:], dim=0) + 1) * non_empty
+    return result.cpu().numpy()
+
 def rollout(
         epoch,
         model_paths,
@@ -132,10 +146,14 @@ def rollout(
         images = torch.zeros(
                 num_episodes, steps_per_episode+1, 3, height, width)
         class_targets = torch.zeros(
-                num_episodes, steps_per_episode+1, height, width,
+                num_episodes,
+                steps_per_episode+1,
+                downsample_height,
+                downsample_width,
                 dtype=torch.long)
         logits = torch.zeros(
-                num_episodes, steps_per_episode, 7+2, height, width)
+                num_episodes, steps_per_episode, 7+2,
+                downsample_height, downsample_width)
         actions = torch.zeros(
                 num_episodes, steps_per_episode, 2, dtype=torch.long)
         valid_entries = []
@@ -154,7 +172,9 @@ def rollout(
             #image_numpy = environment.reset()
             observations = multi_environment.observe(('color', 'instance_mask'))
             batch_images, batch_masks = zip(*observations)
-            instance_ids = [masks.color_byte_to_index(mask)
+
+            instance_ids = [
+                    downsample_indices(masks.color_byte_to_index(mask))
                     for mask in batch_masks]
             batch_class_targets = [
                     class_lookup[ids]
@@ -239,7 +259,8 @@ def rollout(
                 foreground_confidence = foreground_confidence.view(
                         foreground_confidence.shape[0], -1)
                 locations = torch.argmax(foreground_confidence, dim=-1).cpu()
-                y, x = numpy.unravel_index(locations, (height, width))
+                y, x = numpy.unravel_index(
+                        locations, (downsample_height, downsample_width))
                 #xy = list(zip(x, y))
                 '''
                 location = int(torch.argmax(foreground_confidence).cpu())
@@ -255,8 +276,10 @@ def rollout(
                         episode = ep_start + i
                         image_numpy = observations[i][0]
                         marked_numpy = image_numpy.copy()
-                        marked_numpy[y[i]-5:y[i]+5,x[i]] = (255,0,0)
-                        marked_numpy[y[i],x[i]-5:x[i]+5] = (255,0,0)
+                        u_x = x * FACTOR + FACTOR/2
+                        u_y = y * FACTOR + FACTOR/2
+                        marked_numpy[u_y[i]-5:u_y[i]+5,u_x[i]] = (255,0,0)
+                        marked_numpy[u_y[i],u_x[i]-5:u_x[i]+5] = (255,0,0)
                         Image.fromarray(marked_numpy).save(
                                 './marked_%i_%i_%i.png'%(epoch, episode, step))
                 
@@ -282,7 +305,8 @@ def rollout(
                 observations = multi_environment.observe(
                         ('color', 'instance_mask'))
                 batch_images, batch_masks = zip(*observations)
-                instance_ids = [masks.color_byte_to_index(mask)
+                instance_ids = [
+                        downsample_indices(masks.color_byte_to_index(mask))
                         for mask in batch_masks]
                 batch_class_targets = [
                         class_lookup[ids]
