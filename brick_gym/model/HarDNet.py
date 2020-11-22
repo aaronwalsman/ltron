@@ -168,10 +168,10 @@ class hardnet(nn.Module):
         super(hardnet, self).__init__()
 
         first_ch  = [16,24,32,48]  # number of output channels of the first four ConvLayer(conv+batchnorm+ReLU)
-        ch_list = [64, 96, 160, 224, 320]
+        ch_list = [48, 78, 160, 214, 286]
         grmul = 1.7  # growth rate multiplier
         gr       = [10,16,18,24,32]  # growth rate
-        n_layers = [4, 4, 8, 8, 8] 
+        n_layers = [4, 4, 8, 8, 8]  # number of channel in the block
 
         blks = len(n_layers) 
         self.shortcut_layers = []
