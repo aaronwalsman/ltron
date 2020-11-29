@@ -144,7 +144,11 @@ class BrickVectorEdgeModel(torch.nn.Module):
 edge_classifier = BrickVectorEdgeModel().cuda()
 
 # Build the optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+optimizer = torch.optim.Adam(
+        list(model.parameters()) +
+        list(brick_classifier.parameters()) +
+        list(confidence_classifier.parameters()) +
+        list(edge_classifier.parameters()), lr=3e-4)
 
 #brick_weights = torch.FloatTensor([0.02, 1.0, 0.9, 0.7, 0.6, 0.5, 0.4]).cuda()
 brick_weights = torch.FloatTensor([0.02, 4.0, 3.0, 2.0, 1.0, 0.5, 0.4]).cuda()
