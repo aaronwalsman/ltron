@@ -98,9 +98,8 @@ class LDrawEnvironment:
                         b = int(b)
                         self.edges.append((a,b))
         
-        else:
-            for instance_name in self.renderer.list_instances():
-                self.renderer.show_instance(instance_name)
+        for instance_name in self.renderer.list_instances():
+            self.renderer.show_instance(instance_name)
     
     def get_brick_at_pixel(self, x, y):
         self.manager.enable_frame('mask')
@@ -230,10 +229,12 @@ def ldraw_process(
         
         elif instruction == 'get_instance_brick_types':
             #print('Getting instance brick types')
-            instance_types = {}
             connection.send(environment.get_instance_brick_types())
         
-        if instruction == 'shutdown':
+        elif instruction == 'edges':
+            connection.send(environment.edges)
+        
+        elif instruction == 'shutdown':
             #print('Shutting down')
             break
 
@@ -297,6 +298,15 @@ class MultiLDrawEnvironment:
             instance_brick_types.append(connection.recv())
         
         return instance_brick_types
+    
+    def get_edges(self):
+        for connection in self.connections:
+            connection.send(('edges', None))
+        edges = []
+        for connection in self.connections:
+            edges.append(connection.recv())
+        
+        return edges
     
     def hide_bricks(self, bricks):
         assert(len(bricks) <= self.num_processes)
