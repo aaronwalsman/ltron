@@ -101,7 +101,7 @@ multi_environment = ldraw_environment.MultiLDrawEnvironment(
         viewpoint_control = viewpoint_control)
 
 # Build the model
-resnet = resnet34().cuda()
+resnet = resnet34(pretrained=True).cuda()
 class LowResModel(torch.nn.Module):
     def __init__(self, resnet):
         super(LowResModel, self).__init__()
