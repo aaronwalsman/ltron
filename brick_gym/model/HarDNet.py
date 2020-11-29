@@ -171,7 +171,7 @@ class hardnet(nn.Module):
         ch_list = [64, 96, 160, 224, 320]
         grmul = 1.7  # growth rate multiplier
         gr       = [10,16,18,24,32]  # growth rate
-        n_layers = [4, 4, 8, 8, 8] 
+        n_layers = [4, 4, 8, 8, 8]  # number of channel in the block
 
         blks = len(n_layers) 
         self.shortcut_layers = []
@@ -199,6 +199,7 @@ class hardnet(nn.Module):
             
             if i < blks-1:            
               self.base.append ( nn.AvgPool2d(kernel_size=2, stride=2) )
+            
 
 
         cur_channels_count = ch

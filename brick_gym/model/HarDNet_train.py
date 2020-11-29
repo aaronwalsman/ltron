@@ -4,6 +4,7 @@ import os
 import argparse
 
 import torch
+import torch.nn as nn
 
 import numpy
 
@@ -70,15 +71,17 @@ test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
 
 model = hardnet(n_classes = 7 + args.include_confidence*2)
+model = nn.DataParallel(model)
 model.cuda()
-
-if args.keep_training:
-    checkpoint = torch.load('checkpoint/segmentation_checkpoint_00{}.pt'.format(str(args.start_epochs)))
-    model.load_state_dict(checkpoint)
 
 optim = torch.optim.Adam(model.parameters(), lr=3e-4)
 
-writer = SummaryWriter('tblog/HarDNet')
+if args.keep_training:
+    checkpoint = torch.load('checkpoint/segmentation_checkpoint_00{}.pt'.format(str(args.start_epochs)))
+    model.load_state_dict(checkpoint['model'])
+    optim.load_state_dict(checkpoint['optim'])
+
+writer = SummaryWriter('tblog/HarDNet_trial2')
 
 num_epochs = args.end_epochs - args.start_epochs
 
@@ -156,14 +159,20 @@ def test_epoch(epoch):
                 float(correct_no_background)/float(total_no_background)))
         
         with open('result/{}.txt'.format(model_type), 'a') as f:
-            f.write('Accuracy: {}'.format(float(correct)/total))
-            f.write('Accuracy No Background: {}'.format(float(correct_no_background)/float(total_no_background)))
+            f.write('  Accuracy: {}\n'.format(float(correct)/total))
+            f.write('  Accuracy No Background: {}\n'.format(float(correct_no_background)/float(total_no_background)))
 
-        writer.add_scalar('Test(validation)/Accu', float(correct)/total, epoch)
-        writer.add_scalar('Test(validation)/Accu_No_Back', float(correct_no_background)/float(total_no_background), epoch)
+        writer.add_scalar('Vali/Accu', float(correct)/total, epoch)
+        writer.add_scalar('Vali/Accu_No_Back', float(correct_no_background)/float(total_no_background), epoch)
 
 if mode == 'train':
+    correct_no_background = 0
+    total_no_background = 0
+    correct = 0
+    total = 0
     for epoch in range(args.start_epochs+1, args.end_epochs+1):
+        total_no_back = 0
+        total
         print('Epoch: %i'%epoch)
         print('Train')
         model.train()
@@ -187,6 +196,12 @@ if mode == 'train':
             else:
                 logits = model(images)
                 loss = torch.nn.functional.cross_entropy(logits, targets)
+
+            predictions = torch.argmax(logits, dim=1)
+            correct_no_background += torch.sum((predictions == targets) * (targets != 0))
+            total_no_background += torch.sum(targets != 0)
+            correct += torch.sum(predictions == targets)
+            total += targets.numel()
             
             loss.backward()
             optim.step()
@@ -196,19 +211,32 @@ if mode == 'train':
         
         checkpoint_path = './checkpoint/segmentation_checkpoint_%04i.pt'%epoch
         print('Saving Checkpoint to: %s'%checkpoint_path)
-        torch.save(model.state_dict(), checkpoint_path)
+        state_dict = {model: model.state_dict(), optim: optim.state_dict()}
+        torch.save(state_dict, checkpoint_path)
+        print('Accuracy:               %f'%(float(correct)/total))
+        print('Accuracy No Background: %f'%(
+            float(correct_no_background)/float(total_no_background)))
 
         with open('result/{}.txt'.format(model_type), 'a') as f:
-            f.write('Epoch: {}'.format(epoch))
-            f.write('Loss: {}'.format(loss))
+            f.write('Epoch: {}\n'.format(epoch))
+            f.write('  Loss: {}\n'.format(loss))
+            f.write('  Train Accuracy: {}\n'.format(float(correct)/total))
+            f.write('  Traom Accuracy No Background: {}\n'.format(float(correct_no_background)/float(total_no_background)))
 
         writer.add_scalar('Train/Loss', loss, epoch)
-        
+        writer.add_scalar('Train/Accu', float(correct)/total, epoch)
+        writer.add_scalar('Train/Accu_No_Back', float(correct_no_background)/float(total_no_background), epoch)
+
+        correct_no_background = 0
+        total_no_background = 0
+        correct = 0
+        total = 0
+
         print('Test')
         test_epoch(epoch)
 
 elif mode == 'test':
     checkpoint = ('./checkpoint/segmentation_checkpoint_%04i.pt'%args.num_epochs)
     state_dict = torch.load(checkpoint)
-    model.load_state_dict(state_dict)
+    model.load_state_dict(state_dict['model'])
     test_epoch(10)
