@@ -315,40 +315,6 @@ def rollout(
                         for i in range(len(observations))
                         if not stop[i]])
                 
-                '''
-                # update data
-                image_numpy = environment.observe('color')
-                if args.dump_images:
-                    Image.fromarray(image_numpy).save(
-                            './image_%i_%i_%i.png'%(epoch, episode, step+1))
-                image = to_tensor(image_numpy)
-                images[episode, step+1] = image
-                mask = environment.observe('mask')
-                #instance_id = environment.observe('instances')
-                if args.dump_images:
-                    Image.fromarray(mask).save(
-                            './mask_%i_%i_%i.png'%(epoch, episode, step+1))
-                    #Image.fromarray(instance_ids).save(
-                    #        './instances_%i_%i_%i.png'%(epoch, episode,step+1))
-                segmentation_target = masks.color_byte_to_index(mask)
-                segmentation_targets[episode, step+1] = torch.LongTensor(
-                        segmentation_target)
-                actions[episode, step, 0] = x
-                actions[episode, step, 1] = y
-                valid_entries.append((episode, step))
-                '''
-            '''
-            brick_remap = {
-                    brick_id : k for k, brick_id in enumerate(brick_order)
-                    if brick_id != -1}
-            for a,b in environment.edges:
-                if a not in brick_remap or b not in brick_remap:
-                    continue
-                aa = brick_remap[a]
-                bb = brick_remap[b]
-                edge_targets[episode,aa,bb] = 1
-                edge_targets[episode,bb,aa] = 1
-            '''
             batch_edges = multi_environment.get_edges()
             for i, edges in enumerate(batch_edges):
                 episode = ep_start + i
