@@ -6,7 +6,7 @@ import numpy
 
 from gym import spaces
 
-import renderpy.buffer_manager_glut as buffer_manager
+import renderpy.buffer_manager_egl as buffer_manager
 import renderpy.core as core
 import renderpy.masks as masks
 
