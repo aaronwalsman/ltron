@@ -9,12 +9,13 @@ from gym import spaces
 import renderpy.buffer_manager_egl as buffer_manager
 import renderpy.core as core
 import renderpy.masks as masks
+import renderpy.examples as renderpy_examples
 
 #import brick_gym.dataset.path_list as path_list
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 import brick_gym.random_stack.dataset as random_stack_dataset
 
-default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
+default_image_light = renderpy_examples.image_lights['grey_cube']
 
 mesh_indices = {
     '3005' : 1,
