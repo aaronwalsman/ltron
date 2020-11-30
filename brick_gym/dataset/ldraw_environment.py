@@ -39,8 +39,7 @@ class LDrawEnvironment:
         self.loaded_model_path = None
         
         # initialize renderpy
-        self.manager = buffer_manager.initialize_shared_buffer_manager(
-                width, height)
+        self.manager = buffer_manager.initialize_shared_buffer_manager()
         try:
             self.manager.add_frame(
                     'color', width=width, height=height, anti_aliasing=True)
