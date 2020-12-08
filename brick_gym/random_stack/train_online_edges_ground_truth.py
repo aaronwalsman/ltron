@@ -22,11 +22,12 @@ import renderpy.masks as masks
 
 import brick_gym.config as config
 import brick_gym.evaluation as evaluation
-from brick_gym.dataset.data_paths import data_paths
+from brick_gym.dataset.paths import get_dataset_paths
 import brick_gym.dataset.ldraw_environment as ldraw_environment
 import brick_gym.viewpoint.azimuth_elevation as azimuth_elevation
-import brick_gym.random_stack.dataset as random_stack_dataset
-import brick_gym.model.resnet as bg_resnet
+import brick_gym.dataset.old_dataset as random_stack_dataset
+import brick_gym.torch.models.resnet as bg_resnet
+import brick_gym.torch.models.standard_models as standard_models
 
 mesh_indices = {
     '3005' : 1,
@@ -78,11 +79,15 @@ args = parser.parse_args()
 
 # Build the data generators
 if not args.test:
-    train_paths = data_paths(
-            config.paths['random_stack'], 'train_mpd', subset=args.train_subset)
+    train_paths = get_dataset_paths(
+            #config.datasets['random_stack'],
+            'random_stack',
+            'train_mpd',
+            subset=args.train_subset)
 
-test_paths = data_paths(
-        config.paths['random_stack'],
+test_paths = get_dataset_paths(
+        #config.paths['random_stack'],
+        'random_stack',
         '%s_mpd'%args.test_split,
         subset=args.test_subset)
 
@@ -108,6 +113,7 @@ brick_classifier = torch.nn.Linear(
 confidence_classifier = torch.nn.Linear(
         args.brick_vector_dimension, 2, 1).cuda()
 
+'''
 class BrickVectorEdgeModel(torch.nn.Module):
     def __init__(self):
         super(BrickVectorEdgeModel, self).__init__()
@@ -147,6 +153,9 @@ class BrickVectorEdgeModel(torch.nn.Module):
                 batch_size, bricks_per_model, bricks_per_model, 2)
 
 edge_classifier = BrickVectorEdgeModel().cuda()
+'''
+
+edge_classifier = standard_models.get_edge_model('simple_edge_512').cuda()
 
 # Build the optimizer
 optimizer = torch.optim.Adam(
@@ -202,14 +211,15 @@ def rollout(
             instance_class_lookup = [
                     get_instance_class_lookup(brick_types)
                     for brick_types in instance_brick_types]
-            observations = multi_environment.observe(('color', 'instance_mask'))
-            for i, (image, mask) in enumerate(observations):
+            observations = multi_environment.observe(
+                    ('color', 'instance_labels'))
+            for i, (image, mask_indices) in enumerate(observations):
                 episode = ep_start + i
                 if args.dump_images:
                     Image.fromarray(image).save(
                             './image_%i_%i_0.png'%(epoch, episode))
                 image = to_tensor(image)
-                mask_indices = masks.color_byte_to_index(mask)
+                #mask_indices = masks.color_byte_to_index(mask)
                 for j in range(1, max_bricks_per_scene+1):
                     brick_mask = torch.FloatTensor(mask_indices == j)
                     if torch.sum(brick_mask):
@@ -278,14 +288,14 @@ def rollout(
                 
                 previous_observations = observations
                 observations = multi_environment.observe(
-                        ('color', 'instance_mask'))
-                for i, (image, mask) in enumerate(observations):
+                        ('color', 'instance_labels'))
+                for i, (image, mask_indices) in enumerate(observations):
                     episode = ep_start + i
                     if args.dump_images:
                         Image.fromarray(image).save(
                                 './image_%i_%i_%i.png'%(epoch, episode, step+1))
                     image = to_tensor(image)
-                    mask_indices = masks.color_byte_to_index(mask)
+                    #mask_indices = masks.color_byte_to_index(mask)
                     for j in range(1, max_bricks_per_scene+1):
                         brick_mask = torch.FloatTensor(mask_indices == j)
                         if torch.sum(brick_mask):
@@ -324,8 +334,13 @@ def rollout(
                         for k, brick_id in enumerate(bo)
                         if brick_id != 0}
                 for a, b in edges:
-                    aa = brick_remap[a+1]
-                    bb = brick_remap[b+1]
+                    try:
+                        aa = brick_remap[a+1]
+                        bb = brick_remap[b+1]
+                    except KeyError:
+                        print('unable to get aa, bb')
+                        print(bo)
+                        print(brick_remap)
                     edge_targets[episode,aa,bb] = 1
                     edge_targets[episode,bb,aa] = 1
         
@@ -426,15 +441,22 @@ def train_epoch(epoch):
             # edge-prediction forward pass
             selected_brick_vectors = torch.stack(selected_brick_vectors, 1)
             edge_logits = edge_classifier(selected_brick_vectors)
-            batch_size, steps, _, _ = edge_logits.shape
+            #batch_size, steps, _, _ = edge_logits.shape
+            batch_size, steps, _ = edge_logits.shape
             
             # edge-prediction target (bs, steps, steps)
             batch_edge_targets = edge_targets[episodes].cuda()
+            edge_loss = torch.nn.functional.binary_cross_entropy(
+                    torch.sigmoid(edge_logits.view(-1)),
+                    batch_edge_targets.view(-1).float(),
+                    reduction = 'none').view(batch_size, steps, steps)
+            '''
             edge_loss = torch.nn.functional.cross_entropy(
                     edge_logits.view(-1,2),
                     batch_edge_targets.view(-1),
                     weight = edge_weights,
                     reduction = 'none').view(batch_size, steps, steps)
+            '''
             edge_loss = edge_loss * valid_edge_entries
             divisor = torch.sum(valid_edge_entries)
             if divisor:
@@ -585,7 +607,8 @@ def test_epoch(epoch, mark_selection=False, graph=False):
             #batch_actions[:,:,1] /= float(height)
             #edge_logits = edge_classifier(selected_brick_vectors,batch_actions)
             edge_logits = edge_classifier(selected_brick_vectors)
-            batch_size, steps, _, _ = edge_logits.shape
+            #batch_size, steps, _, _ = edge_logits.shape
+            batch_size, steps, _ = edge_logits.shape
             
             # edge-prediction target (bs, steps, steps)
             batch_edge_targets = edge_targets[episodes].cuda()
@@ -594,7 +617,8 @@ def test_epoch(epoch, mark_selection=False, graph=False):
             for j in range(num_steps-1):
                 for k in range(j+1, num_steps):
                     logits = edge_logits[:,j,k]
-                    edge_probability = torch.softmax(logits, dim=-1)[:,-1]
+                    #edge_probability = torch.softmax(logits, dim=-1)[:,-1]
+                    edge_probability = torch.sigmoid(logits)
                     edge_scores.extend(edge_probability.cpu().tolist())
                     edge_target = batch_edge_targets[:,j,k]
                     edge_ground_truth.extend(edge_target.cpu().tolist())
