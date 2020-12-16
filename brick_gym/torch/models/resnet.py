@@ -1,6 +1,6 @@
 import torch
 
-import brick_gym.model.utils as model_utils
+import brick_gym.torch.models.utils as model_utils
 
 class ResnetBackbone(torch.nn.Module):
     def __init__(self, resnet):
@@ -28,7 +28,7 @@ def replace_fc(resnet, num_classes):
 def replace_conv1(resnet, channels):
     conv1 = resnet.conv1
     resnet.conv1 = torch.nn.Conv2d(
-            channels, conv1.out_features,
+            channels, conv1.out_channels,
             kernel_size=(7,7),
             stride=(2,2),
             padding=(3,3),
@@ -37,7 +37,9 @@ def replace_conv1(resnet, channels):
 def make_spatial_attention_resnet(resnet, shape, do_spatial_embedding=True):
     device = resnet.fc.weight.device
     backbone = ResnetBackbone(resnet)
-    x = torch.zeros(1, 3, shape[0], shape[1]).to(resnet.conv1.weight.device)
+    in_channels = resnet.conv1.in_channels
+    x = torch.zeros(
+            1, in_channels, shape[0], shape[1]).to(resnet.conv1.weight.device)
     with torch.no_grad():
         x = backbone(x)
         _, channels, h, w = x.shape

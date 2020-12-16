@@ -1,20 +1,23 @@
 import torch
+from torch.utils.data import DataLoader
 
 import PIL.Image as Image
 
 import tqdm
 
 import brick_gym.config as config
+import brick_gym.torch.models as models
+from brick_gym.torch.datasets.segmentation import SegmentationDataset
 
-def train_epoch(
+def train_semantic_segmentation_epoch(
         model,
         loader,
         optimizer):
     
     model.train()
-    train_iterate = tqdm.tqdm(train_loader)
+    train_iterate = tqdm.tqdm(loader)
     running_loss = None
-    for images, targets in train_iterate:
+    for images, instance_targets, class_targets in train_iterate:
         images = images.cuda()
         targets = targets.cuda()
         logits = model(images)
@@ -30,7 +33,7 @@ def train_epoch(
             running_loss = running_loss * 0.9 + float(loss) * 0.1
         train_iterate.set_description('Loss: %.04f'%float(running_loss))
 
-def test_epoch(
+def test_semantic_segmentation_epoch(
         model,
         loader):
     
@@ -57,38 +60,60 @@ def test_epoch(
     print('Accuracy:            %f'%(correct/total))
     print('Foreground Accuracy: %f'%(correct_foreground/total_foreground))
 
-def train_segmentation(
+def train_semantic_segmentation(
         num_epochs,
-        dataset_args,
+        model_name,
+        dataset,
+        train_subset=None,
+        test_subset=None,
+        batch_size=64,
         lr=3e-4,
         checkpoint_frequency=1,
         test_frequency=1):
     
-    train_loader = get_loader_somehow()
-    test_loader = get_loader_somehow()
+    dataset_directory = config.datasets[dataset]
+    print('Loading segmentation dataset from: %s'%dataset_directory)
+    train_dataset = SegmentationDataset(
+            dataset_directory, 'train', train_subset, include_class_labels=True)
+    train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
+    test_dataset = SegmentationDataset(
+            dataset_directory, 'test', test_subset, include_class_labels=True)
+    test_loader = DataLoader(
+            test_dataset, batch_size=batch_size, shuffle=False, num_workers=8)
     
-    model = get_model_somehow()
+    print('Building model: %s'%model_name)
+    model = models.get_fcn_model(model_name, train_dataset.num_classes).cuda()
     
-    optimizer = torch.optim.Adam(model.paramters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     
     for epoch in range(1, num_epochs+1):
         print('Epoch: %i'%epoch)
         print('Train')
-        train_epoch(model, train_loader, optimizer)
+        train_semantic_segmentation_epoch(model, train_loader, optimizer)
         
         if checkpoint_frequency is not None and epoch%checkpoint_frequency == 0:
-            checkpoint_path = './segmentation-checkpoint_%04i.pt'%epoch
-            print('Saving checkpoint to: %s'%checkpoint_path)
-            torch.save(model.state_dict(), checkpoint_path)
+            model_checkpoint_path = './model_checkpoint_%04i.pt'%epoch
+            print('Saving model to: %s'%model_checkpoint_path)
+            torch.save(model.state_dict(), model_checkpoint_path)
+            optimizer_checkpoint_path = './optimizer_checkpoint_%04i.pt'%epoch
+            print('Saving optimzier to: %s'%optimizer_checkpoint_path)
+            torch.save(optimizer.state_dict(), optimizer_checkpoint_path)
         
         if test_frequency is not None and epoch%test_frequency == 0:
-            test_epoch(model, test_loader)
+            test_semantic_segmentation_epoch(model, test_loader)
 
-def test_segmentation(
-        ):
+def test_semantic_segmentation(
+        model_name,
+        dataset_directory,
+        test_subset=None,
+        batch_size=64):
     
-    test_loader = get_loader_somehow()
+    test_dataset = SegmentationDataset(
+            dataset_directory, 'test', test_subset, include_class_labels=True)
+    test_loader = DataLoader(
+            test_dataset, batch_size=batch_size, shuffle=False, num_workers=8)
     
-    model = get_model_somehow()
+    model = models.get_fcn_model(model_name).cuda()
     
-    test_epoch(model, test_loader)
+    test_semantic_segmentation_epoch(model, test_loader)

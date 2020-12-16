@@ -21,6 +21,7 @@ import segmentation_models_pytorch
 import renderpy.masks as masks
 
 import brick_gym.config as config
+import brick_gym.utils as utils
 import brick_gym.evaluation as evaluation
 from brick_gym.dataset.paths import get_dataset_paths
 import brick_gym.dataset.ldraw_environment as ldraw_environment
@@ -28,6 +29,9 @@ import brick_gym.viewpoint.azimuth_elevation as azimuth_elevation
 import brick_gym.dataset.old_dataset as random_stack_dataset
 import brick_gym.torch.models.resnet as bg_resnet
 import brick_gym.torch.models.standard_models as standard_models
+import brick_gym.torch.utils as bgt_utils
+from brick_gym.envs.graph_env import GraphEnv
+from brick_gym.multiclass import MultiClass
 
 mesh_indices = {
     '3005' : 1,
@@ -75,6 +79,8 @@ parser.add_argument(
         '--num-processes', type=int, default=16)
 parser.add_argument(
         '--dump-images', action='store_true')
+parser.add_argument(
+        '--accumulator-mode', type=str, default='argmax')
 args = parser.parse_args()
 
 # Build the data generators
@@ -109,9 +115,9 @@ bg_resnet.make_spatial_attention_resnet(
         model, shape=(height, width), do_spatial_embedding=True)
 bg_resnet.replace_fc(model, args.brick_vector_dimension)
 brick_classifier = torch.nn.Linear(
-        args.brick_vector_dimension, 7, 1).cuda()
+        args.brick_vector_dimension, 7).cuda()
 confidence_classifier = torch.nn.Linear(
-        args.brick_vector_dimension, 2, 1).cuda()
+        args.brick_vector_dimension, 2).cuda()
 
 '''
 class BrickVectorEdgeModel(torch.nn.Module):
@@ -200,6 +206,8 @@ def rollout(
                 num_episodes,
                 steps_per_episode,
                 dtype=torch.long)
+        episode_class_targets = torch.zeros(
+                num_episodes, max_bricks_per_scene, dtype=torch.long)
         
         valid_entries = []
         model_paths = random.sample(model_paths, num_episodes)
@@ -211,6 +219,9 @@ def rollout(
             instance_class_lookup = [
                     get_instance_class_lookup(brick_types)
                     for brick_types in instance_brick_types]
+            for i, lookup in enumerate(instance_class_lookup):
+                episode = ep_start + i
+                episode_class_targets[episode] = torch.LongTensor(lookup[1:])
             observations = multi_environment.observe(
                     ('color', 'instance_labels'))
             for i, (image, mask_indices) in enumerate(observations):
@@ -349,7 +360,8 @@ def rollout(
                 logits,
                 edge_targets,
                 actions,
-                valid_entries)
+                valid_entries,
+                episode_class_targets)
 
 # Train an epoch
 def train_epoch(epoch):
@@ -357,9 +369,15 @@ def train_epoch(epoch):
     
     # generate some data with the latest model
     print('Generating Data')
-    images, class_targets, logits, edge_targets, actions, valid_entries = (
-            rollout(epoch, train_paths, args.episodes_per_train_epoch,
-                    ground_truth_foreground=True))
+    (images,
+     class_targets,
+     logits,
+     edge_targets,
+     actions,
+     valid_entries,
+     episode_class_targets) = rollout(
+                epoch, train_paths, args.episodes_per_train_epoch,
+                ground_truth_foreground=True)
     num_episodes, num_steps = actions.shape[:2]
     valid_entries = set(valid_entries)
     
@@ -485,13 +503,18 @@ def train_epoch(epoch):
 def test_epoch(epoch, mark_selection=False, graph=False):
     print('Test Epoch: %i'%epoch)
     print('Generating Data')
-    images, class_targets, logits, edge_targets, actions, valid_entries = (
-            rollout(
-                epoch,
-                test_paths,
-                args.episodes_per_test_epoch,
-                ground_truth_foreground = False,
-                mark_selection = mark_selection))
+    (images,
+     class_targets,
+     logits,
+     edge_targets,
+     actions,
+     valid_entries,
+     episode_class_targets) = rollout(
+            epoch,
+            test_paths,
+            args.episodes_per_test_epoch,
+            ground_truth_foreground = False,
+            mark_selection = mark_selection)
     if not len(valid_entries):
         print('No good data yet')
         return
@@ -548,17 +571,17 @@ def test_epoch(epoch, mark_selection=False, graph=False):
     with torch.no_grad():
         num_episodes, num_steps = actions.shape[:2]
         episode_order = list(range(num_episodes))
-        edge_true_positive = 0
-        edge_false_negative = 0
-        edge_false_positive = 0
-        edge_scores = []
-        edge_ground_truth = []
+        #edge_scores = []
+        #edge_ground_truth = []
         #edge_total = 0
         test_iterate = tqdm.tqdm(range(0, num_episodes, args.batch_size))
+        all_predicted_edges = {}
+        all_ground_truth_edges = {}
         for i in test_iterate:
             episodes = episode_order[i:i+args.batch_size]
             batch_size = len(episodes)
             selected_brick_vectors = []
+            node_predictions = []
             valid_edge_entries = torch.ones(
                     batch_size, num_steps, num_steps).cuda()
             
@@ -580,15 +603,11 @@ def test_epoch(epoch, mark_selection=False, graph=False):
                         class_targets[episodes, j].cuda())
                 
                 brick_vectors = model(batch_images.view(-1, 3, height, width))
-                #step_actions = actions[episodes, j]
-                #x = step_actions[:,0]
-                #y = step_actions[:,1]
-                #selected_brick_vectors.append(
-                #        brick_vectors[range(batch_size),:,y,x])
                 brick_vectors_reshape = brick_vectors.view(bs, bt, -1)
                 step_actions = actions[episodes, j]
                 selected_brick_vectors.append(
                         brick_vectors_reshape[range(batch_size),step_actions])
+                
                 if args.dump_images:
                     for k in range(batch_size):
                         selected_image = batch_images[k, step_actions[k]]
@@ -597,23 +616,17 @@ def test_epoch(epoch, mark_selection=False, graph=False):
                         Image.fromarray(selected_image).save(
                                 './verify_selected_image_%i_%i_%i.png'%(
                                 epoch, i+k, j))
-                #class_logits = brick_classifier(brick_vectors)
-                #confidence_logits = confidence_classifier(brick_vectors)
             
             # edge-prediction forward pass
             selected_brick_vectors = torch.stack(selected_brick_vectors, 1)
-            #batch_actions = actions[episodes].detach().float().cuda()
-            #batch_actions[:,:,0] /= float(width)
-            #batch_actions[:,:,1] /= float(height)
-            #edge_logits = edge_classifier(selected_brick_vectors,batch_actions)
             edge_logits = edge_classifier(selected_brick_vectors)
-            #batch_size, steps, _, _ = edge_logits.shape
             batch_size, steps, _ = edge_logits.shape
             
             # edge-prediction target (bs, steps, steps)
             batch_edge_targets = edge_targets[episodes].cuda()
             
             #batch_edge_prediction = torch.argmax(edge_logits, dim=-1)
+            '''
             for j in range(num_steps-1):
                 for k in range(j+1, num_steps):
                     logits = edge_logits[:,j,k]
@@ -622,57 +635,47 @@ def test_epoch(epoch, mark_selection=False, graph=False):
                     edge_scores.extend(edge_probability.cpu().tolist())
                     edge_target = batch_edge_targets[:,j,k]
                     edge_ground_truth.extend(edge_target.cpu().tolist())
-                    #logits_b = edge_logits[:,k,j]
-                    #logits = logits_a + logits_b
-                    '''
-                    edge_prediction = torch.argmax(logits, dim=-1)
-                    edge_target = batch_edge_targets[:,j,k]
-                    tp, fp, fn = evaluation.tp_fp_fn(
-                            edge_prediction.cpu().numpy(),
-                            edge_target.cpu().numpy())
-                    edge_true_positive += int(numpy.sum(tp))
-                    edge_false_positive += int(numpy.sum(fp))
-                    edge_false_negative += int(numpy.sum(fn))
-                    '''
+            '''
             
-            '''
-            if i == 0:
-                for j in range(4):
-                    print('Edge Targets:')
-                    print(batch_edge_targets[j].cpu())
-                    print('Edge Prediction:')
-                    print(batch_edge_prediction[j].cpu())
-                    print('Valid Edge Entries:')
-                    print(valid_edge_entries[j])
-            '''
-            #batch_edge_correct = batch_edge_prediction == batch_edge_targets
-            #batch_edge_correct = batch_edge_correct * valid_edge_entries
-            #edge_correct += float(torch.sum(batch_edge_correct))
-            #edge_total += float(torch.sum(valid_edge_entries))
-            #test_iterate.set_description(
-            #        'Edge Acc: %.04f'%(edge_correct/edge_total))
-        #print('Final Edge Accuracy: %.04f'%(edge_correct/edge_total))
-        '''
-        p, r = evaluation.precision_recall(
-                edge_true_positive, edge_false_positive, edge_false_negative)
-        f1 = evaluation.f1(p, r)
-        print('Edge Precision: %f'%p)
-        print('Edge Recall: %f'%r)
-        print('Edge F1: %f'%f1)
+            # bs, steps, bricks+1, class(7) + conf(2)
+            # print(logits.shape)
+            # bs, steps
+            # print(actions.shape)
+            
+            for j in range(batch_size):
+                step_logits = logits[episodes][j][:,:,:7]
+                episode_actions = actions[episodes][j]
+                predicted_labels = [0] * episode_actions.shape[0]
+                for k, action in enumerate(episode_actions):
+                    class_logits = step_logits[k,action]
+                    prediction = torch.argmax(class_logits)
+                    predicted_labels[action-1] = prediction
+                episode_predicted_edge_scores = utils.matrix_to_edge_scores(
+                        episodes[j],
+                        predicted_labels,
+                        torch.sigmoid(edge_logits[j]))
+                episode_ground_truth_edge_scores = utils.matrix_to_edge_scores(
+                        episodes[j],
+                        episode_class_targets[episodes][j],
+                        batch_edge_targets[j])
+                all_predicted_edges.update(episode_predicted_edge_scores)
+                all_ground_truth_edges.update(episode_ground_truth_edge_scores)
+        
         '''
         pr, concave_pr, ap = evaluation.ap(
                 edge_scores, edge_ground_truth, 0)
         concave_pr.append([0,1])
+        '''
         
-        '''
-        random_pr, random_concave_pr, random_ap = evaluation.ap(
-                [random.random() for _ in edge_scores], edge_ground_truth, 0)
-        random_concave_pr.append([0,1])
-        '''
+        pr, concave_pr, ap = evaluation.edge_ap(
+                all_predicted_edges, all_ground_truth_edges)
+        concave_pr.append([0,1])
         
         print('AP: %f'%ap)
-        edge_density = sum(edge_ground_truth) / len(edge_ground_truth)
-        print('Edge Density: %f'%edge_density)
+        
+        #edge_density = sum(edge_ground_truth) / len(edge_ground_truth)
+        #print('Edge Density: %f'%edge_density)
+        '''
         if graph:
             x, y = zip(*concave_pr)
             pyplot.plot(x, y, label='ours')
@@ -687,25 +690,96 @@ def test_epoch(epoch, mark_selection=False, graph=False):
             
             pyplot.legend()
             pyplot.savefig('./ap_%i.png'%epoch)
+        '''
 
 with multi_environment:
     if args.test:
         model_checkpoint = './model_checkpoint_%04i.pt'%args.num_epochs
         model.load_state_dict(torch.load(model_checkpoint))
+        model.eval()
         
         segmentation_checkpoint = (
                 './segmentation_checkpoint_%04i.pt'%args.num_epochs)
         brick_classifier.load_state_dict(torch.load(segmentation_checkpoint))
+        brick_classifier.eval()
         
         confidence_checkpoint = (
                 './confidence_checkpoint_%04i.pt'%args.num_epochs)
         confidence_classifier.load_state_dict(torch.load(confidence_checkpoint))
+        confidence_classifier.eval()
         
         edge_checkpoint = (
                 './edge_checkpoint_%04i.pt'%args.num_epochs)
         edge_classifier.load_state_dict(torch.load(edge_checkpoint))
+        edge_classifier.eval()
         
-        test_epoch(args.num_epochs, mark_selection=True, graph=True)
+        #test_epoch(args.num_epochs, mark_selection=True, graph=True)
+        
+        class ModelWrapper():
+            def __call__(self, observations, hidden_state):
+                observations = [segs for im, segs in observations]
+                x = bgt_utils.segments_to_tensor(observations).cuda()
+                ep, inst, ch, h, w = x.shape
+                x = model(x.view(ep*inst, ch, h, w))
+                node_logits = brick_classifier(x)
+                confidence_logits = confidence_classifier(x)
+                #edge_logits = edge_classifier(x.view(ep, inst, -1))
+                
+                step_node_predictions = torch.argmax(
+                        node_logits.view(ep, inst, -1), dim=-1)
+                
+                x = x.view(ep, inst, -1)
+                if hidden_state is None:
+                    hidden_state = (
+                            torch.zeros_like(step_node_predictions).cpu(),
+                            torch.zeros_like(x).cpu())
+                
+                label_accumulator, feature_accumulator = hidden_state
+                
+                confidence = torch.softmax(confidence_logits, dim=-1)[:,1]
+                confidence = confidence.view(ep, inst)
+                confidence = confidence * (step_node_predictions != 0)
+                action = torch.argmax(confidence, dim=-1)
+                
+                if args.accumulator_mode == 'argmax':
+                    label_accumulator[range(ep),action] = (
+                            step_node_predictions[range(ep),action].cpu())
+                    feature_accumulator[range(ep),action] = (
+                            x[range(ep),action].cpu())
+                elif args.accumulator_mode == 'all':
+                    zero_prediction = step_node_predictions == 0
+                    label_accumulator = (
+                            label_accumulator * zero_prediction.cpu() +
+                            (step_node_predictions * ~zero_prediction).cpu())
+                    feature_accumulator = (
+                            feature_accumulator *
+                            zero_prediction.unsqueeze(-1).cpu() +
+                            (x * ~zero_prediction.unsqueeze(-1)).cpu())
+                
+                edge_logits = edge_classifier(
+                        feature_accumulator.cuda().view(ep, inst, -1))
+                edge_matrix = torch.sigmoid(edge_logits)
+                
+                return (action.cpu(),
+                        label_accumulator.cpu(),
+                        edge_matrix.cpu(),
+                        (label_accumulator.cpu(), feature_accumulator.cpu()))
+        
+        test_multi_env = MultiClass(
+                args.num_processes,
+                GraphEnv,
+                [{'dataset' : 'random_stack',
+                  'split' : 'test_mpd',
+                  'viewpoint_control' : viewpoint_control,
+                  'subset' : args.test_subset,
+                  'rank' : i,
+                  'size' : args.num_processes}
+                 for i in range(args.num_processes)])
+        
+        with test_multi_env, torch.no_grad():
+            m = ModelWrapper()
+            step_ap = evaluation.dataset_node_and_edge_ap(
+                    m, test_multi_env, dump_images=False)
 
     else:
         for epoch in range(1, args.num_epochs+1):

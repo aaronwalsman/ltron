@@ -1,5 +1,6 @@
 import os
 
+import brick_gym.config as config
 import brick_gym.ldraw.paths as ldraw_paths
 from brick_gym.ldraw.commands import *
 from brick_gym.ldraw.exceptions import *
@@ -45,8 +46,6 @@ class LDrawDocument:
                 if reference_name not in self.reference_table['ldraw']:
                     LDrawDocument.parse_document(
                             reference_name, self.reference_table)
-                #imported_documents.append(
-                #        self.reference_table['ldraw'][reference_name])
             
             # ldcad SNAP_INCL commands
             if isinstance(command, LDCadSnapInclCommand):
@@ -55,8 +54,6 @@ class LDrawDocument:
                 if reference_name not in self.reference_table['shadow']:
                     LDrawDocument.parse_document(
                             reference_name, self.reference_table, shadow=True)
-                #imported_documents.append(
-                #        self.reference_table['shadow'][reference_name])
         
         # shadow
         if not self.shadow:
@@ -64,10 +61,41 @@ class LDrawDocument:
                 if self.clean_name not in self.reference_table['shadow']:
                     LDrawDocument.parse_document(
                             self.clean_name, self.reference_table, shadow=True)
-                #imported_documents.append(
-                #        self.reference_table['shadow'][self.clean_name])
             except ldraw_paths.LDrawMissingPath:
                 pass
+    
+    def get_all_parts(self,
+            reference_transform=None,
+            reference_color=None):
+        if reference_transform is None:
+            reference_transform = numpy.eye(4)
+        parts = []
+        for command in self.commands:
+            if isinstance(command, LDrawImportCommand):
+                reference_name = command.clean_reference_name
+                reference_document = (
+                        self.reference_table['ldraw'][reference_name])
+                reference_transform = numpy.dot(
+                        reference_transform, command.transform)
+                reference_color = command.color
+                if isinstance(reference_document, LDrawDAT):
+                    clean_name = command.clean_reference_name
+                    file_path = ldraw_paths.LDRAW_FILES[clean_name]
+                    reference_type = ldraw_paths.get_reference_type(
+                            file_path, config.paths['ldraw'])
+                    if reference_type == 'parts':
+                        parts.append((
+                                reference_document.clean_name,
+                                reference_transform,
+                                reference_color))
+                elif isinstance(reference_document, (
+                        LDrawMPDMainFile,
+                        LDrawMPDInternalFile,
+                        LDrawLDR)):
+                    parts.extend(reference_document.get_all_parts(
+                            reference_transform, reference_color))
+                
+        return parts
 
 class LDrawMPDMainFile(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
@@ -148,14 +176,3 @@ class LDrawLDR(LDrawDocument):
 
 class LDrawDAT(LDrawLDR):
     pass
-'''
-    def __init__(self, file_path, reference_table = None, shadow = False):
-        super(LDrawDAT, self).__init__(file_path, reference_table)
-        
-        # import the shadow file if available
-        if not shadow:
-            try:
-                shadow_path = ldraw_paths.resolve_shadow_path(file_path)
-                LDrawDocument.parse_document(
-                        shadow_path, self.reference_table, shadow = True)
-'''

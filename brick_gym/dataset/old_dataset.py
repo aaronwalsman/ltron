@@ -139,40 +139,7 @@ class RandomStackSegmentationDataset(Dataset):
         occluded_mask_path = image_path.replace('color', 'mask')
         occluded_mask = numpy.array(Image.open(occluded_mask_path))
         occluded_brick_indices = masks.color_byte_to_index(occluded_mask)
-        '''
-        for i in range(self.max_bricks_per_model):
-            mask_data[:,:,i*2] = occluded_indices == i
-            unoccluded_mask_path = occluded_mask_path.replace(
-                    '.png', '_%02i.png'%i)
-            try:
-                unoccluded_mask = numpy.array(Image.open(unoccluded_mask_path))
-                mask_data[:,:,i*2+1] = unoccluded_mask
-            except FileNotFoundError:
-                break
-        '''
-        '''
-        for i in range(self.max_bricks_per_model*2):
-            mask_path = image_path.replace('color', 'mask')
-            mask_path = mask_path.replace('.png', '_%02i.png'%i)
-            try:
-                mask = numpy.array(Image.open(mask_path))
-                mask_data[:,:,i] = mask
-            except FileNotFoundError:
-                break
-        '''
-        '''
-        mask_path = os.path.join(self.image_directory, mask_file)
-        mask_data = numpy.load(open(mask_path, 'rb'))
-        '''
-        '''
-        target = torch.zeros(
-                (mask_data.shape[0], mask_data.shape[1]), dtype=torch.long)
-        model_id = self.image_index_to_model_index[index]
-        max_bricks_per_model = mask_data.shape[-1]//2
-        for i in range(max_bricks_per_model):
-            class_id = self.bricks[model_id, 0, i]
-            target = target + class_id * mask_data[:,:,i*2]
-        '''
+        
         model_id = self.image_index_to_model_index[index]
         max_bricks_per_model = self.bricks.shape[2]
         brick_type_lookup = torch.cat(

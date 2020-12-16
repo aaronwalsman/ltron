@@ -4,7 +4,7 @@ import torch
 import tqdm
 
 import brick_gym.config as config
-import brick_gym.random_stack.dataset as random_stack_dataset
+from brick_gym.dataset.edges import EdgeDataset
 
 class SimpleEdgeModel(torch.nn.Module):
     def __init__(self,
@@ -63,13 +63,13 @@ class SimpleEdgeModel(torch.nn.Module):
         return self.edge_out(edge_features).view(
                 batch_size, bricks_per_model, bricks_per_model, 2)
 
-train_dataset = random_stack_dataset.RandomStackEdgeDataset(
-        config.paths['random_stack'], 'train')
+train_dataset = EdgeDataset(
+        config.paths['random_stack'], 'train_mpd')
 train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=64, shuffle=True)
 
-test_dataset = random_stack_dataset.RandomStackEdgeDataset(
-        config.paths['random_stack'], 'test')
+test_dataset = EdgeDataset(
+        config.paths['random_stack'], 'test_mpd')
 test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=64, shuffle=True)
 

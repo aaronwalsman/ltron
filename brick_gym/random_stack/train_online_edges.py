@@ -53,7 +53,7 @@ parser.add_argument(
 parser.add_argument(
         '--confidence-weight', type=float, default=0.2)
 parser.add_argument(
-        '--edge-weight', type=float, default=1.0)
+        '--edge-weight', type=float, default=0.2)
 parser.add_argument(
         '--image-size', type=str, default='256x256')
 parser.add_argument(
