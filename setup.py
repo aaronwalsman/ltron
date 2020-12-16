@@ -14,5 +14,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/aaronwalsman/brick-gym",
     packages=setuptools.find_packages(),
-    scripts=[]
+    scripts=[
+            "bin/make_dataset_metadata",
+            "bin/train_semantic_segmentation",
+            "bin/train_graph",
+            "bin/train_graph_b"]
 )
