@@ -1,5 +1,6 @@
 import random
 import os
+import json
 import multiprocessing
 
 import numpy
@@ -13,17 +14,8 @@ import renderpy.examples as renderpy_examples
 
 #import brick_gym.dataset.path_list as path_list
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
-import brick_gym.random_stack.dataset as random_stack_dataset
 
 default_image_light = renderpy_examples.image_lights['grey_cube']
-
-mesh_indices = {
-    '3005' : 1,
-    '3004' : 2,
-    '3003' : 3,
-    '3002' : 4,
-    '3001' : 5,
-    '2456' : 6}
 
 class LDrawEnvironment:
     def __init__(self,
@@ -100,17 +92,21 @@ class LDrawEnvironment:
         
         for instance_name in self.renderer.list_instances():
             self.renderer.show_instance(instance_name)
+        self.hidden_indices = set()
     
     def get_brick_at_pixel(self, x, y):
         self.manager.enable_frame('mask')
+        '''
         instance_indices = {
                 name:int(name.split('_')[-1])
                 for name in self.renderer.list_instances()}
         self.renderer.set_instance_masks_to_instance_indices(instance_indices)
+        '''
         self.renderer.mask_render()
         mask = self.manager.read_pixels('mask')
+        '''
         self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
-        
+        '''
         indices = masks.color_byte_to_index(mask)
         brick_index = indices[y,x]
         return brick_index
@@ -125,8 +121,12 @@ class LDrawEnvironment:
     def hide_brick(self, brick_index):
         if brick_index != 0:
             brick_name = 'instance_%i'%brick_index
-            self.renderer.hide_instance(brick_name)
-            return brick_name
+            try:
+                self.renderer.hide_instance(brick_name)
+                self.hidden_indices.add(brick_index)
+                return brick_name
+            except KeyError:
+                return None
         
         return None
     
@@ -171,18 +171,13 @@ class LDrawEnvironment:
             self.manager.enable_frame('color')
             self.renderer.color_render()
             image = self.manager.read_pixels('color')
-        elif mode == 'instance_mask':
+        elif mode == 'instance_labels':
             self.manager.enable_frame('mask')
-            '''
-            instance_indices = {
-                    name:int(name.split('_')[-1])
-                    for name in self.renderer.list_instances()}
-            self.renderer.set_instance_masks_to_instance_indices(
-                    instance_indices)
-            '''
             self.renderer.mask_render()
             image = self.manager.read_pixels('mask')
+            image = masks.color_byte_to_index(image)
         elif mode == 'mask':
+            assert False # deprecated
             self.manager.enable_frame('mask')
             self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
             self.renderer.mask_render()
@@ -199,6 +194,7 @@ class LDrawEnvironment:
         self.manager.enable_window()
         self.manager.color_render()
 
+# DEPRECATED, USE MULTICLASS INTEAD
 def ldraw_process(
         connection,
         width, height,
@@ -238,6 +234,7 @@ def ldraw_process(
             #print('Shutting down')
             break
 
+# DEPRECATE THIS, USE MULTICLASS instead
 class MultiLDrawEnvironment:
     def __init__(self,
             num_processes,

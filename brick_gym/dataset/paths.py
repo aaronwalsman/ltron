@@ -3,15 +3,36 @@ import os
 import glob
 import json
 
-def data_paths(dataset_directory, split_name, subset=None, rank=0, size=1):
-    dataset_directory = os.path.expanduser(dataset_directory)
-    split_file = os.path.join(dataset_directory, 'splits.json')
-    with open(split_file, 'r') as f:
-        splits = json.load(f)
-    split_glob = splits[split_name]
+import brick_gym.config as config
+
+def get_metadata_path(file_path):
+    file_path = os.path.expanduser(file_path)
+    directory, file_name = os.path.split(file_path)
+    file_basename = os.path.splitext(file_name)[0]
+    primary_index = file_basename.split('_')[1]
+    metadata_path = os.path.join(directory, 'metadata_%s.json'%primary_index)
     
-    all_file_paths = sorted(glob.glob(os.path.join(
-            dataset_directory, split_glob)))
+    return metadata_path
+
+def get_metadata(file_path):
+    metadata_path = get_metadata_path(file_path)
+    metadata = json.load(open(metadata_path))
+    return metadata
+
+def get_dataset_info(dataset):
+    dataset_directory = os.path.expanduser(config.datasets[dataset])
+    dataset_path = os.path.join(dataset_directory, 'dataset.json')
+    return json.load(open(dataset_path))
+
+def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
+    dataset_directory = os.path.expanduser(config.datasets[dataset])
+    splits = get_dataset_info(dataset)['splits']
+    split_globs = splits[split_name]
+    all_file_paths = []
+    for split_glob in split_globs:
+        all_file_paths.extend(glob.glob(os.path.join(
+                dataset_directory, split_glob)))
+    all_file_paths.sort()
     if subset is not None:
         if isinstance(subset, int):
             subset = (subset,)
