@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+import argparse
+
+import brick_gym.dataset.connection2d as connection2d
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--train-examples', type=int, default=10000)
+parser.add_argument('--test-examples', type=int, default=2000)
+parser.add_argument('--height', type=int, default=8)
+parser.add_argument('--width', type=int, default=8)
+parser.add_argument('--image-height', type=int, default=256)
+parser.add_argument('--image-width', type=int, default=256)
+parser.add_argument('--min-bricks', type=int, default=4)
+parser.add_argument('--max-bricks', type=int, default=8)
+
+args = parser.parse_args()
+
+connection2d.make_connection2d_dataset(
+        args.train_examples,
+        args.test_examples,
+        args.height,
+        args.width,
+        args.image_height,
+        args.image_width,
+        args.min_bricks,
+        args.max_bricks)
