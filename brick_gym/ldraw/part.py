@@ -1,6 +1,7 @@
+from brick_gym.ldraw.documents import LDrawDocument
 from brick_gym.ldraw.commands import *
 
-class PartType:
+class BrickType:
     def __init__(self, document):
         self.document = document
         self.compute_snaps()
@@ -61,7 +62,7 @@ class PartType:
         
         self.snaps = resolved_snaps
 
-class PartInstance:
+class BrickInstance:
     def __init__(self, instance_id, part_type, color, transform):
         self.instance_id = instance_id
         self.part_type = part_type
