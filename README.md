@@ -2,7 +2,9 @@
 
 ## Dependencies:
 - python 3 (recommend using [anaconda](http://www.anaconda.com))
-- [pytorch](http://www.pytorch.org)
+- [openai gym](https://gym.openai.com/)
+- [ldraw](https://www.ldraw.org/) (see `install_ldraw` script)
+- [pytorch](http://www.pytorch.org) (optional for training using pytorch)
 - [blender 2.90+](http://www.blender.org) with [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) (optional for building brick obj files)
 
 ### LDraw

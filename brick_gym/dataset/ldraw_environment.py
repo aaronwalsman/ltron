@@ -12,24 +12,56 @@ import renderpy.core as core
 import renderpy.masks as masks
 import renderpy.examples as renderpy_examples
 
-#import brick_gym.dataset.path_list as path_list
+import brick_gym.spaces as bg_spaces
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
 default_image_light = renderpy_examples.image_lights['grey_cube']
 
+# Deprecated.  Use BrickEnv instead.
 class LDrawEnvironment:
     def __init__(self,
-            viewpoint_control,
+            model_library,
+            action_mode = ('',),
+            observation_mode = ('color',),
+            max_edges_per_scene=None,
+            height = 256,
             width = 256,
-            height = 256):
+            scene_path = None):
         
-        self.viewpoint_control = viewpoint_control
-        self.action_space = self.viewpoint_control.action_space
-        self.observation_space = spaces.Box(
-                low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
+        # store local information
+        self.observation_mode = observation_mode
+        self.action_mode = action_mode
         
-        # initialize the loaded_model_path
-        self.loaded_model_path = None
+        # build observation space
+        observation_space = {}
+        for mode in observation_mode:
+            if mode == 'color':
+                color_space = bg_spaces.ImageSpace(height, width)
+                observation_space['color'] = color_space
+            elif mode == 'segmentation':
+                segmentation_space = bg_spaces.SegmentationSpace(
+                        height, width)
+                observation_space['segmentation'] = segmentation_space
+            elif mode == 'graph':
+                observation_space['graph'] = bg_spaces.GraphSpace(
+                        model_library.num_classes,
+                        model_library.max_bricks_per_scene)
+            elif mode == 'sparse_graph':
+                observation_space['sparse_graph'] = bg_spaces.SparseGraphSpace(
+                        model_library.num_classes,
+                        model_library.max_bricks_per_scene,
+                        model_library.max_edges_per_scene)
+        self.observation_space = spaces.Dict(observation_space)
+        
+        # build action space
+        self.action_space = spaces.Tuple((
+                self.viewpoint_control.action_space,
+                self.visibility_control.action_space))
+        
+        action_space = {}
+        for mode in action_mode:
+            if mode == 'hide':
+        
         
         # initialize renderpy
         self.manager = buffer_manager.initialize_shared_buffer_manager()
@@ -44,21 +76,25 @@ class LDrawEnvironment:
         except buffer_manager.FrameExistsError:
             pass
         self.renderer = core.Renderpy()
-        self.first_load = False
         self.edges = []
+        
+        # load initial path
+        self.loaded_scene_path = None
+        if scene_path is not None:
+            self.load_path(scene_path)
     
-    def load_path(self, model_path, force=False):
-        if model_path != self.loaded_model_path or force:
+    def load_path(self, scene_path, force=False):
+        if scene_path != self.loaded_scene_path or force:
             # convert the mpd file to a renderpy scene
-            with open(model_path, 'r') as model_file:
+            with open(scene_path, 'r') as scene_file:
                 scene_data = ldraw_renderpy.mpd_to_renderpy(
-                        model_file,
+                        scene_file,
                         default_image_light)
             
-            # clear and load just the new instances,
+            # clear and load just the new instances
             # we don't need to reload meshes
             # this is awkward, renderpy should add a function to do this
-            if not self.first_load:
+            if self.loaded_scene_path is None or force:
                 self.renderer.load_scene(scene_data, clear_existing=True)
             else:
                 self.renderer.clear_instances()
@@ -72,52 +108,25 @@ class LDrawEnvironment:
             
             bbox = self.renderer.get_instance_center_bbox()
             self.viewpoint_control.set_bbox(bbox)
+            self.visibility_control.reset()
             
-            #self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
+            self.loaded_scene_path = scene_path
             
-            self.loaded_model_path = model_path
-            
-            # temp hack to deal with random_stack edges
-            self.edges = []
-            with open(model_path, 'r') as f:
-                for line in f.readlines():
-                    line_parts = line.split()
-                    if (len(line_parts) >= 3 and
-                            line_parts[0] == '0' and
-                            line_parts[1] == 'EDGE'):
-                        a, b = line_parts[2].split(',')
-                        a = int(a)
-                        b = int(b)
-                        self.edges.append((a,b))
-        
         for instance_name in self.renderer.list_instances():
             self.renderer.show_instance(instance_name)
         self.hidden_indices = set()
     
+    '''
     def get_brick_at_pixel(self, x, y):
         self.manager.enable_frame('mask')
-        '''
-        instance_indices = {
-                name:int(name.split('_')[-1])
-                for name in self.renderer.list_instances()}
-        self.renderer.set_instance_masks_to_instance_indices(instance_indices)
-        '''
         self.renderer.mask_render()
         mask = self.manager.read_pixels('mask')
-        '''
-        self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
-        '''
         indices = masks.color_byte_to_index(mask)
         brick_index = indices[y,x]
         return brick_index
-        '''
-        if instance_index == 0:
-            return None
-        else:
-            instance_name = 'instance_%i'%instance_index
-            return instance_name
-        '''
+    '''
     
+    '''
     def hide_brick(self, brick_index):
         if brick_index != 0:
             brick_name = 'instance_%i'%brick_index
@@ -129,12 +138,15 @@ class LDrawEnvironment:
                 return None
         
         return None
+    '''
     
+    '''
     def hide_brick_at_pixel(self, x, y):
         brick_index = self.get_brick_at_pixel(x, y)
         instance_name = self.hide_brick(brick_index)
         
         return instance_name
+    '''
     
     def get_instance_brick_types(self):
         instance_types = {}
@@ -146,19 +158,7 @@ class LDrawEnvironment:
     
     def reset_state(self):
         self.viewpoint_control.reset()
-        '''
-        if self.reset_mode == 'random':
-            model_id = random.randint(0, len(self.model_files)-1)
-        elif self.reset_mode == 'sequential':
-            if not self.first_load:
-                model_id = 0
-            else:
-                model_id = (self.loaded_model_id + 1)%len(self.model_files)
-        elif isinstance(self.reset_mode, int):
-            model_id = self.reset_mode
-        
-        self.set_state((model_id, None))
-        '''
+        self.hide_control.reset()
     
     def reset(self):
         self.reset_state()
@@ -176,12 +176,6 @@ class LDrawEnvironment:
             self.renderer.mask_render()
             image = self.manager.read_pixels('mask')
             image = masks.color_byte_to_index(image)
-        elif mode == 'mask':
-            assert False # deprecated
-            self.manager.enable_frame('mask')
-            self.renderer.set_instance_masks_to_mesh_indices(mesh_indices)
-            self.renderer.mask_render()
-            image = self.manager.read_pixels('mask')
         
         return image
     
@@ -195,6 +189,7 @@ class LDrawEnvironment:
         self.manager.color_render()
 
 # DEPRECATED, USE MULTICLASS INTEAD
+'''
 def ldraw_process(
         connection,
         width, height,
@@ -318,3 +313,4 @@ class MultiLDrawEnvironment:
     
     def __exit__(self, type, value, traceback):
         self.shutdown_processes()
+'''

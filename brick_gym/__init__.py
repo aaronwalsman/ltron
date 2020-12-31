@@ -1,8 +1,13 @@
-from gym.envs.registration import register
+try:
+    from gym.envs.registration import register
+    gym_available = True
+except ModuleNotFoundError:
+    gym_available = False
 
-import brick_gym.config as config
-
+# do this once we finalize the envs for the first paper
+'''
 register(
-    id='viewpoint-v0',
-    entry_point='brick_gym.envs:ViewpointEnv'
+    id='brick-graph-8-v0',
+    entry_point='brick_gym.envs:TrainRandomStackGraphEnvVec8'
 )
+'''

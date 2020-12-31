@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 import argparse
 
-import PIL.Image as Image
-
-import brick_gym.visualization as brick_viewer
+import brick_gym.visualization.brick_viewer as brick_viewer
 
 parser = argparse.ArgumentParser()
 
@@ -11,13 +9,13 @@ parser.add_argument('file_path', type=str)
 parser.add_argument('--resolution', type=str, default='512x512')
 parser.add_argument('--poll-frequency', type=int, default=1024)
 
-arguments = parser.parse_args()
+args = parser.parse_args()
 
-width, height = arguments.resolution.lower().split('x')
+width, height = args.resolution.lower().split('x')
 width = int(width)
 height = int(height)
 brick_viewer.start_viewer(
         args.file_path,
-        args.width,
-        args.height,
+        width,
+        height,
         args.poll_frequency)

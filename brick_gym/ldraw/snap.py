@@ -1,9 +1,30 @@
 from brick_gym.ldraw.commands import *
 
-class SnapPoint:
-    def __init__(self, type_id, transform):
-        self.id = type_id
-        self.transform = transform
+class Snap:
+    @staticmethod
+    def construct_snaps(command, reference_transform, flags):
+        
+        def construct_snap(command, transform, flags):
+            
+        
+        snap_transform = matrix_ldcad_to_numpy(flags)
+        base_transform = numpy.dot(reference_transform, snap_transform)
+        snaps = []
+        if 'grid' in command.flags:
+            grid_transforms = griderate(command.flags['grid'], base_transform)
+            for grid_transform in grid_transforms:
+                snaps.append(construct_snap(command, grid_transform, flags))
+        else:
+            snaps.append(construct_snap(command, base_transform, flags))
+        
+        return snaps
+    
+    @staticmethod
+    def construct_snap(reference_transform, flags):
+        
+
+class SnapCylinder(Snap):
+    def __init__(self, type_id, transform, gender, 
 
 class SnapClear:
     def __init__(self, type_id):
@@ -68,11 +89,13 @@ def snap_points_from_command(command, reference_transform):
     else:
         snap_transforms = [base_transform]
     
-    snap_points = [SnapPoint(command.id, transform)
+    snap_points = [SnapPoint(
+                        command.id,
+                        transform)
                 for transform in snap_transforms]
     return snap_points
 
-def snap_points_from_document(document):
+def snap_points_from_part_document(document):
     def snap_points_from_nested_document(document, transform):
         snap_points = []
         for command in document.commands:
@@ -113,6 +136,7 @@ def snap_points_from_document(document):
         elif isinstance(snap_point, SnapClear):
             if snap_point.id == '':
                 resolved_snap_points.clear()
+                pass
             else:
                 resolved_snap_points = [
                         p for p in resolved_snap_points

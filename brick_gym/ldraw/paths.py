@@ -3,16 +3,17 @@ import brick_gym.config as config
 
 from brick_gym.ldraw.exceptions import *
 
-EXTERNAL_REFERENCE_TYPES = ('models', 'parts', 'p')
-INTERNAL_REFERENCE_TYPES = ('files',)
-ALL_REFERENCE_TYPES = EXTERNAL_REFERENCE_TYPES + INTERNAL_REFERENCE_TYPES
+default_reference_subdirectories = ('models', 'parts', 'p')
 
 def clean_name(path):
     '''
-    LDraw reference paths are not case-insensitive, and sometimes contain
+    LDraw reference paths are not case-sensitive, and sometimes contain
     backslashes for directory separators.  This function takes either
     an actual system file path or a reference from an LDraw file and produce
     a consistent string that be used to tell if they match.
+    
+    If an explicit file path was given, this also check if it is a known ldraw
+    part, and if so returns the reference name rather than the file path.
     '''
     clean_name = path.lower().replace('\\', '/')
     
@@ -21,9 +22,10 @@ def clean_name(path):
     abs_path = os.path.abspath(clean_name)
     for root_path in config.paths['ldraw'], config.paths['shadow']:
         if abs_path.startswith(root_path):
-            reference_type = get_reference_type(abs_path, root_path)
-            if reference_type in EXTERNAL_REFERENCE_TYPES:
-                root_type_path = os.path.join(root_path, reference_type)
+            reference_subdirectory = get_reference_type(abs_path, root_path)
+            if reference_subdirectory in default_reference_subdirectories:
+                root_type_path = os.path.join(
+                        root_path, reference_subdirectory)
                 clean_name = os.path.relpath(abs_path, start=root_type_path)
             break
     
@@ -47,14 +49,16 @@ def get_reference_paths(root_directory):
 
 def get_ldraw_reference_paths(
         root_directory,
-        reference_types = EXTERNAL_REFERENCE_TYPES):
+        reference_subdirectories = default_reference_subdirectories):
     part_paths = {}
-    for reference_type in reference_types:
-        reference_directory = os.path.join(root_directory, reference_type)
+    for reference_subdirectory in reference_subdirectories:
+        reference_directory = os.path.join(
+                root_directory, reference_subdirectory)
         part_paths.update(get_reference__paths(reference_directory))
     
     return part_paths
 
+# each of these maps a clean_name to an absolute file path on disk
 LDRAW_FILES = get_ldraw_reference_paths(config.paths['ldraw'])
 SHADOW_FILES = get_ldraw_reference_paths(config.paths['shadow_ldraw'])
 

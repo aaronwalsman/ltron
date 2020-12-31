@@ -17,6 +17,41 @@ upright = numpy.array([
     [ 0, 0, 1, 0],
     [ 0, 0, 0, 1]])
 
+def document_to_renderpy(
+        document,
+        image_light = None,
+        ambient_color = (0,0,0)):
+    
+    # setup renderpy data
+    renderpy_data = {
+        'image_lights' : {},
+        'active_image_light' : 'background',
+        'meshes': {},
+        'materials' : {},
+        'instances' : {},
+        'ambient_color' : ambient_color,
+        'point_lights' : {},
+        'direction_lights' : {},
+    }
+    
+    # add meshes
+    obj_directory = config.paths['obj']
+    
+    parts = document.get_all_parts()
+    unique_bricks = set(part[0] for part in parts)
+    unique_objs = [brick + '.obj' for brick in unique_bricks]
+    
+    # add image light
+    if image_light_directory is not None:
+        renderpy_data['image_lights']['background'] = {
+            'texture_directory' : image_light,
+            'reflection_mipmaps' : None,
+            'blur' : 0,
+            'render_background' : 1,
+            'diffuse_contrast' : 1,
+            'rescale_diffuse_intensity' : False
+        }
+
 def mpd_to_renderpy(mpd_data,
         image_light_directory = None,
         ambient_color = (0,0,0)):
@@ -56,9 +91,10 @@ def mpd_to_renderpy(mpd_data,
     for unique_obj in unique_objs:
         mesh_name = os.path.splitext(unique_obj)[0]
         part_count[mesh_name] = 0
-        mesh_path = os.path.abspath(os.path.join(obj_directory, unique_obj))
+        #mesh_path = os.path.abspath(os.path.join(obj_directory, unique_obj))
         renderpy_data['meshes'][mesh_name] = {
-            'mesh_path' : mesh_path,
+            #'mesh_path' : mesh_path,
+            'mesh_asset' : mesh_name,
             'scale' : 1.0,
             'create_uvs' : True
         }

@@ -4,6 +4,7 @@ import brick_gym.config as config
 import brick_gym.ldraw.paths as ldraw_paths
 from brick_gym.ldraw.commands import *
 from brick_gym.ldraw.exceptions import *
+from brick_gym.part import Part
 
 class LDrawMissingFileComment(LDrawException):
     pass
@@ -38,7 +39,6 @@ class LDrawDocument:
             self.resolved_file_path = ldraw_paths.resolve_ldraw_path(file_path)
     
     def import_references(self):
-        #imported_documents = []
         for command in self.commands:
             # ldraw import commands
             if isinstance(command, LDrawImportCommand):
@@ -49,22 +49,22 @@ class LDrawDocument:
             
             # ldcad SNAP_INCL commands
             if isinstance(command, LDCadSnapInclCommand):
-                #reference_name = ldraw_paths.clean_name(command.flags['ref'])
                 reference_name = command.clean_reference_name
                 if reference_name not in self.reference_table['shadow']:
                     LDrawDocument.parse_document(
-                            reference_name, self.reference_table, shadow=True)
+                            reference_name,
+                            self.reference_table,
+                            shadow=True)
         
         # shadow
+        #self.shadow_document = None
         if not self.shadow:
-            try:
-                if self.clean_name not in self.reference_table['shadow']:
+            if self.clean_name not in self.reference_table['shadow']:
+                if self.clean_name in ldraw_paths.SHADOW_FILES:
                     LDrawDocument.parse_document(
                             self.clean_name, self.reference_table, shadow=True)
-            except ldraw_paths.LDrawMissingPath:
-                pass
     
-    def get_all_parts(self,
+    def get_parts(self,
             reference_transform=None,
             reference_color=None):
         if reference_transform is None:
@@ -80,22 +80,57 @@ class LDrawDocument:
                 reference_color = command.color
                 if isinstance(reference_document, LDrawDAT):
                     clean_name = command.clean_reference_name
-                    file_path = ldraw_paths.LDRAW_FILES[clean_name]
+                    file_path = ldraw_paths.LDRAW_FILES[reference_name]
                     reference_type = ldraw_paths.get_reference_type(
                             file_path, config.paths['ldraw'])
                     if reference_type == 'parts':
-                        parts.append((
-                                reference_document.clean_name,
+                        parts.append(Part(
+                                reference_document,
                                 reference_transform,
                                 reference_color))
                 elif isinstance(reference_document, (
                         LDrawMPDMainFile,
                         LDrawMPDInternalFile,
                         LDrawLDR)):
-                    parts.extend(reference_document.get_all_parts(
+                    parts.extend(reference_document.get_parts(
                             reference_transform, reference_color))
                 
         return parts
+    
+    def get_content_commands(self,
+            reference_transform=None,
+            reference_color=None):
+        if reference_transform is None:
+            reference_transform = numpy.eye(4)
+        content_commands = []
+        for command in self.commands:
+            if isinstance(command, LDrawImportCommand):
+                reference_name = command.clean_reference_name
+                reference_document = (
+                        self.reference_table['ldraw'][reference_name])
+                reference_transform = numpy.dot(
+                        reference_transform, command.transform)
+                reference_color = command.color
+                content_commands.extend(reference_document.get_content_commands(
+                        reference_transform, reference_color))
+            elif isinstance(command, LDrawContentCommand):
+                content_commands.append(
+                        (command, reference_transform, reference_color))
+        
+        return content_commands
+    
+    def get_bounding_box(self):
+        WRONG
+        content_commands = self.get_content_commands()
+        vertices = []
+        for command, transform, color in content_commands:
+            vertices.append(numpy.dot(transform, command.vertices))
+        
+        vertices = numpy.concatenate(vertices, axis=1)
+        box_min = numpy.min(vertices[:3], axis=1)
+        box_max = numpy.max(vertices[:3], axis=1)
+        
+        return box_min, box_max    
 
 class LDrawMPDMainFile(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
@@ -137,8 +172,9 @@ class LDrawMPDMainFile(LDrawDocument):
         # We must do this after creating the subfiles because the main file will
         # reference them, and so they need to be in the reference table.
         # Also, this MPDMainFile must take responsiblity to import the subfile
-        # references because we need the full reference table filled with each
-        # other before any of them bring in their references
+        # references because we need the full reference table filled with the
+        # internal references before any of them bring in their external
+        # references
         self.import_references()
         for internal_file in self.internal_files:
             internal_file.import_references()

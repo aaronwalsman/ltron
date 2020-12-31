@@ -19,13 +19,17 @@ parts = mpd.parts_from_mpd(open(os.path.join(
         os.listdir(os.path.join(config.paths['ldraw'], 'parts')))
 print('old load elapsed: %f'%(time.time() - t0))
 
-d = LDrawDocument.parse_document('3003.dat')
+#d = LDrawDocument.parse_document('3003.dat')
+t0 = time.time()
 snap_points = snap.snap_points_from_document(d)
+print('snap elapsed: %f'%(time.time() - t0))
 
+'''
 for p in snap_points:
     print(p)
     print(p.id)
     #print(p.transform)
+'''
 
 '''
 print(d)

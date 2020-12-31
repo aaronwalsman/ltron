@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import time
 import sys
 import os
@@ -8,14 +7,17 @@ import numpy
 import PIL.Image as Image
 
 import renderpy.buffer_manager_glut as buffer_manager
+from renderpy.frame_buffer import FrameBufferWrapper
 import renderpy.core as core
 import renderpy.camera as camera
-import renderpy.interactive_camera as interactive_camera
+from renderpy.interactive_camera import InteractiveCamera
 import renderpy.masks as masks
+import renderpy.assets as drpy_assets
 
+import brick_gym.config as config
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
-default_image_light = '/home/awalsman/Development/renderpy/renderpy/example_image_lights/grey_cube'
+default_image_light = 'grey_cube'
 
 def start_viewer(
         file_path,
@@ -24,14 +26,16 @@ def start_viewer(
         poll_frequency = 1024):
     
     manager = buffer_manager.initialize_shared_buffer_manager(width, height)
-    renderer = core.Renderpy()
+    config_paths = '%s:%s'%(
+                    config.paths['renderpy_assets_cfg'],
+                    drpy_assets.default_assets_path)
+    renderer = core.Renderpy(config_paths)
     manager.show_window()
     manager.enable_window()
     
-    manager.add_frame('part_mask', width, height, anti_aliasing=False)
+    part_mask_frame = FrameBufferWrapper(width, height, anti_alias=False)
     
-    camera_control = interactive_camera.InteractiveCamera(
-            manager, renderer, 1, 5000)
+    camera_control = InteractiveCamera(manager, renderer)
     
     state = {
         'render_mode' : 'color',
@@ -55,7 +59,7 @@ def start_viewer(
                                 open(file_path),
                                 image_light_directory = default_image_light)
                     
-                    renderer.load_scene(scene, clear_existing=True)
+                    renderer.load_scene(scene, clear_scene=True)
                     if state['recent_file_change_time'] != -1:
                         renderer.set_camera_pose(camera_pose)
                     state['recent_file_change_time'] = change_time
@@ -73,9 +77,11 @@ def start_viewer(
             reload_scene()
         state['steps'] += 1
         
-        manager.enable_frame('part_mask')
+        #manager.enable_frame('part_mask')
+        part_mask_frame.enable()
         renderer.mask_render(flip_y=True)
-        state['part_mask'] = manager.read_pixels('part_mask')
+        #state['part_mask'] = manager.read_pixels('part_mask')
+        state['part_mask'] = part_mask_frame.read_pixels()
         
         manager.enable_window()
         if state['render_mode'] == 'color':
@@ -129,27 +135,16 @@ def start_viewer(
             instances_data = renderer.scene_description['instances']
             for instance_name, instance_data in instances_data.items():
                 instance_data['hidden'] = False
-    
-    def mouse_button(button, button_state, x, y):
-        return camera_control.mouse_button(button, button_state, x, y)
-    
-    def mouse_move(x, y):
-        return camera_control.mouse_move(x, y)
+        
+        elif key == b's':
+            pixels = manager.read_pixels(frame=None)
+            image_path = './brick_viewer_%06i.png'%state['steps']
+            print('Saving image to: %s'%image_path)
+            Image.fromarray(numpy.flip(pixels, axis=0)).save(image_path)
     
     manager.start_main_loop(
             glutDisplayFunc = render,
             glutIdleFunc = render,
             glutKeyboardFunc = keypress,
-            glutMouseFunc = mouse_button,
-            glutMotionFunc = mouse_move)
-
-if __name__ == '__main__':
-    width = 1024
-    height = 1024
-    
-    file_path = sys.argv[1]
-    
-    start_viewer(
-            file_path,
-            width = width,
-            height = height)
+            glutMouseFunc = camera_control.mouse_button,
+            glutMotionFunc = camera_control.mouse_move)

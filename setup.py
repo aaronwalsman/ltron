@@ -15,6 +15,7 @@ setuptools.setup(
     url="https://github.com/aaronwalsman/brick-gym",
     packages=setuptools.find_packages(),
     scripts=[
+            "bin/brick_viewer",
             "bin/make_dataset_metadata",
             "bin/train_semantic_segmentation",
             "bin/train_graph",

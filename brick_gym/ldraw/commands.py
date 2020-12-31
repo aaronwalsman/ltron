@@ -154,15 +154,17 @@ class LDCadSnapInclCommand(LDCadCommand):
         self.transform = matrix_ldcad_to_numpy(flags)
 
 class LDCadSnapClearCommand(LDCadCommand):
-    def __init__(self, ldcad_command, flags):
-        super(LDCadSnapClearCommand, self).__init__(ldcad_command, flags)
-        self.id = flags.get('id', '')
+    pass
+    #def __init__(self, ldcad_command, flags):
+        #super(LDCadSnapClearCommand, self).__init__(ldcad_command, flags)
+        #self.id = flags.get('id', '')
 
 class LDCadSnapStyleCommand(LDCadCommand):
-    def __init__(self, ldcad_command, flags):
-        super(LDCadSnapStyleCommand, self).__init__(ldcad_command, flags)
-        self.id = flags.get('id', '')
-        self.transform = matrix_ldcad_to_numpy(flags)
+    pass
+    #def __init__(self, ldcad_command, flags):
+        #super(LDCadSnapStyleCommand, self).__init__(ldcad_command, flags)
+        #self.id = flags.get('id', '')
+        #self.transform = matrix_ldcad_to_numpy(flags)
 
 class LDCadSnapCylCommand(LDCadSnapStyleCommand):
     pass
@@ -195,7 +197,8 @@ class LDrawImportCommand(LDrawCommand):
                 self.transform[0,3], self.transform[1,3], self.transform[2,3],
                 self.transform[0,0], self.transform[0,1], self.transform[0,2],
                 self.transform[1,0], self.transform[1,1], self.transform[1,2],
-                self.transform[2,0], self.transform[2,1], self.transform[2,2])
+                self.transform[2,0], self.transform[2,1], self.transform[2,2],
+                self.reference_name)
 
 class LDrawContentCommand(LDrawCommand):
     def __init__(self, arguments):
