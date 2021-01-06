@@ -3,7 +3,7 @@ import random
 from brick_gym.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata)
 import brick_gym.gym.spaces as bg_spaces
-from brick_gym.envs.components.brick_env_component import BrickEnvComponent
+from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
 class DatasetComponent(BrickEnvComponent):
     def __init__(self,

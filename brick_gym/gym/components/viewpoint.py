@@ -4,7 +4,7 @@ import numpy
 
 import renderpy.camera as camera
 
-from brick_gym.envs.components.brick_env_component import BrickEnvComponent
+from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
 class FixedAzimuthalViewpointComponent(BrickEnvComponent):
     def __init__(self,

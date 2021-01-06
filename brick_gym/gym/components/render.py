@@ -6,7 +6,7 @@ import renderpy.masks as masks
 import renderpy.examples as rpy_examples
 
 import brick_gym.gym.spaces as bg_spaces
-from brick_gym.envs.components.brick_env_component import BrickEnvComponent
+from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 
 default_image_light = rpy_examples.image_lights['grey_cube']

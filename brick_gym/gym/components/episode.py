@@ -1,5 +1,5 @@
 from brick_gym.gym.spaces import StepSpace
-from brick_gym.envs.components.brick_env_component import BrickEnvComponent
+from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
 class MaxEpisodeLengthComponent(BrickEnvComponent):
     def __init__(self,

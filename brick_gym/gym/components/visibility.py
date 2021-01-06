@@ -1,5 +1,5 @@
 import brick_gym.gym.spaces as bg_spaces
-from brick_gym.envs.components.brick_env_component import BrickEnvComponent
+from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
 class VisibilityComponent(BrickEnvComponent):
     def __init__(self,
