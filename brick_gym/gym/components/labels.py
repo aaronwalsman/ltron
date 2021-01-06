@@ -1,5 +1,5 @@
 import brick_gym.utils as utils
-import brick_gym.spaces as bg_spaces
+import brick_gym.gym.spaces as bg_spaces
 from brick_gym.envs.components.brick_env_component import BrickEnvComponent
 
 class GraphLabelComponent(BrickEnvComponent):
