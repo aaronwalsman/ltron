@@ -6,7 +6,8 @@ import numpy
 
 import PIL.Image as Image
 
-import renderpy.buffer_manager_glut as buffer_manager
+#import renderpy.buffer_manager_glut as buffer_manager
+import renderpy.glut as drpy_glut
 from renderpy.frame_buffer import FrameBufferWrapper
 import renderpy.core as core
 import renderpy.camera as camera
@@ -15,33 +16,45 @@ import renderpy.masks as masks
 import renderpy.assets as drpy_assets
 
 import brick_gym.config as config
-import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
-
-default_image_light = 'grey_cube'
+import brick_gym.ldraw.paths as ldraw_paths
+#import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
+from brick_gym.bricks.brick_scene import BrickScene
 
 def start_viewer(
         file_path,
         width = 512,
         height = 512,
+        image_light = 'grey_cube',
         poll_frequency = 1024):
     
-    manager = buffer_manager.initialize_shared_buffer_manager(width, height)
+    if not os.path.exists(file_path):
+        file_path = ldraw_paths.LDRAW_FILES[file_path]
+    
     config_paths = '%s:%s'%(
                     config.paths['renderpy_assets_cfg'],
                     drpy_assets.default_assets_path)
-    renderer = core.Renderpy(config_paths)
-    manager.show_window()
-    manager.enable_window()
+    
+    drpy_glut.initialize_glut()
+    window = drpy_glut.GlutWindowWrapper(
+            'Brick Viewer', width, height)
+    
+    scene = BrickScene(renderable=True, track_snaps=True)
+    scene.load_image_light(
+            image_light, texture_directory=image_light, set_active=True)
+    
+    window.set_active()
+    window.enable_window()
     
     part_mask_frame = FrameBufferWrapper(width, height, anti_alias=False)
     
-    camera_control = InteractiveCamera(manager, renderer)
+    camera_control = InteractiveCamera(window, scene.renderer)
     
     state = {
         'render_mode' : 'color',
         'steps' : 0,
         'recent_file_change_time' : -1,
-        'part_mask' : None
+        'part_mask' : None,
+        'snap_mode' : 'none'
     }
     
     def reload_scene():
@@ -49,21 +62,19 @@ def start_viewer(
             try:
                 change_time = os.stat(file_path).st_mtime
                 if change_time != state['recent_file_change_time']:
-                    camera_pose = renderer.get_camera_pose()
+                    camera_pose = scene.get_camera_pose()
+                    scene.import_ldraw(file_path)
                     
-                    path, ext = os.path.splitext(file_path)
-                    if ext == '.json':
-                        scene = file_path
-                    elif ext in ('.ldr', '.mpd'):
-                        scene = ldraw_renderpy.mpd_to_renderpy(
-                                open(file_path),
-                                image_light_directory = default_image_light)
-                    
-                    renderer.load_scene(scene, clear_scene=True)
-                    if state['recent_file_change_time'] != -1:
-                        renderer.set_camera_pose(camera_pose)
+                    #renderer.load_scene(scene, clear_scene=True)
+                    if state['recent_file_change_time'] == -1:
+                        scene.camera_frame_scene(azimuth=-0.6, elevation=-0.3)
+                    else:
+                        scene.set_camera_pose(camera_pose)
                     state['recent_file_change_time'] = change_time
                     print('Loaded: %s'%file_path)
+                    print('Brick Types: %i'%len(scene.brick_library))
+                    print('Brick Instances: %i'%len(scene.instances))
+                    print('Colors: %i'%len(scene.color_library))
             except:
                 print('Unable to load file: %s'%file_path)
                 raise
@@ -79,15 +90,15 @@ def start_viewer(
         
         #manager.enable_frame('part_mask')
         part_mask_frame.enable()
-        renderer.mask_render(flip_y=True)
+        scene.mask_render(flip_y=True)
         #state['part_mask'] = manager.read_pixels('part_mask')
         state['part_mask'] = part_mask_frame.read_pixels()
         
-        manager.enable_window()
+        window.enable_window()
         if state['render_mode'] == 'color':
-            renderer.color_render(flip_y=False)
+            scene.color_render(flip_y=False)
         elif state['render_mode'] == 'mask':
-            renderer.mask_render(flip_y=False)
+            scene.mask_render(flip_y=False)
     
     def get_instance_at_location(x, y):
         color = tuple(state['part_mask'][y,x])
@@ -110,15 +121,14 @@ def start_viewer(
                 print('No Part Selected')
             else:
                 print('Instance ID: %i'%instance_id)
-                instance_data = renderer.scene_description['instances']
-                instance_name = 'instance_%i'%instance_id
-                mesh_name = instance_data[instance_name]['mesh_name']
-                part_id = mesh_name.split('_')[-1]
-                print('Part ID: %s'%part_id)
+                instance = scene.get_instance(instance_id)
+                transform = instance.transform
+                type_name = instance.brick_type.reference_name
+                print('Part Name: %s'%type_name)
                 print('Translation: %f, %f, %f'%(
-                        instance_data[instance_name]['transform'][0,3],
-                        instance_data[instance_name]['transform'][1,3],
-                        instance_data[instance_name]['transform'][2,3]))
+                        transform[0,3],
+                        transform[1,3],
+                        transform[2,3]))
         
         elif key == b'h':
             instance_id = get_instance_at_location(x, y)
@@ -126,25 +136,61 @@ def start_viewer(
             if instance_id is None:
                 print('No Part Selected')
             else:
-                instance_data = renderer.scene_description['instances']
-                instance_name = 'instance_%i'%instance_id
-                instance_data[instance_name]['hidden'] = True
-                print('Hiding part %i'%instance_id)
+                #instance = scene.get_instance(instance_id)
+                scene.hide_instance(instance_id)
+                print('Hiding Brick Instance %i'%instance_id)
+        
+        elif key == b'H':
+            for instance in scene.instances:
+                scene.hide_instance(instance)
         
         elif key == b'v':
-            instances_data = renderer.scene_description['instances']
-            for instance_name, instance_data in instances_data.items():
-                instance_data['hidden'] = False
+            scene.show_all_instances()
+            print('----')
+            print('Showing All Hidden Instances')
+        
+        elif key == b'w':
+            pixels = window.read_pixels()
+            image_path = './brick_viewer_%06i.png'%state['steps']
+            print('----')
+            print('Writing Image To: %s'%image_path)
+            Image.fromarray(numpy.flip(pixels, axis=0)).save(image_path)
         
         elif key == b's':
-            pixels = manager.read_pixels(frame=None)
-            image_path = './brick_viewer_%06i.png'%state['steps']
-            print('Saving image to: %s'%image_path)
-            Image.fromarray(numpy.flip(pixels, axis=0)).save(image_path)
+            if state['snap_mode'] == 'none':
+                state['snap_mode'] = 'all'
+                scene.show_all_snaps()
+            else:
+                state['snap_mode'] = 'none'
+                scene.hide_all_snaps()
+        
+        elif key == b'c':
+            instance_id = get_instance_at_location(x, y)
+            connected_snaps = scene.get_snap_connections(str(instance_id))
+            print('----')
+            print(connected_snaps)
     
-    manager.start_main_loop(
+    window.start_main_loop(
             glutDisplayFunc = render,
             glutIdleFunc = render,
             glutKeyboardFunc = keypress,
             glutMouseFunc = camera_control.mouse_button,
             glutMotionFunc = camera_control.mouse_move)
+    
+    '''
+    drpy_glut.glut_state['initializer'].start_main_loop(
+            glutDisplayFunc = render,
+            glutIdleFunc = render,
+            glutKeyboardFunc = keypress,
+            glutMouseFunc = camera_control.mouse_button,
+            glutMotionFunc = camera_control.mouse_move)
+    '''
+    
+    '''
+    window.start_main_loop(
+            glutDisplayFunc = render,
+            glutIdleFunc = render,
+            glutKeyboardFunc = keypress,
+            glutMouseFunc = camera_control.mouse_button,
+            glutMotionFunc = camera_control.mouse_move)
+    '''
