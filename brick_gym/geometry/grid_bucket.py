@@ -1,11 +1,7 @@
 import math
 import itertools
 
-def squared_distance(a, b):
-    return sum([(aa-bb)**2 for aa, bb in zip(a,b)])
-
-def immutable_position(position):
-    return tuple(position)
+from brick_gym.geometry.utils import close_enough, immutable_vector
 
 class GridBucket:
     def __init__(self, cell_size):
@@ -26,7 +22,7 @@ class GridBucket:
         return cells
         
     def insert(self, value, position):
-        position = immutable_position(position)
+        position = immutable_vector(position)
         cell = self.position_to_cell(position)
         
         if cell not in self.cell_to_value_positions:
@@ -38,20 +34,21 @@ class GridBucket:
         self.value_to_cell_positions[value].add((cell, position))
         
     def remove(self, value):
-        cell_positions = self.value_to_cell_positions[value]
-        for cell, position in cell_positions:
-            self.cell_to_value_positions[cell].remove((value, position))
-            if len(self.cell_to_value_positions[cell]) == 0:
-                del(self.cell_to_value_positions[cell])
-        del(self.value_to_cell_positions[value])
+        if value in self.value_to_cell_positions:
+            cell_positions = self.value_to_cell_positions[value]
+            for cell, position in cell_positions:
+                self.cell_to_value_positions[cell].remove((value, position))
+                if len(self.cell_to_value_positions[cell]) == 0:
+                    del(self.cell_to_value_positions[cell])
+            del(self.value_to_cell_positions[value])
     
     def lookup(self, position, radius):
-        position = immutable_position(position)
+        position = immutable_vector(position)
         cells = self.cells_in_radius(position, radius)
         cell_contents = set().union(*(
                 self.cell_to_value_positions.get(cell, set())
                 for cell in cells))
         values_in_radius = set(
                 value for value, value_position in cell_contents
-                if squared_distance(position, value_position) < radius**2)
+                if close_enough(position, value_position, radius))
         return values_in_radius
