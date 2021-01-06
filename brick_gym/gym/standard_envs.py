@@ -1,14 +1,14 @@
 import math
 
-from brick_gym.envs.brick_env import BrickEnv
-from brick_gym.envs.components.episode import MaxEpisodeLengthComponent
-from brick_gym.envs.components.dataset import DatasetComponent
-from brick_gym.envs.components.labels import GraphLabelComponent
-from brick_gym.envs.components.render import (
+from brick_gym.gym.brick_env import BrickEnv
+from brick_gym.gym.components.episode import MaxEpisodeLengthComponent
+from brick_gym.gym.components.dataset import DatasetComponent
+from brick_gym.gym.components.labels import GraphLabelComponent
+from brick_gym.gym.components.render import (
         RendererComponent, ColorRenderComponent, MaskRenderComponent)
-from brick_gym.envs.components.viewpoint import FixedAzimuthalViewpointComponent
-from brick_gym.envs.components.visibility import InstanceVisibilityComponent
-from brick_gym.envs.components.graph_tasks import GraphReconstructionTask
+from brick_gym.gym.components.viewpoint import FixedAzimuthalViewpointComponent
+from brick_gym.gym.components.visibility import InstanceVisibilityComponent
+from brick_gym.gym.components.graph_tasks import GraphReconstructionTask
 
 def dummy_env():
     
