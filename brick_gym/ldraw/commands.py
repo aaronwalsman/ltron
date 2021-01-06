@@ -7,8 +7,28 @@ import brick_gym.ldraw.paths as ldraw_paths
 class InvalidLDrawCommand(LDrawException):
     pass
 
+class BadMatrixException(LDrawException):
+    pass
+
+class BadVerticesException(LDrawException):
+    pass
+
+def filter_floats(elements):
+    floats = []
+    for element in elements:
+        try:
+            floats.append(float(element))
+        except ValueError:
+            pass
+        
+    return floats
+
 def matrix_ldraw_to_numpy(elements):
-    assert len(elements) == 12
+    # it's stupid to have to filter these, but there are some files in the OMR
+    # that have non-float garbage (e.g. //) at the end of the line
+    elements = filter_floats(elements)
+    if len(elements) != 12:
+        raise BadMatrixException('ldraw matrix must have 12 elements')
     elements = [float(element) for element in elements]
     (x, y, z,
      xx, xy, xz,
@@ -38,7 +58,12 @@ def matrix_ldcad_to_numpy(flags):
             [ 0,  0,  0, 1]])
 
 def vertices_ldraw_to_numpy(elements):
-    assert len(elements)%3 == 0
+    # it's stupid to have to filter these, but there are some files in the OMR
+    # that have non-float garbage (e.g. //) at the end of the line
+    elements = filter_floats(elements)
+    if len(elements)%3 != 0:
+        raise BadVerticesException(
+                'LDraw vertex elements must be divisible by 3')
     elements = [float(element) for element in elements]
     vertices = [elements[i::3] for i in range(3)]
     vertices.append([1] * (len(elements)//3))
@@ -119,7 +144,7 @@ class LDrawFileComment(LDrawComment):
     def __init__(self, file_name):
         self.comment = 'FILE ' + file_name
         self.file_name = file_name
-        self.clean_name = ldraw_paths.clean_name(file_name)
+        self.reference_name = ldraw_paths.get_reference_name(file_name)
 
 class LDCadCommand(LDrawComment):
     @staticmethod
@@ -150,30 +175,36 @@ class LDCadCommand(LDrawComment):
 class LDCadSnapInclCommand(LDCadCommand):
     def __init__(self, ldcad_command, flags):
         super(LDCadSnapInclCommand, self).__init__(ldcad_command, flags)
-        self.clean_reference_name = ldraw_paths.clean_name(flags['ref'])
+        self.reference_name = ldraw_paths.get_reference_name(flags['ref'])
         self.transform = matrix_ldcad_to_numpy(flags)
 
 class LDCadSnapClearCommand(LDCadCommand):
-    pass
-    #def __init__(self, ldcad_command, flags):
-        #super(LDCadSnapClearCommand, self).__init__(ldcad_command, flags)
-        #self.id = flags.get('id', '')
+    def __init__(self, ldcad_command, flags):
+        super(LDCadSnapClearCommand, self).__init__(ldcad_command, flags)
+        self.id = flags.get('id', '')
 
 class LDCadSnapStyleCommand(LDCadCommand):
-    pass
-    #def __init__(self, ldcad_command, flags):
-        #super(LDCadSnapStyleCommand, self).__init__(ldcad_command, flags)
-        #self.id = flags.get('id', '')
-        #self.transform = matrix_ldcad_to_numpy(flags)
+    def __init__(self, ldcad_command, flags, gender=None):
+        super(LDCadSnapStyleCommand, self).__init__(ldcad_command, flags)
+        self.id = flags.get('id', '')
+        self.transform = matrix_ldcad_to_numpy(flags)
+        if gender is not None:
+            self.gender = gender
+        else:
+            self.gender = flags['gender']
 
 class LDCadSnapCylCommand(LDCadSnapStyleCommand):
     pass
 
 class LDCadSnapClpCommand(LDCadSnapStyleCommand):
-    pass
+    def __init__(self, ldcad_command, flags):
+        super(LDCadSnapClpCommand, self).__init__(
+                ldcad_command, flags, 'F')
 
 class LDCadSnapFgrCommand(LDCadSnapStyleCommand):
-    pass
+    def __init__(self, ldcad_command, flags):
+        super(LDCadSnapFgrCommand, self).__init__(
+                ldcad_command, flags, flags['genderofs'])
 
 class LDCadSnapGenCommand(LDCadSnapStyleCommand):
     pass
@@ -186,8 +217,8 @@ class LDrawImportCommand(LDrawCommand):
     def __init__(self, arguments):
         (self.color,
          *matrix_elements,
-         self.reference_name) = arguments.split(None, 13)
-        self.clean_reference_name = ldraw_paths.clean_name(self.reference_name)
+         reference_name) = arguments.split(None, 13)
+        self.reference_name = ldraw_paths.get_reference_name(reference_name)
         self.transform = matrix_ldraw_to_numpy(matrix_elements)
     
     def __str__(self):

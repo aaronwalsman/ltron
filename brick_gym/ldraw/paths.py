@@ -3,9 +3,9 @@ import brick_gym.config as config
 
 from brick_gym.ldraw.exceptions import *
 
-default_reference_subdirectories = ('models', 'parts', 'p')
+ldraw_subdirectories = ('models', 'parts', 'p')
 
-def clean_name(path):
+def get_reference_name(path):
     '''
     LDraw reference paths are not case-sensitive, and sometimes contain
     backslashes for directory separators.  This function takes either
@@ -15,52 +15,60 @@ def clean_name(path):
     If an explicit file path was given, this also check if it is a known ldraw
     part, and if so returns the reference name rather than the file path.
     '''
-    clean_name = path.lower().replace('\\', '/')
+    reference_name = path.lower().replace('\\', '/')
     
     # check if the path exists under the ldraw or shadow directories,
     # if so, convert it to the name that another file would use to import it
-    abs_path = os.path.abspath(clean_name)
+    abs_path = os.path.abspath(reference_name)
     for root_path in config.paths['ldraw'], config.paths['shadow']:
-        if abs_path.startswith(root_path):
-            reference_subdirectory = get_reference_type(abs_path, root_path)
-            if reference_subdirectory in default_reference_subdirectories:
-                root_type_path = os.path.join(
-                        root_path, reference_subdirectory)
-                clean_name = os.path.relpath(abs_path, start=root_type_path)
-            break
+        for reference_subdirectory in ldraw_subdirectories:
+            reference_path = os.path.join(root_path, reference_subdirectory)
+            if abs_path.startswith(reference_path):
+                reference_name = os.path.relpath(abs_path, start=reference_path)
+                return reference_name
     
-    return clean_name
+    return reference_name
 
+'''
 def get_reference_type(file_path, root_path):
     relative_path = os.path.relpath(file_path, root_path)
     return relative_path.split(os.sep)[0]
+'''
 
 def get_reference_paths(root_directory):
     reference_paths = {}
     for root, dirs, files in os.walk(root_directory):
-        local_root = clean_name(os.path.relpath(root, start = root_directory))
+        local_root = get_reference_name(
+                os.path.relpath(root, start = root_directory))
         if local_root == '.':
             local_root = ''
         reference_paths.update({
                 os.path.join(local_root, f.lower()) : os.path.join(root, f)
                 for f in files})
     
-    return part_paths
+    return reference_paths
 
 def get_ldraw_reference_paths(
         root_directory,
-        reference_subdirectories = default_reference_subdirectories):
-    part_paths = {}
+        reference_subdirectories = ldraw_subdirectories):
+    reference_paths = {}
     for reference_subdirectory in reference_subdirectories:
         reference_directory = os.path.join(
                 root_directory, reference_subdirectory)
-        part_paths.update(get_reference__paths(reference_directory))
+        reference_paths.update(get_reference_paths(reference_directory))
     
-    return part_paths
+    return reference_paths
 
-# each of these maps a clean_name to an absolute file path on disk
+# each of these maps a reference_name to an absolute file path on disk
 LDRAW_FILES = get_ldraw_reference_paths(config.paths['ldraw'])
 SHADOW_FILES = get_ldraw_reference_paths(config.paths['shadow_ldraw'])
+
+# a set containing all ldraw parts
+ldraw_parts_directory = os.path.join(config.paths['ldraw'], 'parts')
+LDRAW_PARTS = set(
+        get_reference_name(os.path.join(ldraw_parts_directory, file_name))
+        for file_name in os.listdir(ldraw_parts_directory)
+        if os.path.splitext(file_name)[-1] in ('.dat', '.DAT'))
 
 class LDrawMissingPath(LDrawException):
     pass
@@ -69,9 +77,9 @@ def resolve_path(file_path, FILES, allow_existing = True):
     if allow_existing and os.path.exists(file_path):
         return file_path
     
-    clean_file_path = clean_name(file_path)
+    reference_name = get_reference_name(file_path)
     try:
-        return FILES[clean_file_path]
+        return FILES[reference_name]
     except KeyError:
         raise LDrawMissingPath('Cannot resolve path: %s'%file_path)
 

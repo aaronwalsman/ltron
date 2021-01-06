@@ -4,7 +4,6 @@ import brick_gym.config as config
 import brick_gym.ldraw.paths as ldraw_paths
 from brick_gym.ldraw.commands import *
 from brick_gym.ldraw.exceptions import *
-from brick_gym.part import Part
 
 class LDrawMissingFileComment(LDrawException):
     pass
@@ -28,9 +27,9 @@ class LDrawDocument:
             reference_table = {'ldraw':{}, 'shadow':{}}
         self.reference_table = reference_table
         if self.shadow:
-            self.reference_table['shadow'][self.clean_name] = self
+            self.reference_table['shadow'][self.reference_name] = self
         else:   
-            self.reference_table['ldraw'][self.clean_name] = self
+            self.reference_table['ldraw'][self.reference_name] = self
     
     def resolve_file_path(self, file_path):
         if self.shadow:
@@ -41,30 +40,59 @@ class LDrawDocument:
     def import_references(self):
         for command in self.commands:
             # ldraw import commands
-            if isinstance(command, LDrawImportCommand):
-                reference_name = command.clean_reference_name
+            if isinstance(command, (LDrawImportCommand, LDCadSnapInclCommand)):
+            #if isinstance(command, LDrawImportCommand):
+                reference_name = command.reference_name
                 if reference_name not in self.reference_table['ldraw']:
-                    LDrawDocument.parse_document(
-                            reference_name, self.reference_table)
-            
+                    try:
+                        LDrawDocument.parse_document(
+                                reference_name, self.reference_table)
+                    except:
+                        print('Error when importing: %s'%reference_name)
+                        raise
+            '''
             # ldcad SNAP_INCL commands
             if isinstance(command, LDCadSnapInclCommand):
-                reference_name = command.clean_reference_name
+                reference_name = command.reference_name
                 if reference_name not in self.reference_table['shadow']:
-                    LDrawDocument.parse_document(
-                            reference_name,
-                            self.reference_table,
-                            shadow=True)
+                    try:
+                        LDrawDocument.parse_document(
+                                reference_name,
+                                self.reference_table,
+                                shadow=True)
+                    except:
+                        print('Error when importing: %s'%reference_name)
+                        raise
+            '''
+            '''
+            # ldcad SNAP_INCL commands
+            if isinstance(command, LDCadSnapInclCommand):
+                reference_name = command.reference_name
+                if reference_name not in self.reference_table['shadow']:
+                    try:
+                        LDrawDocument.parse_document(
+                                reference_name,
+                                self.reference_table)
+                    except:
+                        print('Error when importing: %s'%reference_name)
+                        raise
+            '''
         
         # shadow
-        #self.shadow_document = None
         if not self.shadow:
-            if self.clean_name not in self.reference_table['shadow']:
-                if self.clean_name in ldraw_paths.SHADOW_FILES:
-                    LDrawDocument.parse_document(
-                            self.clean_name, self.reference_table, shadow=True)
-    
-    def get_parts(self,
+            if self.reference_name not in self.reference_table['shadow']:
+                if self.reference_name in ldraw_paths.SHADOW_FILES:
+                    try:
+                        LDrawDocument.parse_document(
+                                self.reference_name,
+                                self.reference_table,
+                                shadow=True)
+                    except:
+                        print('Error when importing shadow: %s'%
+                                self.reference_name)
+                        raise
+    '''
+    def brick_instances(self,
             reference_transform=None,
             reference_color=None):
         if reference_transform is None:
@@ -72,19 +100,15 @@ class LDrawDocument:
         parts = []
         for command in self.commands:
             if isinstance(command, LDrawImportCommand):
-                reference_name = command.clean_reference_name
+                reference_name = command.reference_name
                 reference_document = (
                         self.reference_table['ldraw'][reference_name])
                 reference_transform = numpy.dot(
                         reference_transform, command.transform)
                 reference_color = command.color
                 if isinstance(reference_document, LDrawDAT):
-                    clean_name = command.clean_reference_name
-                    file_path = ldraw_paths.LDRAW_FILES[reference_name]
-                    reference_type = ldraw_paths.get_reference_type(
-                            file_path, config.paths['ldraw'])
-                    if reference_type == 'parts':
-                        parts.append(Part(
+                    if reference_name in ldraw_paths.LDRAW_PARTS:
+                        parts.append(BrickInstance(
                                 reference_document,
                                 reference_transform,
                                 reference_color))
@@ -92,45 +116,11 @@ class LDrawDocument:
                         LDrawMPDMainFile,
                         LDrawMPDInternalFile,
                         LDrawLDR)):
-                    parts.extend(reference_document.get_parts(
+                    parts.extend(reference_document.get_bricks(
                             reference_transform, reference_color))
                 
         return parts
-    
-    def get_content_commands(self,
-            reference_transform=None,
-            reference_color=None):
-        if reference_transform is None:
-            reference_transform = numpy.eye(4)
-        content_commands = []
-        for command in self.commands:
-            if isinstance(command, LDrawImportCommand):
-                reference_name = command.clean_reference_name
-                reference_document = (
-                        self.reference_table['ldraw'][reference_name])
-                reference_transform = numpy.dot(
-                        reference_transform, command.transform)
-                reference_color = command.color
-                content_commands.extend(reference_document.get_content_commands(
-                        reference_transform, reference_color))
-            elif isinstance(command, LDrawContentCommand):
-                content_commands.append(
-                        (command, reference_transform, reference_color))
-        
-        return content_commands
-    
-    def get_bounding_box(self):
-        WRONG
-        content_commands = self.get_content_commands()
-        vertices = []
-        for command, transform, color in content_commands:
-            vertices.append(numpy.dot(transform, command.vertices))
-        
-        vertices = numpy.concatenate(vertices, axis=1)
-        box_min = numpy.min(vertices[:3], axis=1)
-        box_max = numpy.max(vertices[:3], axis=1)
-        
-        return box_min, box_max    
+    '''
 
 class LDrawMPDMainFile(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
@@ -138,12 +128,16 @@ class LDrawMPDMainFile(LDrawDocument):
         # initialize reference_table
         self.shadow = shadow
         self.resolve_file_path(file_path)
-        self.clean_name = ldraw_paths.clean_name(file_path)
+        self.reference_name = ldraw_paths.get_reference_name(file_path)
         self.set_reference_table(reference_table)
         
         # resolve the file path and parse all commands in this file
-        commands = LDrawCommand.parse_commands(
-                open(self.resolved_file_path).readlines())
+        lines = open(self.resolved_file_path, encoding='latin-1').readlines()
+        try:
+            commands = LDrawCommand.parse_commands(lines)
+        except:
+            print('Error when parsing: %s'%self.reference_name)
+            raise
         
         # make sure that the first line is a file comment
         if not len(commands):
@@ -188,7 +182,7 @@ class LDrawMPDInternalFile(LDrawDocument):
                     'MPD Internal File must start with "0 FILE"')
         
         # initialize reference_table
-        self.clean_name = commands[0].clean_name
+        self.reference_name = commands[0].reference_name
         self.shadow = False
         self.set_reference_table(reference_table)
         
@@ -201,12 +195,17 @@ class LDrawLDR(LDrawDocument):
         # initialize reference table
         self.shadow = shadow
         self.resolve_file_path(file_path)
-        self.clean_name = ldraw_paths.clean_name(file_path)
+        self.reference_name = ldraw_paths.get_reference_name(file_path)
         self.set_reference_table(reference_table)
         
         # resolve the file path and parse all commands in this file
-        self.commands = LDrawCommand.parse_commands(
-                open(self.resolved_file_path).readlines())
+        lines = open(
+                self.resolved_file_path, encoding='latin-1').readlines()
+        try:
+            self.commands = LDrawCommand.parse_commands(lines)
+        except:
+            print('Error when parsing: %s'%self.reference_name)
+            raise
         
         self.import_references()
 
