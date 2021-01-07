@@ -88,6 +88,7 @@ class ColorRenderComponent(BrickEnvComponent):
         self.width = width
         self.height = height
         self.scene_component = scene_component
+        self.scene_component.brick_scene.make_renderable()
         self.anti_alias = anti_alias
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, self.anti_alias)
@@ -122,6 +123,7 @@ class SegmentationRenderComponent(BrickEnvComponent):
         self.width = width
         self.height = height
         self.scene_component = scene_component
+        self.scene_component.brick_scene.make_renderable()
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, anti_alias=False)
         

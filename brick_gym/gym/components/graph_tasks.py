@@ -12,6 +12,7 @@ class GraphConstructionTask(BrickEnvComponent):
         self.num_classes = num_classes
         self.max_nodes = max_nodes
         self.scene_component = scene_component
+        self.scene_component.brick_scene.make_track_snaps()
         
         self.action_space = bg_spaces.GraphScoreSpace(
                 self.num_classes, self.max_nodes)

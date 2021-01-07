@@ -10,6 +10,7 @@ class GraphLabelComponent(BrickEnvComponent):
         self.num_classes=num_classes
         self.max_nodes=max_nodes
         self.scene_component = scene_component
+        self.scene_component.brick_gym.make_track_snaps()
         
         self.observation_space = bg_spaces.GraphScoreSpace(
                 self.num_classes, self.max_nodes)
