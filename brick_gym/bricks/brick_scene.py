@@ -27,17 +27,25 @@ class BrickScene:
             [ 0, 0, 0, 1]])
     
     def __init__(self, renderable=False, track_snaps=False):
-        # modes
-        self.renderable = renderable
-        self.track_snaps = track_snaps
+        # renderable
+        self.renderable = False
+        self.renderer = None
+        if renderable:
+            self.make_renderable()
+        
+        # track_snaps
+        self.track_snaps = False
+        self.snap_tracker = None
+        if track_snaps:
+            self.make_track_snaps()
         
         # bricks
         self.brick_library = BrickLibrary()
         self.instances = BrickInstanceTable(self.brick_library)
         self.color_library = BrickColorLibrary()
         
-        # renderpy
-        if self.renderable:
+    def make_renderable(self):
+        if not self.renderable:
             config_paths = '%s:%s'%(
                     config.paths['renderpy_assets_cfg'],
                     drpy_assets.default_assets_path)
@@ -46,35 +54,31 @@ class BrickScene:
                         math.radians(60.),
                         1.0,
                         1, 5000))
-        else:
-            self.renderer = None
+            self.renderer.load_material(
+                    'M_snap',
+                    color = (0, 0, 255),
+                    ka = 1.0,
+                    kd = 0.0,
+                    ks = 0.0,
+                    shine = 1.0,
+                    image_light_kd = 1.0,
+                    image_light_ks = 0.0,
+                    image_light_blur_reflection = 4.0)
+            self.renderer.load_material(
+                    'F_snap',
+                    color = (255, 0, 0),
+                    ka = 1.0,
+                    kd = 0.0,
+                    ks = 0.0,
+                    shine = 1.0,
+                    image_light_kd = 1.0,
+                    image_light_ks = 0.0,
+                    image_light_blur_reflection = 4.0)
         
-        # snap
-        if self.track_snaps:
+    def make_track_snaps(self):
+        if not self.track_snaps:
             self.snap_tracker = GridBucket(cell_size=8)
-            if self.renderable:
-                self.renderer.load_material(
-                        'M_snap',
-                        color = (0, 0, 255),
-                        ka = 1.0,
-                        kd = 0.0,
-                        ks = 0.0,
-                        shine = 1.0,
-                        image_light_kd = 1.0,
-                        image_light_ks = 0.0,
-                        image_light_blur_reflection = 4.0)
-                self.renderer.load_material(
-                        'F_snap',
-                        color = (255, 0, 0),
-                        ka = 1.0,
-                        kd = 0.0,
-                        ks = 0.0,
-                        shine = 1.0,
-                        image_light_kd = 1.0,
-                        image_light_ks = 0.0,
-                        image_light_blur_reflection = 4.0)
-        else:
-            self.snap_tracker = None
+            self.track_snaps = True
     
     #===========================================================================
     # scene manipulation
@@ -143,6 +147,9 @@ class BrickScene:
     
     def show_instance(self, brick_instance):
         self.renderer.show_instance(str(brick_instance))
+    
+    def instance_hidden(self, brick_instance):
+        return self.renderer.instance_hidden(str(brick_instance))
     
     def show_all_instances(self):
         for instance_id, instance in self.instances.items():
@@ -243,6 +250,8 @@ class BrickScene:
             'add_direction_light',
             'remove_direction_light',
             'clear_direction_lights',
+            
+            'get_instance_center_bbox',
             
             'color_render',
             'mask_render'))
