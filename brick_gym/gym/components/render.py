@@ -1,16 +1,10 @@
-import renderpy.buffer_manager_glut as buffer_manager_glut
-import renderpy.buffer_manager_egl as buffer_manager_egl
 from renderpy.frame_buffer import FrameBufferWrapper
-import renderpy.core as core
 import renderpy.masks as masks
-import renderpy.examples as rpy_examples
 
 import brick_gym.gym.spaces as bg_spaces
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
-
-default_image_light = rpy_examples.image_lights['grey_cube']
-
+'''
 class RendererComponent(BrickEnvComponent):
     def __init__(self,
             buffer_manager_mode='egl',
@@ -61,82 +55,94 @@ class RendererComponent(BrickEnvComponent):
 
 class FrameRenderComponent(BrickEnvComponent):
     def __init__(self,
-            height,
             width,
-            frame_key,
-            anti_aliasing = True,
-            renderer_key = 'renderer'):
+            height,
+            scene_component = 'brick_scene',
+            anti_alias = True):
         
         self.height = height
         self.width = width
-        self.frame_buffer = None
-        self.frame_key = frame_key
-        self.anti_aliasing = anti_aliasing
-        self.renderer_key = renderer_key
-    
-    def initialize_state(self, state):
+        self.anti_alias = anti_alias
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, self.anti_aliasing)
-        state[self.frame_key] = None
+        self.scene_component = scene_component
     
-    def render(self, state):
+    def compute_observation(self):
         raise NotImplementedError
     
-    def reset_state(self, state):
-        self.render(state)
+    def reset(self):
+        self.image = self.compute_observation()
+        return self.image
     
-    def update_state(self, state, action):
-        self.render(state)
-    
-    def compute_observation(self, state, observation):
-        observation[self.frame_key] = state[self.frame_key]
-
-class ColorRenderComponent(FrameRenderComponent):
+    def step(self, action):
+        self.image = self.compute_observation()
+        return self.image, 0., False, None
+'''
+class ColorRenderComponent(BrickEnvComponent):
     def __init__(self,
-            height,
             width,
-            frame_key='color',
-            anti_aliasing=True,
-            renderer_key='renderer'):
-        super(ColorRenderComponent, self).__init__(
-                height=height,
-                width=width,
-                frame_key=frame_key,
-                anti_aliasing=anti_aliasing,
-                renderer_key=renderer_key)
+            height,
+            scene_component,
+            anti_alias=True):
+        
+        self.width = width
+        self.height = height
+        self.scene_component = scene_component
+        self.anti_alias = anti_alias
+        self.frame_buffer = FrameBufferWrapper(
+                self.width, self.height, self.anti_alias)
+        
+        self.observation_space = bg_spaces.ImageSpace(
+                self.width, self.height)
     
-    def update_observation_space(self, observation_space):
-        observation_space[self.frame_key] = bg_spaces.ImageSpace(
-                self.height, self.width)
-    
-    def render(self, state):
-        renderer = state[self.renderer_key]
+    def compute_observation(self):
+        scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
-        renderer.color_render()
+        scene.color_render()
         image = self.frame_buffer.read_pixels()
-        state[self.frame_key] = image
+        return image
+    
+    def reset(self):
+        self.image = self.compute_observation()
+        return self.image
+    
+    def step(self, action):
+        self.image = self.compute_observation()
+        return self.image, 0., False, None
+    
+    def set_state(self, state):
+        self.compute_observation()
 
-class MaskRenderComponent(FrameRenderComponent):
+class SegmentationRenderComponent(BrickEnvComponent):
     def __init__(self,
             height,
             width,
-            frame_key='mask',
-            renderer_key='renderer'):
-        super(MaskRenderComponent, self).__init__(
-                height=height,
-                width=width,
-                frame_key=frame_key,
-                anti_aliasing=False,
-                renderer_key=renderer_key)
-    
-    def update_observation_space(self, observation_space):
-        observation_space[self.frame_key] = bg_spaces.SegmentationSpace(
+            scene_component):
+        
+        self.width = width
+        self.height = height
+        self.scene_component = scene_component
+        self.frame_buffer = FrameBufferWrapper(
+                self.width, self.height, anti_alias=False)
+        
+        self.observation_space = bg_spaces.SegmentationSpace(
                 self.height, self.width)
     
-    def render(self, state):
-        renderer = state[self.renderer_key]
+    def compute_observation(self):
+        scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
-        renderer.mask_render()
+        scene.mask_render()
         mask = self.frame_buffer.read_pixels()
         segmentation = masks.color_byte_to_index(mask)
-        state[self.frame_key] = segmentation
+        return segmentation
+    
+    def reset(self):
+        self.segmentation = self.compute_observation()
+        return self.segmentation
+    
+    def step(self, action):
+        self.segmentation = self.compute_observation()
+        return self.segmentation, 0., False, None
+    
+    def set_state(self, state):
+        self.compute_observation()

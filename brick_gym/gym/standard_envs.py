@@ -1,11 +1,12 @@
 import math
+import collections
 
 from brick_gym.gym.brick_env import BrickEnv
 from brick_gym.gym.components.episode import MaxEpisodeLengthComponent
-from brick_gym.gym.components.dataset import DatasetComponent
+from brick_gym.gym.components.dataset import DatasetPathComponent
 from brick_gym.gym.components.labels import GraphLabelComponent
 from brick_gym.gym.components.render import (
-        RendererComponent, ColorRenderComponent, MaskRenderComponent)
+        ColorRenderComponent, SegmentationRenderComponent)
 from brick_gym.gym.components.viewpoint import FixedAzimuthalViewpointComponent
 from brick_gym.gym.components.visibility import InstanceVisibilityComponent
 from brick_gym.gym.components.graph_tasks import GraphReconstructionTask
@@ -35,7 +36,7 @@ def dummy_env():
     color_component = ColorRenderComponent(height, width)
     components.append(color_component)
     # mask render
-    mask_component = MaskRenderComponent(height, width)
+    segmentation_component = SegmentationRenderComponent(height, width)
     components.append(mask_component)
     
     env = BrickEnv(components)
@@ -49,50 +50,51 @@ def graph_env(
         rank=0,
         size=1,
         train=False,
-        height=256,
         width=256,
+        height=256,
         *args,
         **kwargs):
     
-    components = []
+    components = collections.OrderedDict()
     
     # dataset
-    dataset_component = DatasetComponent(dataset, split, subset, rank, size)
-    components.append(dataset_component)
-    max_instances = dataset_component.dataset_info['max_instances_per_scene']
-    num_classes = max(dataset_component.dataset_info['class_ids'].values())+1
+    components['dataset'] = DatasetPathComponent(
+            dataset, split, subset, rank, size, reset_mode='unifom')
+    dataset_info = components['dataset'].dataset_info
+    max_instances = dataset_info['max_instances_per_scene']
+    num_classes = max(dataset_info['class_ids'].values()) + 1
     
-    # max length episodes
-    fixed_length_episode_component = MaxEpisodeLengthComponent(max_instances)
-    components.append(fixed_length_episode_component)
+    # scene
+    components['scene'] = SceneComponent(path_component = components['dataset'])
     
     # training labels
     if train:
-        graph_label_component = GraphLabelComponent(num_classes, max_instances)
-        components.append(graph_label_component)
+        components['graph_label'] = GraphLabelComponent(
+                num_classes,
+                max_instances,
+                components['scene'])
+    
+    # color render
+    components['color_render'] = ColorRenderComponent(
+            width, height, components['scene'], anti_alias=True)
+    
+    # mask render
+    components['mask_render'] = SegmentationRenderComponent(
+            width, height, components['scene'])
     
     # visiblity action space
-    visibility_component = InstanceVisibilityComponent(
-            max_instances, terminate_when_all_hidden=True)
-    components.append(visibility_component)
+    components['visibility'] = InstanceVisibilityComponent(
+            scene_component = components['scene'],
+            terminate_when_all_hidden = True)
     
-    # renderer
-    renderer_component = RendererComponent()
-    components.append(renderer_component)
     # viewpoint
-    viewpoint_component = FixedAzimuthalViewpointComponent(
+    components['viewpoint'] = FixedAzimuthalViewpointComponent(
             azimuth = math.radians(30.),
-            elevation = math.radians(-45.))
-    # color render
-    color_component = ColorRenderComponent(height, width)
-    components.append(color_component)
-    # mask render
-    mask_component = MaskRenderComponent(height, width)
-    components.append(mask_component)
+            elevation = math.radians(-45.),
+            aspect_ratio = width/height)
     
     # graph reconstruction evaluation score
-    graph_task = GraphReconstructionTask(num_classes, max_instances)
-    components.append(graph_task)
+    components['task'] = GraphReconstructionTask(num_classes, max_instances)
     
     # build the env
     env = BrickEnv(components, *args, **kwargs)

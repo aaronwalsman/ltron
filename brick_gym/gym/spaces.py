@@ -8,9 +8,9 @@ class ImageSpace(spaces.Box):
     '''
     A height x width x 3 uint8 image.
     '''
-    def __init__(self, height, width):
-        self.height = height
+    def __init__(self, width, height):
         self.width = width
+        self.height = height
         super(ImageSpace, self).__init__(
                 low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
 
@@ -19,9 +19,9 @@ class SegmentationSpace(spaces.Box):
     A height x width array, where each pixel contains a long refering to
     a segmentation index.
     '''
-    def __init__(self, height, width, max_instances=masks.NUM_MASKS-1):
-        self.height = height
+    def __init__(self, width, height, max_instances=masks.NUM_MASKS-1):
         self.width = width,
+        self.height = height
         self.max_instances = max_instances
         super(SegmentationSpace, self).__init__(
                 low=0, high=max_instances, shape=(height, width),
@@ -38,10 +38,10 @@ class InstanceSelectionSpace(spaces.Discrete):
         super(InstanceSelectionSpace, self).__init__(self.max_num_instances+1)
 
 class PixelSelectionSpace(spaces.MultiDiscrete):
-    def __init__(self, height, width):
-        self.height = height
+    def __init__(self, width, height):
         self.width = width
-        super(PixelSelectionSpace, self).__init__(tuple(height, width))
+        self.height = height
+        super(PixelSelectionSpace, self).__init__(tuple(width, height))
 
 class NodeSpace(spaces.Box):
     '''

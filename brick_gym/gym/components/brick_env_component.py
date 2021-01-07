@@ -1,4 +1,5 @@
 class BrickEnvComponent:
+    '''
     def update_observation_space(self, observation_space):
         pass
     
@@ -7,27 +8,38 @@ class BrickEnvComponent:
     
     def initialize_state(self, state):
         pass
+    '''
     
-    def reset_state(self, state):
+    def reset(self):
+        return None
+    
+    def step(self, action):
+        return None, 0, False, {}
+    
+    '''
+    def update_state(self, action):
         pass
     
-    def update_state(self, state, action):
+    def compute_observation(self):
         pass
     
-    def compute_observation(self, state, observation):
-        pass
-    
-    def compute_reward(self, state, action):
+    def compute_reward(self, action):
         return 0.
     
-    def check_terminal(self, state):
+    def check_terminal(self):
         return False
     
-    def update_info(self, state, info):
+    def update_info(self, info):
+        pass
+    '''
+    def render(self):
         pass
     
-    def render(self, state):
+    def get_state(self):
+        return None
+    
+    def set_state(self, state):
         pass
     
-    def cleanup(self, state):
+    def close(self):
         pass

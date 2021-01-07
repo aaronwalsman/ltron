@@ -6,21 +6,26 @@ class GraphLabelComponent(BrickEnvComponent):
     def __init__(self,
             num_classes,
             max_nodes,
-            graph_label_key='graph_label',
-            scene_metadata_key='scene_metadata'):
+            scene_component):
         self.num_classes=num_classes
         self.max_nodes=max_nodes
-        self.graph_label_key = graph_label_key
-        self.scene_metadata_key = scene_metadata_key
-    
-    def update_observation_space(self, observation_space):
-        observation_space[self.graph_label_key] = bg_spaces.GraphScoreSpace(
+        self.scene_component = scene_component
+        
+        self.observation_space = bg_spaces.GraphScoreSpace(
                 self.num_classes, self.max_nodes)
     
-    def compute_observation(self, state, observation):
-        metadata = state[self.scene_metadata_key]
-        node_labels, edge_labels = utils.metadata_to_graph(
-                metadata, max_nodes=self.max_nodes)
-        observation[self.graph_label_key] = {
+    def compute_observation(self):
+        brick_scene = self.scene_component.brick_scene
+        SOME_NEW_THING
+        #node_labels, edge_labels = utils.metadata_to_graph(
+        #        metadata, max_nodes=self.max_nodes)
+        observation = {
                 'nodes' : node_labels,
                 'edges' : edge_labels}
+        return observation
+    
+    def reset(self):
+        return self.compute_observation()
+    
+    def step(self, action):
+        return self.compute_observation(), 0., False, None
