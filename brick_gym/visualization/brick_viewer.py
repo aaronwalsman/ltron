@@ -22,6 +22,7 @@ from brick_gym.bricks.brick_scene import BrickScene
 
 def start_viewer(
         file_path,
+        subdocument = None,
         width = 512,
         height = 512,
         image_light = 'grey_cube',
@@ -63,7 +64,7 @@ def start_viewer(
                 change_time = os.stat(file_path).st_mtime
                 if change_time != state['recent_file_change_time']:
                     camera_pose = scene.get_camera_pose()
-                    scene.import_ldraw(file_path)
+                    scene.import_ldraw(file_path, subdocument)
                     
                     #renderer.load_scene(scene, clear_scene=True)
                     if state['recent_file_change_time'] == -1:

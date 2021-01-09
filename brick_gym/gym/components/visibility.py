@@ -5,7 +5,7 @@ class VisibilityComponent(BrickEnvComponent):
     def __init__(self,
                 scene_component,
                 terminate_when_all_hidden=False):
-        self.scene_component
+        self.scene_component = scene_component
         self.terminate_when_all_hidden = terminate_when_all_hidden
     
     def hide_instance(self, instance_index):
@@ -13,7 +13,7 @@ class VisibilityComponent(BrickEnvComponent):
             scene = self.scene_component.brick_scene
             scene.hide_instance(instance_index)
     
-    def check_terminal(self, state):
+    def check_terminal(self):
         if self.terminate_when_all_hidden:
             scene = self.scene_component.brick_scene
             all_hidden = all(scene.instance_hidden(instance)
@@ -46,15 +46,12 @@ class InstanceVisibilityComponent(VisibilityComponent):
                 scene_component = scene_component,
                 terminate_when_all_hidden = terminate_when_all_hidden)
         self.max_instances = max_instances
-        self.action_key = action_key
-        self.terminate_when_all_hidden
         
         self.action_space = bg_spaces.InstanceSelectionSpace(
                 self.max_instances)
     
     def step(self, action):
-        instance_index = action + 1
-        self.hide_instance(state, instance_index)
+        self.hide_instance(action)
         
         return None, 0., self.check_terminal(), None
 
@@ -76,10 +73,10 @@ class PixelVisibilityComponent(VisibilityComponent):
         self.action_space = bg_spaces.PixelSelectionSpace(
                 self.width, self.height)
     
-    def step(self, state, action):
+    def step(self, action):
         x, y = action[self.pixel_key]
         instance_map = self.mask_render_component.segmentation
         instance_index = instance_map[y,x]
-        self.hide_instance(state, instance_index)
+        self.hide_instance(instance_index)
         
         return None, 0., self.check_terminal(), None

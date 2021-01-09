@@ -20,12 +20,14 @@ def get_metadata(file_path):
     return metadata
 
 def get_dataset_info(dataset):
-    dataset_directory = os.path.expanduser(config.datasets[dataset])
-    dataset_path = os.path.join(dataset_directory, 'dataset.json')
+    #dataset_directory = os.path.expanduser(config.datasets[dataset])
+    #dataset_path = os.path.join(dataset_directory, 'dataset.json')
+    dataset_path = os.path.expanduser(config.datasets[dataset])
     return json.load(open(dataset_path))
 
 def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
-    dataset_directory = os.path.expanduser(config.datasets[dataset])
+    dataset_path = os.path.expanduser(config.datasets[dataset])
+    dataset_directory = os.path.dirname(dataset_path)
     splits = get_dataset_info(dataset)['splits']
     split_globs = splits[split_name]
     all_file_paths = []

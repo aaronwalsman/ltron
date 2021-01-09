@@ -42,7 +42,7 @@ class GraphConstructionTask(BrickEnvComponent):
         return ap
     '''
 
-class SparseGraphConstructionTask(GraphReconstructionTask)
+class SparseGraphConstructionTask(GraphConstructionTask):
     def __init__(self,
             num_classes,
             max_nodes,

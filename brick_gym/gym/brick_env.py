@@ -17,12 +17,11 @@ class BrickEnv(gym.Env):
             observation_space = {}
             action_space = {}
             for component_name, component in self.components.items():
-                if hasattr(component, observation_space):
+                if hasattr(component, 'observation_space'):
                     observation_space[component_name] = (
                             component.observation_space)
-                if hasattr(component, action_space):
+                if hasattr(component, 'action_space'):
                     action_space[component_name] = component.action_space
-                component.initialize_state(self.state)
             self.observation_space = spaces.Dict(observation_space)
             self.action_space = spaces.Dict(action_space)
         
@@ -44,9 +43,9 @@ class BrickEnv(gym.Env):
     def reset(self):
         try:
             observation = {}
-            for component_name, component in self.components:
-                component_observation = component.reset(self.state)
-                if component_name in self.observation_space:
+            for component_name, component in self.components.items():
+                component_observation = component.reset()
+                if component_name in self.observation_space.spaces:
                     observation[component_name] = component_observation
             return observation
         except:
@@ -107,12 +106,12 @@ class BrickEnv(gym.Env):
             terminal = False
             info = {}
             for component_name, component in self.components.items():
-                if component_name in self.action_space:
+                if component_name in self.action_space.spaces:
                     component_action = action[component_name]
                 else:
                     component_action = None
                 o,r,t,i = component.step(component_action)
-                if component_name in self.observation_space:
+                if component_name in self.observation_space.spaces:
                     observation[component_name] = o
                 reward += r
                 terminal |= t
@@ -137,21 +136,33 @@ class BrickEnv(gym.Env):
             raise
     
     def get_state(self):
-        state = {}
-        for component_name, component in self.components.items():
-            s = component.get_state()
-            if s is not None:
-                state[component_name] = s
+        try:
+            state = {}
+            for component_name, component in self.components.items():
+                s = component.get_state()
+                if s is not None:
+                    state[component_name] = s
+        except:
+            if self.print_traceback:
+                exc_class, exc, exc_traceback = sys.exc_info()
+                print(''.join(traceback.format_tb(exc_traceback)))
+            raise
     
     def set_state(self, state):
-        for component_name, component in self.components.items():
-            component_state = state.get(component_name, None)
-            component.set_state(component_state)
+        try:
+            for component_name, component in self.components.items():
+                component_state = state.get(component_name, None)
+                component.set_state(component_state)
+        except:
+            if self.print_traceback:
+                exc_class, exc, exc_traceback = sys.exc_info()
+                print(''.join(traceback.format_tb(exc_traceback)))
+            raise
     
     def close(self):
         try:
             for component in self.components.values():
-                component.close(self.state)
+                component.close()
         except:
             if self.print_traceback:
                 exc_class, exc, exc_traceback = sys.exc_info()

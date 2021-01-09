@@ -26,7 +26,13 @@ class BrickScene:
             [ 0, 0, 1, 0],
             [ 0, 0, 0, 1]])
     
-    def __init__(self, renderable=False, track_snaps=False):
+    def __init__(self,
+            default_image_light = None,
+            renderable=False,
+            track_snaps=False):
+        
+        self.default_image_light = default_image_light
+        
         # renderable
         self.renderable = False
         self.renderer = None
@@ -46,6 +52,12 @@ class BrickScene:
         
     def make_renderable(self):
         if not self.renderable:
+            import renderpy.buffer_manager_egl as buffer_manager_egl
+            manager = buffer_manager_egl.initialize_shared_buffer_manager()
+            #import renderpy.glut as glut
+            #glut.initialize_glut()
+            #self.window = glut.GlutWindowWrapper()
+            self.renderable = True
             config_paths = '%s:%s'%(
                     config.paths['renderpy_assets_cfg'],
                     drpy_assets.default_assets_path)
@@ -74,6 +86,8 @@ class BrickScene:
                     image_light_kd = 1.0,
                     image_light_ks = 0.0,
                     image_light_blur_reflection = 4.0)
+            if self.default_image_light is not None:
+                self.load_default_image_light()
         
     def make_track_snaps(self):
         if not self.track_snaps:
@@ -97,10 +111,14 @@ class BrickScene:
             self.renderer.clear_meshes()
             self.renderer.clear_materials()
             self.clear_image_lights()
+            if self.default_image_light is not None:
+                self.load_default_image_light()
     
-    def import_ldraw(self, path):
+    def import_ldraw(self, path, subdocument=None):
         #t0 = time.time()
         document = LDrawDocument.parse_document(path)
+        if subdocument is not None:
+            document = document.reference_table['ldraw'][subdocument]
         new_types = self.brick_library.import_document(document)
         new_instances = self.instances.import_document(
                 document, transform=self.upright)
@@ -143,7 +161,8 @@ class BrickScene:
         return self.instances[instance]
     
     def hide_instance(self, brick_instance):
-        self.renderer.hide_instance(str(brick_instance))
+        if str(brick_instance) in self.instances:
+            self.renderer.hide_instance(str(brick_instance))
     
     def show_instance(self, brick_instance):
         self.renderer.show_instance(str(brick_instance))
@@ -222,8 +241,14 @@ class BrickScene:
                     self.renderer.hide_instance(snap_name)
     
     #===========================================================================
-    # pass-through to renderer
+    # rendering
     #===========================================================================
+    def load_default_image_light(self):
+        self.renderer.load_image_light(
+                'default',
+                texture_directory = self.default_image_light)
+        self.renderer.set_active_image_light('default')
+    
     pass_through_functions = set((
             'set_ambient_color',
             'set_background_color',
@@ -256,7 +281,7 @@ class BrickScene:
             'color_render',
             'mask_render'))
     def __getattr__(self, attr):
-        if attr in self.pass_through_functions:
+        if attr in self.pass_through_functions and self.renderable:
             return getattr(self.renderer, attr)
         else:
             raise AttributeError('Unknown attribute: %s'%attr)

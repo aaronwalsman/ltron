@@ -14,13 +14,15 @@ class DatasetPathComponent(BrickEnvComponent):
             size=1,
             reset_mode='uniform'):
         
-        self.episode = 0
-        self.scene_path = None
-        self.set_state(locals())
+        self.set_state({'episode' : 0, 'scene_path' : None})
         
+        self.reset_mode = reset_mode
+        self.dataset = dataset
+        self.split = split
+        self.subset = subset
         self.dataset_info = get_dataset_info(self.dataset)
         self.dataset_paths = get_dataset_paths(
-                dataset, split, subset, rank, size)
+                self.dataset, self.split, self.subset, rank, size)
     
     def reset(self):
         if self.reset_mode == 'uniform':
@@ -28,6 +30,8 @@ class DatasetPathComponent(BrickEnvComponent):
         elif self.reset_mode == 'sequential':
             self.scene_path = self.dataset_paths[
                     self.episode % len(self.dataset_paths)]
+        else:
+            raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
         self.episode += 1
     
     def get_state(self):
@@ -36,3 +40,6 @@ class DatasetPathComponent(BrickEnvComponent):
     def set_state(self, state):
         self.episode = state['episode']
         self.scene_path = state['scene_path']
+    
+    def get_class_id(self, class_name):
+        return self.dataset_info['class_ids'][class_name]

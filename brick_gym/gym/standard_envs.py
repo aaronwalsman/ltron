@@ -2,44 +2,70 @@ import math
 import collections
 
 from brick_gym.gym.brick_env import BrickEnv
+from brick_gym.gym.components.scene import SceneComponent
 from brick_gym.gym.components.episode import MaxEpisodeLengthComponent
 from brick_gym.gym.components.dataset import DatasetPathComponent
-from brick_gym.gym.components.labels import GraphLabelComponent
+from brick_gym.gym.components.labels import (
+        InstanceLabelComponent, GraphLabelComponent)
 from brick_gym.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent)
-from brick_gym.gym.components.viewpoint import FixedAzimuthalViewpointComponent
+from brick_gym.gym.components.viewpoint import (
+        RandomizedAzimuthalViewpointComponent, FixedAzimuthalViewpointComponent)
 from brick_gym.gym.components.visibility import InstanceVisibilityComponent
-from brick_gym.gym.components.graph_tasks import GraphReconstructionTask
+from brick_gym.gym.components.graph_tasks import GraphConstructionTask
 
-def dummy_env():
+def segmentation_supervision_env(
+        dataset,
+        split,
+        subset=None,
+        rank=0,
+        size=1,
+        width=256,
+        height=256,
+        print_traceback=True):
     
-    components = []
-    
-    # episode
-    fixed_length_episode_component = MaxEpisodeLengthComponent(1)
-    components.append(fixed_length_episode_component)
+    components = collections.OrderedDict()
     
     # dataset
-    dataset_component = DatasetComponent('random_stack', 'train_mpd')
-    height = 256
-    width = 256
-    components.append(dataset_component)
+    components['dataset'] = DatasetPathComponent(
+            dataset, split, subset, rank, size, reset_mode='sequential')
+    dataset_info = components['dataset'].dataset_info
+    max_instances = dataset_info['max_instances_per_scene']
+    num_classes = max(dataset_info['class_ids'].values()) + 1
     
-    # renderer
-    renderer_component = RendererComponent()
-    components.append(renderer_component)
+    # scene
+    components['scene'] = SceneComponent(path_component = components['dataset'])
+    
     # viewpoint
-    viewpoint_component = FixedAzimuthalViewpointComponent(
-            azimuth = math.radians(30.),
-            elevation = math.radians(-45.))
-    # color render
-    color_component = ColorRenderComponent(height, width)
-    components.append(color_component)
-    # mask render
-    segmentation_component = SegmentationRenderComponent(height, width)
-    components.append(mask_component)
+    components['viewpoint'] = RandomizedAzimuthalViewpointComponent(
+            components['scene'],
+            #azimuth = math.radians(-135.),
+            #elevation = math.radians(-30.),
+            aspect_ratio = width/height)
     
-    env = BrickEnv(components)
+    # visiblity action space
+    components['visibility'] = InstanceVisibilityComponent(
+            max_instances = max_instances,
+            scene_component = components['scene'],
+            terminate_when_all_hidden = True)
+    
+    # color render
+    components['color_render'] = ColorRenderComponent(
+            width, height, components['scene'], anti_alias=True)
+    
+    # segmentation render
+    components['segmentation_render'] = SegmentationRenderComponent(
+            width, height, components['scene'])
+    
+    # node labels
+    components['node_labels'] = InstanceLabelComponent(
+            num_classes,
+            max_instances,
+            components['dataset'],
+            components['scene'])
+    
+    # build the env
+    env = BrickEnv(components, print_traceback = print_traceback)
     
     return env
 
@@ -52,14 +78,13 @@ def graph_env(
         train=False,
         width=256,
         height=256,
-        *args,
-        **kwargs):
+        print_traceback=True):
     
     components = collections.OrderedDict()
     
     # dataset
     components['dataset'] = DatasetPathComponent(
-            dataset, split, subset, rank, size, reset_mode='unifom')
+            dataset, split, subset, rank, size, reset_mode='uniform')
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
     num_classes = max(dataset_info['class_ids'].values()) + 1
@@ -78,25 +103,28 @@ def graph_env(
     components['color_render'] = ColorRenderComponent(
             width, height, components['scene'], anti_alias=True)
     
-    # mask render
-    components['mask_render'] = SegmentationRenderComponent(
+    # segmentation render
+    components['segmentation_render'] = SegmentationRenderComponent(
             width, height, components['scene'])
     
     # visiblity action space
     components['visibility'] = InstanceVisibilityComponent(
+            max_instances = max_instances,
             scene_component = components['scene'],
             terminate_when_all_hidden = True)
     
     # viewpoint
     components['viewpoint'] = FixedAzimuthalViewpointComponent(
+            components['scene'],
             azimuth = math.radians(30.),
             elevation = math.radians(-45.),
             aspect_ratio = width/height)
     
     # graph reconstruction evaluation score
-    components['task'] = GraphReconstructionTask(num_classes, max_instances)
+    components['task'] = GraphConstructionTask(
+            num_classes, max_instances, components['scene'])
     
     # build the env
-    env = BrickEnv(components, *args, **kwargs)
+    env = BrickEnv(components, print_traceback = print_traceback)
     
     return env

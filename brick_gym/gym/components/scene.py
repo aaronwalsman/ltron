@@ -1,15 +1,16 @@
-from brick_gym.gym.components import BrickEnvComponent
+from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 from brick_gym.bricks.brick_scene import BrickScene
 
 class SceneComponent(BrickEnvComponent):
     def __init__(self,
             path_component=None,
-            initial_scene_path=None):
+            initial_scene_path=None,
+            default_image_light='grey_cube'):
         
         self.path_component = path_component
         self.initial_scene_path = initial_scene_path
         
-        self.brick_scene = BrickScene()
+        self.brick_scene = BrickScene(default_image_light = default_image_light)
         
         if self.initial_scene_path is not None:
             self.brick_scene.import_ldraw(initial_scene_path)
