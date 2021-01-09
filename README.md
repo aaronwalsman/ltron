@@ -10,7 +10,8 @@ run `bin/install_ldraw`
 
 ### Instructions for building objs from scratch
 First open blender and make sure the [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) is installed.  Then go into the script console and run:
-```import sys
+```
+import sys
 sys.path.append('path/to/brick-gym')
 import brick_gym.blender.blender_export_obj as blender_export_obj
 blender_export_obj.export_all()
