@@ -13,7 +13,7 @@ First open blender and make sure the [Import LDraw Addon](https://github.com/Tob
 ```
 import sys
 sys.path.append('path/to/brick-gym')
-import brick_gym.blender.blender_export_obj as blender_export_obj
+import brick_gym.blender.export_obj as blender_export_obj
 blender_export_obj.export_all()
 ```
 
