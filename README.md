@@ -14,18 +14,16 @@
 - [renderpy](https://gitlab.cs.washington.edu/awalsman/renderpy)
 
 ### Assets:
-- [LDraw](https://www.ldraw.org/) is a format and repository for describing Lego bricks and models.  We have 
-run `bin/install_ldraw`
+- [LDraw](https://www.ldraw.org/) is a format and repository for describing Lego bricks and models.  We have provided a script to download this and put it in the right place.  Just run `bin/install_ldraw`
 - [LDCad](http://www.melkert.net/LDCad) is a Lego CAD software that uses the LDraw data type.
 - [Open Model Repository](https://omr.ldraw.org/) provided by LDraw.  This contains files representing official Lego sets that have been reverse engineered by the online Lego community.  We have conveniently scraped this and packed it into a dataset.
   - Get ```OMR.zip``` from Aaron.
   - Unzip it in the ```brick-gym/data``` directory so that you have ```brick-gym/data/OMR/ldraw/...```
+- Renderpy obj files
+  - Get ```renderpy_assets.zip``` from Aaron.
+  - Unzip it in the ```brick-gym/data``` directory so that you have ```brick-gym/data/renderpy/meshes...```
 
-### Renderpy obj files
-- Get ```renderpy_assets.zip``` from Aaron.
-- Unzip it in the ```brick-gym/data``` directory so that you have ```brick-gym/data/renderpy/meshes...```
-
-#### Instructions for building objs from scratch
+### Instructions for building objs from scratch
 First open blender and make sure the [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) is installed.  Then go into the script console and run:
 ```
 import sys
