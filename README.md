@@ -47,18 +47,19 @@ Or:
 You can interact with the model by clicking on it and dragging the mouse around (warning dragging on the background causes things to fly around I'm working on it).  LMB - Orbit.  RMB - Pan.  Scroll - Zoom.  There are a few keys you can press `h` to hide the brick you are hovering over, `v` to show all hidden bricks and `m` to switch back and forth between mask mode and regular rendering.  See other options in `brick_gym/visualization/brick_viewer.py` TODO: Document.
 
 ## Project Structure
-- brick-gym/setup.cfg: A configuration file that lets you change the locations of datasets and other directories.  The paths in this file can be accessed using the `brick_gym.config` module.
-- brick-gym/assets.cfg: A configuration file that points to the renderpy assets (meshes) necessary for rendering these scenes.
-- brick-gym/bin: All stand-alone python scripts that can be run from the command line should be here.
-- brick-gym/brick_gym: Package directory containing all the libraries that can be imported by these scripts.  There shouldn't be any stand-alone scripts in here, although there are some at the moment that need to be cleaned up.
-  - brick-gym/brick_gym/blender: modules used by blender for converting ldraw files to objs
-  - brick-gym/brick_gym/bricks: the primary API used to represent scenes
-  - brick-gym/brick_gym/dataset: modules for loading different datasets
-  - brick-gym/brick_gym/gym: the gym RL interface.  Uses `brick_gym.bricks` to interface with a scene.
-  - brick-gym/brick_gym/ldraw: modules to parse the LDraw and LDCad data formats
-  - brick-gym/brick_gym/random_stack: old (out of date) modules for running experiments with the random_stack dataset.  TODO: Remove this once all the new training scripts are online
-  - brick-gym/brick_gym/torch: pytorch models and training code.  No torch code should be anywhere outside this directory.
-- brick-gym/data: Data files that are too large to be committed to the repo.
+brick-gym
+- setup.cfg: A configuration file that lets you change the locations of datasets and other directories.  The paths in this file can be accessed using the `brick_gym.config` module.
+- assets.cfg: A configuration file that points to the renderpy assets (meshes) necessary for rendering these scenes.
+- bin: All stand-alone python scripts that can be run from the command line should be here.
+- brick_gym: Package directory containing all the libraries that can be imported by these scripts.  There shouldn't be any stand-alone scripts in here, although there are some at the moment that need to be cleaned up.
+  - blender: modules used by blender for converting ldraw files to objs
+  - bricks: the primary API used to represent scenes
+  - dataset: modules for loading different datasets
+  - gym: the gym RL interface.  Uses `brick_gym.bricks` to interface with a scene.
+  - ldraw: modules to parse the LDraw and LDCad data formats
+  - random_stack: old (out of date) modules for running experiments with the random_stack dataset.  TODO: Remove this once all the new training scripts are online
+  - torch: pytorch models and training code.  No torch code should be anywhere outside this directory.
+- data: Data files that are too large to be committed to the repo.
 
 ## BrickGym Structure
 We have tried to make the BrickGym structure modular so that it can be customized for a variety of observation types, action spaces and tasks.  
