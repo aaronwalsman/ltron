@@ -31,5 +31,20 @@ import brick_gym.blender.export_obj as export_obj
 export_obj.export_all(**export_obj.medium_settings)
 ```
 
+## Testing Things Out:
+Once installed you should be able to run ```brick_viewer``` to interactively inspect a lego model.  For example from the top directory you can run:
+
+```brick_viewer "data/OMR/ldraw/8661-1 - Carbon Star.mpd"```
+
+Or:
+
+```brick_viewer "data/OMR/ldraw/75050-1 - B-Wing.mpd"```
+
+Or:
+
+```brick_viewer "data/OMR/ldraw/75060 - Slave I.mpd"```
+
+You can interact with the model by clicking on it and dragging the mouse around (warning dragging on the background causes things to fly around I'm working on it).  LMB - Orbit.  RMB - Pan.  Scroll - Zoom.  There are a few keys you can press ```h``` to hide the brick you are hovering over, ```v``` to show all hidden bricks and ```m``` to switch back and forth between mask mode and regular rendering.  See other options in ```brick_gym/visualization/brick_viewer.py``` TODO: Document.
+
 ## Units:
 All 3D units are in [LDraw LDUs](http://www.ldraw.org/article/218.html).  One LDU is approximately 0.4 mm, so the physical extents of these scenes can be quite large.
