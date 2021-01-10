@@ -6,7 +6,7 @@
 - Optionally Install [blender 2.90+](http://www.blender.org) with [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) This is optional and only necessary for building brick obj files.
 - Clone this repo somewhere
 - Go to the top directory of the cloned repo and run ```pip install -e .```  This should automatically also install:
-  - [numpy] (https://numpy.org/)
+  - [numpy](https://numpy.org/)
   - [gym](https://github.com/openai/gym)
   - [tqdm](https://github.com/tqdm/tqdm)
 - Install [renderpy](https://gitlab.cs.washington.edu/awalsman/renderpy) by cloning it from gitlab.  TODO: This should be moved to github and pip-ified.
