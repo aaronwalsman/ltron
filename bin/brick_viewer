@@ -10,6 +10,7 @@ parser.add_argument('--subdocument', type=str, default=None)
 parser.add_argument('--resolution', type=str, default='512x512')
 parser.add_argument('--image-light', type=str, default='grey_cube')
 parser.add_argument('--poll-frequency', type=int, default=1024)
+parser.add_argument('--fps', action='store_true')
 
 args = parser.parse_args()
 
@@ -22,4 +23,5 @@ brick_viewer.start_viewer(
         width,
         height,
         args.image_light,
-        args.poll_frequency)
+        args.poll_frequency,
+        print_fps = args.fps)

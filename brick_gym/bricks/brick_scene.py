@@ -5,9 +5,13 @@ import numpy
 
 #import renderpy.buffer_manager_egl as buffer_manager_egl
 #import renderpy.buffer_manager_glut as buffer_manager_glut
-from renderpy.core import Renderpy
-import renderpy.camera as camera
-import renderpy.assets as drpy_assets
+try:
+    from renderpy.core import Renderpy
+    import renderpy.camera as camera
+    import renderpy.assets as drpy_assets
+    renderpy_available = True
+except ImportError:
+    renderpy_available = False
 
 import brick_gym.config as config
 from brick_gym.ldraw.documents import LDrawDocument
@@ -28,12 +32,14 @@ class BrickScene:
     
     def __init__(self,
             default_image_light = None,
+            opengl_mode='none',
             renderable=False,
             track_snaps=False):
         
         self.default_image_light = default_image_light
         
         # renderable
+        self.opengl_mode = opengl_mode
         self.renderable = False
         self.renderer = None
         if renderable:
@@ -51,9 +57,12 @@ class BrickScene:
         self.color_library = BrickColorLibrary()
         
     def make_renderable(self):
+        if not renderpy_available:
+            raise Exception('Renderpy not available')
         if not self.renderable:
-            import renderpy.buffer_manager_egl as buffer_manager_egl
-            manager = buffer_manager_egl.initialize_shared_buffer_manager()
+            if self.opengl_mode == 'egl':
+                import renderpy.buffer_manager_egl as buffer_manager_egl
+                manager = buffer_manager_egl.initialize_shared_buffer_manager()
             #import renderpy.glut as glut
             #glut.initialize_glut()
             #self.window = glut.GlutWindowWrapper()

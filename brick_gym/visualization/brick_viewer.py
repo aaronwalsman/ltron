@@ -26,7 +26,8 @@ def start_viewer(
         width = 512,
         height = 512,
         image_light = 'grey_cube',
-        poll_frequency = 1024):
+        poll_frequency = 1024,
+        print_fps = False):
     
     if not os.path.exists(file_path):
         file_path = ldraw_paths.LDRAW_FILES[file_path]
@@ -55,7 +56,8 @@ def start_viewer(
         'steps' : 0,
         'recent_file_change_time' : -1,
         'part_mask' : None,
-        'snap_mode' : 'none'
+        'snap_mode' : 'none',
+        'batch_time' : time.time()
     }
     
     def reload_scene():
@@ -87,6 +89,11 @@ def start_viewer(
     def render():
         if state['steps'] % poll_frequency == 0:
             reload_scene()
+            t_now = time.time()
+            if print_fps:
+                print('fps: %.04f'%(
+                        poll_frequency / (t_now - state['batch_time'])))
+            state['batch_time'] = t_now
         state['steps'] += 1
         
         #manager.enable_frame('part_mask')

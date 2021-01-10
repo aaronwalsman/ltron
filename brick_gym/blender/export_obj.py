@@ -6,7 +6,9 @@ import bpy
 import io_scene_importldraw.loadldraw.loadldraw as loadldraw
 
 import brick_gym.config as config
-from brick_gym.ldraw.documents import LDrawDocument
+import brick_gym.dataset.paths as dataset_paths
+#from brick_gym.ldraw.documents import LDrawDocument
+from brick_gym.bricks.brick_scene import BrickScene
 
 # to fix a light/lamp naming issue
 loadldraw.globalLightBricks = {}
@@ -40,6 +42,26 @@ def clear_scene(scene_name):
     # OOPS, it also forgets all your plugins!
     #bpy.ops.wm.read_factory_settings(use_empty=True)
 
+medium_settings = {
+        'primitive_resolution' : 'Standard',
+        'smooth_parts' : True,
+        'curved_walls' : True,
+        'bevel_edges' : False,
+        'add_gaps' : True,
+        'gap_size' : 0.25,
+        'use_normals' : True
+}
+
+high_settings = {
+        'primitive_resolution' : 'Standard',
+        'smooth_parts' : True,
+        'curved_walls' : True,
+        'bevel_edges' : True,
+        'bevel_width' : 0.5,
+        'add_gaps' : False,
+        'use_normals' : True
+}
+
 def export_brick(brick,
         overwrite=False,
         import_scale = 1.0,
@@ -47,8 +69,10 @@ def export_brick(brick,
         smooth_parts = True,
         curved_walls = True,
         use_logo_studs = False,
-        bevel_edges = True,
+        bevel_edges = False,
         bevel_width = 0.5,
+        add_gaps = True,
+        gap_size = 0.25,
         use_normals = True,
         axis_forward = 'Z',
         axis_up = '-Y'):
@@ -67,12 +91,14 @@ def export_brick(brick,
                 importScale = import_scale,
                 resPrims = primitive_resolution,
                 smoothParts = smooth_parts,
+                bevelEdges = bevel_edges,
+                bevelWidth = bevel_width,
+                addGaps = add_gaps,
+                gapsSize = gap_size,
                 curvedWalls = curved_walls,
                 importCameras = False,
                 useLogoStuds = use_logo_studs,
                 positionOnGround = False,
-                bevelEdges = bevel_edges,
-                bevelWidth = bevel_width,
                 addEnvironment = False)
         
         # export obj
@@ -84,11 +110,23 @@ def export_brick(brick,
                 axis_up = axis_up)
 
 def export_scene_bricks(scene_path, **kwargs):
-    scene_document = LDrawDocument.parse_document(scene_path)
-    parts = scene_document.get_all_parts()
-    bricks = [part[0] for part in parts]
-    print(bricks)
+    #scene_document = LDrawDocument.parse_document(scene_path)
+    brick_scene = BrickScene()
+    brick_scene.import_ldraw(scene_path)
+    for brick_name, brick_type in brick_scene.brick_library.items():
+        print(brick_name)
+        export_brick(brick_name, **kwargs)
+    #parts = scene_document.get_all_parts()
+    #bricks = [part[0] for part in parts]
+    #for brick in bricks:
+    #    print(brick)
+    #    export_brick(brick, **kwargs)
+
+def export_dataset_bricks(dataset, **kwargs):
+    info = dataset_paths.get_dataset_info(dataset)
+    bricks = info['class_ids'].keys()
     for brick in bricks:
+        print(brick)
         export_brick(brick, **kwargs)
 
 def export_carbon_star(**kwargs):

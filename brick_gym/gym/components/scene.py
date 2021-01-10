@@ -10,7 +10,9 @@ class SceneComponent(BrickEnvComponent):
         self.path_component = path_component
         self.initial_scene_path = initial_scene_path
         
-        self.brick_scene = BrickScene(default_image_light = default_image_light)
+        self.brick_scene = BrickScene(
+                opengl_mode = 'egl',
+                default_image_light = default_image_light)
         
         if self.initial_scene_path is not None:
             self.brick_scene.import_ldraw(initial_scene_path)

@@ -1,6 +1,7 @@
 import collections
 
 from brick_gym.ldraw.commands import *
+from brick_gym.ldraw.documents import *
 from brick_gym.bricks.snap import Snap, SnapStyle, SnapClear
 
 class BrickLibrary(collections.abc.MutableMapping):
@@ -11,6 +12,7 @@ class BrickLibrary(collections.abc.MutableMapping):
     
     def import_document(self, document):
         new_types = []
+        '''
         for reference_name, reference_document in (
                     document.reference_table['ldraw'].items()):
             if reference_name not in self:
@@ -18,6 +20,24 @@ class BrickLibrary(collections.abc.MutableMapping):
                     new_type = BrickType(reference_document)
                     self[reference_name] = new_type
                     new_types.append(new_type)
+        '''
+        for command in document.commands:
+            if isinstance(command, LDrawImportCommand):
+                reference_name = command.reference_name
+                reference_document = (
+                        document.reference_table['ldraw'][reference_name])
+                if isinstance(reference_document, LDrawDAT):
+                    if reference_name in ldraw_paths.LDRAW_PARTS:
+                        new_type = BrickType(reference_document)
+                        self[reference_name] = new_type
+                        new_types.append(new_type)
+                elif isinstance(reference_document, (
+                        LDrawMPDMainFile,
+                        LDrawMPDInternalFile,
+                        LDrawLDR)):
+                    new_types.extend(self.import_document(
+                            reference_document))
+                    
         return new_types
     
     def __getitem__(self, key):

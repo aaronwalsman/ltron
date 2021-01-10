@@ -1,6 +1,10 @@
 import collections
 
-import renderpy.masks as masks
+try:
+    import renderpy.masks as masks
+    renderpy_available = True
+except:
+    renderpy_available = False
 
 from brick_gym.ldraw.commands import *
 from brick_gym.ldraw.documents import *
@@ -99,6 +103,8 @@ class BrickInstance:
             'mesh_name' : self.brick_type.mesh_name,
             'material_name' : str(self.color),
             'transform' : self.transform,
-            'mask_color' : masks.color_index_to_byte(self.instance_id)/255.
         }
+        if renderpy_available:
+            instance_args['mask_color'] = masks.color_index_to_byte(
+                    self.instance_id)/255.
         return instance_args

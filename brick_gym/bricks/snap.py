@@ -1,6 +1,10 @@
 import copy
 
-import renderpy.primitives as primitives
+try:
+    import renderpy.primitives as primitives
+    renderpy_available = True
+except ImportError:
+    renderpy_available = False
 
 from brick_gym.ldraw.commands import *
 from brick_gym.ldraw.exceptions import LDrawException
@@ -177,6 +181,7 @@ class SnapCylinder(SnapStyle):
             return True
     
     def get_snap_mesh(self):
+        assert renderpy_available
         sec_parts = self.secs.split()
         sec_parts = zip(sec_parts[::3], sec_parts[1::3], sec_parts[2::3])
         sections = []
