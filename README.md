@@ -3,6 +3,7 @@
 ## Installation:
 - Install [python 3](http://www.python.org) We recommend using [anaconda](http://www.anaconda.com))
 - Optionally Install [pytorch](http://www.pytorch.org) This is optional and only necessary for running the training code.  It is not necessary for running the gym environments.
+  - Also install [pytorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
 - Optionally Install [blender 2.90+](http://www.blender.org) with [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) This is optional and only necessary for building brick obj files.
 - Clone this repo somewhere
 - Go to the top directory of the cloned repo and run `pip install -e .`  This should automatically also install:
