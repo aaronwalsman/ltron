@@ -36,9 +36,9 @@ def train_label_confidence(
         num_processes = 4,
         batch_size = 2,
         learning_rate = 3e-4,
-        node_loss_weight = 0.8,
-        confidence_loss_weight = 0.2,
-        confidence_ratio = 0.1,
+        instance_label_loss_weight = 0.8,
+        score_loss_weight = 0.2,
+        score_ratio = 0.1,
         train_steps_per_epoch = 4096,
         test_frequency = 1,
         test_steps_per_epoch = 1024,
@@ -59,7 +59,7 @@ def train_label_confidence(
     print('Building the model')
     model = named_models.named_graph_step_model(
             'nth_try',
-            node_classes = num_classes)
+            num_classes = num_classes).cuda()
     
     print('Building the optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -98,9 +98,9 @@ def train_label_confidence(
                 model,
                 optimizer,
                 train_env,
-                node_loss_weight,
-                confidence_ratio,
-                confidence_loss_weight,
+                instance_label_loss_weight,
+                score_ratio,
+                score_loss_weight,
                 dataset_info,
                 dump_train)
         
@@ -181,9 +181,9 @@ def train_label_confidence_epoch(
         model,
         optimizer,
         train_env,
-        node_loss_weight,
-        confidence_ratio,
-        confidence_loss_weight,
+        instance_label_loss_weight,
+        score_ratio,
+        score_loss_weight,
         dataset_info,
         debug_dump):
     
@@ -208,6 +208,7 @@ def train_label_confidence_epoch(
             # gym -> torch
             images = step_observations['color_render']
             x_im = utils.images_to_tensor(images).cuda()
+            batch_size = x_im.shape[0]
             segmentations = step_observations['segmentation_render']
             x_seg = utils.segmentations_to_tensor(segmentations).cuda()
             
@@ -217,16 +218,30 @@ def train_label_confidence_epoch(
             # segment_ids,
             # segment_weights) = model(x_im, x_seg)
             batch_graph, _, dense_scores, head_features = model(x_im, x_seg)
-            action_logits = head_features['hide_action']
             
             # sample an action
-            action_prob = torch.exp(action_logits) * segment_weights
-            action_prob = action_prob / torch.sum(action_prob)
-            action_distribution = Categorical(probs=action_prob)
-            hide_actions = action_distribution.sample().cpu()
-            hide_indices = [int(segment_ids[i,action])
-                    for i, action in enumerate(hide_actions)]
-            actions = [{'visibility':int(action)} for action in hide_indices]
+            #hide_probs = torch.exp(batch_graph.hide_action.view(-1))
+            hide_probs = batch_graph.score
+            hide_logits = torch.log(hide_probs / (1. - hide_probs))
+            actions = []
+            for b in range(batch_size):
+                start, end = batch_graph.ptr[b], batch_graph.ptr[b+1]
+                # this is what we should be doing when hide_probs are not
+                # repurposed scores
+                #=======
+                #action_distribution = Categorical(
+                #        probs=hide_probs[start:end])
+                #=======
+                # this is temporary and it sucks, but we're doing it because
+                # we're not training hide yet, and using the score as a hide
+                # function
+                action_distribution = Categorical(
+                        logits = hide_logits[start:end])
+                #=======
+                action = action_distribution.sample()
+                hide_segment = int(
+                        batch_graph.segment_index[start+action].cpu())
+                actions.append({'visibility':hide_segment})
             
             # debug
             if debug_dump:
@@ -268,10 +283,10 @@ def train_label_confidence_epoch(
             
             step_observations, _, _, _ = train_env.step(actions)
     
-    x_im = torch.cat(tuple(
+    seq_x_im = torch.cat(tuple(
             utils.images_to_tensor(observation['color_render'])
             for observation in observations))
-    x_seg = torch.cat(tuple(
+    seq_x_seg = torch.cat(tuple(
             utils.segmentations_to_tensor(observation['segmentation_render'])
             for observation in observations))
     y = torch.cat(tuple(
@@ -284,7 +299,7 @@ def train_label_confidence_epoch(
     total_correct_correct_segments = 0
     total_segments = 0
     
-    dataset_size = x_im.shape[0]
+    dataset_size = seq_x_im.shape[0]
     
     for mini_epoch in range(1, mini_epochs+1):
         print('- '*40)
@@ -293,34 +308,26 @@ def train_label_confidence_epoch(
         iterate = tqdm.tqdm(range(0, dataset_size, batch_size))
         for start in iterate:
             batch_indices = indices[start:start+batch_size]
-            x_im_batch = x_im[batch_indices].cuda()
-            x_seg_batch = x_seg[batch_indices].cuda()
+            x_im = seq_x_im[batch_indices].cuda()
+            x_seg = seq_x_seg[batch_indices].cuda()
             
-            (node_logits,
-             action_logits,
-             segment_ids,
-             segment_weights) = model(
-                    x_im_batch, x_seg_batch)
-            batch_size, num_segments, _ = node_logits.shape
+            batch_graph, _, dense_scores, head_features = model(x_im, x_seg)
             
             y_batch = y[batch_indices].cuda()
-            y_batch = torch.gather(y_batch, 1, segment_ids)
             
             loss = 0.
             
-            flat_node_logits = node_logits.view(batch_size * num_segments, -1)
-            flat_segment_weights = segment_weights.view(-1)
-            flat_y_batch = y_batch.reshape(batch_size * num_segments)
-            node_loss = torch.nn.functional.cross_entropy(
-                    flat_node_logits, flat_y_batch, reduction='none')
-            node_loss = node_loss * flat_segment_weights
-            normalizer = torch.sum(flat_segment_weights)
-            if normalizer == 0.:
-                print('bad normalizer!')
-            node_loss = torch.sum(node_loss) / normalizer
-            loss = loss + node_loss * node_loss_weight
-            log.add_scalar('loss/node_label', node_loss, step_clock[0])
+            instance_label_target = torch.stack([
+                    y[seg] for y,seg in zip(y_batch, x_seg)])
+            instance_label_logits = head_features['instance_label']
+            instance_label_loss = torch.nn.functional.cross_entropy(
+                    instance_label_logits, instance_label_target)
+            loss = loss + instance_label_loss * instance_label_loss_weight
             
+            log.add_scalar(
+                    'loss/instance_label', instance_label_loss, step_clock[0])
+            
+            '''
             prediction = torch.argmax(flat_node_logits, dim=-1)
             correct = (flat_y_batch == prediction) * flat_segment_weights
             flat_action_logits = action_logits.view(batch_size * num_segments)
@@ -329,41 +336,36 @@ def train_label_confidence_epoch(
                     flat_action_prob, correct.float(), reduction='none')
             confidence_loss = confidence_loss * flat_segment_weights
             confidence_loss = (
-                    confidence_loss * correct * confidence_ratio +
+                    confidence_loss * correct * score_ratio +
                     confidence_loss * ~correct * 1.0)
             confidence_loss = (
                     torch.sum(confidence_loss) / normalizer)
-            loss = loss + confidence_loss * confidence_loss_weight
-            log.add_scalar('loss/confidence', confidence_loss, step_clock[0])
+            loss = loss + confidence_loss * score_loss_weight
+            '''
+            instance_label_prediction = torch.argmax(
+                    instance_label_logits, dim=1)
+            correct = instance_label_prediction == instance_label_target
+            score_loss = torch.nn.functional.binary_cross_entropy(
+                    dense_scores,
+                    (correct & (x_seg != 0)).unsqueeze(1).float(),
+                    reduction='none')
+            score_loss = torch.mean(
+                    score_loss * correct * score_ratio + score_loss * ~correct)
+            loss = loss + score_loss * score_loss_weight
+            
+            log.add_scalar('loss/score', score_loss, step_clock[0])
             log.add_scalar('loss/total', loss, step_clock[0])
             
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
             
-            total_correct_segments += float(torch.sum(correct).cpu())
-            total_segments += float(torch.sum(segment_weights).cpu())
-            
-            confidence_prediction = flat_action_logits > 0.
-            correct_correct = (
-                    (confidence_prediction == correct) * flat_segment_weights)
-            total_correct_correct_segments += float(
-                    torch.sum(correct_correct).cpu())
-            
-            #running_node_loss = (
-            #        running_node_loss * 0.9 + float(node_loss) * 0.1)
-            #running_confidence_loss = (
-            #        running_confidence_loss * 0.9 +
-            #        float(confidence_loss) * 0.1)
-            #iterate.set_description('Node: %.04f Conf: %.04f'%(
-            #        float(running_node_loss), float(running_confidence_loss)))
-            
             step_clock[0] += 1
     
     #print('- '*40)
     #print('Node Accuracy: %.04f'%(total_correct_segments/total_segments))
-    print('Confidence Accuracy: %.04f'%(
-            total_correct_correct_segments/total_segments))
+    #print('Confidence Accuracy: %.04f'%(
+    #        total_correct_correct_segments/total_segments))
 
 def test_label_confidence_epoch(
         epoch,
@@ -391,33 +393,40 @@ def test_label_confidence_epoch(
             
             images = step_observations['color_render']
             x_im = utils.images_to_tensor(images).cuda()
+            batch_size = x_im.shape[0]
             segmentations = step_observations['segmentation_render']
             x_seg = utils.segmentations_to_tensor(segmentations).cuda()
             
-            (node_logits,
-             action_logits,
-             segment_ids,
-             segment_weights) = model(x_im, x_seg)
-            batch_size, num_segments, _ = node_logits.shape
+            batch_graph, _, dense_scores, head_features = model(x_im, x_seg)
             
-            y = torch.LongTensor(step_observations['instance_labels']).cuda()
-            y = torch.gather(y, 1, segment_ids)
+            y_batch = torch.LongTensor(
+                    step_observations['instance_labels']).cuda()
             
-            prediction = torch.argmax(node_logits, dim=-1)
-            correct = (y == prediction) * segment_weights
+            instance_label_logits = batch_graph.instance_label
+            segment_index = batch_graph.segment_index
+            ptr = batch_graph.ptr
+            instance_label_targets = torch.cat([
+                    y[segment_index[start:end]]
+                    for y, start, end in zip(y_batch, ptr[:-1], ptr[1:])])
+            prediction = torch.argmax(instance_label_logits, dim=1)
+            correct = instance_label_targets == prediction
             total_correct_segments += float(torch.sum(correct).cpu())
-            total_segments += float(torch.sum(segment_weights).cpu())
+            total_segments += correct.shape[0]
             
             #action_prob = torch.exp(action_logits) * segment_weights
             #max_action = torch.argmax(action_prob, dim=-1)
             #max_correct = correct[range(batch_size), max_action]
             #max_is_correct_segments += int(torch.sum(max_correct))
             #max_is_correct_normalizer += batch_size
+            # this is bad, but we're not training the hide_actions yet
+                
+            '''
             action_prob = torch.sigmoid(action_logits) * segment_weights
             max_action = torch.argmax(action_prob, dim=-1)
             add_to_graph = action_prob > 0.5
             add_to_graph_correct += torch.sum(correct * add_to_graph)
             add_to_graph_normalizer += torch.sum(add_to_graph)
+            '''
             
             if debug_dump:
                 for i in range(batch_size):
@@ -454,33 +463,55 @@ def test_label_confidence_epoch(
                     with open('details_%i_%i_%i.json'%(epoch,i,step), 'w') as f:
                         json.dump(metadata, f)
             
+            '''
             confidence_prediction = action_logits > 0.
             correct_correct = (
                     (confidence_prediction == correct) * segment_weights)
             total_correct_correct_segments += float(
                     torch.sum(correct_correct).cpu())
-            
+            '''
+            '''
             #action_distribution = Categorical(logits=action_logits)
             #hide_actions = action_distribution.sample().cpu()
             hide_actions = max_action
             hide_indices = [segment_ids[i,action]
                     for i, action in enumerate(hide_actions)]
             actions = [{'visibility':int(action)} for action in hide_indices]
+            '''
+            
+            hide_probs = batch_graph.score
+            hide_logits = torch.log(hide_probs / (1. - hide_probs))
+            actions = []
+            for b in range(batch_size):
+                start, end = batch_graph.ptr[b], batch_graph.ptr[b+1]
+                # this is what we should be doing when hide_probs are not
+                # repurposed scores
+                #=======
+                #action_distribution = Categorical(
+                #        probs=hide_probs[start:end])
+                #=======
+                # this is temporary and it sucks, but we're doing it because
+                # we're not training hide yet, and using the score as a hide
+                # function
+                action_distribution = Categorical(
+                        logits = hide_logits[start:end])
+                #=======
+                action = action_distribution.sample()
+                hide_segment = int(
+                        batch_graph.segment_index[start+action].cpu())
+                actions.append({'visibility':hide_segment})
             
             step_observations, _, terminal, _ = test_env.step(actions)
     
     print('- '*40)
     node_accuracy = total_correct_segments/total_segments
-    confidence_accuracy = total_correct_correct_segments/total_segments
-    top_confidence_accuracy = (
-            add_to_graph_correct / add_to_graph_normalizer)
+    #confidence_accuracy = total_correct_correct_segments/total_segments
+    #top_confidence_accuracy = (
+    #        add_to_graph_correct / add_to_graph_normalizer)
             #max_is_correct_segments / max_is_correct_normalizer)
-    #print('Node Accuracy: %.04f'%node_accuracy)
-    #print('Confidence Accuracy: %.04f'%confidence_accuracy)
-    #print('Top Confidence Accuracy: %.04f'%top_confidence_accuracy)
     
     log.add_scalar('test_accuracy/node_labels', node_accuracy, step_clock[0])
-    log.add_scalar('test_accuracy/confidence_accuracy',
-            confidence_accuracy, step_clock[0])
-    log.add_scalar('test_accuracy/confident_node_accuracy',
-            top_confidence_accuracy, step_clock[0])
+    #log.add_scalar('test_accuracy/confidence_accuracy',
+    #        confidence_accuracy, step_clock[0])
+    #log.add_scalar('test_accuracy/confident_node_accuracy',
+    #        top_confidence_accuracy, step_clock[0])
