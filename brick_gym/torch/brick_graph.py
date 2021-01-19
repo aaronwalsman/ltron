@@ -72,9 +72,9 @@ class BrickGraph(GraphData):
         if new_edges is not None:
             other_nodes, self_nodes = new_edges
             remapped_other_nodes = destination[other_nodes]
-            remapped_new_edges = torch.stack(
-                    torch.cat(remapped_other_nodes, self_nodes),
-                    torch.cat(self_nodes, remapped_other_nodes))
+            remapped_new_edges = torch.stack((
+                    torch.cat((remapped_other_nodes, self_nodes)),
+                    torch.cat((self_nodes, remapped_other_nodes))))
             new_edge_tensors.append(remapped_new_edges)
         
         self.edge_index = torch.cat(new_edge_tensors, dim=1)
