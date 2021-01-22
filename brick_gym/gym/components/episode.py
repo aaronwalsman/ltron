@@ -2,29 +2,26 @@ from brick_gym.gym.spaces import StepSpace
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
 class MaxEpisodeLengthComponent(BrickEnvComponent):
-    def __init__(self,
-            episode_length,
-            episode_step_key = 'episode_step'):
-        
-        self.episode_length = episode_length
-        self.episode_step_key = episode_step_key
+    def __init__(self, max_episode_length, observe_step=True):
+        self.max_episode_length = max_episode_length
+        self.episode_step = None
+        self.observe_step = observe_step
+        if self.observe_step:
+            self.observation_space = StepSpace(max_episode_length)
     
-    def update_observation_space(self, observation_space):
-        observation_space[self.episode_step_key] = StepSpace(
-                self.episode_length)
+    def reset(self):
+        self.episode_step = 0
+        if self.observe_step:
+            observation = self.episode_step
+        else:
+            observation = None
+        return observation
     
-    def initialize_state(self, state):
-        state[self.episode_step_key] = None
-    
-    def reset_state(self, state):
-        state[self.episode_step_key] = 0
-    
-    def update_state(self, state, action):
-        state[self.episode_step_key] += 1
-    
-    def compute_observation(self, state, observation):
-        observation[self.episode_step_key] = state[self.episode_step_key]
-    
-    def check_terminal(self, state):
-        terminal = state[self.episode_step_key] >= self.episode_length
-        return terminal
+    def step(self, action):
+        self.episode_step += 1
+        if self.observe_step:
+            observation = self.episode_step
+        else:
+            observation = None
+        terminal = self.episode_step >= self.max_episode_length
+        return observation, 0., terminal, None

@@ -1,6 +1,6 @@
 import torch
 
-import brick_gym.torch.models.utils as model_utils
+import brick_gym.torch.models.spatial as spatial
 
 class ResnetBackbone(torch.nn.Module):
     def __init__(self, resnet):
@@ -47,6 +47,6 @@ def make_spatial_attention_resnet(resnet, shape, do_spatial_embedding=True):
     layers = []
     if do_spatial_embedding:
         layers.append(
-                model_utils.AddSpatialEmbedding((h,w), channels).to(device))
-    layers.append(model_utils.SpatialAttention2D(channels).to(device))
+                spatial.AddSpatialEmbedding((h,w), channels).to(device))
+    layers.append(spatial.SpatialAttention2D(channels).to(device))
     resnet.avgpool = torch.nn.Sequential(*layers)

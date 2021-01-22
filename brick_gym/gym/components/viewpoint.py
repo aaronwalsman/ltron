@@ -17,7 +17,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
             near_clip = 1.,
             far_clip = 5000.,
             bbox_distance_scale = 3.,
-            reset_frequency = 'reset'):
+            randomize_frequency = 'reset'):
         
         self.scene_component = scene_component
         self.scene_component.brick_scene.make_renderable()
@@ -28,7 +28,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         self.near_clip = near_clip
         self.far_clip = far_clip
         self.bbox_distance_scale = bbox_distance_scale
-        self.reset_frequency = reset_frequency
+        self.randomize_frequency = randomize_frequency
         
         self.set_camera()
     
@@ -62,19 +62,19 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         self.set_camera()
     
     def step(self, action):
-        if self.reset_frequency == 'step':
+        if self.randomize_frequency == 'step':
             self.set_camera()
         return None, 0., False, None
     
     def set_state(self, state):
         self.set_camera()
 
-def FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
+class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
     def __init__(self,
             scene_component,
             azimuth,
             elevation,
-            field_of_view,
+            field_of_view = math.radians(60.),
             *args, **kwargs):
         
         super(FixedAzimuthalViewpointComponent, self).__init__(

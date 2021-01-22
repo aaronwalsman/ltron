@@ -1,5 +1,7 @@
 import collections
 
+import numpy
+
 import brick_gym.ldraw.colors as ldraw_colors
 
 class BrickColorLibrary(collections.abc.MutableMapping):
@@ -9,12 +11,26 @@ class BrickColorLibrary(collections.abc.MutableMapping):
         self.colors = colors
     
     def load_from_instances(self, instances):
+        '''
         new_colors = []
         for brick_instance in instances:
             color = brick_instance.color
             if color not in self:
                 brick_color = BrickColor(color)
                 self.colors[color] = BrickColor(color)
+                new_colors.append(brick_color)
+        
+        return new_colors
+        '''
+        colors = [instance.color for instance in instances]
+        return self.load_colors(colors)
+    
+    def load_colors(self, colors):
+        new_colors = []
+        for color in colors:
+            if color not in self:
+                brick_color = BrickColor(color)
+                self.colors[color] = brick_color
                 new_colors.append(brick_color)
         
         return new_colors
@@ -44,7 +60,7 @@ class BrickColor:
     
     def renderpy_material_args(self):
         material_args = {
-            'color' : self.color_byte,
+            'flat_color' : numpy.array(self.color_byte)/255.,
             'ka' : 1.0,
             'kd' : 0.0,
             'ks' : 0.0,

@@ -43,9 +43,66 @@ def train_label_confidence(
         test_split = 'test_mpd',
         num_processes = 8,
         learning_rate = 3e-4,
+        confidence_ratio = 1.0, #0.01
         train_episodes_per_epoch = 256,
-        checkpoint_frequency = 1)
-
+        checkpoint_frequency = 1):
+    
+    print('Building the model')
+    model = standard_models.graph_model(
+            'first_try',
+            backbone_name = 'pretrained_resnet18',
+            edge_model_name = 'feature_difference_512')
+    
+    print('Building environments')
+    viewpoint_control = FixedAzimuthalViewpoint(
+            azimuth = math.radians(30.), elevation = -math.radians(45))
+    train_multi_env = MultiClass(
+            num_processes,
+            GraphEnv,
+            [{'dataset' : dataset,
+              'split' : train_split,
+              'viewpoint_control' : viewpoint_control,
+              'rank' : i,
+              'size' : num_processes,
+              'reward_mode' : 'edge_ap',
+              'reset_mode' : 'random'} for i in range(num_processes)])
+    
+    test_multi_env = MultiClass(
+            num_processes,
+            GraphEnv,
+            [{'dataset' : dataset,
+              'split' : test_split,
+              'viewpoint_control' : viewpoint_control,
+              'rank' : i,
+              'size' : num_processes,
+              'reward_mode' : 'edge_ap'} for i in range(num_processes)])
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    
+    def train_epoch(epoch):
+        print('Train epoch: %i'%epoch)
+        
+        print('Generating data')
+        model.eval()
+        with torch.no_grad():
+            images = torch.zeros(
+                    train_episodes_per_epoch, steps_per_episode+1,
+                    3, height, width)
+            masks = torch.zeros(
+                    train_episodes_per_epoch, steps_per_episode+1,
+                    max_bricks_per_image, height, width)
+            node_class_targets = torch.zeros(
+                    train_episodes_per_epoch, steps_per_episode+1,
+                    dtype = torch.long)
+            
+            for ep_start in tqdm.tqdm(
+                    range(0, train_episodes_per_epoch, num_processes)):
+                ep_end = ep_start + num_processes
+                observations = test_multi_env.call_method('reset')
+                node_edge_labels = train_multi_env.call_method(
+                        'get_node_and_edge_labels')
+                node_labels, edge_labels = zip(*node_edge_labels)
+    
 def train_hide_reinforce(
         num_epochs,
         dataset,

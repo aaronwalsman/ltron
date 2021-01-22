@@ -31,15 +31,6 @@ class BrickEnv(gym.Env):
                 print(''.join(traceback.format_tb(exc_traceback)))
             raise
     
-    '''
-    def compute_observation(self):
-        observation = {}
-        for component_name, component in self.components.items():
-            if component_name in self.observation_space:
-                observation[component_name] = component.compute_observation()
-        return observation
-    '''
-    
     def reset(self):
         try:
             observation = {}
@@ -54,45 +45,6 @@ class BrickEnv(gym.Env):
                 print(''.join(traceback.format_tb(exc_traceback)))
             raise
     
-    '''
-    def update_state(self, action):
-        for component_name, component in self.components.items():
-            component.update_state(self.state, action[component_name])
-    
-    def reward(self, action):
-        reward = 0.
-        for component_name, component in self.components.items():
-            reward += component.compute_reward(
-                    self.state, action[component_name])
-        return reward
-    
-    def check_terminal(self):
-        for component in self.components.values():
-            if component.check_terminal(self.state):
-                return True
-        return False
-    
-    def info(self):
-        info = {}
-        for component in self.components.values():
-            component.update_info(self.state, info)
-    
-    def step(self, action):
-        try:
-            self.check_action(action)
-            self.update_state(action)
-            observation = self.compute_observation()
-            reward = self.reward(action)
-            terminal = self.check_terminal()
-            info = self.info()
-            
-            return observation, reward, terminal, info
-        except:
-            if self.print_traceback:
-                exc_class, exc, exc_traceback = sys.exc_info()
-                print(''.join(traceback.format_tb(exc_traceback)))
-            raise
-    '''
     def check_action(self, action):
         for key in self.action_space:
             if key not in action:

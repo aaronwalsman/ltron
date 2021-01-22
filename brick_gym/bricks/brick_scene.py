@@ -75,28 +75,31 @@ class BrickScene:
                         math.radians(60.),
                         1.0,
                         1, 5000))
-            self.renderer.load_material(
-                    'M_snap',
-                    color = (0, 0, 255),
-                    ka = 1.0,
-                    kd = 0.0,
-                    ks = 0.0,
-                    shine = 1.0,
-                    image_light_kd = 1.0,
-                    image_light_ks = 0.0,
-                    image_light_blur_reflection = 4.0)
-            self.renderer.load_material(
-                    'F_snap',
-                    color = (255, 0, 0),
-                    ka = 1.0,
-                    kd = 0.0,
-                    ks = 0.0,
-                    shine = 1.0,
-                    image_light_kd = 1.0,
-                    image_light_ks = 0.0,
-                    image_light_blur_reflection = 4.0)
-            if self.default_image_light is not None:
-                self.load_default_image_light()
+            self.make_snap_materials()
+    
+    def make_snap_materials(self):
+        self.renderer.load_material(
+                'M_snap',
+                flat_color = (0, 0, 255),
+                ka = 1.0,
+                kd = 0.0,
+                ks = 0.0,
+                shine = 1.0,
+                image_light_kd = 1.0,
+                image_light_ks = 0.0,
+                image_light_blur_reflection = 4.0)
+        self.renderer.load_material(
+                'F_snap',
+                flat_color = (255, 0, 0),
+                ka = 1.0,
+                kd = 0.0,
+                ks = 0.0,
+                shine = 1.0,
+                image_light_kd = 1.0,
+                image_light_ks = 0.0,
+                image_light_blur_reflection = 4.0)
+        if self.default_image_light is not None:
+            self.load_default_image_light()
         
     def make_track_snaps(self):
         if not self.track_snaps:
@@ -119,6 +122,7 @@ class BrickScene:
         if self.renderer is not None:
             self.renderer.clear_meshes()
             self.renderer.clear_materials()
+            self.make_snap_materials()
             self.clear_image_lights()
             if self.default_image_light is not None:
                 self.load_default_image_light()
@@ -216,7 +220,7 @@ class BrickScene:
         if self.track_snaps:
             self.update_instance_snaps()
     
-    def get_snap_connections(self, instance, radius=1):
+    def get_instance_snap_connections(self, instance, radius=1):
         instance = self.instances[instance]
         other_snaps = []
         for i, snap in enumerate(instance.get_snaps()):
@@ -227,10 +231,10 @@ class BrickScene:
                     [s for s in snaps_in_radius if s[0] != str(instance)])
         return other_snaps
     
-    def get_snap_graph(self):
+    def get_all_snap_connections(self):
         graph_edges = {}
         for instance in self.instances:
-            connections = self.get_snap_connections(instance)
+            connections = self.get_instance_snap_connections(instance)
             graph_edges[str(instance)] = connections
         
         return graph_edges
@@ -248,6 +252,24 @@ class BrickScene:
                 if self.renderable_snap(snap):
                     snap_name = '%s_%i'%(str(instance), i)
                     self.renderer.hide_instance(snap_name)
+    
+    def set_instance_color(self, instance, new_color):
+        instance = self.instances[instance]
+        instance.color = new_color
+        self.renderer.set_instance_material(
+                instance.instance_name,
+                new_color)
+    
+    #===========================================================================
+    # materials
+    #===========================================================================
+    def load_colors(self, colors):
+        new_colors = self.color_library.load_colors(colors)
+        for new_color in new_colors:
+            self.renderer.load_material(
+                    new_color.material_name,
+                    **new_color.renderpy_material_args())
+        return new_colors
     
     #===========================================================================
     # rendering

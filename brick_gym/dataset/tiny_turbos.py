@@ -110,6 +110,7 @@ from brick_gym.bricks.brick_scene import BrickScene
 scene = BrickScene()
 instance_counts = {}
 instances_per_scene = []
+all_colors = set()
 for existing_set in existing_sets:
     scene.clear_instances()
     scene.clear_assets()
@@ -121,6 +122,7 @@ for existing_set in existing_sets:
         if str(brick_type) not in instance_counts:
             instance_counts[str(brick_type)] = 0
         instance_counts[str(brick_type)] += 1
+        all_colors.add(instance.color)
 
 print('Average instances per model: %f'%(
         sum(instances_per_scene)/len(instances_per_scene)))
@@ -152,7 +154,8 @@ dataset_info = {
     'max_instances_per_scene' : max(instances_per_scene),
     'class_ids':dict(
             zip(sorted(instance_counts.keys()),
-            range(1, len(instance_counts)+1)))
+            range(1, len(instance_counts)+1))),
+    'all_colors':list(sorted(all_colors, key=int))
 }
 
 with open(tiny_turbos_path, 'w') as f:

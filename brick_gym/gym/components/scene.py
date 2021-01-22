@@ -18,10 +18,12 @@ class SceneComponent(BrickEnvComponent):
             self.brick_scene.import_ldraw(initial_scene_path)
     
     def reset(self):
+        self.brick_scene.clear_instances()
         if self.path_component is not None:
             scene_path = self.path_component.scene_path
-            self.brick_scene.clear_instances()
             self.brick_scene.import_ldraw(scene_path)
+        elif self.initial_scene_path is not None:
+            self.brick_scene.import_ldraw(initial_scene_path)
     
     def set_state(self, state):
         self.brick_scene.clear_assets()

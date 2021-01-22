@@ -28,75 +28,90 @@ class SegmentationSpace(spaces.Box):
                 dtype=numpy.long)
 
 class StepSpace(spaces.Discrete):
+    '''
+    A discrete value to represent the current step index in an episode
+    '''
     def __init__(self, max_steps):
         self.max_steps = max_steps
         super(StepSpace, self).__init__(self.max_steps)
 
-class InstanceSelectionSpace(spaces.Discrete):
+class SingleInstanceSelectionSpace(spaces.Discrete):
+    '''
+    A discrete value to represent selecting one of many istances in a scene
+    Instances are 1-indexed, selecting 0 represents selecting nothing.
+    '''
     def __init__(self, max_num_instances):
         self.max_num_instances = max_num_instances
-        super(InstanceSelectionSpace, self).__init__(self.max_num_instances+1)
+        super(SingleInstanceSelectionSpace, self).__init__(
+                self.max_num_instances+1)
 
-class PixelSelectionSpace(spaces.MultiDiscrete):
+class MultiInstanceSelectionSpace(spaces.Box):
+    '''
+    A list of binary values to represent selecting multiple isntances in a scene
+    '''
+    def __init__(self, max_num_instances):
+        self.max_num_instances = max_num_instances
+        super(MultiInstanceSelectionSpace, self).__init__(
+                low=False,
+                high=True,
+                shape=self.max_num_instances,
+                dtype=numpy.bool)
+
+class PixelSelectionSpace(spaces.Box):
+    '''
+    A binary pixel mask for selecting multiple screen pixels simultaneously
+    '''
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        super(PixelSelectionSpace, self).__init__(tuple(width, height))
+        super(PixelSelectionSpace, self).__init__(
+                low=False, high=True, shape=(height, width),
+                dtype=numpy.bool)
 
-class NodeSpace(spaces.Box):
+class InstanceListSpace(spaces.Box):
     '''
-    A variable length discrete vector of class ids represented as
+    A variable length discrete vector of instance class ids represented as
     a fixed length (larger than necessary) long array.
     Class 0 always represents the null class in order to allow
     variable length vectors.
+    Also, element zero represents the null instance and should always be zero.
+    This is so that edge lists which are also one-indexed point to the right
+    location.
     '''
-    def __init__(self, num_classes, max_nodes):
+    def __init__(self, num_classes, max_instances):
         self.num_classes = num_classes
-        self.max_nodes = max_nodes
-        super(NodeSpace, self).__init__(
-                low=0, high=num_classes, shape=(max_nodes,),
+        self.max_instances = max_instances
+        super(InstanceListSpace, self).__init__(
+                low=0,
+                high=num_classes,
+                shape=(max_instances+1, 1),
                 dtype=numpy.long)
 
-class EdgeScoreSpace(spaces.Box):
-    def __init__(self, max_nodes):
-        self.max_nodes = max_nodes
-        super(EdgeScoreSpace, self).__init__(
-                low=0, high=1, shape=(max_nodes, max_nodes),
-                dtype=numpy.float)
-
-class SparseEdgeSpace(spaces.Box):
-    def __init__(self, max_nodes, max_edges):
-        self.max_nodes = max_nodes
+class EdgeSpace(spaces.Box):
+    '''
+    A variable length discrete matrix of instance-id pairs (shape 2xN) where
+    N is the maximum number of edges.
+    Instance 0 always represents the null instance in order to allow
+    variable length lists of edges.
+    '''
+    def __init__(self, max_instances, max_edges):
+        self.max_instances = max_instances
         self.max_edges = max_edges
-        super(SparseEdgeSpace, self).__init__(
-                low=0, high=max_nodes, shape=(max_edges,2),
+        super(EdgeSpace, self).__init__(
+                low=0,
+                high=max_instances,
+                shape=(2, max_edges),
                 dtype=numpy.long)
 
-class SparseEdgeScoreSpace(spaces.Box):
-    def __init__(self, max_edges):
-        self.max_edges = max_edges
-        super(VectorScoreSpace, self).__init__(
-                low=0., high=1., shape=(max_edges),
-                dtype=numpy.float)
-
-class GraphScoreSpace(spaces.Dict):
-    def __init__(self, num_classes, max_nodes):
+class InstanceGraphSpace(spaces.Dict):
+    '''
+    A space containing an InstanceListSpace and an EdgeSpace
+    '''
+    def __init__(self, num_classes, max_instances, max_edges):
         self.num_classes = num_classes
-        self.max_nodes = max_nodes
-        node_space = NodeSpace(num_classes, max_nodes)
-        edge_space = EdgeScoreSpace(max_nodes)
-        super(GraphScoreSpace, self).__init__(
-                {'nodes':node_space, 'edges':edge_space})
-
-class SparseGraphScoreSpace(spaces.Dict):
-    def __init__(self, num_classes, max_nodes, max_edges):
-        self.num_classes = num_classes
-        self.max_nodes = max_nodes
+        self.max_instances = max_instances
         self.max_edges = max_edges
-        node_space = NodeSpace(num_classes, max_nodes)
-        sparse_edge_space = SparseEdgeSpace(max_nodes, max_edges)
-        sparse_edge_score_space = SparseEdgeScoreSpace(max_edges)
-        super(SparseGraphScoreSpace, self).__init__({
-                'nodes':node_space,
-                'edges':sparse_edge_space,
-                'scores':sparse_edge_score_space})
+        instance_list_space = InstanceListSpace(num_classes, max_instances)
+        edge_space = EdgeSpace(max_instances, max_edges)
+        super(InstanceGraphSpace, self).__init__(
+                {'instances':instance_list_space, 'edges':edge_space})

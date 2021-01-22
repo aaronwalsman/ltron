@@ -6,6 +6,9 @@ from brick_gym.geometry.utils import close_enough, immutable_vector
 class GridBucket:
     def __init__(self, cell_size):
         self.cell_size = cell_size
+        self.clear()
+    
+    def clear(self):
         self.cell_to_value_positions = {}
         self.value_to_cell_positions = {}
     

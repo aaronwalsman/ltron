@@ -1,3 +1,5 @@
+import numpy
+
 import brick_gym.gym.spaces as bg_spaces
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
@@ -40,18 +42,28 @@ class InstanceVisibilityComponent(VisibilityComponent):
     def __init__(self,
             max_instances,
             scene_component,
+            multi=False,
             terminate_when_all_hidden=False):
         
         super(InstanceVisibilityComponent, self).__init__(
                 scene_component = scene_component,
                 terminate_when_all_hidden = terminate_when_all_hidden)
         self.max_instances = max_instances
+        self.multi = multi
         
-        self.action_space = bg_spaces.InstanceSelectionSpace(
-                self.max_instances)
+        if multi:
+            self.action_space = bg_spaces.MultiInstanceSelectionSpace(
+                    self.max_instances)
+        else:
+            self.action_space = bg_spaces.SingleInstanceSelectionSpace(
+                    self.max_instances)
     
     def step(self, action):
-        self.hide_instance(action)
+        if self.multi:
+            for instance in numpy.nonzero(action):
+                self.hide_instance(instance+1)
+        else:
+            self.hide_instance(action)
         
         return None, 0., self.check_terminal(), None
 

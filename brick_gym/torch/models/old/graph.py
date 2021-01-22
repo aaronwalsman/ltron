@@ -71,16 +71,12 @@ class GraphPoolModel(torch.nn.Module):
     def forward(self, x, segments=None):
         features = self.backbone(x)
         features = self.spatial_embedding(features)
-        if torch.any(torch.isnan(features)):
-            print('f nan')
         if segments is None:
             segments = self.segment_model(features)
         batch_size = segments.shape[0]
         segment_values = []
         for i in range(batch_size):
             unique_segments = torch.unique(segments[i])
-            if unique_segments.shape[0] <= 1:
-                print('BAD NEWS!')
             if unique_segments[0] == 0:
                 unique_segments = unique_segments[1:]
             segment_values.append(unique_segments)
@@ -93,8 +89,6 @@ class GraphPoolModel(torch.nn.Module):
             segment_value = segment_values[:,i].unsqueeze(1).unsqueeze(2)
             segment_pixels = (segments == segment_value)
             if self.pool_mode == 'swap':
-                if torch.any(torch.isnan(segment_pixels)):
-                    print('sp?')
                 clamped_features = torch.clamp(features, -10, 10)
                 weights = (torch.exp(clamped_features) *
                         segment_pixels.unsqueeze(1))
@@ -102,10 +96,6 @@ class GraphPoolModel(torch.nn.Module):
                 normalizer = torch.sum(weights, dim=(2,3))
                 normalizer = normalizer.unsqueeze(2).unsqueeze(3) + 1e-5
                 weights = weights / normalizer
-                if torch.any(torch.isnan(weights)):
-                    print('n')
-                    print(normalizer)
-                    print('w nan')
                 segment_feature = torch.sum(features * weights, dim=(2,3))
                 segment_features.append(segment_feature)
             elif pool_mode == 'avg':
@@ -119,19 +109,12 @@ class GraphPoolModel(torch.nn.Module):
         segment_features = torch.stack(segment_features, dim=1)
         b, s, c = segment_features.shape
         segment_features = segment_features.view(b*s, c)
-        if torch.any(torch.isnan(segment_features)):
-            print('sf nan')
         
         step_node_logits = self.node_model(segment_features).view(b, s, -1)
         step_action_logits = self.action_model(segment_features).view(b, s)
         
-        if torch.any(torch.isnan(step_action_logits)):
-            print('sap nan')
-        
         segment_weights = segment_values != 0
         batch_weights = torch.sum(segment_weights, dim=1)
-        if torch.any(batch_weights == 0.):
-            print('bad weights')
         return (step_node_logits,
                 step_action_logits,
                 segment_values,
