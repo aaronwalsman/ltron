@@ -32,7 +32,7 @@ from brick_gym.torch.gym_tensor import (
         gym_space_to_tensors, gym_space_list_to_tensors)
 import brick_gym.torch.models.named_models as named_models
 import brick_gym.torch.graph as graph
-from brick_gym.torch.visualization.gym_log import gym_log
+from brick_gym.torch.gym_log import gym_log
 
 edge_threshold = 0.05
 
