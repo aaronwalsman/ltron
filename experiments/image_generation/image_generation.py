@@ -23,6 +23,7 @@ def generate_images(
             dataset = dataset,
             split = split)
     
+    env.reset()
     action = [{'visibility':0} for _ in range(num_processes)]
     for i in tqdm.tqdm(range(100)):
         observation, reward, terminal, info = env.step(action)
