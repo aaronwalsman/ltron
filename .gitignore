@@ -2,6 +2,7 @@ __pycache__
 data
 demo
 runs
+checkpoint
 *.swp
 *.swo
 *.egg-info
