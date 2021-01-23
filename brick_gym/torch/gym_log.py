@@ -15,6 +15,7 @@ from brick_gym.gym.spaces import (
 import PIL.Image as Image
 
 import renderpy.masks as masks
+from renderpy.json_numpy import NumpyEncoder
 
 def gym_log(label, data, space, log, step, log_json=True):
     if isinstance(space, ImageSpace):
@@ -61,7 +62,8 @@ def gym_log(label, data, space, log, step, log_json=True):
             if key_data is not None:
                 json_data[key] = key_data
         if log_json:
-            log.add_text(label, json.dumps(json_data, indent=2), step)
+            log.add_text(label, json.dumps(
+                    json_data, cls=NumpyEncoder, indent=2), step)
     
     elif isinstance(space, gym.spaces.Tuple):
         json_data = []
@@ -72,7 +74,8 @@ def gym_log(label, data, space, log, step, log_json=True):
             if i_data is not None:
                 json_data.append(i_data)
         if log_json:
-            log.add_text(label, json.dumps(json_data, indent=2), step)
+            log.add_text(label, json.dumps(
+                    json_data, cls=NumpyEncoder, indent=2), step)
     
     else:
         print('Unsupported data type:', type(space))

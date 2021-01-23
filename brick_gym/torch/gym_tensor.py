@@ -89,7 +89,7 @@ def gym_space_list_to_tensors(
             return tensor.view(-1, c)
         
         elif isinstance(space, InstanceGraphSpace):
-            return BrickGraphBatch.join(data)
+            return BrickGraphBatch.join(data, transpose=True)
         
         elif isinstance(space, spaces.Dict):
             return {key : recurse([d[key] for d in data], space[key])
@@ -99,3 +99,25 @@ def gym_space_list_to_tensors(
             return tuple(recurse(data[i], space[i]) for i in len(data[0]))
     
     return recurse(tensors, space)
+
+def graph_to_gym_space(data, space):
+    # remap labels
+    discrete_labels = torch.argmax(data['instance_label'], dim=-1)
+    discrete_labels = discrete_labels.detach().cpu().numpy()
+    segment_id = data['segment_id'].detach().cpu().numpy()
+    instance_labels = numpy.zeros(
+            (space['instances'].shape[0]), dtype=numpy.long)
+    instance_labels[segment_id[:,0]] = discrete_labels
+    instance_labels = instance_labels.reshape(-1, 1)
+    
+    # remap edges
+    edges = data['edge_index'].detach().cpu().numpy()
+    remapped_edges = segment_id[edges]
+    
+    # compile result
+    result = {'instances' : instance_labels, 'edges' : remapped_edges}
+    if 'edge_scores' in space.spaces:
+        edge_score = data['edge_attr'][:,0].detach().cpu().numpy()
+        result['edge_scores'] = edge_score
+    
+    return result

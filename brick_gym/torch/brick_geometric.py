@@ -66,16 +66,13 @@ class BrickList(GraphData):
         # source_index: filtered raw_source_index
         valid_segments = torch.where(raw_segment_score > 0.)
 
-        # jump through more hoops to use from_data_list because you can't break
-        # the batch apart again later unless you do.
-        # after looking at it... from_data_list screws up... all integers?!?
         brick_lists = []
         for i in range(b):
             item_entries = valid_segments[0] == i
             segment_ids = valid_segments[1][item_entries]
             num_segments = segment_ids.shape[0]
             batch_entries = [i] * num_segments
-
+            
             item_segment_score = raw_segment_score[batch_entries, segment_ids]
             item_source_index = raw_source_index[batch_entries, segment_ids]
 
@@ -95,7 +92,7 @@ class BrickList(GraphData):
                     pos=positions,
                     **graph_data))
 
-        return brick_lists
+        return BrickListBatch(brick_lists)
     
     def cuda(self):
         for feature_name in self.brick_feature_names:
@@ -254,6 +251,9 @@ class BrickGraph(GraphData):
         assert 'instance_label' in self.brick_feature_names
         assert self.edge_attr.shape[1] >= 1
         edge_dict = {}
+        if not self.num_nodes or not self.num_edges:
+            return edge_dict
+        
         instance_labels = torch.argmax(self.instance_label, dim=1).cpu()
         for i in range(self.num_edges()):
             key = []
@@ -294,7 +294,7 @@ class BrickGraph(GraphData):
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].cpu()
         self.edge_index = self.edge_index.cpu()
-        self.edge_attr= self.edge_attr.cuda()
+        self.edge_attr= self.edge_attr.cpu()
         return self
     
     def to(self, device):
@@ -345,8 +345,12 @@ class ClassTypeBatch(collections.abc.MutableSequence):
         return type(self)(self.class_type_list + other.class_type_list)
     
     @classmethod
-    def join(cls, others):
-        return cls(sum((other.class_type_list for other in others), []))
+    def join(cls, others, transpose=False):
+        if transpose:
+            return cls([other[i] for i in range(len(others[0]))
+                    for other in others])
+        else:
+            return cls(sum((other.class_type_list for other in others), []))
     
     # device/detach
     def cuda(self):
@@ -356,7 +360,7 @@ class ClassTypeBatch(collections.abc.MutableSequence):
     
     def cpu(self):
         for c in self.class_type_list:
-            c.cuda()
+            c.cpu()
         return self
     
     def to(self, device):
@@ -365,8 +369,8 @@ class ClassTypeBatch(collections.abc.MutableSequence):
         return self
     
     def detach(self):
-        detached_class_list = [c.detach() for c in self.class_list]
-        return type(self)(detached_class_list)
+        detached_class_type_list = [c.detach() for c in self.class_type_list]
+        return type(self)(detached_class_type_list)
 
 class BrickListBatch(ClassTypeBatch):
     ClassType = BrickList
