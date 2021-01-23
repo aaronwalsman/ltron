@@ -239,6 +239,16 @@ class BrickScene:
         
         return graph_edges
     
+    '''
+    def get_edge_dict(self):
+        graph_edges = self.get_all_snap_connections()
+        for instance_a in graph_edges:
+            for instance_b, snap_id in graph_edges[instance_a]:
+                if int(instance_a) < int(instance_b):
+                    class_a = 
+                    class_b = 
+    '''
+    
     def show_all_snaps(self):
         for instance in self.instances.values():
             for i, snap in enumerate(instance.get_snaps()):
