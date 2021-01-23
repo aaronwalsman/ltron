@@ -21,6 +21,7 @@ def get_reference_name(path):
     # if so, convert it to the name that another file would use to import it
     abs_path = os.path.abspath(reference_name)
     for root_path in config.paths['ldraw'], config.paths['shadow']:
+        root_path = root_path.lower()
         for reference_subdirectory in ldraw_subdirectories:
             reference_path = os.path.join(root_path, reference_subdirectory)
             if abs_path.startswith(reference_path):
