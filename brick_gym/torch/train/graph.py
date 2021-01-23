@@ -19,6 +19,7 @@ import torch_geometric.utils as tg_utils
 from gym.vector.async_vector_env import AsyncVectorEnv
 
 import renderpy.masks as masks
+from renderpy.json_numpy import NumpyEncoder
 
 import brick_gym.evaluation as evaluation
 from brick_gym.dataset.paths import get_dataset_info
@@ -29,7 +30,7 @@ import brick_gym.visualization.image_generators as image_generators
 from brick_gym.torch.brick_geometric import (
         BrickList, BrickGraph, BrickGraphBatch)
 from brick_gym.torch.gym_tensor import (
-        gym_space_to_tensors, gym_space_list_to_tensors)
+        gym_space_to_tensors, gym_space_list_to_tensors, graph_to_gym_space)
 import brick_gym.torch.models.named_models as named_models
 import brick_gym.torch.graph as graph
 from brick_gym.torch.gym_log import gym_log
@@ -79,9 +80,8 @@ def train_label_confidence(
     print('='*80)
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
-            'default',
-            input_dim=256,
-            output_dim=2).cuda()
+            'subtract',
+            input_dim=256).cuda()
     
     print('Building the optimizer')
     optimizer = torch.optim.Adam(
@@ -134,15 +134,28 @@ def train_label_confidence(
                 log_train)
         
         if epoch % checkpoint_frequency == 0:
-            print('-'*80)
-            model_path = './model_%04i.pt'%epoch
-            print('Saving step_model to: %s'%model_path)
-            torch.save(step_model.state_dict(), model_path)
+            checkpoint_directory = os.path.join(
+                    './checkpoint', os.path.split(log.log_dir)[-1])
+            if not os.path.exists(checkpoint_directory):
+                os.makedirs(checkpoint_directory)
             
-            optimizer_path = './optimizer_%04i.pt'%epoch
+            print('-'*80)
+            step_model_path = os.path.join(
+                    checkpoint_directory, 'step_model_%04i.pt'%epoch)
+            print('Saving step_model to: %s'%step_model_path)
+            torch.save(step_model.state_dict(), step_model_path)
+            
+            edge_model_path = os.path.join(
+                    checkpoint_directory, 'edge_model_%04i.pt'%epoch)
+            print('Saving edge_model to: %s'%edge_model_path)
+            torch.save(edge_model.state_dict(), edge_model_path)
+            
+            optimizer_path = os.path.join(
+                    checkpoint_directory, 'optimizer_%04i.pt'%epoch)
             print('Saving optimizer to: %s'%optimizer_path)
             torch.save(optimizer.state_dict(), optimizer_path)
         
+        '''
         if epoch % test_frequency == 0:
             test_label_confidence_epoch(
                     epoch,
@@ -153,7 +166,7 @@ def train_label_confidence(
                     edge_model,
                     test_env,
                     log_test)
-            
+        '''
         
         print('-'*80)
         print('Elapsed: %.04f'%(time.time() - epoch_start))
@@ -279,53 +292,6 @@ def train_label_confidence_epoch(
             # upate the graph state using the edge model
             graph_states, _, _ = edge_model(step_brick_lists, graph_states)
             
-            '''
-            # convert the brick lists to brick_graphs by computing edges
-            step_edge_logits = [edge_model(brick_list)
-                    for brick_list in brick_lists]
-            step_edges = [
-                    tg_utils.dense_to_sparse(logits[...,0] > edge_thresold)[0]
-                    for logits in step_edge_logits]
-            step_graphs = [BrickGraph(brick_list, edges, edge_scores)
-                    for brick_list, edges in zip(brick_lists, step_edges)]
-            
-            # update the graph_state
-            for i in range(train_env.num_envs):
-                # this is not the way to handle this... need to merge into an
-                # empty graph, because the empty thing is what I want to store
-                # in seq_graph_state
-                #if step_terminal[i]:
-                #    graph_state[i] = step_graphs[i]
-                else:
-                    new_edge_logits = edge_model(
-                            brick_lists[i], graph_state[i])
-                    new_edges = torch.nonzero(
-                            new_edge_logits[...,0] > 0.0, as_tuple=False).t()
-                    matching_logits = new_edge_logits[...,1]
-                    # matching must be (zero-or-one)-to-(zero-or-one)
-                    # the right thing is probably to run the hungarian algorithm
-                    # on the matrix, before thresholding.  Right now, the
-                    # ad-hoc solution is to zero out the non-argmax in one
-                    # dimension first, then the other.
-                    # TODO: Move this logic elsewhere. # DONE!
-                    # TODO: Delete this chunk of text.
-                    step_argmax = torch.argmax(matching_logits, dim=0)
-                    mask = torch.zeros_like(matching_logits)
-                    mask[step_argmax,
-                            range(graph_state[i].num_nodes)] = 1.0
-                    matching_logits = matching_logits * mask
-                    accumulated_argmax = torch.argmax(matching_logits, dim=1)
-                    mask = torch.zeros_like(matching_logits)
-                    mask[range(brick_lists[i].num_nodes),
-                            accumulated_argmax] = 1.0
-                    matching_logits = matching_logits * mask
-                    matching_nodes = torch.nonzero(
-                            matching_logits > 0.0, as_tuple=False).t()
-                    
-                    graph_state[i].merge(
-                            step_graphs[i], matching_nodes, new_edges)
-            '''
-            
             # sample an action
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
             hide_distributions = []
@@ -353,7 +319,14 @@ def train_label_confidence_epoch(
             instance_samples = [brick_list.segment_id[sample]
                     for brick_list, sample
                     in zip(step_brick_lists, segment_samples)]
-            actions = [{'visibility':int(i.cpu())} for i in instance_samples]
+            actions = []
+            for i, graph_state in zip(instance_samples, graph_states):
+                graph_data = graph_to_gym_space(
+                        graph_state,
+                        train_env.single_action_space['graph_task'])
+                actions.append({
+                        'visibility':int(i.cpu()),
+                        'graph_task':graph_data})
             
             if step < log_debug:
                 space = train_env.single_observation_space
@@ -364,6 +337,10 @@ def train_label_confidence_epoch(
              step_rewards,
              step_terminal,
              _) = train_env.step(actions)
+            
+            log.add_scalar(
+                    'reward/train',
+                    sum(step_rewards)/len(step_rewards), step_clock[0])
             
             seq_rewards.append(step_rewards)
             
@@ -391,7 +368,7 @@ def train_label_confidence_epoch(
         print('Training Mini Epoch: %i'%mini_epoch)
         
         iterate = tqdm.tqdm(range(mini_epoch_sequences))
-        for start in iterate:
+        for seq_id in iterate:
             start_indices = torch.randint(dataset_size, (batch_size,))
             step_terminal = [True for _ in range(batch_size)]
             graph_states = [None for _ in range(batch_size)]
@@ -462,10 +439,20 @@ def train_label_confidence_epoch(
                 step_loss = step_loss + score_loss * score_loss_weight
                 log.add_scalar('loss/score', score_loss, step_clock[0])
                 
+                log.add_scalar('accuracy/dense_instance_label',
+                        float(torch.sum(correct)) / float(torch.numel(correct)),
+                        step_clock[0])
+                
                 # edges and matching
                 matching_loss = 0.
                 edge_loss = 0.
                 normalizer = 0.
+                step_step_matching_correct = 0.
+                step_step_edge_correct = 0.
+                step_step_normalizer = 0.
+                step_state_matching_correct = 0.
+                step_state_edge_correct = 0.
+                step_state_normalizer = 0.
                 for (step_step,
                      step_state,
                      brick_list,
@@ -484,12 +471,20 @@ def train_label_confidence_epoch(
                     normalizer += (
                             brick_list.num_nodes * graph_state.num_nodes) * 2
                     
+                    step_step_normalizer += brick_list.num_nodes**2
+                    step_state_normalizer += (
+                            brick_list.num_nodes * graph_state.num_nodes) * 2
+                    
                     # matching loss
                     step_step_matching_target = torch.eye(
                             brick_list.num_nodes).to(device)
                     step_step_matching_loss = binary_cross_entropy(
                             step_step[:,:,0], step_step_matching_target,
                             reduction = 'sum')
+                    step_step_matching_pred = step_step[:,:,0] > 0.5
+                    step_step_matching_correct += torch.sum(
+                            step_step_matching_pred ==
+                            step_step_matching_target)
                     
                     step_state_matching_target = (
                             brick_list.segment_id ==
@@ -497,6 +492,11 @@ def train_label_confidence_epoch(
                     step_state_matching_loss = binary_cross_entropy(
                             step_state[:,:,0], step_state_matching_target,
                             reduction = 'sum') * 2
+                    step_state_matching_pred = step_state[:,:,0] > 0.5
+                    step_state_matching_correct += torch.sum(
+                            step_state_matching_pred ==
+                            step_state_matching_target)
+                    
                     matching_loss = (matching_loss +
                             step_step_matching_loss +
                             step_state_matching_loss)
@@ -510,6 +510,10 @@ def train_label_confidence_epoch(
                     step_step_edge_loss = binary_cross_entropy(
                             step_step[:,:,1], step_step_edge_target,
                             reduction = 'sum')
+                    step_step_edge_pred = step_step[:,:,1] > 0.5
+                    step_step_edge_correct += torch.sum(
+                            step_step_edge_pred ==
+                            step_step_edge_target)
                     
                     state_lookup = graph_state.segment_id[:,0]
                     step_state_edge_target = full_edge_target[
@@ -517,6 +521,11 @@ def train_label_confidence_epoch(
                     step_state_edge_loss = binary_cross_entropy(
                             step_state[:,:,1], step_state_edge_target,
                             reduction = 'sum')
+                    step_state_edge_pred = step_state[:,:,1] > 0.5
+                    step_state_edge_correct += torch.sum(
+                            step_state_edge_pred ==
+                            step_state_edge_target)
+                    
                     edge_loss = (edge_loss +
                             step_step_edge_loss +
                             step_state_edge_loss)
@@ -528,6 +537,27 @@ def train_label_confidence_epoch(
                 edge_loss = edge_loss / normalizer
                 step_loss = step_loss + edge_loss * edge_loss_weight
                 log.add_scalar('loss/edge', edge_loss, step_clock[0])
+                
+                step_step_match_acc = (
+                        step_step_matching_correct / step_step_normalizer)
+                log.add_scalar('accuracy/step_step_match',
+                        step_step_match_acc,
+                        step_clock[0])
+                step_state_match_acc = (
+                        step_state_matching_correct / step_state_normalizer)
+                log.add_scalar('accuracy/step_state_match',
+                        step_state_match_acc,
+                        step_clock[0])
+                step_step_edge_acc = (
+                        step_step_edge_correct / step_step_normalizer)
+                log.add_scalar('accuracy/step_step_edge',
+                        step_step_edge_acc,
+                        step_clock[0])
+                step_state_edge_acc = (
+                        step_state_edge_correct / step_state_normalizer)
+                log.add_scalar('accuracy/step_state_edge',
+                        step_state_edge_acc,
+                        step_clock[0])
                 
                 # visibility
                 dense_visibility = head_features['hide_action']
@@ -546,6 +576,24 @@ def train_label_confidence_epoch(
                 
                 seq_loss = seq_loss + step_loss
                 
+                if seq_id < log_debug:
+                    log_train_loss_step(
+                            # log
+                            step_clock,
+                            log,
+                            # input
+                            x_im.cpu().numpy(),
+                            x_seg.cpu().numpy(),
+                            # predictions
+                            instance_label_logits.cpu().detach(),
+                            dense_scores.cpu().detach(),
+                            step_brick_lists.cpu().detach(),
+                            [l.cpu().detach() for l in step_step_logits],
+                            [l.cpu().detach() for l in step_state_logits],
+                            # ground truth
+                            y_graph.cpu(),
+                            correct)
+                
                 graph_states = new_graph_states
                 step_clock[0] += 1
             
@@ -558,9 +606,150 @@ def train_label_confidence_epoch(
     #print('Confidence Accuracy: %.04f'%(
     #        total_correct_correct_segments/total_segments))
 
-def log_train_rollout_step(step_clock, log, step_observations, space, actions):
+def log_train_rollout_step(
+        step_clock,
+        log,
+        step_observations,
+        space,
+        actions):
     log_step_observations('train', step_clock, log, step_observations, space)
-    log.add_text('train/actions', json.dumps(actions))
+    log.add_text('train/actions',
+            json.dumps(actions, cls=NumpyEncoder, indent=2))
+
+def log_train_loss_step(
+        # log
+        step_clock,
+        log,
+        # input
+        images,
+        segmentation,
+        # predictions
+        dense_label_logits,
+        dense_scores,
+        pred_brick_lists,
+        pred_step_step,
+        pred_step_state,
+        # ground truth
+        true_graph,
+        score_targets):
+    
+    #input
+    log.add_image('train/train_images', images, step_clock[0],
+            dataformats='NCHW')
+    segmentation_mask = masks.color_index_to_byte(segmentation)
+    log.add_image('train/train_segmentation', segmentation_mask, step_clock[0],
+            dataformats='NHWC')
+    
+    # prediction
+    dense_label_prediction = torch.argmax(dense_label_logits, dim=1).numpy()
+    dense_label_mask = masks.color_index_to_byte(dense_label_prediction)
+    log.add_image(
+            'train/pred_dense_label_mask',
+            dense_label_mask,
+            step_clock[0],
+            dataformats='NHWC')
+    
+    log.add_image(
+            'train/pred_dense_scores',
+            dense_scores,
+            step_clock[0],
+            dataformats='NCHW')
+    
+    true_class_label_images = []
+    pred_class_label_images = []
+    true_instance_label_lookups = []
+    pred_instance_label_lookups = []
+    for i in range(len(true_graph)):
+        true_instance_label_lookup = true_graph[i].instance_label.numpy()[:,0]
+        true_instance_label_lookups.append(true_instance_label_lookup)
+        class_label_segmentation = true_instance_label_lookup[segmentation[i]]
+        class_label_image = masks.color_index_to_byte(class_label_segmentation)
+        true_class_label_images.append(class_label_image)
+        
+        pred_instance_label_lookup = numpy.zeros(
+                true_instance_label_lookup.shape, dtype=numpy.long)
+        pred_lookup_partial = (
+                torch.argmax(pred_brick_lists[i].instance_label, dim=-1))
+        pred_instance_label_lookup[pred_brick_lists[i].segment_id[:,0]] = (
+                pred_lookup_partial.numpy())
+        pred_instance_label_lookups.append(pred_instance_label_lookup)
+        class_label_segmentation = pred_instance_label_lookup[segmentation[i]]
+        class_label_image = masks.color_index_to_byte(class_label_segmentation)
+        pred_class_label_images.append(class_label_image)
+    
+    pred_class_label_images = numpy.stack(pred_class_label_images)
+    log.add_image(
+            'train/pred_instance_label_mask',
+            pred_class_label_images,
+            step_clock[0],
+            dataformats='NHWC')
+    
+    max_size = max(step_step.shape[0] for step_step in pred_step_step)
+    step_step_match_image = torch.zeros(
+            len(pred_step_step), 1, max_size, max_size)
+    step_step_edge_image = torch.zeros(
+            len(pred_step_step), 1, max_size, max_size)
+    for i, step_step in enumerate(pred_step_step):
+        size = step_step.shape[0]
+        step_step_match_image[i, 0, :size, :size] = step_step[:,:,0]
+        step_step_edge_image[i, 0, :size, :size] = step_step[:,:,1]
+    log.add_image(
+            'train/pred_step_step_match_score',
+            torch.sigmoid(step_step_match_image),
+            step_clock[0],
+            dataformats='NCHW')
+    log.add_image(
+            'train/pred_step_step_edge_score',
+            torch.sigmoid(step_step_edge_image),
+            step_clock[0],
+            dataformats='NCHW')
+    
+    max_h = max(step_state.shape[0] for step_state in pred_step_state)
+    max_h = max(1, max_h)
+    max_w = max(step_state.shape[1] for step_state in pred_step_state)
+    max_w = max(1, max_w)
+    step_state_match_image = torch.zeros(
+            len(pred_step_state), 1, max_h, max_w)
+    step_state_edge_image = torch.zeros(
+            len(pred_step_state), 1, max_h, max_w)
+    for i, step_state in enumerate(pred_step_state):
+        h,w = step_state.shape[:2]
+        step_state_match_image[i, 0, :h, :w] = step_state[:,:,0]
+        step_state_edge_image[i, 0, :h, :w] = step_state[:,:,1]
+    log.add_image(
+            'train/pred_step_state_match_score',
+            torch.sigmoid(step_state_match_image),
+            step_clock[0],
+            dataformats='NCHW')
+    log.add_image(
+            'train/pred_step_state_edge_score',
+            torch.sigmoid(step_state_edge_image),
+            step_clock[0],
+            dataformats='NCHW')
+    
+    
+    log.add_text('train/pred_instance_labels',
+            json.dumps(pred_instance_label_lookups,
+                    cls=NumpyEncoder, indent=2),
+            step_clock[0])
+    
+    # ground truth
+    true_class_label_images = numpy.stack(true_class_label_images)
+    log.add_image(
+            'train/true_instance_label_mask',
+            true_class_label_images,
+            step_clock[0],
+            dataformats='NHWC')
+    
+    log.add_image('train/true_score_labels',
+            score_targets.unsqueeze(1),
+            step_clock[0],
+            dataformats='NCHW')
+    
+    log.add_text('train/true_instance_labels',
+            json.dumps(true_instance_label_lookups,
+                    cls=NumpyEncoder, indent=2),
+            step_clock[0])
 
 def log_step_observations(split, step_clock, log, step_observations, space):
     
@@ -620,91 +809,97 @@ def test_label_confidence_epoch(
     print('Test')
     
     step_observations = test_env.reset()
-    step_terminal = [True] * test_env.num_envs
-    accumulated_graphs = [None] * test_env.num_envs
-    
-    total_correct_segments = 0
-    total_correct_correct_segments = 0
-    total_segments = 0
-    add_to_graph_correct = 0
-    add_to_graph_normalizer = 1e-5
-    #max_is_correct_segments = 0
-    #max_is_correct_normalizer = 0
+    step_terminal = numpy.ones(test_env.num_envs, dtype=numpy.bool)
+    graph_states = [None] * test_env.num_envs
     for step in tqdm.tqdm(range(steps)):
         with torch.no_grad():
+            # gym -> torch
+            step_tensors = gym_space_to_tensors(
+                    step_observations,
+                    test_env.single_observation_space,
+                    torch.cuda.current_device())
             
-            # gym to torch
-            images = step_observations['color_render']
-            x_im = utils.images_to_tensor(images).cuda()
-            batch_size = x_im.shape[0]
-            segmentations = step_observations['segmentation_render']
-            x_seg = utils.segmentations_to_tensor(segmentations).cuda()
-            y_batch = torch.LongTensor(
-                    step_observations['instance_labels']).cuda()
+            # step model forward pass
+            step_brick_lists, _, dense_scores, head_features = step_model(
+                    step_tensors['color_render'],
+                    step_tensors['segmentation_render'])
             
-            print(step_observations['graph_edges'])
-            ljljlklkjlkjl
+            # build new graph state for all terminal sequences
+            # (do this here so we can use the brick_feature_spec from the model)
+            for i, terminal in enumerate(step_terminal):
+                if terminal:
+                    graph_states[i] = BrickGraph(
+                            BrickList(step_brick_lists[i].brick_feature_spec()),
+                            edge_attr_channels=1).cuda()
             
-            brick_lists, _, dense_scores, head_features = step_model(
-                    x_im, x_seg)
+            # upate the graph state using the edge model
+            graph_states, _, _ = edge_model(step_brick_lists, graph_states)
             
-            # convert the brick lists to brick_graphs by computing edges
-            step_edge_scores = [torch.sigmoid(edge_model(brick_list))
-                    for brick_list in brick_lists]
-            step_edges = [
-                    tg_utils.dense_to_sparse(scores[...,0] > edge_threshold)[0]
-                    for scores in step_edge_scores]
-            sparse_scores = [scores[edges[0], edges[1], 0].view(-1,1)
-                    for scores, edges in zip(step_edge_scores, step_edges)]
-            step_graphs = [BrickGraph(brick_list, edges, scores)
-                    for brick_list, edges, scores
-                    in zip(brick_lists, step_edges, sparse_scores)]
+            print([brick_list.num_nodes for brick_list in step_brick_lists])
+            print([graph_state.num_nodes for graph_state in graph_states])
+            edge_dicts = [graph.edge_dict() for graph in graph_states]
             
-            # update the accumulated_graphs
-            for i in range(test_env.num_envs):
-                if step_terminal[i]:
-                    accumulated_graphs[i] = step_graphs[i]
-                else:
-                    new_edge_scores = torch.sigmoid(edge_model(
-                            brick_lists[i], accumulated_graphs[i]))
-                    new_edges = torch.nonzero(
-                            new_edge_scores[...,0] > edge_threshold,
-                            as_tuple=False).t()
-                    sparse_scores = new_edge_scores[
-                            new_edges[0], new_edges[1], 0].view(-1,1)
-                    
-                    matching_logits = new_edge_logits[...,1]
-                    # matching must be (zero-or-one)-to-(zero-or-one)
-                    # the right thing is probably to run the hungarian algorithm
-                    # on the matrix, before thresholding.  Right now, the
-                    # ad-hoc solution is to zero out the non-argmax in one
-                    # dimension first, then the other.
-                    # TODO: Move this logic elsewhere.
-                    step_argmax = torch.argmax(matching_logits, dim=0)
-                    mask = torch.zeros_like(matching_logits)
-                    mask[step_argmax,
-                            range(accumulated_graphs[i].num_nodes)] = 1.0
-                    matching_logits = matching_logits * mask
-                    accumulated_argmax = torch.argmax(matching_logits, dim=1)
-                    mask = torch.zeros_like(matching_logits)
-                    mask[range(brick_lists[i].num_nodes),
-                            accumulated_argmax] = 1.0
-                    matching_logits = matching_logits * mask
-                    matching_nodes = torch.nonzero(
-                            matching_logits > 0.0, as_tuple=False).t()
-                    
-                    accumulated_graphs[i].merge(
-                            step_graphs[i],
-                            matching_nodes,
-                            new_edges,
-                            sparse_scores)
+            print(edge_dicts)
+            lkjlkjljklkj
             
-            #print(step_observations['episode_length'])
-            #edge_dicts = graph.batch_graph_to_instance_edge_dicts(
-            #        batch_graphs,
-            #        'instance_labels',
-            #)
-            edge_dicts = [graph.edge_dict() for graph in accumulated_graphs]
+            
+            # sample an action
+            hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
+            hide_distributions = []
+            bad_distributions = []
+            for i, logits in enumerate(hide_logits):
+                try:
+                    distribution = Categorical(
+                            logits=logits, validate_args=True)
+                except ValueError:
+                    bad_distrbutions.append(i)
+                    distribution = Categorical(probs=torch.ones(1).cuda())
+                hide_distributions.append(distribution)
+            
+            if len(bad_distributions):
+                print('BAD DISTRIBUTIONS, REVERTING TO 0')
+                print('STEP: %i, GLOBAL_STEP: %i'%(step, step_clock[0]))
+                print('BAD INDICES:', bad_distributions)
+                space = train_env.single_observation_space
+                log_train_rollout_step(
+                        step_clock, log, step_observations, space, [])
+            
+            segment_samples = [dist.sample() for dist in hide_distributions]
+            #instance_samples = graph.remap_node_indices(
+            #        batch_graphs, segment_samples, 'segment_id')
+            instance_samples = [brick_list.segment_id[sample]
+                    for brick_list, sample
+                    in zip(step_brick_lists, segment_samples)]
+            actions = [{'visibility':int(i.cpu())} for i in instance_samples]
+            
+            if step < log_debug:
+                space = train_env.single_observation_space
+                log_train_rollout_step(
+                        step_clock,
+                        log,
+                        step_observations,
+                        space,
+                        actions)
+            
+            (step_observations,
+             step_rewards,
+             step_terminal,
+             _) = train_env.step(actions)
+            
+            seq_rewards.append(step_rewards)
+            
+            step_clock[0] += 1
+
+
+
+
+
+
+
+
+
+
+            
             
             instance_label_logits = batch_graphs.instance_label
             segment_index = batch_graphs.segment_index
