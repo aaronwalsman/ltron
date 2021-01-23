@@ -103,15 +103,28 @@ class EdgeSpace(spaces.Box):
                 shape=(2, max_edges),
                 dtype=numpy.long)
 
+class EdgeScoreSpace(spaces.Box):
+    '''
+    Scores for edges
+    '''
+    def __init__(self, max_edges):
+        self.max_edges = max_edges
+        super(EdgeScoreSpace, self).__init__(
+                low=0, high=1, shape=(max_edges,), dtype=numpy.float32)
+
 class InstanceGraphSpace(spaces.Dict):
     '''
     A space containing an InstanceListSpace and an EdgeSpace
     '''
-    def __init__(self, num_classes, max_instances, max_edges):
+    def __init__(self, num_classes, max_instances, max_edges,
+            include_edge_score=False):
         self.num_classes = num_classes
         self.max_instances = max_instances
         self.max_edges = max_edges
         instance_list_space = InstanceListSpace(num_classes, max_instances)
         edge_space = EdgeSpace(max_instances, max_edges)
-        super(InstanceGraphSpace, self).__init__(
-                {'instances':instance_list_space, 'edges':edge_space})
+        dict_space = {'instances':instance_list_space, 'edges':edge_space}
+        if include_edge_score:
+            edge_score_space = EdgeScoreSpace(max_edges)
+            dict_space['edge_scores'] = edge_score_space
+        super(InstanceGraphSpace, self).__init__(dict_space)

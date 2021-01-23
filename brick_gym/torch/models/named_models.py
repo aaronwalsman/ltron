@@ -88,9 +88,19 @@ def named_edge_model(name, input_dim):
     raise UnknownModelError('Unknown edge model: %s'%name)
 '''
 
-def named_edge_model(name, input_dim, output_dim):
+def named_edge_model(name, input_dim):
     if name == 'default':
-        return edge.EdgeModel(input_dim, output_dim)
+        return edge.EdgeModel(
+                input_dim,
+                pre_compare_layers=3,
+                post_compare_layers=3,
+                compare_mode = 'add')
+    if name == 'subtract':
+        return edge.EdgeModel(
+                input_dim,
+                pre_compare_layers=3,
+                post_compare_layers=3,
+                compare_mode = 'subtract')
 
 def named_graph_model(
         name, backbone_name, edge_model_name, node_classes, shape):

@@ -20,10 +20,16 @@ def sparse_graph_to_edge_scores(image_index, node_label, edges, scores):
     edge_scores = {}
     for (a, b), score in zip(edges, scores):
         if image_index is None:
-            edge_scores[a+1, b+1, node_label[a], node_label[b]] = score
+            #edge_scores[a+1, b+1, node_label[a], node_label[b]] = score
+            edge_scores[
+                    int(a), int(b),
+                    int(node_label[a]), int(node_label[b])] = score
         else:
-            edge_scores[image_index, a+1, b+1, node_label[a], node_label[b]] = (
-                    score)
+            #edge_scores[image_index,a+1,b+1,node_label[a],node_label[b]] = (
+            #        score)
+            edge_scores[image_index,
+                    int(a), int(b),
+                    int(node_label[a]), int(node_label[b])] = score
     
     return edge_scores
 

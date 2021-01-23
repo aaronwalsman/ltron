@@ -12,7 +12,7 @@ from brick_gym.gym.components.render import (
 from brick_gym.gym.components.viewpoint import (
         RandomizedAzimuthalViewpointComponent, FixedAzimuthalViewpointComponent)
 from brick_gym.gym.components.visibility import InstanceVisibilityComponent
-from brick_gym.gym.components.graph_tasks import GraphConstructionTask
+from brick_gym.gym.components.graph_tasks import InstanceGraphConstructionTask
 from brick_gym.gym.components.colors import RandomizeColorsComponent
 
 def segmentation_supervision_env(
@@ -90,6 +90,9 @@ def segmentation_supervision_env(
     # build the env
     env = BrickEnv(components, print_traceback = print_traceback)
     
+    print(env.action_space)
+    print(env.observation_space)
+    
     return env
 
 def graph_supervision_env(
@@ -164,6 +167,14 @@ def graph_supervision_env(
             max_instances**2,
             components['dataset'],
             components['scene'])
+    
+    # graph_task
+    components['graph_task'] = InstanceGraphConstructionTask(
+            num_classes,
+            max_instances,
+            max_instances**2,
+            components['scene'],
+            components['dataset'])
     
     # build the env
     env = BrickEnv(components, print_traceback = print_traceback)
