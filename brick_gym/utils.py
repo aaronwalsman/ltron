@@ -33,6 +33,21 @@ def sparse_graph_to_edge_scores(image_index, node_label, edges, scores):
     
     return edge_scores
 
+def sparse_graph_to_instance_scores(
+        image_index, indices, instance_labels, scores):
+    instance_scores = {}
+    for index, label, score in zip(indices, instance_labels, scores):
+        label = int(label)
+        if label == 0:
+            continue
+        if image_index is None:
+            key = (index, label)
+        else:
+            key = (image_index, index, label)
+        instance_scores[key] = score
+    
+    return instance_scores
+
 def metadata_to_edge_scores(image_index, metadata):
     class_labels = metadata['class_labels']
     edges = metadata['edges']
