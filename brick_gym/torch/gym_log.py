@@ -52,7 +52,9 @@ def gym_log(label, data, space, log, step, log_json=True):
     #elif isinstance(space, SparseGraphScoreSpace):
     #    pass
     elif isinstance(space, EdgeSpace):
-        return data.tolist()
+        return data
+    elif isinstance(space, gym.spaces.Discrete):
+        return data
     elif isinstance(space, gym.spaces.Dict):
         json_data = {}
         for key, value in data.items():
