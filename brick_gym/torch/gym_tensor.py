@@ -51,8 +51,11 @@ def gym_space_to_tensors(
                 return BrickGraphBatch.from_brick_list_batch(
                         brick_list, edge_index)
         
-        # keep these two last because some of brick_gym's custom spaces
+        # keep the default spaces last because brick_gym's custom spaces
         # inherit from them so those cases should be caught first
+        elif isinstance(space, spaces.Discrete):
+            return data
+        
         elif isinstance(space, spaces.Dict):
             return {key : recurse(data[key], space[key]) for key in data}
         
@@ -101,21 +104,33 @@ def gym_space_list_to_tensors(
     return recurse(tensors, space)
 
 def graph_to_gym_space(data, space):
-    # remap labels
-    discrete_labels = torch.argmax(data['instance_label'], dim=-1)
-    discrete_labels = discrete_labels.detach().cpu().numpy()
-    segment_id = data['segment_id'].detach().cpu().numpy()
+    segment_id = data['segment_id'].view(-1).detach().cpu().numpy()
     instance_labels = numpy.zeros(
             (space['instances'].shape[0]), dtype=numpy.long)
-    instance_labels[segment_id[:,0]] = discrete_labels
-    instance_labels = instance_labels.reshape(-1, 1)
+    if data.num_nodes:
+        # remap labels
+        discrete_labels = torch.argmax(data['instance_label'], dim=-1)
+        discrete_labels = discrete_labels.detach().cpu().numpy()
+        instance_labels[segment_id] = discrete_labels
+        instance_labels = instance_labels.reshape(-1, 1)
+        
+        # num_instances
+        num_instances = min(
+                data['instance_label'].shape[0], space.max_instances)
+        
+    else:
+        num_instances = 0
     
     # remap edges
-    edges = data['edge_index'].detach().cpu().numpy()
-    remapped_edges = segment_id[edges]
+    original_edges = data['edge_index'].detach().cpu().numpy()
+    edges = segment_id[original_edges]
     
     # compile result
-    result = {'instances' : instance_labels, 'edges' : remapped_edges}
+    result = {
+            'instances' : instance_labels,
+            'edges' : edges,
+            'num_instances' : num_instances
+    }
     if 'edge_scores' in space.spaces:
         edge_score = data['edge_attr'][:,0].detach().cpu().numpy()
         result['edge_scores'] = edge_score
