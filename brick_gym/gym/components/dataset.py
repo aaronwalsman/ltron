@@ -1,5 +1,7 @@
 import random
 
+from gym.spaces import Discrete, Dict
+
 from brick_gym.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata)
 import brick_gym.gym.spaces as bg_spaces
@@ -23,13 +25,18 @@ class DatasetPathComponent(BrickEnvComponent):
         self.dataset_info = get_dataset_info(self.dataset)
         self.dataset_paths = get_dataset_paths(
                 self.dataset, self.split, self.subset, rank, size)
-    
+        
     def reset(self):
         if self.reset_mode == 'uniform':
             self.scene_path = random.choice(self.dataset_paths)
         elif self.reset_mode == 'sequential':
             self.scene_path = self.dataset_paths[
                     self.episode % len(self.dataset_paths)]
+        elif self.reset_mode == 'single_pass':
+            if self.episode < len(self.dataset_paths):
+                self.scene_path = self.dataset_paths[self.episode]
+            else:
+                self.scene_path = None
         else:
             raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
         self.episode += 1
