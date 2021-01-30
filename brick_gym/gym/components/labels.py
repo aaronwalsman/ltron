@@ -80,6 +80,7 @@ class InstanceGraphComponent(BrickEnvComponent):
             edges[:,i] = edge
         return {
             'instances' : self.instance_list_component.compute_observation(),
+            'num_instances' : len(brick_scene.instances),
             'edges' : edges,
         }
         '''

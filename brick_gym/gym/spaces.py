@@ -4,6 +4,10 @@ from gym import spaces
 
 import renderpy.masks as masks
 
+class ValidFrameSpace(spaces.Discrete):
+    def __init__(self):
+        super(ValidFrameSpace, 2)
+
 class ImageSpace(spaces.Box):
     '''
     A height x width x 3 uint8 image.
@@ -123,7 +127,11 @@ class InstanceGraphSpace(spaces.Dict):
         self.max_edges = max_edges
         instance_list_space = InstanceListSpace(num_classes, max_instances)
         edge_space = EdgeSpace(max_instances, max_edges)
-        dict_space = {'instances':instance_list_space, 'edges':edge_space}
+        num_instances_space = SingleInstanceSelectionSpace(max_instances)
+        dict_space = {
+                'instances':instance_list_space,
+                'edges':edge_space,
+                'num_instances':num_instances_space}
         if include_edge_score:
             edge_score_space = EdgeScoreSpace(max_edges)
             dict_space['edge_scores'] = edge_score_space
