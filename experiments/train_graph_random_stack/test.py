@@ -2,10 +2,13 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.test_graph as test_graph
 
-run = 'Jan28_22-18-53_mechagodzilla'
-epoch = 60
+#run = 'Jan28_22-18-53_mechagodzilla'
+#epoch = 60
 #run = 'Jan26_01-19-09_mechagodzilla'
 #epoch = 55
+
+run = 'Jan29_00-35-05_mechagodzilla'
+epoch = 400
 
 if __name__ == '__main__':
     test_graph.test_checkpoint(

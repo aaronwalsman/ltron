@@ -46,7 +46,7 @@ def dense_score_loss(
 def cross_product_loss(
         scores,
         target,
-        correct_weight = 0.1,
+        correct_weight = 1.0,
         incorrect_weight = 1.0):
     h, w = scores.shape[-2:]
     if h == 0 or w == 0:
@@ -56,7 +56,8 @@ def cross_product_loss(
     estimated_pos = scores > 0.5
     correct = estimated_pos == target
     
-    neg_weight = 1./(h*w)**0.5
+    #neg_weight = 1./(h*w)**0.5
+    neg_weight = 1.0
     
     correct_pos = correct * target
     correct_neg = correct * ~target

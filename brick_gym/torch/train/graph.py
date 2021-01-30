@@ -606,9 +606,11 @@ def train_label_confidence_epoch(
                             brick_list.num_nodes * graph_state.num_nodes) * 2
                     '''
                     step_step_num = brick_list.num_nodes**2
+                    print(step_step_num)
                     step_step_normalizer += step_step_num
                     step_state_num = (
                             brick_list.num_nodes * graph_state.num_nodes) * 2
+                    print(step_state_num)
                     step_state_normalizer += step_state_num
                     normalizer += step_step_num + step_state_num
                     
