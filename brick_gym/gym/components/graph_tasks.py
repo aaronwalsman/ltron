@@ -1,3 +1,5 @@
+import numpy
+
 import brick_gym.utils as utils
 import brick_gym.evaluation as evaluation
 import brick_gym.gym.spaces as bg_spaces
@@ -54,7 +56,12 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         
         _, _, edge_ap = evaluation.edge_ap(predicted_edges, self.true_edges)
         
-        return None, edge_ap, False, None
+        terminal = False
+        num_instances = action['num_instances']
+        if num_instances == self.max_instances:
+            terminal = True
+        
+        return None, edge_ap, terminal, None
 
 '''
 class GraphConstructionTask(BrickEnvComponent):
