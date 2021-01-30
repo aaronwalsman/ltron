@@ -1,7 +1,9 @@
+import time
 import collections
 
 import torch
 
+from torch_sparse import coalesce
 from torch_scatter import scatter_max
 
 from torch_geometric.data import Data as GraphData
@@ -54,18 +56,18 @@ class BrickList(GraphData):
         # get dimensions (this works for either 3 or 4 dimensional tensors)
         b, h, w = scores.shape[0], scores.shape[-2], scores.shape[-1]
         scores = scores.view(b,h,w)
-
+        
         # scatter_max the scores using the segmentation
         # raw_segment_score: the highest score for each segment
         # raw_source_index: the pixel location where raw_segment_score was found
         raw_segment_score, raw_source_index = scatter_max(
                 scores.view(b,-1), segmentation.view(b,-1))
-
+        
         # filter out the segments that have no contributing pixels
         # segment_score: filtered raw_segment_score
         # source_index: filtered raw_source_index
         valid_segments = torch.where(raw_segment_score > 0.)
-
+        
         brick_lists = []
         for i in range(b):
             item_entries = valid_segments[0] == i
@@ -91,8 +93,10 @@ class BrickList(GraphData):
                     segment_id=segment_ids.unsqueeze(1),
                     pos=positions,
                     **graph_data))
-
-        return BrickListBatch(brick_lists)
+        
+        batch = BrickListBatch(brick_lists)
+        
+        return batch
     
     def cuda(self):
         for feature_name in self.brick_feature_names:
@@ -226,17 +230,18 @@ class BrickGraph(GraphData):
                 merged_brick_list, merged_edge_index, merged_edge_attr)
         
         if new_edges is not None:
-            merged_graph.coalesce()
+            #merged_graph.coalesce()
+            # do this explicitly with torch_sparse.coalesce in order to be
+            # able to use the 'max' operation
+            (merged_graph.edge_index,
+             merged_graph.edge_attr) = coalesce(
+                    merged_graph.edge_index,
+                    merged_graph.edge_attr,
+                    merged_graph.num_nodes,
+                    merged_graph.num_nodes,
+                    op='max')
         
         return merged_graph
-    
-    '''
-    def num_bricks(self):
-        if not len(self.brick_feature_names):
-            return 0
-        else:
-            return self[self.brick_feature_names[0]].shape[0]
-    '''
     
     def num_edges(self):
         return self.edge_index.shape[1]
