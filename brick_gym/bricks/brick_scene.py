@@ -14,6 +14,7 @@ except ImportError:
     renderpy_available = False
 
 import brick_gym.config as config
+from brick_gym.dataset.paths import resolve_subdocument
 from brick_gym.ldraw.documents import LDrawDocument
 #from brick_gym.bricks.snap_manager import SnapManager
 from brick_gym.bricks.brick_type import BrickLibrary
@@ -80,7 +81,7 @@ class BrickScene:
     def make_snap_materials(self):
         self.renderer.load_material(
                 'M_snap',
-                flat_color = (0, 0, 255),
+                flat_color = (0, 0, 1),
                 ka = 1.0,
                 kd = 0.0,
                 ks = 0.0,
@@ -90,7 +91,7 @@ class BrickScene:
                 image_light_blur_reflection = 4.0)
         self.renderer.load_material(
                 'F_snap',
-                flat_color = (255, 0, 0),
+                flat_color = (1, 0, 0),
                 ka = 1.0,
                 kd = 0.0,
                 ks = 0.0,
@@ -127,8 +128,10 @@ class BrickScene:
             if self.default_image_light is not None:
                 self.load_default_image_light()
     
-    def import_ldraw(self, path, subdocument=None):
+    def import_ldraw(self, path):
         #t0 = time.time()
+        path, subdocument = resolve_subdocument(path)
+        
         document = LDrawDocument.parse_document(path)
         if subdocument is not None:
             document = document.reference_table['ldraw'][subdocument]
@@ -204,7 +207,8 @@ class BrickScene:
                 snap_mesh = snap.get_snap_mesh()
                 self.renderer.load_mesh(
                         subtype_id,
-                        mesh_data = snap_mesh)
+                        mesh_data = snap_mesh,
+                        color_mode = 'flat_color')
             snap_name = '%s_%i'%(str(instance), i)
             self.renderer.add_instance(
                     snap_name,

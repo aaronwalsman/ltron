@@ -16,21 +16,30 @@ import renderpy.masks as masks
 import renderpy.assets as drpy_assets
 
 import brick_gym.config as config
+from brick_gym.dataset.paths import resolve_subdocument
 import brick_gym.ldraw.paths as ldraw_paths
 #import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 from brick_gym.bricks.brick_scene import BrickScene
 
 def start_viewer(
         file_path,
-        subdocument = None,
         width = 512,
         height = 512,
         image_light = 'grey_cube',
         poll_frequency = 1024,
         print_fps = False):
     
+    '''
+    if ':' in file_path:
+        file_path, subdocument = file_path.split(':')
+    else:
+        subdocument = None
+    
     if not os.path.exists(file_path):
         file_path = ldraw_paths.LDRAW_FILES[file_path]
+    '''
+    
+    resolved_file_path, subdocument = resolve_subdocument(file_path)
     
     config_paths = '%s:%s'%(
                     config.paths['renderpy_assets_cfg'],
@@ -63,10 +72,10 @@ def start_viewer(
     def reload_scene():
         while True:
             try:
-                change_time = os.stat(file_path).st_mtime
+                change_time = os.stat(resolved_file_path).st_mtime
                 if change_time != state['recent_file_change_time']:
                     camera_pose = scene.get_camera_pose()
-                    scene.import_ldraw(file_path, subdocument)
+                    scene.import_ldraw(file_path)
                     
                     #renderer.load_scene(scene, clear_scene=True)
                     if state['recent_file_change_time'] == -1:

@@ -5,6 +5,14 @@ import json
 
 import brick_gym.config as config
 
+def resolve_subdocument(file_path):
+    if ':' in file_path:
+        file_path, subdocument = file_path.split(':')
+    else:
+        subdocument = None
+    
+    return file_path, subdocument
+
 def get_metadata_path(file_path):
     file_path = os.path.expanduser(file_path)
     directory, file_name = os.path.split(file_path)
@@ -32,13 +40,23 @@ def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
     split_globs = splits[split_name]
     all_file_paths = []
     for split_glob in split_globs:
-        all_file_paths.extend(glob.glob(os.path.join(
-                dataset_directory, split_glob)))
+        if ':' in split_glob:
+            split_glob, sub_model = split_glob
+        else:
+            sub_model = None
+        
+        file_paths = glob.glob(os.path.join(
+                dataset_directory, split_glob))
+        if sub_model is not None:
+            file_paths = ['%s:%s'%(fp, sub_model) for fp in file_paths]
+        all_file_paths.extend(file_paths)
     all_file_paths.sort()
     if subset is not None:
         if isinstance(subset, int):
             subset = (subset,)
         all_file_paths = all_file_paths[slice(*subset)]
     
-    stride = math.ceil(len(all_file_paths) / size)
-    return all_file_paths[rank*stride:(rank+1)*stride]
+    #stride = math.ceil(len(all_file_paths) / size)
+    #paths = all_file_paths[rank*stride:(rank+1)*stride]
+    paths = all_file_paths[rank::size]
+    return paths
