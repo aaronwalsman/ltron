@@ -37,7 +37,11 @@ class EdgeModel(torch.nn.Module):
                 2)
     
     def forward(self,
-            step_lists, state_graphs, edge_threshold=0.05, match_threshold=0.5):
+            step_lists,
+            state_graphs,
+            edge_threshold=0.05,
+            match_threshold=0.5,
+            segment_id_matching=False):
         
         merged_graphs = []
         step_step_logits = []
@@ -64,7 +68,7 @@ class EdgeModel(torch.nn.Module):
                     step_step_x.view(step_num**2, channels))
             step_step_x = step_step_x.view(step_num, step_num, 2)
             step_step_score = torch.sigmoid(step_step_x)
-            step_edge_step = step_step_score[...,0]
+            step_edge_step = step_step_score[...,1]
             #step_match_step = step_step_score[...,1] # unused
             
             # sparsify edge list and edge scores
@@ -100,8 +104,8 @@ class EdgeModel(torch.nn.Module):
             step_state_x = step_state_x.view(step_num, state_num, 2)
             
             step_state_score = torch.sigmoid(step_state_x)
-            step_edge_state = step_state_score[...,0]
-            step_match_state = step_state_score[...,1]
+            step_match_state = step_state_score[...,0]
+            step_edge_state = step_state_score[...,1]
             
             # sparsify edge list and edge scores
             sparse_step_edge_state = tg_utils.dense_to_sparse(
@@ -118,17 +122,26 @@ class EdgeModel(torch.nn.Module):
             # do here but instead for now I'm just zero-ing out the non-max
             # of each row then the non-max of each column.
             if step_graph.num_nodes and state_graph.num_nodes:
-                step_argmax = torch.argmax(step_match_state, dim=0)
-                mask = torch.zeros_like(step_match_state)
-                mask[step_argmax, range(state_graph.num_nodes)] = 1.
-                step_match_state = step_match_state * mask
-                
-                state_argmax = torch.argmax(step_match_state, dim=1)
-                mask = torch.zeros_like(step_match_state)
-                mask[range(step_graph.num_nodes), state_argmax] = 1.
-                step_match_state = step_match_state * mask
-                sparse_step_match_state = torch.nonzero(
-                        step_match_state > 0.0, as_tuple=False).t()
+                if segment_id_matching:
+                    step_segment_id = step_list.segment_id.view(-1,1)
+                    state_segment_id = state_graph.segment_id.view(1,-1)
+                    segment_id_match = step_segment_id == state_segment_id
+                    sparse_step_match_state = torch.nonzero(
+                            segment_id_match, as_tuple=False).t()
+                    
+                else:
+                    step_argmax = torch.argmax(step_match_state, dim=0)
+                    mask = torch.zeros_like(step_match_state)
+                    mask[step_argmax, range(state_graph.num_nodes)] = 1.
+                    step_match_state = step_match_state * mask
+                    
+                    state_argmax = torch.argmax(step_match_state, dim=1)
+                    mask = torch.zeros_like(step_match_state)
+                    mask[range(step_graph.num_nodes), state_argmax] = 1.
+                    step_match_state = step_match_state * mask
+                    sparse_step_match_state = torch.nonzero(
+                            step_match_state > match_threshold,
+                            as_tuple=False).t()
             else:
                 sparse_step_match_state = None
             
@@ -145,6 +158,7 @@ class EdgeModel(torch.nn.Module):
             step_state_logits.append(step_state_x)
         
         return merged_graphs, step_step_logits, step_state_logits
+        
         '''
         if graph_b is not None:
             x_b = graph_b.x
