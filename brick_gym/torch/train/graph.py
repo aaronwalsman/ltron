@@ -16,8 +16,6 @@ import tqdm
 
 import torch_geometric.utils as tg_utils
 
-from gym.vector.async_vector_env import AsyncVectorEnv
-
 import renderpy.masks as masks
 from renderpy.json_numpy import NumpyEncoder
 
@@ -31,63 +29,100 @@ from brick_gym.torch.brick_geometric import (
         BrickList, BrickGraph, BrickGraphBatch)
 from brick_gym.torch.gym_tensor import (
         gym_space_to_tensors, gym_space_list_to_tensors, graph_to_gym_space)
-import brick_gym.torch.models.named_models as named_models
-import brick_gym.torch.graph as graph
 from brick_gym.torch.gym_log import gym_log
+import brick_gym.torch.models.named_models as named_models
+from brick_gym.torch.train.loss import dense_score_loss, cross_product_loss
 
 edge_threshold = 0.05
 
 def train_label_confidence(
-        num_epochs,
-        mini_epochs_per_epoch,
-        mini_epoch_sequences,
-        mini_epoch_sequence_length,
-        dataset,
+        # load checkpoints
+        step_checkpoint = None,
+        edge_checkpoint = None,
+        optimizer_checkpoint = None,
+        
+        # general settings
+        num_epochs = 9999,
+        mini_epochs_per_epoch = 1,
+        mini_epoch_sequences = 2048,
+        mini_epoch_sequence_length = 2,
+        
+        # dasaset settings
+        dataset = 'random_stack',
+        num_processes = 8,
         train_split = 'train',
         train_subset = None,
         test_split = 'test',
         test_subset = None,
-        num_processes = 8,
+        randomize_viewpoint = True,
+        randomize_colors = True,
+        
+        # train settings
+        train_steps_per_epoch = 4096,
         batch_size = 6,
         learning_rate = 3e-4,
         instance_label_loss_weight = 0.8,
+        instance_label_background_weight = 0.05,
         score_loss_weight = 0.2,
+        score_background_weight = 0.05,
         score_ratio = 0.1,
         matching_loss_weight = 1.0,
         edge_loss_weight = 1.0,
-        train_steps_per_epoch = 4096,
+        
+        # test settings
         test_frequency = 1,
         test_steps_per_epoch = 1024,
-        model_output_channels = 32,
+        
+        # checkpoint settings
         checkpoint_frequency = 1,
+        
+        # logging settings
         log_train = 0,
-        log_test = 0,
-        randomize_viewpoint = True,
-        randomize_colors = True):
+        log_test = 0):
     
+    # logging
     step_clock = [0]
     log = SummaryWriter()
     
     dataset_info = get_dataset_info(dataset)
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
+    # background class weight
+    instance_label_class_weight = torch.ones(num_classes)
+    instance_label_class_weight[0] = instance_label_background_weight
+    instance_label_class_weight = instance_label_class_weight.cuda()
+    
     print('='*80)
     print('Building the step model')
     step_model = named_models.named_graph_step_model(
             'nth_try',
             num_classes = num_classes).cuda()
+    if step_checkpoint is not None:
+        print('Loading step model checkpoint from:')
+        print(step_checkpoint)
+        step_model.load_state_dict(torch.load(step_checkpoint))
     
-    print('='*80)
+    print('-'*80)
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
             'subtract',
             input_dim=256).cuda()
+    if edge_checkpoint is not None:
+        print('Loading edge model checkpoint from:')
+        print(edge_checkpoint)
+        edge_model.load_state_dict(torch.load(edge_checkpoint))
     
+    print('-'*80)
     print('Building the optimizer')
     optimizer = torch.optim.Adam(
             list(step_model.parameters()) + list(edge_model.parameters()),
             lr=learning_rate)
+    if optimizer_checkpoint is not None:
+        print('Loading optimizer checkpoint from:')
+        print(optimizer_checkpoint)
+        optimizer.load_state_dict(torch.load(optimizer_checkpoint))
     
+    print('='*80)
     print('Building the train environment')
     train_env = async_brick_env(
             num_processes,
@@ -95,9 +130,11 @@ def train_label_confidence(
             dataset = dataset,
             split = train_split,
             randomize_viewpoint = randomize_viewpoint,
-            randomize_viewpoint_frequency = 'step',
+            randomize_viewpoint_frequency = 'reset',
             randomize_colors = randomize_colors)
     
+    '''
+    print('-'*80)
     print('Building the test environment')
     test_env = async_brick_env(
             num_processes,
@@ -107,6 +144,7 @@ def train_label_confidence(
             randomize_viewpoint = randomize_viewpoint,
             randomize_viewpoint_frequency = 'reset',
             randomize_colors = False)
+    '''
     
     for epoch in range(1, num_epochs+1):
         epoch_start = time.time()
@@ -117,6 +155,7 @@ def train_label_confidence(
                 step_clock,
                 log,
                 math.ceil(train_steps_per_epoch / num_processes),
+                #train_steps_per_epoch,
                 mini_epochs_per_epoch,
                 mini_epoch_sequences,
                 mini_epoch_sequence_length,
@@ -126,14 +165,17 @@ def train_label_confidence(
                 optimizer,
                 train_env,
                 instance_label_loss_weight,
+                instance_label_class_weight,
                 score_loss_weight,
+                score_background_weight,
                 score_ratio,
                 matching_loss_weight,
                 edge_loss_weight,
                 dataset_info,
                 log_train)
         
-        if epoch % checkpoint_frequency == 0:
+        if (checkpoint_frequency is not None and
+                epoch % checkpoint_frequency) == 0:
             checkpoint_directory = os.path.join(
                     './checkpoint', os.path.split(log.log_dir)[-1])
             if not os.path.exists(checkpoint_directory):
@@ -155,8 +197,7 @@ def train_label_confidence(
             print('Saving optimizer to: %s'%optimizer_path)
             torch.save(optimizer.state_dict(), optimizer_path)
         
-        '''
-        if epoch % test_frequency == 0:
+        if test_frequency is not None and epoch % test_frequency == 0:
             test_label_confidence_epoch(
                     epoch,
                     step_clock,
@@ -166,7 +207,6 @@ def train_label_confidence(
                     edge_model,
                     test_env,
                     log_test)
-        '''
         
         print('-'*80)
         print('Elapsed: %.04f'%(time.time() - epoch_start))
@@ -237,7 +277,9 @@ def train_label_confidence_epoch(
         optimizer,
         train_env,
         instance_label_loss_weight,
+        instance_label_class_weight,
         score_loss_weight,
+        score_background_weight,
         score_ratio,
         matching_loss_weight,
         edge_loss_weight,
@@ -270,7 +312,7 @@ def train_label_confidence_epoch(
             step_tensors = gym_space_to_tensors(
                     step_observations,
                     train_env.single_observation_space,
-                    torch.cuda.current_device())
+                    device)
             
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(
@@ -290,7 +332,24 @@ def train_label_confidence_epoch(
             seq_graph_state.append(graph_states)
             
             # upate the graph state using the edge model
-            graph_states, _, _ = edge_model(step_brick_lists, graph_states)
+            graph_states, step_step_logits, step_state_logits = edge_model(
+                    step_brick_lists, graph_states)
+            
+            '''
+            for i, graph_state in enumerate(graph_states):
+                print('========')
+                print(torch.max(step_tensors['segmentation_render'][i]))
+                print(graph_state.segment_id[:,0])
+                print(graph_state.edge_index)
+                print(graph_state.edge_attr)
+                print('match')
+                print(step_step_logits[i][:,:,0])
+                print('edge')
+                print(step_step_logits[i][:,:,1])
+                print('--------')
+                print(step_tensors['graph_label'][i].edge_index)
+                print(step_tensors['graph_label'][i].instance_label[:,0])
+            '''
             
             # sample an action
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
@@ -314,8 +373,6 @@ def train_label_confidence_epoch(
                         step_clock, log, step_observations, space, [])
             
             segment_samples = [dist.sample() for dist in hide_distributions]
-            #instance_samples = graph.remap_node_indices(
-            #        batch_graphs, segment_samples, 'segment_id')
             instance_samples = [brick_list.segment_id[sample]
                     for brick_list, sample
                     in zip(step_brick_lists, segment_samples)]
@@ -331,12 +388,22 @@ def train_label_confidence_epoch(
             if step < log_debug:
                 space = train_env.single_observation_space
                 log_train_rollout_step(
-                        step_clock, log, step_observations, space, actions)
+                        step_clock,
+                        log,
+                        step_observations,
+                        space,
+                        actions)
             
             (step_observations,
              step_rewards,
              step_terminal,
              _) = train_env.step(actions)
+            
+            '''
+            print('rewards?')
+            print(step_rewards)
+            input()
+            '''
             
             log.add_scalar(
                     'reward/train',
@@ -362,17 +429,24 @@ def train_label_confidence_epoch(
     total_segments = 0
     
     dataset_size = seq_tensors['color_render'].shape[0]
-    
+    tlast = 0
     for mini_epoch in range(1, mini_epochs+1):
         print('- '*40)
         print('Training Mini Epoch: %i'%mini_epoch)
         
-        iterate = tqdm.tqdm(range(mini_epoch_sequences))
+        iterate = tqdm.tqdm(range(mini_epoch_sequences//batch_size))
         for seq_id in iterate:
             start_indices = torch.randint(dataset_size, (batch_size,))
             step_terminal = [True for _ in range(batch_size)]
             graph_states = [None for _ in range(batch_size)]
             seq_loss = 0.
+            
+            ####################################
+            #torch.cuda.synchronize()
+            #t0 = tlast
+            #tlast = time.time()
+            #print('ploop', tlast - t0)
+            
             for step in range(mini_epoch_sequence_length):
                 step_indices = (start_indices + step) % dataset_size
                 
@@ -381,9 +455,18 @@ def train_label_confidence_epoch(
                 x_seg = seq_tensors['segmentation_render'][step_indices].cuda()
                 y_graph = seq_tensors['graph_label'][step_indices].cuda()
                 
+                #################################
+                #torch.cuda.synchronize()
+                #t2 = time.time()
+                
                 # step forward pass
                 step_brick_lists, _, dense_scores, head_features = step_model(
                         x_im, x_seg)
+                
+                ################################
+                #torch.cuda.synchronize()
+                #t3 = time.time()
+                #print('fwd', t3 - t2)
                 
                 # select graph state from memory for all terminal sequences
                 # TODO: Is there more we need to do here to make sure gradients
@@ -396,52 +479,102 @@ def train_label_confidence_epoch(
                 # update step terminal
                 step_terminal = seq_terminal[step_indices]
                 
+                ################################
+                #torch.cuda.synchronize()
+                #t4 = time.time()
+                #print('term', t4 - t3)
+                
                 # upate the graph state using the edge model
                 (new_graph_states,
                  step_step_logits,
                  step_state_logits) = edge_model(
                         step_brick_lists, graph_states)
                 
+                ################################
+                #torch.cuda.synchronize()
+                #t5 = time.time()
+                #print('edge', t5 - t4)
+                
+                
                 step_loss = 0.
                 
                 # instance_label
-                # TODO: log supervision signal
                 y_instance_label = [
                         graph['instance_label'][:,0] for graph in y_graph]
                 dense_instance_label_target = torch.stack([
                         y[seg] for y,seg in zip(y_instance_label, x_seg)])
                 instance_label_logits = head_features['instance_label']
                 instance_label_loss = torch.nn.functional.cross_entropy(
-                        instance_label_logits, dense_instance_label_target)
+                        instance_label_logits,
+                        dense_instance_label_target,
+                        weight=instance_label_class_weight)
                 step_loss = (step_loss +
                         instance_label_loss * instance_label_loss_weight)
                 log.add_scalar(
                         'loss/instance_label',
                         instance_label_loss, step_clock[0])
                 
-                # score
-                # TODO: log supervision signal
-                instance_label_prediction = torch.argmax(
-                        instance_label_logits, dim=1)
-                correct = (
-                        instance_label_prediction ==
-                        dense_instance_label_target)
-                score_loss = binary_cross_entropy(
-                        dense_scores,
-                        (correct & (x_seg != 0)).unsqueeze(1).float(),
-                        reduction='none')
-                # I think the score_ratio should probably get removed.
-                # It would be better to just set a threshold on the score,
-                # correct?
-                score_loss = torch.mean(
-                        score_loss * correct * score_ratio +
-                        score_loss * ~correct)
-                step_loss = step_loss + score_loss * score_loss_weight
-                log.add_scalar('loss/score', score_loss, step_clock[0])
+                foreground = x_seg != 0
+                foreground_total = torch.sum(foreground)
+                if foreground_total:
+                    # score
+                    instance_label_prediction = torch.argmax(
+                            instance_label_logits, dim=1)
+                    correct = (
+                            instance_label_prediction ==
+                            dense_instance_label_target)
+                    score_loss = dense_score_loss(
+                            dense_scores, correct, foreground)
+                    step_loss = step_loss + score_loss * score_loss_weight
+                    log.add_scalar('loss/score', score_loss, step_clock[0])
+                    
+                    #dense_instance_label_accuracy = (
+                    log.add_scalar('train_accuracy/dense_instance_label',
+                            float(torch.sum(correct)) /
+                            float(torch.numel(correct)),
+                            step_clock[0])
                 
-                log.add_scalar('accuracy/dense_instance_label',
-                        float(torch.sum(correct)) / float(torch.numel(correct)),
+                    # visibility
+                    dense_visibility = head_features['hide_action']
+                    '''
+                    visibility_loss = binary_cross_entropy(
+                            torch.sigmoid(dense_visibility),
+                            correct.unsqueeze(1).float(),
+                            #(correct & (x_seg != 0)).unsqueeze(1).float(),
+                            reduction='none')
+                    #visibility_loss = torch.mean(
+                    #        visibility_loss * correct * score_ratio +
+                    #        visibility_loss * ~correct)
+                    visibility_loss = torch.sum(
+                            visibility_loss * (x_seg != 0)) / foreground_total
+                    '''
+                    visibility_loss = dense_score_loss(
+                            torch.sigmoid(dense_visibility),
+                            correct,
+                            foreground)
+                    step_loss = step_loss + visibility_loss * score_loss_weight
+                    log.add_scalar(
+                            'loss/visibility', visibility_loss, step_clock[0])
+                
+                instance_correct = 0.
+                total_instances = 0.
+                for brick_list, target_graph in zip(step_brick_lists, y_graph):
+                    instance_label_target = (
+                            target_graph.instance_label[
+                                brick_list.segment_id[:,0]])[:,0]
+                    instance_label_pred = torch.argmax(
+                            brick_list.instance_label, dim=-1)
+                    instance_correct += float(torch.sum(
+                            instance_label_target == instance_label_pred).cpu())
+                    total_instances += instance_label_pred.shape[0]
+                log.add_scalar('train_accuracy/step_instance_label',
+                        instance_correct / total_instances,
                         step_clock[0])
+                
+                ################################
+                #torch.cuda.synchronize()
+                #t6 = time.time()
+                #print('label/score/vis loss', t6 - t5)
                 
                 # edges and matching
                 matching_loss = 0.
@@ -467,20 +600,28 @@ def train_label_confidence_epoch(
                     step_step = torch.sigmoid(step_step)
                     step_state = torch.sigmoid(step_state)
                     
+                    '''
                     normalizer += brick_list.num_nodes**2
                     normalizer += (
                             brick_list.num_nodes * graph_state.num_nodes) * 2
-                    
-                    step_step_normalizer += brick_list.num_nodes**2
-                    step_state_normalizer += (
+                    '''
+                    step_step_num = brick_list.num_nodes**2
+                    step_step_normalizer += step_step_num
+                    step_state_num = (
                             brick_list.num_nodes * graph_state.num_nodes) * 2
+                    step_state_normalizer += step_state_num
+                    normalizer += step_step_num + step_state_num
                     
                     # matching loss
                     step_step_matching_target = torch.eye(
-                            brick_list.num_nodes).to(device)
+                            brick_list.num_nodes, dtype=torch.bool).to(device)
+                    '''
                     step_step_matching_loss = binary_cross_entropy(
                             step_step[:,:,0], step_step_matching_target,
                             reduction = 'sum')
+                    '''
+                    step_step_matching_loss = cross_product_loss(
+                            step_step[:,:,0], step_step_matching_target)
                     step_step_matching_pred = step_step[:,:,0] > 0.5
                     step_step_matching_correct += torch.sum(
                             step_step_matching_pred ==
@@ -488,28 +629,37 @@ def train_label_confidence_epoch(
                     
                     step_state_matching_target = (
                             brick_list.segment_id ==
-                            graph_state.segment_id.t()).float()
+                            graph_state.segment_id.t())
+                    '''
                     step_state_matching_loss = binary_cross_entropy(
                             step_state[:,:,0], step_state_matching_target,
                             reduction = 'sum') * 2
+                    '''
+                    step_state_matching_loss = cross_product_loss(
+                            step_state[:,:,0], step_state_matching_target) * 2
                     step_state_matching_pred = step_state[:,:,0] > 0.5
                     step_state_matching_correct += torch.sum(
                             step_state_matching_pred ==
-                            step_state_matching_target)
+                            step_state_matching_target) * 2
                     
                     matching_loss = (matching_loss +
-                            step_step_matching_loss +
-                            step_state_matching_loss)
+                            step_step_matching_loss * step_step_num +
+                            step_state_matching_loss * step_state_num)
                     
                     # edge loss
-                    full_edge_target = y.edge_matrix(bidirectionalize=True)
+                    full_edge_target = y.edge_matrix(bidirectionalize=True).to(
+                            torch.bool)
                     
                     step_lookup = brick_list.segment_id[:,0]
                     step_step_edge_target = full_edge_target[
                             step_lookup][:,step_lookup]
+                    '''
                     step_step_edge_loss = binary_cross_entropy(
                             step_step[:,:,1], step_step_edge_target,
                             reduction = 'sum')
+                    '''
+                    step_step_edge_loss = cross_product_loss(
+                            step_step[:,:,1], step_step_edge_target)
                     step_step_edge_pred = step_step[:,:,1] > 0.5
                     step_step_edge_correct += torch.sum(
                             step_step_edge_pred ==
@@ -518,17 +668,21 @@ def train_label_confidence_epoch(
                     state_lookup = graph_state.segment_id[:,0]
                     step_state_edge_target = full_edge_target[
                             step_lookup][:,state_lookup]
+                    '''
                     step_state_edge_loss = binary_cross_entropy(
                             step_state[:,:,1], step_state_edge_target,
                             reduction = 'sum')
+                    '''
+                    step_state_edge_loss = cross_product_loss(
+                            step_state[:,:,1], step_state_edge_target) * 2
                     step_state_edge_pred = step_state[:,:,1] > 0.5
                     step_state_edge_correct += torch.sum(
                             step_state_edge_pred ==
-                            step_state_edge_target)
+                            step_state_edge_target) * 2
                     
                     edge_loss = (edge_loss +
-                            step_step_edge_loss +
-                            step_state_edge_loss)
+                            step_step_edge_loss * step_step_num +
+                            step_state_edge_loss * step_state_num)
                 
                 matching_loss = matching_loss / normalizer
                 step_loss = step_loss + matching_loss * matching_loss_weight
@@ -540,41 +694,30 @@ def train_label_confidence_epoch(
                 
                 step_step_match_acc = (
                         step_step_matching_correct / step_step_normalizer)
-                log.add_scalar('accuracy/step_step_match',
-                        step_step_match_acc,
-                        step_clock[0])
-                step_state_match_acc = (
-                        step_state_matching_correct / step_state_normalizer)
-                log.add_scalar('accuracy/step_state_match',
-                        step_state_match_acc,
-                        step_clock[0])
+                log.add_scalar('train_accuracy/step_step_match',
+                        step_step_match_acc, step_clock[0])
                 step_step_edge_acc = (
                         step_step_edge_correct / step_step_normalizer)
-                log.add_scalar('accuracy/step_step_edge',
-                        step_step_edge_acc,
-                        step_clock[0])
-                step_state_edge_acc = (
-                        step_state_edge_correct / step_state_normalizer)
-                log.add_scalar('accuracy/step_state_edge',
-                        step_state_edge_acc,
-                        step_clock[0])
-                
-                # visibility
-                dense_visibility = head_features['hide_action']
-                visibility_loss = binary_cross_entropy(
-                        torch.sigmoid(dense_visibility),
-                        (correct & (x_seg != 0)).unsqueeze(1).float(),
-                        reduction='none')
-                visibility_loss = torch.mean(
-                        visibility_loss * correct * score_ratio +
-                        visibility_loss * ~correct)
-                step_loss = step_loss + visibility_loss * score_loss_weight
-                log.add_scalar(
-                        'loss/visibility', visibility_loss, step_clock[0])
+                log.add_scalar('train_accuracy/step_step_edge',
+                        step_step_edge_acc, step_clock[0])
+                if step_state_normalizer:
+                    step_state_match_acc = (
+                            step_state_matching_correct / step_state_normalizer)
+                    log.add_scalar('train_accuracy/step_state_match',
+                            step_state_match_acc, step_clock[0])
+                    step_state_edge_acc = (
+                            step_state_edge_correct / step_state_normalizer)
+                    log.add_scalar('train_accuracy/step_state_edge',
+                            step_state_edge_acc, step_clock[0])
                 
                 log.add_scalar('loss/total', step_loss, step_clock[0])
                 
                 seq_loss = seq_loss + step_loss
+                
+                ################################
+                #torch.cuda.synchronize()
+                #t7 = time.time()
+                #print('edge', t7 - t6)
                 
                 if seq_id < log_debug:
                     log_train_loss_step(
@@ -597,9 +740,18 @@ def train_label_confidence_epoch(
                 graph_states = new_graph_states
                 step_clock[0] += 1
             
+            ################################
+            #torch.cuda.synchronize()
+            #t8 = time.time()
+            
             seq_loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+            
+            ################################
+            #torch.cuda.synchronize()
+            #t9 = time.time()
+            #print('backward, step', t9-t8)
     
     #print('- '*40)
     #print('Node Accuracy: %.04f'%(total_correct_segments/total_segments))
