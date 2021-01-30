@@ -4,9 +4,9 @@ from gym import spaces
 
 import renderpy.masks as masks
 
-class ValidFrameSpace(spaces.Discrete):
-    def __init__(self):
-        super(ValidFrameSpace, 2)
+#class ValidFrameSpace(spaces.Discrete):
+#    def __init__(self):
+#        super(ValidFrameSpace, 2)
 
 class ImageSpace(spaces.Box):
     '''
