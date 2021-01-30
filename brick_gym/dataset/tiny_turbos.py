@@ -31,18 +31,18 @@ set_numbers = [
 '8121',
 '8122',
 ############
-#'8123',
-#'8124',
-#'8125',
-#'8126',
+#'8123', # multiple models
+#'8124', # multiple models
+#'8125', # multiple models
+#'8126', # multiple models
 ###########
 '8130',
 '8131',
 '8132',
 '8133',
 #'8134', # multiple models
-#'8135',
-#'8147',
+#'8135', # multiple models
+#'8147', # multiple models
 '8148',
 '8149',
 '8150',
@@ -50,21 +50,21 @@ set_numbers = [
 #'8152', # multiple models
 '8153',
 ###########
-#'8154',
-#'8155',
-#'8182',
-#'8186',
+#'8154', # multiple models
+#'8155', # doesn't exist
+#'8182', # multiple models
+#'8186', # multiple models
 ###########
 '8192',
 '8193',
 '8194',
 '8195',
 ###########
-#'8196',
-#'8197',
-#'8198',
-#'8199',
-#'8211',
+#'8196', # multiple models
+#'8197', # multiple models
+#'8198', # multiple models
+#'8199', # multiple models
+#'8211', # multiple models
 ###########
 '8301',
 '8302',
@@ -86,7 +86,7 @@ set_numbers = [
 '8665',
 '8666',
 ###########
-#'8681',
+#'8681', # multiple models
 ###########
 '30030',
 '30033',
@@ -139,8 +139,10 @@ for count, brick_type in sorted_instance_counts:
 print('%i total brick types'%len(instance_counts))
 
 random.seed(1234)
+existing_sets = list(sorted(existing_sets))
 test_set = random.sample(existing_sets, int(len(existing_sets) * 0.25))
-train_set = existing_sets - set(test_set)
+#train_set = existing_sets - set(test_set)
+train_set = [example for example in existing_sets if example not in test_set]
 
 all_tiny_turbos = ['ldraw/' + set_name for set_name in existing_sets]
 train_tiny_turbos = ['ldraw/' + set_name for set_name in train_set]
