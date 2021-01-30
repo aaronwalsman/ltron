@@ -71,7 +71,7 @@ class BrickType:
             'mesh_asset' : self.mesh_name,
             'scale' : 1.0,
             'create_uvs' : False,
-            'color_mode' : 'flat'
+            'color_mode' : 'flat_color'
         }
         return mesh_entry
     
