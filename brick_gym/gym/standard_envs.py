@@ -50,6 +50,7 @@ def segmentation_supervision_env(
                 components['scene'],
                 #azimuth = math.radians(-135.),
                 #elevation = math.radians(-30.),
+                #tilt = (math.radians(-45.0), math.radians(45.0)),
                 aspect_ratio = width/height,
                 randomize_frequency=randomize_viewpoint_frequency)
     else:
@@ -171,8 +172,8 @@ def graph_supervision_env(
     # graph_task
     components['graph_task'] = InstanceGraphConstructionTask(
             num_classes,
-            max_instances,
-            max_instances**2,
+            max_instances*2,
+            (max_instances*2)**2,
             components['scene'],
             components['dataset'])
     
