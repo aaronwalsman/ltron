@@ -12,6 +12,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
             scene_component,
             azimuth = (0, math.pi*2),
             elevation = (math.radians(-15), math.radians(-45)),
+            tilt = (math.radians(-45.), math.radians(45.)),
             field_of_view = (math.radians(60.), math.radians(60.)),
             aspect_ratio = 1.,
             near_clip = 1.,
@@ -23,6 +24,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         self.scene_component.brick_scene.make_renderable()
         self.azimuth = azimuth
         self.elevation = elevation
+        self.tilt = tilt
         self.field_of_view = field_of_view
         self.aspect_ratio = aspect_ratio
         self.near_clip = near_clip
@@ -37,6 +39,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         scene = self.scene_component.brick_scene
         azimuth = random.uniform(*self.azimuth)
         elevation = random.uniform(*self.elevation)
+        tilt = random.uniform(*self.tilt)
         field_of_view = random.uniform(*self.field_of_view)
         
         self.projection = camera.projection_matrix(
@@ -54,7 +57,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         distance = camera.framing_distance_for_bbox(
                 bbox, self.projection, self.bbox_distance_scale)
         camera_pose = camera.azimuthal_pose_to_matrix(
-                [azimuth, elevation, 0.0, distance, 0.0, 0.0],
+                [azimuth, elevation, tilt, distance, 0.0, 0.0],
                 center = center)
         scene.set_camera_pose(camera_pose)
     
@@ -74,6 +77,7 @@ class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
             scene_component,
             azimuth,
             elevation,
+            tilt = 0.,
             field_of_view = math.radians(60.),
             *args, **kwargs):
         
@@ -81,5 +85,6 @@ class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
                 scene_component,
                 (azimuth, azimuth),
                 (elevation, elevation),
+                (tilt, tilt),
                 (field_of_view, field_of_view),
                 *args, **kwargs)
