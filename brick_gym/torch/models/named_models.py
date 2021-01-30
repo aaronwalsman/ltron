@@ -69,6 +69,18 @@ def named_fcn_backbone(name, output_channels):
                 encoder_weights = 'imagenet',
                 classes = output_channels,
                 activation = None)
+    elif name == 'smp_fpn_r34':
+        return segmentation_models_pytorch.FPN(
+                encoder_name = 'resnet34',
+                encoder_weights = 'imagenet',
+                classes = output_channels,
+                activation = None)
+    elif name == 'smp_fpn_r18':
+        return segmentation_models_pytorch.FPN(
+                encoder_name = 'resnet18',
+                encoder_weights = 'imagenet',
+                classes = output_channels,
+                activation = None)
     
     if 'unet' in name:
         if 'coord' in name:
@@ -169,10 +181,23 @@ def named_graph_step_model(
 '''
 def named_graph_step_model(name, num_classes):
     if name == 'nth_try':
+        encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
+        return GraphStepModel(
+                backbone = named_fcn_backbone(encoder, 256),
+                score_model = Conv2dStack(3, 256, 256, 1),
+                segmentation_model = None,
+                add_spatial_embedding = True,
+                heads = {
+                    'x' : torch.nn.Identity(),
+                    'instance_label' : Conv2dStack(3, 256, 256, num_classes),
+                    'hide_action' : Conv2dStack(3, 256, 256, 1)
+                })
+    elif name == 'nth_try_nose':
         return GraphStepModel(
                 backbone = named_fcn_backbone('smp_fpn_rnxt50', 256),
                 score_model = Conv2dStack(3, 256, 256, 1),
                 segmentation_model = None,
+                add_spatial_embedding = False,
                 heads = {
                     'x' : torch.nn.Identity(),
                     'instance_label' : Conv2dStack(3, 256, 256, num_classes),
