@@ -20,7 +20,7 @@ if __name__ == '__main__':
             
             # dataset settings
             dataset = 'random_stack',
-            num_processes = 1,
+            num_processes = 8,
             randomize_viewpoint=False,
             
             # train settings

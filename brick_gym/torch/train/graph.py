@@ -307,7 +307,6 @@ def train_label_confidence_epoch(
             # store observation
             seq_terminal.append(step_terminal)
             seq_observations.append(step_observations)
-            seq_graph_state.append(graph_states)
             
             # gym -> torch
             step_tensors = gym_space_to_tensors(
@@ -330,7 +329,7 @@ def train_label_confidence_epoch(
             
             # store the graph_state before it gets updated
             # (we want the graph state that was input to this step)
-            seq_graph_state.append(graph_states)
+            seq_graph_state.append([g.detach().cpu() for g in graph_states])
             
             # upate the graph state using the edge model
             graph_states, step_step_logits, step_state_logits = edge_model(
@@ -405,14 +404,6 @@ def train_label_confidence_epoch(
             
             num_terminal = sum(step_terminal)
             if num_terminal:
-                '''
-                terminal_info = [
-                        info for t, info in zip(step_terminal, step_info) if t]
-                sum_terminal_edge_ap = sum(
-                        info['task']['edge_ap'] for info in terminal_info)
-                sum_terminal_instance_ap = sum(
-                        info['task']['instance_ap'] for info in terminal_info)
-                '''
                 sum_terminal_edge_ap = sum(
                         ap * t for ap, t in zip(all_edge_ap, step_terminal))
                 sum_terminal_instance_ap = sum(
@@ -432,6 +423,7 @@ def train_label_confidence_epoch(
     seq_tensors = gym_space_list_to_tensors(
             seq_observations, train_env.single_observation_space)
     seq_terminal = numpy.stack(seq_terminal, axis=1).reshape(-1)
+    
     seq_graph_state = BrickGraphBatch([
             seq_graph_state[i][j]
             for j in range(train_env.num_envs)
