@@ -55,7 +55,7 @@ class InstanceVisibilityComponent(VisibilityComponent):
             self.action_space = bg_spaces.MultiInstanceSelectionSpace(
                     self.max_instances)
         else:
-            self.action_space = bg_spaces.SingleInstanceSelectionSpace(
+            self.action_space = bg_spaces.SingleInstanceIndexSpace(
                     self.max_instances)
     
     def step(self, action):

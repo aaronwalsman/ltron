@@ -15,13 +15,13 @@ if __name__ == '__main__':
             # general settings
             num_epochs = 500,
             mini_epochs_per_epoch = 1,
-            mini_epoch_sequences = 512,
-            mini_epoch_sequence_length = 4,
+            mini_epoch_sequences = 2048,
+            mini_epoch_sequence_length = 2,
             
             # dataset settings
-            dataset = 'random_stack',
-            num_processes = 1,
-            randomize_viewpoint=False,
+            dataset = 'tiny_turbos',
+            num_processes = 4,
+            randomize_viewpoint=True,
             
             # train settings
             train_steps_per_epoch = 1024,
@@ -35,4 +35,4 @@ if __name__ == '__main__':
             log_train=8,
             
             # checkpoint settings
-            checkpoint_frequency=5)
+            checkpoint_frequency=1)

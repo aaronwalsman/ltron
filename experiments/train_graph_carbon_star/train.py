@@ -19,7 +19,7 @@ if __name__ == '__main__':
             mini_epoch_sequence_length = 4,
             
             # dataset settings
-            dataset = 'random_stack',
+            dataset = 'carbon_star',
             num_processes = 1,
             randomize_viewpoint=False,
             

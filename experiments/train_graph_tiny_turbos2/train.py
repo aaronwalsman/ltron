@@ -19,9 +19,9 @@ if __name__ == '__main__':
             mini_epoch_sequence_length = 4,
             
             # dataset settings
-            dataset = 'random_stack',
-            num_processes = 1,
-            randomize_viewpoint=False,
+            dataset = 'tiny_turbos2',
+            num_processes = 8,
+            randomize_viewpoint=True,
             
             # train settings
             train_steps_per_epoch = 1024,

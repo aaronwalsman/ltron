@@ -181,7 +181,7 @@ def named_graph_step_model(
 '''
 def named_graph_step_model(name, num_classes):
     if name == 'nth_try':
-        encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
+        encoder = 'smp_fpn_r34' #'smp_fpn_rnxt50'
         return GraphStepModel(
                 backbone = named_fcn_backbone(encoder, 256),
                 score_model = Conv2dStack(3, 256, 256, 1),

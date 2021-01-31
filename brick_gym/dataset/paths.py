@@ -41,7 +41,7 @@ def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
     all_file_paths = []
     for split_glob in split_globs:
         if ':' in split_glob:
-            split_glob, sub_model = split_glob
+            split_glob, sub_model = split_glob.split(':')
         else:
             sub_model = None
         

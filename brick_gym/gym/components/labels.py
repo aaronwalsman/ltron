@@ -22,13 +22,17 @@ class InstanceListComponent(BrickEnvComponent):
         
     def compute_observation(self):
         brick_scene = self.scene_component.brick_scene
-        observation = numpy.zeros((self.max_instances+1, 1), dtype=numpy.long)
+        instance_labels = numpy.zeros(
+                (self.max_instances+1, 1), dtype=numpy.long)
+        observation = {}
         for instance_id, instance in brick_scene.instances.items():
             if self.filter_hidden and brick_scene.instance_hidden(instance):
                 continue
             brick_type_name = str(instance.brick_type)
             class_id = self.dataset_component.get_class_id(brick_type_name)
-            observation[instance_id, 0] = class_id
+            instance_labels[instance_id, 0] = class_id
+        observation['label'] = instance_labels
+        observation['num_instances'] = len(brick_scene.instances)
         
         return observation
     
@@ -75,13 +79,17 @@ class InstanceGraphComponent(BrickEnvComponent):
                 else:
                     unidirectional_edges.add((instance_id, other_id))
         
-        edges = numpy.zeros((2, self.max_edges), dtype=numpy.long)
+        edge_index = numpy.zeros((2, self.max_edges), dtype=numpy.long)
         for i, edge in enumerate(unidirectional_edges):
-            edges[:,i] = edge
+            edge_index[:,i] = edge
+        edge_data = {
+            'edge_index' : edge_index,
+            'num_edges' : len(unidirectional_edges),
+        }
+        
         return {
             'instances' : self.instance_list_component.compute_observation(),
-            'num_instances' : len(brick_scene.instances),
-            'edges' : edges,
+            'edges' : edge_data,
         }
         '''
         return {

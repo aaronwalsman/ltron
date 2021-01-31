@@ -21,9 +21,11 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         
         self.action_space = bg_spaces.InstanceGraphSpace(
                 self.num_classes, self.max_instances, self.max_edges,
-                include_edge_score=True)
+                include_edge_score=True,
+                include_instance_score=True)
         
         self.true_edges = None
+        self.true_instances = None
     
     def reset(self):
         self.true_edges = {}
@@ -41,27 +43,50 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
                 class_b = class_lookup[str(brick_instance_b.brick_type)]
                 if id_a < id_b:
                     self.true_edges[(id_a, id_b, class_a, class_b)] = 1.0
+        
+        self.true_instances = {}
+        for instance in brick_scene.instances:
+            instance_id = int(instance)
+            brick_instance = brick_scene.instances[instance]
+            class_label = class_lookup[str(brick_instance.brick_type)]
+            self.true_instances[(instance_id, class_label)] = 1.0
+        
         return None
     
     def step(self, action):
-        edges = action['edges']
-        unidirectional_edges = edges[0] < edges[1]
-        edges = edges[:,unidirectional_edges]
+        edge_index = action['edges']['edge_index']
+        unidirectional_edges = edge_index[0] < edge_index[1]
+        edge_index = edge_index[:,unidirectional_edges]
         
         predicted_edges = utils.sparse_graph_to_edge_scores(
                 image_index = None,
-                node_label = action['instances'],
-                edges = edges.T,
-                scores = action['edge_scores'])
+                node_label = action['instances']['label'],
+                edges = edge_index.T,
+                scores = action['edges']['score'],
+        )
         
         _, _, edge_ap = evaluation.edge_ap(predicted_edges, self.true_edges)
         
+        predicted_instances = utils.sparse_graph_to_instance_scores(
+                image_index = None,
+                indices = range(len(action['instances']['label'])),
+                instance_labels = action['instances']['label'],
+                scores = action['instances']['score'],
+        )
+        
+        _, _, instance_ap = evaluation.edge_ap(
+                predicted_instances, self.true_instances)
+        
+        info = {'instance_ap' : instance_ap,
+                'edge_ap' : edge_ap,
+        }
+        
         terminal = False
-        num_instances = action['num_instances']
+        num_instances = action['instances']['num_instances']
         if num_instances == self.max_instances:
             terminal = True
         
-        return None, edge_ap, terminal, None
+        return None, edge_ap, terminal, info
 
 '''
 class GraphConstructionTask(BrickEnvComponent):

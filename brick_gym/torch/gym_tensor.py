@@ -28,23 +28,35 @@ def gym_space_to_tensors(
             return torch.LongTensor(data).to(device)
         
         elif isinstance(space, InstanceListSpace):
-            if len(data.shape) == 2:
-                tensor = torch.LongTensor(data).to(device)
+            num_instances = data['num_instances']
+            labels = data['label']
+            if len(labels.shape) == 2:
+                #labels = labels[:num_instances]
+                tensor = torch.LongTensor(labels).to(device)
+                # TODO: SCORE
                 return BrickList(instance_label = tensor)
-            elif len(data.shape) == 3:
+            elif len(data['label'].shape) == 3:
                 brick_lists = []
-                for i in range(data.shape[0]):
-                    tensor = torch.LongTensor(data[i]).to(device)
+                for n, l in zip(num_instances, labels):
+                    #l = l[:n]
+                    tensor = torch.LongTensor(l).to(device)
+                    # TODO: SCORE
                     brick_lists.append(BrickList(instance_label = tensor))
                 return BrickListBatch(brick_lists)
         
         elif isinstance(space, EdgeSpace):
-            tensor = torch.LongTensor(data).to(device)
-            return tensor
+            # TODO: SCORE
+            tensor_dict = {
+                    'edge_index' :
+                        torch.LongTensor(data['edge_index']).to(device)
+            }
+            return tensor_dict
         
         elif isinstance(space, InstanceGraphSpace):
             brick_list = recurse(data['instances'], space['instances'])
-            edge_index = recurse(data['edges'], space['edges'])
+            edge_tensor_dict = recurse(data['edges'], space['edges'])
+            edge_index = edge_tensor_dict['edge_index']
+            # TODO: SCORE
             if isinstance(brick_list, BrickList):
                 return BrickGraph(brick_list, edge_index=edge_index)
             elif isinstance(brick_list, BrickListBatch):
@@ -104,35 +116,52 @@ def gym_space_list_to_tensors(
     return recurse(tensors, space)
 
 def graph_to_gym_space(data, space):
+    
+    # build the instance labels
     segment_id = data['segment_id'].view(-1).detach().cpu().numpy()
     instance_labels = numpy.zeros(
-            (space['instances'].shape[0]), dtype=numpy.long)
+            (space['instances']['label'].shape[0]), dtype=numpy.long)
+    
     if data.num_nodes:
-        # remap labels
+        # discretize the labels
         discrete_labels = torch.argmax(data['instance_label'], dim=-1)
         discrete_labels = discrete_labels.detach().cpu().numpy()
+        
+        # remap labels
         instance_labels[segment_id] = discrete_labels
         instance_labels = instance_labels.reshape(-1, 1)
         
         # num_instances
-        num_instances = min(
-                data['instance_label'].shape[0], space.max_instances)
-        
+        num_instances = min(data.num_nodes, space.max_instances)
     else:
         num_instances = 0
     
+    # compile the instance data
+    instance_data = {
+            'num_instances' : data.num_nodes,
+            'label' : instance_labels,
+    }
+    if space['instances'].include_score:
+        instance_data['score'] = data['score'].cpu().numpy()
+    
     # remap edges
     original_edges = data['edge_index'].detach().cpu().numpy()
-    edges = segment_id[original_edges]
+    remapped_edge_index = segment_id[original_edges]
+    num_edges = min(data.num_edges(), space.max_edges)
+    edge_data = {
+            'num_edges' : num_edges,
+            'edge_index' : remapped_edge_index,
+    }
+    if space['edges'].include_score:
+        edge_data['score'] = data['edge_attr'].cpu().numpy()
     
     # compile result
     result = {
-            'instances' : instance_labels,
-            'edges' : edges,
-            'num_instances' : num_instances
+            'instances' : instance_data,
+            'edges' : edge_data,
     }
-    if 'edge_scores' in space.spaces:
-        edge_score = data['edge_attr'][:,0].detach().cpu().numpy()
-        result['edge_scores'] = edge_score
+    #if 'edge_scores' in space.spaces:
+    #    edge_score = data['edge_attr'][:,0].detach().cpu().numpy()
+    #    result['edge_scores'] = edge_score
     
     return result

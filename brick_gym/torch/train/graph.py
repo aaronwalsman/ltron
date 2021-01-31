@@ -300,6 +300,7 @@ def train_label_confidence_epoch(
     
     step_observations = train_env.reset()
     step_terminal = numpy.ones(train_env.num_envs, dtype=numpy.bool)
+    step_rewards = numpy.zeros(train_env.num_envs)
     graph_states = [None] * train_env.num_envs
     for step in tqdm.tqdm(range(steps)):
         with torch.no_grad():
@@ -334,22 +335,6 @@ def train_label_confidence_epoch(
             # upate the graph state using the edge model
             graph_states, step_step_logits, step_state_logits = edge_model(
                     step_brick_lists, graph_states)
-            
-            '''
-            for i, graph_state in enumerate(graph_states):
-                print('========')
-                print(torch.max(step_tensors['segmentation_render'][i]))
-                print(graph_state.segment_id[:,0])
-                print(graph_state.edge_index)
-                print(graph_state.edge_attr)
-                print('match')
-                print(step_step_logits[i][:,:,0])
-                print('edge')
-                print(step_step_logits[i][:,:,1])
-                print('--------')
-                print(step_tensors['graph_label'][i].edge_index)
-                print(step_tensors['graph_label'][i].instance_label[:,0])
-            '''
             
             # sample an action
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
@@ -397,17 +382,47 @@ def train_label_confidence_epoch(
             (step_observations,
              step_rewards,
              step_terminal,
-             _) = train_env.step(actions)
-            
-            '''
-            print('rewards?')
-            print(step_rewards)
-            input()
-            '''
+             step_info) = train_env.step(actions)
             
             log.add_scalar(
-                    'reward/train',
-                    sum(step_rewards)/len(step_rewards), step_clock[0])
+                    'train_rollout/reward',
+                    sum(step_rewards)/len(step_rewards),
+                    step_clock[0])
+            
+            all_edge_ap = [
+                    info['graph_task']['edge_ap'] for info in step_info]
+            all_instance_ap = [
+                    info['graph_task']['instance_ap'] for info in step_info]
+            
+            log.add_scalar(
+                    'train_rollout/step_edge_ap',
+                    sum(all_edge_ap)/len(all_edge_ap),
+                    step_clock[0])
+            log.add_scalar(
+                    'train_rollout/step_instance_ap',
+                    sum(all_instance_ap)/len(all_instance_ap),
+                    step_clock[0])
+            
+            num_terminal = sum(step_terminal)
+            if num_terminal:
+                '''
+                terminal_info = [
+                        info for t, info in zip(step_terminal, step_info) if t]
+                sum_terminal_edge_ap = sum(
+                        info['task']['edge_ap'] for info in terminal_info)
+                sum_terminal_instance_ap = sum(
+                        info['task']['instance_ap'] for info in terminal_info)
+                '''
+                sum_terminal_edge_ap = sum(
+                        ap * t for ap, t in zip(all_edge_ap, step_terminal))
+                sum_terminal_instance_ap = sum(
+                        ap * t for ap, t in zip(all_instance_ap, step_terminal))
+                log.add_scalar(
+                        'train_rollout/terminal_edge_ap',
+                        sum_terminal_edge_ap/num_terminal, step_clock[0])
+                log.add_scalar(
+                        'train_rollout/terminal_instance_ap',
+                        sum_terminal_instance_ap/num_terminal, step_clock[0])
             
             seq_rewards.append(step_rewards)
             
@@ -494,7 +509,6 @@ def train_label_confidence_epoch(
                 #torch.cuda.synchronize()
                 #t5 = time.time()
                 #print('edge', t5 - t4)
-                
                 
                 step_loss = 0.
                 
@@ -606,11 +620,9 @@ def train_label_confidence_epoch(
                             brick_list.num_nodes * graph_state.num_nodes) * 2
                     '''
                     step_step_num = brick_list.num_nodes**2
-                    print(step_step_num)
                     step_step_normalizer += step_step_num
                     step_state_num = (
                             brick_list.num_nodes * graph_state.num_nodes) * 2
-                    print(step_state_num)
                     step_state_normalizer += step_state_num
                     normalizer += step_step_num + step_state_num
                     

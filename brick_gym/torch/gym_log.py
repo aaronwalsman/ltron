@@ -6,7 +6,7 @@ import numpy
 import gym.spaces
 
 from brick_gym.gym.spaces import (
-        ImageSpace, SegmentationSpace, StepSpace, SingleInstanceSelectionSpace,
+        ImageSpace, SegmentationSpace, StepSpace, SingleInstanceIndexSpace,
         PixelSelectionSpace, InstanceListSpace, EdgeSpace)
         #, EdgeScoreSpace,
         #SparseEdgeSpace, SparseEdgeScoreSpace, GraphScoreSpace,
@@ -35,12 +35,12 @@ def gym_log(label, data, space, log, step, log_json=True):
         
     elif isinstance(space, StepSpace):
         pass
-    elif isinstance(space, SingleInstanceSelectionSpace):
+    elif isinstance(space, SingleInstanceIndexSpace):
         pass
     elif isinstance(space, PixelSelectionSpace):
         pass
-    elif isinstance(space, InstanceListSpace):
-        return data.tolist()
+    #elif isinstance(space, InstanceListSpace): # just default to the dict space
+    #    return 
     #elif isinstance(space, EdgeScoreSpace):
     #    pass
     #elif isinstance(space, SparseEdgeSpace):
@@ -54,6 +54,8 @@ def gym_log(label, data, space, log, step, log_json=True):
     elif isinstance(space, EdgeSpace):
         return data
     elif isinstance(space, gym.spaces.Discrete):
+        return data
+    elif isinstance(space, gym.spaces.Box):
         return data
     elif isinstance(space, gym.spaces.Dict):
         json_data = {}
