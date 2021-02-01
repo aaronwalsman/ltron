@@ -16,11 +16,11 @@ if __name__ == '__main__':
             num_epochs = 500,
             mini_epochs_per_epoch = 1,
             mini_epoch_sequences = 512,
-            mini_epoch_sequence_length = 4,
+            mini_epoch_sequence_length = 3,
             
             # dataset settings
             dataset = 'tiny_turbos2',
-            num_processes = 8,
+            num_processes = 4,
             randomize_viewpoint=True,
             
             # train settings
