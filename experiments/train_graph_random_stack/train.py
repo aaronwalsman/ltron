@@ -2,15 +2,24 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.graph as train_graph
 
+run = 'Jan30_22-09-18_mechagodzilla'
+epoch = 480
+
+if run is not None:
+    step_checkpoint = './checkpoint/%s/step_model_%04i.pt'%(run, epoch)
+    edge_checkpoint = './checkpoint/%s/edge_model_%04i.pt'%(run, epoch)
+    optimizer_checkpoint = './checkpoint/%s/optimizer_%04i.pt'%(run, epoch)
+else:
+    step_checkpoint = None
+    edge_checkpoint = None
+    optimizer_checkpoint = None
+
 if __name__ == '__main__':
     train_graph.train_label_confidence(
             # load checkpoints
-            #step_checkpoint = './checkpoint/Jan23_14-30-07_mechagodzilla/'
-            #        'step_model_0010.pt',
-            #edge_checkpoint = './checkpoint/Jan23_14-30-07_mechagodzilla/'
-            #        'edge_model_0010.pt',
-            #optimizer_checkpoint = './checkpoint/Jan23_14-30-07_mechagodzilla/'
-            #        'optimizer_0010.pt',
+            step_checkpoint = step_checkpoint,
+            edge_checkpoint = edge_checkpoint,
+            optimizer_checkpoint = optimizer_checkpoint,
             
             # general settings
             num_epochs = 500,
