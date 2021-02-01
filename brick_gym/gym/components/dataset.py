@@ -39,7 +39,8 @@ class DatasetPathComponent(BrickEnvComponent):
                 self.scene_path = None
         else:
             raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
-        self.episode += 1
+        if self.scene_path is not None:
+            self.episode += 1
     
     def get_state(self):
         state = {'episode' : self.episode, 'scene_path' : self.scene_path}
