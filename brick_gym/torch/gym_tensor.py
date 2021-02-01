@@ -121,6 +121,8 @@ def graph_to_gym_space(data, space):
     segment_id = data['segment_id'].view(-1).detach().cpu().numpy()
     instance_labels = numpy.zeros(
             (space['instances']['label'].shape[0]), dtype=numpy.long)
+    instance_scores = numpy.zeros(
+            (space['instances']['label'].shape[0]))
     
     if data.num_nodes:
         # discretize the labels
@@ -130,6 +132,12 @@ def graph_to_gym_space(data, space):
         # remap labels
         instance_labels[segment_id] = discrete_labels
         instance_labels = instance_labels.reshape(-1, 1)
+        
+        if space['instances'].include_score:
+            # remap scores
+            instance_scores[segment_id] = (
+                    data['score'].detach().cpu().view(-1).numpy())
+            instance_scores = instance_scores.reshape(-1, 1)
         
         # num_instances
         num_instances = min(data.num_nodes, space.max_instances)
@@ -142,7 +150,7 @@ def graph_to_gym_space(data, space):
             'label' : instance_labels,
     }
     if space['instances'].include_score:
-        instance_data['score'] = data['score'].cpu().numpy()
+        instance_data['score'] = instance_scores
     
     # remap edges
     original_edges = data['edge_index'].detach().cpu().numpy()
