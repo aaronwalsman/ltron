@@ -105,6 +105,14 @@ def test_graph(
     step_target_instance_labels = []
     seq_target_instance_labels = [{} for _ in range(test_env.num_envs)]
     
+    sum_terminal_instance_ap = 0.
+    sum_terminal_edge_ap = 0.
+    total_terminal_ap = 0
+    
+    sum_all_instance_ap = 0.
+    sum_all_edge_ap = 0.
+    total_all_ap = 0
+    
     while not all_finished:
         with torch.no_grad():
             # gym -> torch
@@ -124,17 +132,17 @@ def test_graph(
             for i, terminal in enumerate(step_terminal):
                 if terminal:
                     
+                    # print something
+                    if step_tensors['scene']['valid_scene_loaded'][i]:
+                        print('Loading scene %i for process %i'%(
+                                scene_index[i], i))
+                    
                     # make a new empty graph to represent the progress state
                     empty_brick_list = BrickList(
                             step_brick_lists[i].brick_feature_spec())
                     graph_states[i] = BrickGraph(
                             empty_brick_list, edge_attr_channels=1).cuda()
                     scene_index[i] += 1
-                    
-                    # print something
-                    if step_tensors['scene']['valid_scene_loaded'][i]:
-                        print('Loading scene %i for process %i'%(
-                                scene_index[i], i))
                     
                     # update the target instance labels
                     target_instance_labels = (
@@ -190,10 +198,8 @@ def test_graph(
                         'graph_task':graph_action})
             
             for i in range(test_env.num_envs):
+                '''
                 # spit out debug images
-                #pos = step_brick_lists[i].pos
-                #print(pos)
-                
                 s = step_tensors['episode_length'].cpu()[i]
                 color_image = step_observations['color_render'][i]
                 Image.fromarray(color_image).save(
@@ -207,10 +213,10 @@ def test_graph(
                 h, w = color_image.shape[:2]
                 score_image = (dense_scores[i].view(h, w, 1).expand(
                         h, w, 3).cpu().numpy() * 255).astype(numpy.uint8)
-                score_image = score_image[0]
                 Image.fromarray(score_image).save(
                         './score_%i_%i_%i.png'%(i, scene_index[i], s))
-            
+                '''
+                
                 # report which edges were predicted this frame
                 step = int(step_tensors['episode_length'][i].cpu())
                 while len(step_pred_edge_dicts) <= step:
@@ -220,15 +226,15 @@ def test_graph(
                     step_target_instance_labels.append({})
                 
                 action = actions[i]['graph_task']
-                edges = action['edges']
+                edges = action['edges']['edge_index']
                 unidirectional_edges = edges[0] < edges[1]
                 
                 edges = edges[:,unidirectional_edges]
-                scores = action['edge_scores'][unidirectional_edges]
+                scores = action['edges']['score'][unidirectional_edges]
                 
                 pred_edges = utils.sparse_graph_to_edge_scores(
                         image_index = (i, scene_index[i]),
-                        node_label = action['instances'],
+                        node_label = action['instances']['label'],
                         edges = edges.T,
                         scores = scores)
                 step_pred_edge_dicts[step].update(pred_edges)
@@ -255,7 +261,27 @@ def test_graph(
             (step_observations,
              step_rewards,
              step_terminal,
-             _) = test_env.step(actions)
+             info) = test_env.step(actions)
+            
+            for i,t in enumerate(step_terminal):
+                # use step-tensors because it's one step out of date, and so
+                # we won't end up clipping the last one.
+                if step_tensors['scene']['valid_scene_loaded'][i]:
+                    if t:
+                        #print('edge/instance ap:')
+                        #print(info[i]['graph_task']['edge_ap'])
+                        #print(info[i]['graph_task']['instance_ap'])
+                        sum_terminal_instance_ap += (
+                                info[i]['graph_task']['instance_ap'])
+                        sum_terminal_edge_ap += (
+                                info[i]['graph_task']['edge_ap'])
+                        total_terminal_ap += 1
+                    
+                    sum_all_instance_ap += (
+                            info[i]['graph_task']['instance_ap'])
+                    sum_all_edge_ap += (
+                            info[i]['graph_task']['edge_ap'])
+                    total_all_ap += 1
             
             # done yet?
             all_finished = numpy.all(
@@ -289,6 +315,15 @@ def test_graph(
     pyplot.plot(instance_ap_values)
     pyplot.ylim(0, 1)
     pyplot.show()
+    
+    print('Average instance ap: %f'%(
+            sum_all_instance_ap/total_all_ap))
+    print('Average edge ap: %f'%(
+            sum_all_edge_ap/total_all_ap))
+    print('Average terminal instance ap: %f'%(
+            sum_terminal_instance_ap/total_terminal_ap))
+    print('Average terminal edge ap: %f'%(
+            sum_terminal_edge_ap/total_terminal_ap))
     
     # statistics I want:
     # confident node-labelling accuracy (PR-curve)
