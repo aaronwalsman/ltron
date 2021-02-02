@@ -24,7 +24,7 @@ if __name__ == '__main__':
             randomize_viewpoint=True,
             
             # train settings
-            train_steps_per_epoch = 8, #1024,
+            train_steps_per_epoch = 1024,
             batch_size = 1,
             
             # test settings
