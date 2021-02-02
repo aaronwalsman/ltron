@@ -1,5 +1,5 @@
 def squared_distance(a, b):
-    return sum(aa-bb for aa,bb in zip(a,b))
+    return sum((aa-bb)**2 for aa,bb in zip(a,b))
 
 def close_enough(a, b, tolerance):
     return squared_distance(a,b) <= tolerance**2

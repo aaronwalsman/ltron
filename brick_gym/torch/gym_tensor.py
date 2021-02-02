@@ -115,50 +115,72 @@ def gym_space_list_to_tensors(
     
     return recurse(tensors, space)
 
-def graph_to_gym_space(data, space):
+def graph_to_gym_space(
+        data,
+        space,
+        process_instance_logits=False,
+        segment_id_remap=False):
     
     # build the instance labels
-    segment_id = data['segment_id'].view(-1).detach().cpu().numpy()
     instance_labels = numpy.zeros(
             (space['instances']['label'].shape[0]), dtype=numpy.long)
     instance_scores = numpy.zeros(
-            (space['instances']['label'].shape[0]))
+            (space['instances']['score'].shape[0]))
     
-    if data.num_nodes:
-        # discretize the labels
-        discrete_labels = torch.argmax(data['instance_label'], dim=-1)
-        discrete_labels = discrete_labels.detach().cpu().numpy()
+    edge_index = data['edge_index'].detach().cpu().numpy()
+    
+    num_instances = data.num_nodes
+    if num_instances:
         
-        # remap labels
-        instance_labels[segment_id] = discrete_labels
+        # process logits
+        if process_instance_logits:
+            # discretize the labels
+            discrete_labels = torch.argmax(data['instance_label'], dim=-1)
+            discrete_labels = discrete_labels.detach().cpu().numpy()
+        else:
+            discrete_labels = data['instance_label'].detach().cpu().numpy()
+        
+        # remap
+        if segment_id_remap:
+            # labels
+            segment_id = data['segment_id'].view(-1).detach().cpu().numpy()
+            num_instances = int(numpy.max(segment_id))
+            instance_indices = segment_id
+            
+            # In the case where multiple nodes have the same segment_id, it
+            # may be better to do a scatter-max based on score than what we're
+            # doing here.  As it is, this is defaulting to numpy behavior when
+            # the same index is specified twice during __setitem__ which I
+            # think is to take the last element specified.
+            
+            # edges
+            edge_index = segment_id[edge_index]
+        
+        else:
+            instance_indices = list(range(num_instances))
+        
+        # make sure there aren't too many labels
+        assert num_instances <= space['instances'].max_instances
+        
+        # plug the data into the numpy tensors
+        instance_labels[instance_indices] = discrete_labels
         instance_labels = instance_labels.reshape(-1, 1)
-        
         if space['instances'].include_score:
-            # remap scores
-            instance_scores[segment_id] = (
+            instance_scores[instance_indices] = (
                     data['score'].detach().cpu().view(-1).numpy())
             instance_scores = instance_scores.reshape(-1, 1)
-        
-        # num_instances
-        num_instances = min(data.num_nodes, space.max_instances)
-    else:
-        num_instances = 0
     
     # compile the instance data
     instance_data = {
-            'num_instances' : data.num_nodes,
+            'num_instances' : num_instances,
             'label' : instance_labels,
     }
     if space['instances'].include_score:
         instance_data['score'] = instance_scores
     
-    # remap edges
-    original_edges = data['edge_index'].detach().cpu().numpy()
-    remapped_edge_index = segment_id[original_edges]
-    num_edges = min(data.num_edges(), space.max_edges)
     edge_data = {
-            'num_edges' : num_edges,
-            'edge_index' : remapped_edge_index,
+            'num_edges' : data.num_edges(),
+            'edge_index' : edge_index,
     }
     if space['edges'].include_score:
         edge_data['score'] = data['edge_attr'].cpu().numpy()

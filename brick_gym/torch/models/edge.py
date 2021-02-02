@@ -40,6 +40,7 @@ class EdgeModel(torch.nn.Module):
             step_lists,
             state_graphs,
             edge_threshold=0.05,
+            max_edges=None,
             match_threshold=0.5,
             segment_id_matching=False):
         
@@ -74,6 +75,7 @@ class EdgeModel(torch.nn.Module):
             # sparsify edge list and edge scores
             sparse_step_edge_step = tg_utils.dense_to_sparse(
                     step_edge_step > edge_threshold)[0]
+            
             step_step_scores = step_edge_step[
                     sparse_step_edge_step[0],
                     sparse_step_edge_step[1]].view(-1,1)
@@ -152,6 +154,16 @@ class EdgeModel(torch.nn.Module):
                     sparse_step_match_state,
                     sparse_step_edge_state,
                     step_state_edge_scores)
+            
+            num_edges = merged_graph.edge_attr.shape[0]
+            if max_edges is not None and num_edges > max_edges:
+                #print('clipping edges')
+                topk_v, topk_i = torch.topk(
+                        merged_graph.edge_attr[:,0], max_edges)
+                merged_graph.edge_index = (
+                        merged_graph.edge_index[:,topk_i])
+                merged_graph.edge_attr = (
+                        merged_graph.edge_attr[topk_i])
             
             merged_graphs.append(merged_graph)
             step_step_logits.append(step_step_x)

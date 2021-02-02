@@ -117,6 +117,7 @@ def graph_supervision_env(
             dataset, split, subset, rank, size, reset_mode=dataset_reset_mode)
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
+    max_edges = dataset_info['max_edges_per_scene']
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
     # scene
@@ -165,7 +166,7 @@ def graph_supervision_env(
     components['graph_label'] = InstanceGraphComponent(
             num_classes,
             max_instances,
-            max_instances**2,
+            max_edges,
             components['dataset'],
             components['scene'])
     
@@ -173,7 +174,7 @@ def graph_supervision_env(
     components['graph_task'] = InstanceGraphConstructionTask(
             num_classes,
             max_instances*2,
-            (max_instances*2)**2,
+            max_edges*8,
             components['scene'],
             components['dataset'])
     

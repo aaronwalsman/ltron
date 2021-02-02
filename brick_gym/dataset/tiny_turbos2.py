@@ -19,7 +19,7 @@ breakout = {
             '8126 - 8126-2.ldr'],
     '8134' : ['8134 - 8134-1.ldr',
             '8134 - 8134-2.ldr',
-            '8134 - 8134-2.ldr'],
+            '8134 - 8134-3.ldr'], # 2nd largest (164 parts)
     '8135' : ['8135 - 8135-1.ldr',
             '8135 - 8135-2.ldr',
             '8135 - 8135-3.ldr',
@@ -42,7 +42,7 @@ breakout = {
             '8154 - 8154-4.ldr',
             '8154 - 8154-5.ldr',
             '8154 - 8154-6.ldr',
-            #'8154 - 8154-7.ldr', # too large (202 parts)
+            '8154 - 8154-7.ldr', # largest (202 parts)
             '8154 - 8154-8.ldr'],
     '8182' : ['8182 - 8182-1.ldr',
             '8182 - 8182-2.ldr',
@@ -175,8 +175,10 @@ print('%i sets found'%len(sum(existing_sets.values(), [])))
 
 breakout_paths = []
 scene = BrickScene()
+scene.make_track_snaps()
 instance_counts = {}
 instances_per_scene = []
+edges_per_scene = []
 all_colors = set()
 for set_number, set_list in existing_sets.items():
     
@@ -193,13 +195,18 @@ for set_number, set_list in existing_sets.items():
             scene.clear_assets()
             scene.import_ldraw(os.path.join(omr_ldraw, file_path))
             instances_per_scene.append(len(scene.instances))
-            print('%s has %i instances'%(file_path, len(scene.instances)))
             for instance_id, instance in scene.instances.items():
                 brick_type = instance.brick_type
                 if str(brick_type) not in instance_counts:
                     instance_counts[str(brick_type)] = 0
                 instance_counts[str(brick_type)] += 1
                 all_colors.add(instance.color)
+            
+            edges = scene.get_all_edges(unidirectional=True)
+            edges_per_scene.append(edges.shape[1])
+            print('%s:'%file_path)
+            print('  %i instances'%len(scene.instances))
+            print('  %i edges'%(edges.shape[1]))
 
 print('%i broken-out sets found'%len(breakout_paths))
 
@@ -207,6 +214,11 @@ print('Average instances per model: %f'%(
         sum(instances_per_scene)/len(instances_per_scene)))
 print('Min/Max instances per model: %i, %i'%(
         min(instances_per_scene), max(instances_per_scene)))
+
+print('Average edges per model: %f'%(
+        sum(edges_per_scene)/len(edges_per_scene)))
+print('Min/Max edges per model: %i, %i'%(
+        min(edges_per_scene), max(edges_per_scene)))
 
 sorted_instance_counts = reversed(sorted(
         (value, key) for key, value in instance_counts.items()))
@@ -219,7 +231,7 @@ print('%i total brick types'%len(instance_counts))
 
 random.seed(1234)
 breakout_paths = list(sorted(breakout_paths))
-test_set = sorted(random.sample(breakout_paths, 22))
+test_set = sorted(random.sample(breakout_paths, 24))
 train_set = [path for path in breakout_paths if path not in test_set]
 
 all_tiny_turbos = ['ldraw/' + set_name for set_name in breakout_paths]
@@ -232,6 +244,7 @@ dataset_info = {
         'test' : test_tiny_turbos
     },
     'max_instances_per_scene' : max(instances_per_scene),
+    'max_edges_per_scene' : max(edges_per_scene),
     'class_ids':dict(
             zip(sorted(instance_counts.keys()),
             range(1, len(instance_counts)+1))),

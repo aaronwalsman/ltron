@@ -183,9 +183,22 @@ def start_viewer(
         
         elif key == b'c':
             instance_id = get_instance_at_location(x, y)
-            connected_snaps = scene.get_snap_connections(str(instance_id))
+            connected_snaps = scene.get_instance_snap_connections(
+                    str(instance_id))
             print('----')
+            print('Instance: %i'%instance_id)
+            print('All Snaps:')
             print(connected_snaps)
+            
+            connected_instances = set(snap[0] for snap in connected_snaps)
+            print('All Connected Instances:')
+            print(list(sorted(connected_instances)))
+            
+            unidirectional = set(
+                    s for s in connected_instances if int(s) > instance_id)
+            print('Outgoing Unidirectional Edges:')
+            print(list(sorted(unidirectional)))
+            
     
     window.start_main_loop(
             glutDisplayFunc = render,

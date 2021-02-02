@@ -202,21 +202,22 @@ class BrickScene:
             snap_position = numpy.dot(snap.transform, [0,0,0,1])[:3]
             self.snap_tracker.insert(snap_id, snap_position)
             
-            subtype_id = snap.subtype_id
-            if not self.renderer.mesh_exists(subtype_id):
-                snap_mesh = snap.get_snap_mesh()
-                self.renderer.load_mesh(
-                        subtype_id,
-                        mesh_data = snap_mesh,
-                        color_mode = 'flat_color')
-            snap_name = '%s_%i'%(str(instance), i)
-            self.renderer.add_instance(
-                    snap_name,
-                    mesh_name = subtype_id,
-                    material_name = '%s_snap'%snap.gender,
-                    transform = snap.transform,
-                    mask_color = (0,0,0),
-                    hidden = True)
+            if self.renderable:
+                subtype_id = snap.subtype_id
+                if not self.renderer.mesh_exists(subtype_id):
+                    snap_mesh = snap.get_snap_mesh()
+                    self.renderer.load_mesh(
+                            subtype_id,
+                            mesh_data = snap_mesh,
+                            color_mode = 'flat_color')
+                snap_name = '%s_%i'%(str(instance), i)
+                self.renderer.add_instance(
+                        snap_name,
+                        mesh_name = subtype_id,
+                        material_name = '%s_snap'%snap.gender,
+                        transform = snap.transform,
+                        mask_color = (0,0,0),
+                        hidden = True)
     
     def move_instance(self, instance, transform):
         instance = self.instances[instance]
@@ -236,12 +237,24 @@ class BrickScene:
         return other_snaps
     
     def get_all_snap_connections(self):
-        graph_edges = {}
+        snap_connections = {}
         for instance in self.instances:
             connections = self.get_instance_snap_connections(instance)
-            graph_edges[str(instance)] = connections
+            snap_connections[str(instance)] = connections
         
-        return graph_edges
+        return snap_connections
+    
+    def get_all_edges(self, unidirectional=False):
+        snap_connections = self.get_all_snap_connections()
+        all_edges = set()
+        for instance_a_name in snap_connections:
+            instance_a_id = int(instance_a_name)
+            for instance_b_name, snap_id in snap_connections[instance_a_name]:
+                instance_b_id = int(instance_b_name)
+                if instance_a_id < instance_b_id or not unidirectional:
+                    all_edges.add((instance_a_id, instance_b_id))
+        all_edges = numpy.array(list(all_edges)).T
+        return all_edges
     
     '''
     def get_edge_dict(self):

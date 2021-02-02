@@ -2,7 +2,7 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.graph as train_graph
 
-run = 'Jan30_22-09-18_mechagodzilla'
+run = None #'Jan30_22-09-18_mechagodzilla'
 epoch = 480
 
 if run is not None:

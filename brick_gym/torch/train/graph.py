@@ -298,15 +298,32 @@ def train_label_confidence_epoch(
     
     device = torch.device('cuda:0')
     
+    max_edges = train_env.single_action_space['graph_task'].max_edges
+    
+    ######## TMP ########
+    #torch.cuda.empty_cache()
+    #print('Waiting')
+    #input()
+    ######## TMP ########
+    
     step_observations = train_env.reset()
-    step_terminal = numpy.ones(train_env.num_envs, dtype=numpy.bool)
+    step_terminal = torch.ones(train_env.num_envs, dtype=torch.bool)
     step_rewards = numpy.zeros(train_env.num_envs)
     graph_states = [None] * train_env.num_envs
     for step in tqdm.tqdm(range(steps)):
         with torch.no_grad():
+            ####################
+            #torch.cuda.synchronize()
+            #ta = time.time()
+            
             # store observation
             seq_terminal.append(step_terminal)
             seq_observations.append(step_observations)
+            
+            ####################
+            #torch.cuda.synchronize()
+            #tb = time.time()
+            #print('ab', tb - ta)
             
             # gym -> torch
             step_tensors = gym_space_to_tensors(
@@ -314,10 +331,20 @@ def train_label_confidence_epoch(
                     train_env.single_observation_space,
                     device)
             
+            ####################
+            #torch.cuda.synchronize()
+            #tc = time.time()
+            #print('bc', tc - tb)
+            
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'])
+            
+            ####################
+            #torch.cuda.synchronize()
+            #td = time.time()
+            #print('cd', td - tc)
             
             # build new graph state for all terminal sequences
             # (do this here so we can use the brick_feature_spec from the model)
@@ -327,13 +354,25 @@ def train_label_confidence_epoch(
                             BrickList(step_brick_lists[i].brick_feature_spec()),
                             edge_attr_channels=1).cuda()
             
+            ####################
+            #torch.cuda.synchronize()
+            #te = time.time()
+            #print('de', te - td)
+            
             # store the graph_state before it gets updated
             # (we want the graph state that was input to this step)
             seq_graph_state.append([g.detach().cpu() for g in graph_states])
             
             # upate the graph state using the edge model
             graph_states, step_step_logits, step_state_logits = edge_model(
-                    step_brick_lists, graph_states)
+                    step_brick_lists,
+                    graph_states,
+                    max_edges=max_edges)
+            
+            ####################
+            #torch.cuda.synchronize()
+            #tf = time.time()
+            #print('ef', tf - te)
             
             # sample an action
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
@@ -363,11 +402,18 @@ def train_label_confidence_epoch(
             actions = []
             for i, graph_state in zip(instance_samples, graph_states):
                 graph_data = graph_to_gym_space(
-                        graph_state,
-                        train_env.single_action_space['graph_task'])
+                        graph_state.cpu(),
+                        train_env.single_action_space['graph_task'],
+                        process_instance_logits=True,
+                        segment_id_remap=True)
                 actions.append({
                         'visibility':int(i.cpu()),
                         'graph_task':graph_data})
+            
+            ####################
+            #torch.cuda.synchronize()
+            #tg = time.time()
+            #print('fg', tg - tf)
             
             if step < log_debug:
                 space = train_env.single_observation_space
@@ -378,10 +424,22 @@ def train_label_confidence_epoch(
                         space,
                         actions)
             
+            ####################
+            #torch.cuda.synchronize()
+            #th = time.time()
+            #print('gh', th - tg)
+            
             (step_observations,
              step_rewards,
              step_terminal,
              step_info) = train_env.step(actions)
+            
+            step_terminal = torch.BoolTensor(step_terminal)
+            
+            ####################
+            #torch.cuda.synchronize()
+            #ti = time.time()
+            #print('hi', ti - th)
             
             log.add_scalar(
                     'train_rollout/reward',
@@ -418,11 +476,16 @@ def train_label_confidence_epoch(
             seq_rewards.append(step_rewards)
             
             step_clock[0] += 1
+            
+            ####################
+            #torch.cuda.synchronize()
+            #tj = time.time()
+            #print('ij', tj - ti)
     
     # when joining these into one long list, make sure sequences are preserved
     seq_tensors = gym_space_list_to_tensors(
             seq_observations, train_env.single_observation_space)
-    seq_terminal = numpy.stack(seq_terminal, axis=1).reshape(-1)
+    seq_terminal = torch.stack(seq_terminal, axis=1).reshape(-1)
     
     seq_graph_state = BrickGraphBatch([
             seq_graph_state[i][j]
@@ -434,6 +497,12 @@ def train_label_confidence_epoch(
     total_correct_segments = 0
     total_correct_correct_segments = 0
     total_segments = 0
+    
+    ######## TMP ########
+    #torch.cuda.empty_cache()
+    #print('Waiting')
+    #input()
+    ######## TMP ########
     
     dataset_size = seq_tensors['color_render'].shape[0]
     tlast = 0
@@ -481,7 +550,7 @@ def train_label_confidence_epoch(
                 for i, terminal in enumerate(step_terminal):
                     if terminal:
                         graph_states[i] = seq_graph_state[
-                                step_indices[i]].cuda().detach()
+                                step_indices[i]].detach().cuda()
                 
                 # update step terminal
                 step_terminal = seq_terminal[step_indices]

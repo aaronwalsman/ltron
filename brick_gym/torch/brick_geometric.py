@@ -99,19 +99,34 @@ class BrickList(GraphData):
         return batch
     
     def cuda(self):
+        features = {feature_name : self[feature_name].cuda()
+                for feature_name in self.brick_feature_names}
+        return BrickList(**features)
+        '''
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].cuda()
         return self
+        '''
     
     def cpu(self):
+        features = {feature_name : self[feature_name].cpu()
+                for feature_name in self.brick_feature_names}
+        return BrickList(**features)
+        '''
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].cpu()
         return self
+        '''
     
     def to(self, device):
+        features = {feature_name : self[feature_name].to(device)
+                for feature_name in self.brick_feature_names}
+        return BrickList(**features)
+        '''
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].to(device)
         return self
+        '''
     
     def detach(self):
         features = {feature_name : self[feature_name].detach()
@@ -289,25 +304,50 @@ class BrickGraph(GraphData):
         return matrix[0]
     
     def cuda(self):
+        brick_list = BrickList(**{feature_name : self[feature_name]
+                for feature_name in self.brick_feature_names}).cuda()
+        edge_index = self.edge_index.cuda()
+        edge_attr = self.edge_attr.cuda()
+        return BrickGraph(
+                brick_list, edge_index=edge_index, edge_attr=edge_attr)
+        '''
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].cuda()
         self.edge_index = self.edge_index.cuda()
         self.edge_attr = self.edge_attr.cuda()
         return self
+        '''
     
     def cpu(self):
+        brick_list = BrickList(**{feature_name : self[feature_name]
+                for feature_name in self.brick_feature_names}).cpu()
+        edge_index = self.edge_index.cpu()
+        edge_attr = self.edge_attr.cpu()
+        return BrickGraph(
+                brick_list, edge_index=edge_index, edge_attr=edge_attr)
+        
+        '''
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].cpu()
         self.edge_index = self.edge_index.cpu()
-        self.edge_attr= self.edge_attr.cpu()
+        self.edge_attr = self.edge_attr.cpu()
         return self
+        '''
     
     def to(self, device):
+        brick_list = BrickList(**{feature_name : self[feature_name]
+                for feature_name in self.brick_feature_names}).to(device)
+        edge_index = self.edge_index.to(device)
+        edge_attr = self.edge_attr.to(device)
+        return BrickGraph(
+                brick_list, edge_index=edge_index, edge_attr=edge_attr)
+        '''
         for feature_name in self.brick_feature_names:
             self[feature_name] = self[feature_name].to(device)
         self.edge_index = self.edge_index.to(device)
         self.edge_attr = self.edge_attr.to(device)
         return self
+        '''
     
     def detach(self):
         brick_list = BrickList(**{feature_name : self[feature_name]
@@ -359,19 +399,25 @@ class ClassTypeBatch(collections.abc.MutableSequence):
     
     # device/detach
     def cuda(self):
-        for c in self.class_type_list:
-            c.cuda()
-        return self
+        cuda_class_type_list = [c.cuda() for c in self.class_type_list]
+        return type(self)(cuda_class_type_list)
+        #for c in self.class_type_list:
+        #    c.cuda()
+        #return self
     
     def cpu(self):
-        for c in self.class_type_list:
-            c.cpu()
-        return self
+        cpu_class_type_list = [c.cpu() for c in self.class_type_list]
+        return type(self)(cpu_class_type_list)
+        #for c in self.class_type_list:
+        #    c.cpu()
+        #return self
     
     def to(self, device):
-        for c in self.class_type_list:
-            c.to(device)
-        return self
+        device_class_type_list = [c.to(device) for c in self.class_type_list]
+        return type(self)(device_class_type_list)
+        #for c in self.class_type_list:
+        #    c.to(device)
+        #return self
     
     def detach(self):
         detached_class_type_list = [c.detach() for c in self.class_type_list]

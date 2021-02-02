@@ -1,3 +1,4 @@
+import time
 import numpy
 
 import brick_gym.utils as utils
@@ -28,6 +29,8 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         self.true_instances = None
     
     def reset(self):
+        
+        # compute the target  edges for this episode
         self.true_edges = {}
         
         brick_scene = self.scene_component.brick_scene
@@ -54,19 +57,40 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         return None
     
     def step(self, action):
+        ###################3
+        #ta = time.time()
+        
         edge_index = action['edges']['edge_index']
+        edge_score = action['edges']['score']
+        assert edge_index.shape[1] <= self.max_edges
         unidirectional_edges = edge_index[0] < edge_index[1]
         edge_index = edge_index[:,unidirectional_edges]
-        unidirectional_scores = action['edges']['score'][unidirectional_edges]
+        edge_scores = action['edges']['score'][unidirectional_edges]
+        
+        ###################3
+        #tb = time.time()
+        #print('graph_task ab:', tb-ta)
+        #print(edge_index.shape)
+        #print(edge_scores.shape)
+        #print(action['instances']['label'].shape)
+        #print(action['instances']['num_instances'])
         
         predicted_edges = utils.sparse_graph_to_edge_scores(
                 image_index = None,
                 node_label = action['instances']['label'],
                 edges = edge_index.T,
-                scores = unidirectional_scores,
+                scores = edge_score,
         )
         
+        ###################3
+        #tc = time.time()
+        #print('graph_task bc:', tc-tb)
+        
         _, _, edge_ap = evaluation.edge_ap(predicted_edges, self.true_edges)
+        
+        ###################3
+        #td = time.time()
+        #print('graph_task cd:', td-tc)
         
         predicted_instances = utils.sparse_graph_to_instance_scores(
                 image_index = None,
@@ -75,8 +99,16 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
                 scores = action['instances']['score'],
         )
         
+        ###################3
+        #te = time.time()
+        #print('graph_task de:', te-td)
+        
         _, _, instance_ap = evaluation.edge_ap(
                 predicted_instances, self.true_instances)
+        
+        ###################3
+        #tf = time.time()
+        #print('graph_task ef:', tf-te)
         
         info = {'instance_ap' : instance_ap,
                 'edge_ap' : edge_ap,
@@ -84,8 +116,12 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         
         terminal = False
         num_instances = action['instances']['num_instances']
-        if num_instances == self.max_instances:
+        if num_instances >= self.max_instances:
             terminal = True
+        
+        ###################3
+        #tg = time.time()
+        #print('graph_task final:', tg-tf)
         
         return None, edge_ap, terminal, info
 
