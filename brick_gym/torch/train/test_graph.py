@@ -192,7 +192,9 @@ def test_graph(
             for hide_index, graph_state in zip(hide_indices, graph_states):
                 graph_action = graph_to_gym_space(
                         graph_state,
-                        test_env.single_action_space['graph_task'])
+                        test_env.single_action_space['graph_task'],
+                        process_instance_logits=True,
+                        segment_id_remap=True)
                 actions.append({
                         'visibility':hide_index,
                         'graph_task':graph_action})
