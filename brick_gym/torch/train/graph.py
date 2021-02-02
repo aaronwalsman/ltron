@@ -69,6 +69,10 @@ def train_label_confidence(
         matching_loss_weight = 1.0,
         edge_loss_weight = 1.0,
         
+        # model settings
+        step_model_backbone = 'smp_fpn_r18',
+        segment_id_matching = False,
+        
         # test settings
         test_frequency = 1,
         test_steps_per_epoch = 1024,
@@ -96,6 +100,7 @@ def train_label_confidence(
     print('Building the step model')
     step_model = named_models.named_graph_step_model(
             'nth_try',
+            backbone_name = step_model_backbone,
             num_classes = num_classes).cuda()
     if step_checkpoint is not None:
         print('Loading step model checkpoint from:')
@@ -171,6 +176,7 @@ def train_label_confidence(
                 score_ratio,
                 matching_loss_weight,
                 edge_loss_weight,
+                segment_id_matching,
                 dataset_info,
                 log_train)
         
@@ -283,6 +289,7 @@ def train_label_confidence_epoch(
         score_ratio,
         matching_loss_weight,
         edge_loss_weight,
+        segment_id_matching,
         dataset_info,
         log_debug):
     
@@ -367,7 +374,8 @@ def train_label_confidence_epoch(
             graph_states, step_step_logits, step_state_logits = edge_model(
                     step_brick_lists,
                     graph_states,
-                    max_edges=max_edges)
+                    max_edges=max_edges,    
+                    segment_id_matching=segment_id_matching)
             
             ####################
             #torch.cuda.synchronize()
@@ -651,139 +659,146 @@ def train_label_confidence_epoch(
                 #t6 = time.time()
                 #print('label/score/vis loss', t6 - t5)
                 
-                # edges and matching
-                matching_loss = 0.
-                edge_loss = 0.
-                normalizer = 0.
-                step_step_matching_correct = 0.
-                step_step_edge_correct = 0.
-                step_step_normalizer = 0.
-                step_state_matching_correct = 0.
-                step_state_edge_correct = 0.
-                step_state_normalizer = 0.
-                for (step_step,
-                     step_state,
-                     brick_list,
-                     graph_state,
-                     y) in zip(
-                        step_step_logits,
-                        step_state_logits,
-                        step_brick_lists,
-                        graph_states,
-                        y_graph):
+                if edge_loss_weight != 0. and matching_loss_weight != 0.:
+                    # edges and matching
+                    matching_loss = 0.
+                    edge_loss = 0.
+                    normalizer = 0.
+                    step_step_matching_correct = 0.
+                    step_step_edge_correct = 0.
+                    step_step_normalizer = 0.
+                    step_state_matching_correct = 0.
+                    step_state_edge_correct = 0.
+                    step_state_normalizer = 0.
+                    for (step_step,
+                         step_state,
+                         brick_list,
+                         graph_state,
+                         y) in zip(
+                            step_step_logits,
+                            step_state_logits,
+                            step_brick_lists,
+                            graph_states,
+                            y_graph):
+                        
+                        step_step = torch.sigmoid(step_step)
+                        step_state = torch.sigmoid(step_state)
+                        
+                        '''
+                        normalizer += brick_list.num_nodes**2
+                        normalizer += (
+                                brick_list.num_nodes *
+                                graph_state.num_nodes) * 2
+                        '''
+                        step_step_num = brick_list.num_nodes**2
+                        step_step_normalizer += step_step_num
+                        step_state_num = (
+                                brick_list.num_nodes *
+                                graph_state.num_nodes) * 2
+                        step_state_normalizer += step_state_num
+                        normalizer += step_step_num + step_state_num
+                        
+                        # matching loss
+                        step_step_matching_target = torch.eye(
+                                brick_list.num_nodes,
+                                dtype=torch.bool).to(device)
+                        '''
+                        step_step_matching_loss = binary_cross_entropy(
+                                step_step[:,:,0], step_step_matching_target,
+                                reduction = 'sum')
+                        '''
+                        step_step_matching_loss = cross_product_loss(
+                                step_step[:,:,0], step_step_matching_target)
+                        step_step_matching_pred = step_step[:,:,0] > 0.5
+                        step_step_matching_correct += torch.sum(
+                                step_step_matching_pred ==
+                                step_step_matching_target)
+                        
+                        step_state_matching_target = (
+                                brick_list.segment_id ==
+                                graph_state.segment_id.t())
+                        '''
+                        step_state_matching_loss = binary_cross_entropy(
+                                step_state[:,:,0], step_state_matching_target,
+                                reduction = 'sum') * 2
+                        '''
+                        step_state_matching_loss = cross_product_loss(
+                                step_state[:,:,0],
+                                step_state_matching_target) * 2
+                        step_state_matching_pred = step_state[:,:,0] > 0.5
+                        step_state_matching_correct += torch.sum(
+                                step_state_matching_pred ==
+                                step_state_matching_target) * 2
+                        
+                        matching_loss = (matching_loss +
+                                step_step_matching_loss * step_step_num +
+                                step_state_matching_loss * step_state_num)
+                        
+                        # edge loss
+                        full_edge_target = y.edge_matrix(
+                                bidirectionalize=True).to(torch.bool)
+                        
+                        step_lookup = brick_list.segment_id[:,0]
+                        step_step_edge_target = full_edge_target[
+                                step_lookup][:,step_lookup]
+                        '''
+                        step_step_edge_loss = binary_cross_entropy(
+                                step_step[:,:,1], step_step_edge_target,
+                                reduction = 'sum')
+                        '''
+                        step_step_edge_loss = cross_product_loss(
+                                step_step[:,:,1], step_step_edge_target)
+                        step_step_edge_pred = step_step[:,:,1] > 0.5
+                        step_step_edge_correct += torch.sum(
+                                step_step_edge_pred ==
+                                step_step_edge_target)
+                        
+                        state_lookup = graph_state.segment_id[:,0]
+                        step_state_edge_target = full_edge_target[
+                                step_lookup][:,state_lookup]
+                        '''
+                        step_state_edge_loss = binary_cross_entropy(
+                                step_state[:,:,1], step_state_edge_target,
+                                reduction = 'sum')
+                        '''
+                        step_state_edge_loss = cross_product_loss(
+                                step_state[:,:,1], step_state_edge_target) * 2
+                        step_state_edge_pred = step_state[:,:,1] > 0.5
+                        step_state_edge_correct += torch.sum(
+                                step_state_edge_pred ==
+                                step_state_edge_target) * 2
+                        
+                        edge_loss = (edge_loss +
+                                step_step_edge_loss * step_step_num +
+                                step_state_edge_loss * step_state_num)
                     
-                    step_step = torch.sigmoid(step_step)
-                    step_state = torch.sigmoid(step_state)
+                    matching_loss = matching_loss / normalizer
+                    step_loss = step_loss + matching_loss * matching_loss_weight
+                    log.add_scalar(
+                            'loss/matching', matching_loss, step_clock[0])
                     
-                    '''
-                    normalizer += brick_list.num_nodes**2
-                    normalizer += (
-                            brick_list.num_nodes * graph_state.num_nodes) * 2
-                    '''
-                    step_step_num = brick_list.num_nodes**2
-                    step_step_normalizer += step_step_num
-                    step_state_num = (
-                            brick_list.num_nodes * graph_state.num_nodes) * 2
-                    step_state_normalizer += step_state_num
-                    normalizer += step_step_num + step_state_num
+                    edge_loss = edge_loss / normalizer
+                    step_loss = step_loss + edge_loss * edge_loss_weight
+                    log.add_scalar('loss/edge', edge_loss, step_clock[0])
                     
-                    # matching loss
-                    step_step_matching_target = torch.eye(
-                            brick_list.num_nodes, dtype=torch.bool).to(device)
-                    '''
-                    step_step_matching_loss = binary_cross_entropy(
-                            step_step[:,:,0], step_step_matching_target,
-                            reduction = 'sum')
-                    '''
-                    step_step_matching_loss = cross_product_loss(
-                            step_step[:,:,0], step_step_matching_target)
-                    step_step_matching_pred = step_step[:,:,0] > 0.5
-                    step_step_matching_correct += torch.sum(
-                            step_step_matching_pred ==
-                            step_step_matching_target)
-                    
-                    step_state_matching_target = (
-                            brick_list.segment_id ==
-                            graph_state.segment_id.t())
-                    '''
-                    step_state_matching_loss = binary_cross_entropy(
-                            step_state[:,:,0], step_state_matching_target,
-                            reduction = 'sum') * 2
-                    '''
-                    step_state_matching_loss = cross_product_loss(
-                            step_state[:,:,0], step_state_matching_target) * 2
-                    step_state_matching_pred = step_state[:,:,0] > 0.5
-                    step_state_matching_correct += torch.sum(
-                            step_state_matching_pred ==
-                            step_state_matching_target) * 2
-                    
-                    matching_loss = (matching_loss +
-                            step_step_matching_loss * step_step_num +
-                            step_state_matching_loss * step_state_num)
-                    
-                    # edge loss
-                    full_edge_target = y.edge_matrix(bidirectionalize=True).to(
-                            torch.bool)
-                    
-                    step_lookup = brick_list.segment_id[:,0]
-                    step_step_edge_target = full_edge_target[
-                            step_lookup][:,step_lookup]
-                    '''
-                    step_step_edge_loss = binary_cross_entropy(
-                            step_step[:,:,1], step_step_edge_target,
-                            reduction = 'sum')
-                    '''
-                    step_step_edge_loss = cross_product_loss(
-                            step_step[:,:,1], step_step_edge_target)
-                    step_step_edge_pred = step_step[:,:,1] > 0.5
-                    step_step_edge_correct += torch.sum(
-                            step_step_edge_pred ==
-                            step_step_edge_target)
-                    
-                    state_lookup = graph_state.segment_id[:,0]
-                    step_state_edge_target = full_edge_target[
-                            step_lookup][:,state_lookup]
-                    '''
-                    step_state_edge_loss = binary_cross_entropy(
-                            step_state[:,:,1], step_state_edge_target,
-                            reduction = 'sum')
-                    '''
-                    step_state_edge_loss = cross_product_loss(
-                            step_state[:,:,1], step_state_edge_target) * 2
-                    step_state_edge_pred = step_state[:,:,1] > 0.5
-                    step_state_edge_correct += torch.sum(
-                            step_state_edge_pred ==
-                            step_state_edge_target) * 2
-                    
-                    edge_loss = (edge_loss +
-                            step_step_edge_loss * step_step_num +
-                            step_state_edge_loss * step_state_num)
-                
-                matching_loss = matching_loss / normalizer
-                step_loss = step_loss + matching_loss * matching_loss_weight
-                log.add_scalar('loss/matching', matching_loss, step_clock[0])
-                
-                edge_loss = edge_loss / normalizer
-                step_loss = step_loss + edge_loss * edge_loss_weight
-                log.add_scalar('loss/edge', edge_loss, step_clock[0])
-                
-                step_step_match_acc = (
-                        step_step_matching_correct / step_step_normalizer)
-                log.add_scalar('train_accuracy/step_step_match',
-                        step_step_match_acc, step_clock[0])
-                step_step_edge_acc = (
-                        step_step_edge_correct / step_step_normalizer)
-                log.add_scalar('train_accuracy/step_step_edge',
-                        step_step_edge_acc, step_clock[0])
-                if step_state_normalizer:
-                    step_state_match_acc = (
-                            step_state_matching_correct / step_state_normalizer)
-                    log.add_scalar('train_accuracy/step_state_match',
-                            step_state_match_acc, step_clock[0])
-                    step_state_edge_acc = (
-                            step_state_edge_correct / step_state_normalizer)
-                    log.add_scalar('train_accuracy/step_state_edge',
-                            step_state_edge_acc, step_clock[0])
+                    step_step_match_acc = (
+                            step_step_matching_correct / step_step_normalizer)
+                    log.add_scalar('train_accuracy/step_step_match',
+                            step_step_match_acc, step_clock[0])
+                    step_step_edge_acc = (
+                            step_step_edge_correct / step_step_normalizer)
+                    log.add_scalar('train_accuracy/step_step_edge',
+                            step_step_edge_acc, step_clock[0])
+                    if step_state_normalizer:
+                        step_state_match_acc = (
+                                step_state_matching_correct /
+                                step_state_normalizer)
+                        log.add_scalar('train_accuracy/step_state_match',
+                                step_state_match_acc, step_clock[0])
+                        step_state_edge_acc = (
+                                step_state_edge_correct / step_state_normalizer)
+                        log.add_scalar('train_accuracy/step_state_edge',
+                                step_state_edge_acc, step_clock[0])
                 
                 log.add_scalar('loss/total', step_loss, step_clock[0])
                 

@@ -16,7 +16,7 @@ if __name__ == '__main__':
             num_epochs = 500,
             mini_epochs_per_epoch = 1,
             mini_epoch_sequences = 512,
-            mini_epoch_sequence_length = 8,
+            mini_epoch_sequence_length = 1,
             
             # dataset settings
             dataset = 'tiny_turbos2',
@@ -25,7 +25,13 @@ if __name__ == '__main__':
             
             # train settings
             train_steps_per_epoch = 1024,
-            batch_size = 1,
+            batch_size = 6,
+            edge_loss_weight = 0.,
+            matching_loss_weight = 0.,
+            
+            # model settings
+            step_model_backbone = 'smp_fpn_r18',
+            segment_id_matching = True,
             
             # test settings
             test_frequency = None,

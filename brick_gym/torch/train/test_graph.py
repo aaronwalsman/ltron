@@ -90,6 +90,8 @@ def test_graph(
     # get initial observations
     step_observations = test_env.reset()
     
+    max_edges = test_env.single_action_space['graph_task'].max_edges
+    
     # initialize progress variables
     step_terminal = numpy.ones(test_env.num_envs, dtype=numpy.bool)
     graph_states = [None] * test_env.num_envs
@@ -172,7 +174,8 @@ def test_graph(
             graph_states, step_edge_logits, step_state_logits = edge_model(
                     step_brick_lists,
                     graph_states,
-                    segment_id_matching = segment_id_matching)
+                    segment_id_matching = segment_id_matching,
+                    max_edges=max_edges)
             
             # figure out which instances to hide
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
@@ -191,7 +194,7 @@ def test_graph(
             actions = []
             for hide_index, graph_state in zip(hide_indices, graph_states):
                 graph_action = graph_to_gym_space(
-                        graph_state,
+                        graph_state.cpu(),
                         test_env.single_action_space['graph_task'],
                         process_instance_logits=True,
                         segment_id_remap=True)
