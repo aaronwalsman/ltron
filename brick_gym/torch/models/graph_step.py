@@ -44,7 +44,7 @@ class GraphStepModel(torch.nn.Module):
         self.segmentation_model = segmentation_model
         self.heads = torch.nn.ModuleDict(heads)
     
-    def forward(self, x, segmentation=None):
+    def forward(self, x, segmentation=None, max_instances=None):
         x = self.backbone(x)
         if self.add_spatial_embedding:
             x = self.spatial_embedding_layer(x)
@@ -60,6 +60,6 @@ class GraphStepModel(torch.nn.Module):
         dense_graph_scores = dense_scores * (segmentation != 0).unsqueeze(1)
         
         batch_graphs = BrickList.segmentations_to_brick_lists(
-                dense_graph_scores, segmentation, head_features)
+                dense_graph_scores, segmentation, head_features, max_instances)
         
         return batch_graphs, segmentation, dense_scores, head_features

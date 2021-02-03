@@ -44,9 +44,9 @@ def test_checkpoint(
     print('Building the step model')
     step_model = named_models.named_graph_step_model(
             step_model_name,
+            backbone_name = 'smp_fpn_r18',
             num_classes = num_classes).cuda()
     step_model.load_state_dict(torch.load(step_checkpoint))
-    step_model.eval()
     
     print('-'*80)
     print('Building the edge model')
@@ -54,7 +54,6 @@ def test_checkpoint(
             edge_model_name,
             input_dim=256).cuda()
     edge_model.load_state_dict(torch.load(edge_checkpoint))
-    edge_model.eval()
     
     print('='*80)
     print('Building the test environment')
@@ -86,6 +85,8 @@ def test_graph(
         test_env):
     
     device = torch.device('cuda:0')
+    #step_model.eval()
+    #edge_model.eval()
     
     # get initial observations
     step_observations = test_env.reset()
@@ -127,6 +128,23 @@ def test_graph(
             step_brick_lists, _, dense_scores, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'])
+            
+            instance_correct = 0
+            total_instances = 0
+            for i in range(test_env.num_envs):
+                if step_brick_lists[i].num_nodes == 0:
+                    continue
+                target_graph = step_tensors['graph_label'][i]
+                predicted_labels = torch.argmax(
+                        step_brick_lists[i].instance_label, dim=-1)
+                instance_label_target = (
+                        target_graph.instance_label[
+                            step_brick_lists[i].segment_id[:,0]][:,0])
+                instance_correct += float(torch.sum(
+                        instance_label_target == predicted_labels).cpu())
+                total_instances += predicted_labels.shape[0]
+            if total_instances:
+                print(instance_correct / total_instances)
             
             # build new graph state for all terminal sequences
             # (do this here so we can use the brick_feature_spec from the model)

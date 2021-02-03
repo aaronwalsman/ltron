@@ -37,6 +37,7 @@ edge_threshold = 0.05
 
 def train_label_confidence(
         # load checkpoints
+        settings_file = None,
         step_checkpoint = None,
         edge_checkpoint = None,
         optimizer_checkpoint = None,
@@ -68,6 +69,7 @@ def train_label_confidence(
         score_ratio = 0.1,
         matching_loss_weight = 1.0,
         edge_loss_weight = 1.0,
+        max_instances_per_step = 8,
         
         # model settings
         step_model_backbone = 'smp_fpn_r18',
@@ -176,6 +178,7 @@ def train_label_confidence(
                 score_ratio,
                 matching_loss_weight,
                 edge_loss_weight,
+                max_instances_per_step,
                 segment_id_matching,
                 dataset_info,
                 log_train)
@@ -289,6 +292,7 @@ def train_label_confidence_epoch(
         score_ratio,
         matching_loss_weight,
         edge_loss_weight,
+        max_instances_per_step,
         segment_id_matching,
         dataset_info,
         log_debug):
@@ -312,6 +316,9 @@ def train_label_confidence_epoch(
     #print('Waiting')
     #input()
     ######## TMP ########
+    
+    step_model.eval()
+    edge_model.eval()
     
     step_observations = train_env.reset()
     step_terminal = torch.ones(train_env.num_envs, dtype=torch.bool)
@@ -346,10 +353,11 @@ def train_label_confidence_epoch(
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(
                     step_tensors['color_render'],
-                    step_tensors['segmentation_render'])
+                    step_tensors['segmentation_render'],
+                    max_instances = max_instances_per_step)
             
             ####################
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             #td = time.time()
             #print('cd', td - tc)
             
@@ -362,7 +370,7 @@ def train_label_confidence_epoch(
                             edge_attr_channels=1).cuda()
             
             ####################
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             #te = time.time()
             #print('de', te - td)
             
@@ -378,7 +386,7 @@ def train_label_confidence_epoch(
                     segment_id_matching=segment_id_matching)
             
             ####################
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             #tf = time.time()
             #print('ef', tf - te)
             
@@ -419,7 +427,7 @@ def train_label_confidence_epoch(
                         'graph_task':graph_data})
             
             ####################
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             #tg = time.time()
             #print('fg', tg - tf)
             
@@ -512,6 +520,9 @@ def train_label_confidence_epoch(
     #input()
     ######## TMP ########
     
+    step_model.train()
+    edge_model.train()
+    
     dataset_size = seq_tensors['color_render'].shape[0]
     tlast = 0
     for mini_epoch in range(1, mini_epochs+1):
@@ -545,7 +556,7 @@ def train_label_confidence_epoch(
                 
                 # step forward pass
                 step_brick_lists, _, dense_scores, head_features = step_model(
-                        x_im, x_seg)
+                        x_im, x_seg, max_instances=max_instances_per_step)
                 
                 ################################
                 #torch.cuda.synchronize()
@@ -659,7 +670,7 @@ def train_label_confidence_epoch(
                 #t6 = time.time()
                 #print('label/score/vis loss', t6 - t5)
                 
-                if edge_loss_weight != 0. and matching_loss_weight != 0.:
+                if edge_loss_weight != 0. or matching_loss_weight != 0.:
                     # edges and matching
                     matching_loss = 0.
                     edge_loss = 0.
@@ -831,7 +842,7 @@ def train_label_confidence_epoch(
                 step_clock[0] += 1
             
             ################################
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             #t8 = time.time()
             
             seq_loss.backward()

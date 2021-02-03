@@ -52,7 +52,8 @@ class BrickList(GraphData):
     '''
     
     @staticmethod
-    def segmentations_to_brick_lists(scores, segmentation, feature_dict):
+    def segmentations_to_brick_lists(
+            scores, segmentation, feature_dict, max_instances=None):
         # get dimensions (this works for either 3 or 4 dimensional tensors)
         b, h, w = scores.shape[0], scores.shape[-2], scores.shape[-1]
         scores = scores.view(b,h,w)
@@ -63,6 +64,15 @@ class BrickList(GraphData):
         raw_segment_score, raw_source_index = scatter_max(
                 scores.view(b,-1), segmentation.view(b,-1))
         
+        if (max_instances is not None and
+                max_instances < raw_segment_score.shape[1]):
+            raw_segment_score, remap_segment_id = torch.topk(
+                    raw_segment_score, max_instances)
+            raw_source_index = torch.gather(
+                    raw_source_index, 1, remap_segment_id)
+        else:
+            remap_segment_id = None
+        
         # filter out the segments that have no contributing pixels
         # segment_score: filtered raw_segment_score
         # source_index: filtered raw_source_index
@@ -71,16 +81,21 @@ class BrickList(GraphData):
         brick_lists = []
         for i in range(b):
             item_entries = valid_segments[0] == i
-            segment_ids = valid_segments[1][item_entries]
-            num_segments = segment_ids.shape[0]
+            nonzero_ids = valid_segments[1][item_entries]
+            if remap_segment_id is None:
+                segment_ids = nonzero_ids
+            else:
+                segment_ids = remap_segment_id[i][nonzero_ids]
+            
+            num_segments = nonzero_ids.shape[0]
             batch_entries = [i] * num_segments
             
-            item_segment_score = raw_segment_score[batch_entries, segment_ids]
-            item_source_index = raw_source_index[batch_entries, segment_ids]
-
+            item_segment_score = raw_segment_score[batch_entries, nonzero_ids]
+            item_source_index = raw_source_index[batch_entries, nonzero_ids]
+            
             positions = torch.stack(
                     (item_source_index // w, item_source_index % w), dim=1)
-
+            
             graph_data = {}
             for feature_name, feature_values in feature_dict.items():
                 c = feature_values.shape[1]
