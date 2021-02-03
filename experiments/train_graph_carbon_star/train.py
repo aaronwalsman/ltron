@@ -15,8 +15,8 @@ if __name__ == '__main__':
             # general settings
             num_epochs = 500,
             mini_epochs_per_epoch = 1,
-            mini_epoch_sequences = 512,
-            mini_epoch_sequence_length = 4,
+            mini_epoch_sequences = 2048,
+            mini_epoch_sequence_length = 1,
             
             # dataset settings
             dataset = 'carbon_star',
@@ -24,8 +24,8 @@ if __name__ == '__main__':
             randomize_viewpoint=False,
             
             # train settings
-            train_steps_per_epoch = 1024,
-            batch_size = 2,
+            train_steps_per_epoch = 4096,
+            batch_size = 6,
             
             # test settings
             test_frequency = None,

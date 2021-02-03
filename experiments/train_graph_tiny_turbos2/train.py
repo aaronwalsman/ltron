@@ -40,7 +40,7 @@ if __name__ == '__main__':
             
             # model settings
             step_model_backbone = 'smp_fpn_r18',
-            segment_id_matching = True,
+            segment_id_matching = False,
             
             # test settings
             test_frequency = None,
