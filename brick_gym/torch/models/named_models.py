@@ -69,6 +69,12 @@ def named_fcn_backbone(name, output_channels):
                 encoder_weights = 'imagenet',
                 classes = output_channels,
                 activation = None)
+    elif name == 'smp_fpn_r50':
+        return segmentation_models_pytorch.FPN(
+                encoder_name = 'resnet50',
+                encoder_weights = 'imagenet',
+                classes = output_channels,
+                activation = None)
     elif name == 'smp_fpn_r34':
         return segmentation_models_pytorch.FPN(
                 encoder_name = 'resnet34',
