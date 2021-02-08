@@ -61,25 +61,22 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         #ta = time.time()
         
         edge_index = action['edges']['edge_index']
-        edge_score = action['edges']['score']
+        edge_scores = action['edges']['score']
         assert edge_index.shape[1] <= self.max_edges
-        unidirectional_edges = edge_index[0] < edge_index[1]
-        edge_index = edge_index[:,unidirectional_edges]
-        edge_scores = action['edges']['score'][unidirectional_edges]
+        #unidirectional_edges = edge_index[0] < edge_index[1]
+        #edge_index = edge_index[:,unidirectional_edges]
+        #edge_scores = action['edges']['score'][unidirectional_edges]
         
         ###################3
         #tb = time.time()
         #print('graph_task ab:', tb-ta)
-        #print(edge_index.shape)
-        #print(edge_scores.shape)
-        #print(action['instances']['label'].shape)
-        #print(action['instances']['num_instances'])
         
         predicted_edges = utils.sparse_graph_to_edge_scores(
                 image_index = None,
                 node_label = action['instances']['label'],
                 edges = edge_index.T,
-                scores = edge_score,
+                scores = edge_scores,
+                unidirectional = True,
         )
         
         ###################3
