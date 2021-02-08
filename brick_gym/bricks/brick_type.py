@@ -10,6 +10,14 @@ class BrickLibrary(collections.abc.MutableMapping):
             brick_types = {}
         self.brick_types = brick_types
     
+    def add_type(self, document):
+        if document in self:
+            return self[document]
+        
+        new_type = BrickType(document)
+        self[new_type.reference_name] = new_type
+        return new_type
+    
     def import_document(self, document):
         new_types = []
         '''
@@ -28,9 +36,12 @@ class BrickLibrary(collections.abc.MutableMapping):
                         document.reference_table['ldraw'][reference_name])
                 if isinstance(reference_document, LDrawDAT):
                     if reference_name in ldraw_paths.LDRAW_PARTS:
+                        '''
                         new_type = BrickType(reference_document)
                         self[reference_name] = new_type
                         new_types.append(new_type)
+                        '''
+                        new_types.append(self.add_type(reference_document))
                 elif isinstance(reference_document, (
                         LDrawMPDMainFile,
                         LDrawMPDInternalFile,
@@ -58,6 +69,8 @@ class BrickLibrary(collections.abc.MutableMapping):
 
 class BrickType:
     def __init__(self, document):
+        if isinstance(document, str):
+            document = LDrawDocument.parse_document(document)
         self.reference_name = document.reference_name
         self.mesh_name = self.reference_name.replace('.dat', '')
         self.document = document

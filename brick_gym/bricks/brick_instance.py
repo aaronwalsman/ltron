@@ -18,6 +18,16 @@ class BrickInstanceTable(collections.abc.MutableMapping):
         self.instances = instances
         self.next_instance_id = 1
     
+    def add_instance(self, brick_name, brick_color, brick_transform):
+        new_instance = BrickInstance(
+                self.next_instance_id,
+                self.library[brick_name],
+                brick_color,
+                brick_transform)
+        self[self.next_instance_id] = new_instance
+        self.next_instance_id += 1
+        return new_instance
+    
     def import_document(self, document, transform=None, color=None):
         new_instances = []
         try:
@@ -34,14 +44,20 @@ class BrickInstanceTable(collections.abc.MutableMapping):
                     reference_color = command.color
                     if isinstance(reference_document, LDrawDAT):
                         if reference_name in ldraw_paths.LDRAW_PARTS:
+                            '''
                             new_instance = BrickInstance(
                                     self.next_instance_id,
                                     self.library[reference_name],
                                     reference_color,
                                     reference_transform)
                             self[self.next_instance_id] = new_instance
-                            new_instances.append(new_instance)
                             self.next_instance_id += 1
+                            '''
+                            new_instance = self.add_instance(
+                                    reference_name,
+                                    reference_color,
+                                    reference_transform)
+                            new_instances.append(new_instance)
                     elif isinstance(reference_document, (
                             LDrawMPDMainFile,
                             LDrawMPDInternalFile,
