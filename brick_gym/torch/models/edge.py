@@ -11,6 +11,7 @@ class EdgeModel(torch.nn.Module):
             pre_compare_layers=3,
             post_compare_layers=3,
             compare_mode='add',
+            split_heads=False,
             bias=True):
         
         super(EdgeModel, self).__init__()
@@ -18,6 +19,7 @@ class EdgeModel(torch.nn.Module):
         self.in_channels = in_channels
         self.out_channels = 2
         self.compare_mode = compare_mode
+        self.split_heads = split_heads
         if bias:
             stdv = 1. / (in_channels**0.5)
             initial_bias = torch.zeros(1, in_channels).uniform_(-stdv,stdv)
@@ -30,11 +32,24 @@ class EdgeModel(torch.nn.Module):
                 in_channels,
                 in_channels,
                 in_channels)
-        self.post_compare = mlp.LinearStack(
-                post_compare_layers,
-                in_channels,
-                in_channels,
-                2)
+        
+        if self.split_heads:
+            self.matching_head = mlp.LinearStack(
+                    post_compare_layers,
+                    in_channels,
+                    in_channels,
+                    1)
+            self.edge_head = mlp.LinearStack(
+                    post_compare_layers,
+                    in_channels,
+                    in_channels,
+                    1)
+        else:
+            self.post_compare = mlp.LinearStack(
+                    post_compare_layers,
+                    in_channels,
+                    in_channels,
+                    2)
     
     def forward(self,
             step_lists,
@@ -63,27 +78,49 @@ class EdgeModel(torch.nn.Module):
                 step_step_x = step_one_x + one_step_x
             elif self.compare_mode == 'subtract':
                 step_step_x = step_one_x - one_step_x
+            elif self.compare_mode == 'subtract_squared':
+                step_step_x = (step_one_x - one_step_x)**2
         
             # post-compare step_step_x
-            step_step_x = self.post_compare(
-                    step_step_x.view(step_num**2, channels))
-            step_step_x = step_step_x.view(step_num, step_num, 2)
-            step_step_score = torch.sigmoid(step_step_x)
-            step_edge_step = step_step_score[...,1]
-            #step_match_step = step_step_score[...,1] # unused
+            if self.split_heads:
+                step_match_step_logits = self.matching_head(
+                        step_step_x.view(step_num**2, channels))
+                step_match_step_logits = step_match_step_logits.view(
+                        step_num, step_num)
+                
+                step_edge_step_logits = self.edge_head(
+                        step_step_x.view(step_num**2, channels))
+                step_edge_step_logits = step_edge_step_logits.view(
+                        step_num, step_num)
+                
+                step_step_x = torch.stack(
+                        (step_match_step_logits, step_edge_step_logits), dim=-1)
+            
+            else:
+                step_step_x = self.post_compare(
+                        step_step_x.view(step_num**2, channels))
+                step_step_x = step_step_x.view(step_num, step_num, 2)
+                step_match_step_logits = step_step_x[..., 0]
+                step_edge_step_logits = step_step_x[..., 1]
+                #step_step_score = torch.sigmoid(step_step_x)
+                #step_edge_step = step_step_score[...,1]
+                #step_match_step = step_step_score[...,1] # unused
             
             # sparsify edge list and edge scores
-            sparse_step_edge_step = tg_utils.dense_to_sparse(
-                    step_edge_step > edge_threshold)[0]
+            step_edge_step_scores = torch.sigmoid(step_edge_step_logits)
+            sparse_step_edge_step_entries = tg_utils.dense_to_sparse(
+                    step_edge_step_scores > edge_threshold)[0]
             
-            step_step_scores = step_edge_step[
-                    sparse_step_edge_step[0],
-                    sparse_step_edge_step[1]].view(-1,1)
+            sparse_step_edge_step_scores = step_edge_step_scores[
+                    sparse_step_edge_step_entries[0],
+                    sparse_step_edge_step_entries[1]].view(-1,1)
             
             # ----------------
             # build step_graph
             step_graph = BrickGraph(
-                    step_list, sparse_step_edge_step, step_step_scores)
+                    step_list,
+                    sparse_step_edge_step_entries,
+                    sparse_step_edge_step_scores)
             
             # ------------------------
             # compute step-state edges
@@ -99,22 +136,43 @@ class EdgeModel(torch.nn.Module):
                 step_state_x = step_one_x + one_state_x
             elif self.compare_mode == 'subtract':
                 step_state_x = step_one_x - one_state_x
+            elif self.compare_mode == 'subtract_squared':
+                step_state_x = (step_one_x - one_state_x)**2
             
             # post-compare step_state_x
-            step_state_x = self.post_compare(
-                    step_state_x.view(step_num*state_num, channels))
-            step_state_x = step_state_x.view(step_num, state_num, 2)
-            
-            step_state_score = torch.sigmoid(step_state_x)
-            step_match_state = step_state_score[...,0]
-            step_edge_state = step_state_score[...,1]
+            if self.split_heads:
+                step_match_state_logits = self.matching_head(
+                        step_state_x.view(step_num*state_num, channels))
+                step_match_state_logits = step_match_state_logits.view(
+                        step_num, state_num)
+                
+                step_edge_state_logits = self.edge_head(
+                        step_state_x.view(step_num*state_num, channels))
+                step_edge_state_logits = step_edge_state_logits.view(
+                        step_num, state_num)
+                
+                step_state_x = torch.stack(
+                        (step_match_state_logits, step_edge_state_logits),
+                        dim=-1)
+            else:
+                step_state_x = self.post_compare(
+                        step_state_x.view(step_num*state_num, channels))
+                step_state_x = step_state_x.view(step_num, state_num, 2)
+                
+                #step_state_score = torch.sigmoid(step_state_x)
+                #step_match_state = step_state_score[...,0]
+                #step_edge_state = step_state_score[...,1]
+                step_match_state_logits = step_state_x[...,0]
+                step_edge_state_logits = step_state_x[...,1]
             
             # sparsify edge list and edge scores
-            sparse_step_edge_state = tg_utils.dense_to_sparse(
-                    step_edge_state > edge_threshold)[0]
-            step_state_edge_scores = step_edge_state[
-                    sparse_step_edge_state[0],
-                    sparse_step_edge_state[1]].view(-1,1)
+            step_edge_state_scores = torch.sigmoid(step_edge_state_logits)
+            sparse_step_edge_state_entries = tg_utils.dense_to_sparse(
+                    step_edge_state_scores > edge_threshold)[0]
+            
+            sparse_step_edge_state_scores = step_edge_state_scores[
+                    sparse_step_edge_state_entries[0],
+                    sparse_step_edge_state_entries[1]].view(-1,1)
             
             # ----------------------
             # compute matching nodes
@@ -128,32 +186,36 @@ class EdgeModel(torch.nn.Module):
                     step_segment_id = step_list.segment_id.view(-1,1)
                     state_segment_id = state_graph.segment_id.view(1,-1)
                     segment_id_match = step_segment_id == state_segment_id
-                    sparse_step_match_state = torch.nonzero(
+                    sparse_step_match_state_entries = torch.nonzero(
                             segment_id_match, as_tuple=False).t()
                     
                 else:
-                    step_argmax = torch.argmax(step_match_state, dim=0)
-                    mask = torch.zeros_like(step_match_state)
+                    step_match_state_scores = torch.sigmoid(
+                            step_match_state_logits)
+                     
+                    step_argmax = torch.argmax(step_match_state_scores, dim=0)
+                    mask = torch.zeros_like(step_match_state_scores)
                     mask[step_argmax, range(state_graph.num_nodes)] = 1.
-                    step_match_state = step_match_state * mask
+                    step_match_state_scores = step_match_state_scores * mask
                     
-                    state_argmax = torch.argmax(step_match_state, dim=1)
-                    mask = torch.zeros_like(step_match_state)
+                    state_argmax = torch.argmax(step_match_state_scores, dim=1)
+                    mask = torch.zeros_like(step_match_state_scores)
                     mask[range(step_graph.num_nodes), state_argmax] = 1.
-                    step_match_state = step_match_state * mask
-                    sparse_step_match_state = torch.nonzero(
-                            step_match_state > match_threshold,
+                    step_match_state_scores = step_match_state_scores * mask
+                    
+                    sparse_step_match_state_entries = torch.nonzero(
+                            step_match_state_scores > match_threshold,
                             as_tuple=False).t()
             else:
-                sparse_step_match_state = None
+                sparse_step_match_state_entries = None
             
             # --------------------
             # compute merged graph
             merged_graph = state_graph.merge(
                     step_graph,
-                    sparse_step_match_state,
-                    sparse_step_edge_state,
-                    step_state_edge_scores)
+                    sparse_step_match_state_entries,
+                    sparse_step_edge_state_entries,
+                    sparse_step_edge_state_scores)
             
             num_edges = merged_graph.edge_attr.shape[0]
             if max_edges is not None and num_edges > max_edges:

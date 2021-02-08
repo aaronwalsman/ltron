@@ -10,6 +10,8 @@ import brick_gym.torch.models.edge as edge
 import brick_gym.torch.models.unet as unet
 from brick_gym.torch.models.graph_step import GraphStepModel
 from brick_gym.torch.models.mlp import LinearStack, Conv2dStack
+from brick_gym.torch.models.espnet import ESPNet
+from brick_gym.torch.models.eespnet_seg import EESPNet_Seg
 
 class UnknownModelError(Exception):
     pass
@@ -81,6 +83,13 @@ def named_fcn_backbone(name, output_channels):
                 encoder_weights = 'imagenet',
                 classes = output_channels,
                 activation = None)
+    
+    elif name == 'espnet':
+        return ESPNet(classes=output_channels)
+    
+    elif name == 'eespnet':
+        return EESPNet_Seg(classes=output_channels,
+                pretrained='/media/awalsman/data_drive/brick-gym/brick_gym/torch/models/espnetv2_s_1.0.pth')
     
     if 'unet' in name:
         if 'coord' in name:
