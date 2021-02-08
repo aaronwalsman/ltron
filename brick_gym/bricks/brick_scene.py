@@ -128,6 +128,32 @@ class BrickScene:
             if self.default_image_light is not None:
                 self.load_default_image_light()
     
+    def add_brick_type(self, brick_type):
+        new_type = self.brick_library.add_type(brick_type)
+        if self.renderable:
+            if not self.renderer.mesh_exists(brick_type.mesh_name):
+                self.renderer.load_mesh(
+                        brick_type.mesh_name,
+                        **brick_type.renderpy_mesh_args())
+    
+    def add_colors(self, colors):
+        new_colors = self.color_library.load_colors(colors)
+        if self.renderable:
+            for new_color in new_colors:
+                self.renderer.load_material(
+                        brick_color.material_name,
+                        **brick_color.renderpy_material_args())
+    
+    def add_instance(self, brick_type, brick_color, transform):
+        brick_instance = self.instances.add_instance(
+                brick_type, brick_color, transform)
+        if self.renderable:
+            self.renderer.add_instance(
+                    brick_instance.instance_name,
+                    **brick_instance.renderpy_instance_args())
+        if self.track_snaps:
+            self.update_instance_snaps(brick_instance)
+    
     def import_ldraw(self, path):
         #t0 = time.time()
         path, subdocument = resolve_subdocument(path)
@@ -169,7 +195,7 @@ class BrickScene:
         if self.track_snaps:
             for brick_instance in new_instances:
                 self.update_instance_snaps(brick_instance)
-            
+    
     #===========================================================================
     # instance manipulation
     #===========================================================================

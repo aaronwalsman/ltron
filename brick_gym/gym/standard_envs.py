@@ -14,6 +14,8 @@ from brick_gym.gym.components.viewpoint import (
 from brick_gym.gym.components.visibility import InstanceVisibilityComponent
 from brick_gym.gym.components.graph_tasks import InstanceGraphConstructionTask
 from brick_gym.gym.components.colors import RandomizeColorsComponent
+from brick_gym.gym.components.random_floating_bricks import (
+        RandomFloatingBricks)
 
 def segmentation_supervision_env(
         dataset,
@@ -27,7 +29,8 @@ def segmentation_supervision_env(
         dataset_reset_mode='uniform',
         randomize_viewpoint=True,
         randomize_viewpoint_frequency='step',
-        randomize_colors=True):
+        randomize_colors=True,
+        random_floating_bricks=True):
     
     components = collections.OrderedDict()
     
@@ -40,9 +43,6 @@ def segmentation_supervision_env(
     
     # scene
     components['scene'] = SceneComponent(path_component = components['dataset'])
-    
-    # episode length
-    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
     
     # viewpoint
     if randomize_viewpoint:
@@ -59,6 +59,18 @@ def segmentation_supervision_env(
                 azimuth = math.radians(-135.),
                 elevation = math.radians(-30.),
                 aspect_ratio = width/height)
+    
+    # random floating bricks
+    if random_floating_bricks:
+        components['random_floating_bricks'] = RandomFloatingBricks(
+                components['scene'],
+                list(dataset_info['class_ids'].keys()),
+                dataset_info['all_colors'])
+        max_instances += (
+                components['random_floating_bricks'].bricks_per_scene[-1])
+    
+    # episode length
+    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
     
     # color randomization
     if randomize_colors:
@@ -108,7 +120,8 @@ def graph_supervision_env(
         dataset_reset_mode='uniform',
         randomize_viewpoint=True,
         randomize_viewpoint_frequency='step',
-        randomize_colors=True):
+        randomize_colors=True,
+        random_floating_bricks=True):
     
     components = collections.OrderedDict()
     
@@ -122,9 +135,6 @@ def graph_supervision_env(
     
     # scene
     components['scene'] = SceneComponent(path_component = components['dataset'])
-    
-    # episode length
-    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
     
     # viewpoint
     if randomize_viewpoint:
@@ -140,6 +150,18 @@ def graph_supervision_env(
                 azimuth = math.radians(-135.),
                 elevation = math.radians(-30.),
                 aspect_ratio = width/height)
+    
+    # random floating bricks
+    if random_floating_bricks:
+        components['random_floating_bricks'] = RandomFloatingBricks(
+                components['scene'],
+                list(dataset_info['class_ids'].keys()),
+                dataset_info['all_colors'])
+        max_instances += (
+                components['random_floating_bricks'].bricks_per_scene[-1])
+    
+    # episode length
+    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
     
     # color randomization
     if randomize_colors:

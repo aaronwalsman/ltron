@@ -32,6 +32,7 @@ def test_checkpoint(
         
         # model settings
         step_model_name = 'nth_try',
+        step_model_backbone = 'smp_fpn_r18',
         edge_model_name = 'subtract',
         segment_id_matching = False):
     
@@ -44,7 +45,7 @@ def test_checkpoint(
     print('Building the step model')
     step_model = named_models.named_graph_step_model(
             step_model_name,
-            backbone_name = 'smp_fpn_r18',
+            backbone_name = step_model_backbone,
             num_classes = num_classes).cuda()
     step_model.load_state_dict(torch.load(step_checkpoint))
     
@@ -66,7 +67,8 @@ def test_checkpoint(
             dataset_reset_mode = 'single_pass',
             randomize_viewpoint = False,
             randomize_viewpoint_frequency = 'reset',
-            randomize_colors = False)
+            randomize_colors = False,
+            random_floating_bricks=False)
     
     # test
     test_graph(
@@ -116,6 +118,8 @@ def test_graph(
     sum_all_edge_ap = 0.
     total_all_ap = 0
     
+    max_instances_per_step = 8
+    
     while not all_finished:
         with torch.no_grad():
             # gym -> torch
@@ -127,24 +131,8 @@ def test_graph(
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(
                     step_tensors['color_render'],
-                    step_tensors['segmentation_render'])
-            
-            instance_correct = 0
-            total_instances = 0
-            for i in range(test_env.num_envs):
-                if step_brick_lists[i].num_nodes == 0:
-                    continue
-                target_graph = step_tensors['graph_label'][i]
-                predicted_labels = torch.argmax(
-                        step_brick_lists[i].instance_label, dim=-1)
-                instance_label_target = (
-                        target_graph.instance_label[
-                            step_brick_lists[i].segment_id[:,0]][:,0])
-                instance_correct += float(torch.sum(
-                        instance_label_target == predicted_labels).cpu())
-                total_instances += predicted_labels.shape[0]
-            if total_instances:
-                print(instance_correct / total_instances)
+                    step_tensors['segmentation_render'],
+                    max_instances = max_instances_per_step)
             
             # build new graph state for all terminal sequences
             # (do this here so we can use the brick_feature_spec from the model)
@@ -192,8 +180,8 @@ def test_graph(
             graph_states, step_edge_logits, step_state_logits = edge_model(
                     step_brick_lists,
                     graph_states,
-                    segment_id_matching = segment_id_matching,
-                    max_edges=max_edges)
+                    max_edges=max_edges,
+                    segment_id_matching=segment_id_matching)
             
             # figure out which instances to hide
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
@@ -250,32 +238,39 @@ def test_graph(
                 
                 action = actions[i]['graph_task']
                 edges = action['edges']['edge_index']
-                unidirectional_edges = edges[0] < edges[1]
+                scores = action['edges']['score']
                 
-                edges = edges[:,unidirectional_edges]
-                scores = action['edges']['score'][unidirectional_edges]
+                #unidirectional_edges = edges[0] < edges[1]
+                #edges = edges[:,unidirectional_edges]
+                #scores = action['edges']['score'][unidirectional_edges]
                 
                 pred_edges = utils.sparse_graph_to_edge_scores(
                         image_index = (i, scene_index[i]),
                         node_label = action['instances']['label'],
                         edges = edges.T,
-                        scores = scores)
+                        scores = scores,
+                        unidirectional = True)
                 step_pred_edge_dicts[step].update(pred_edges)
                 step_target_edge_dicts[step].update(seq_target_edge_dicts[i])
+                
+                _, _, tmp_ap = evaluation.edge_ap(
+                        pred_edges, seq_target_edge_dicts[i])
                 
                 # report which instances were predicted this frame
                 if graph_states[i].num_nodes:
                     indices = graph_states[i]['segment_id'].cpu().view(-1)
                     instance_label = torch.argmax(
                             graph_states[i].instance_label, dim=-1).cpu()
-                    scores = graph_states[i]['score'].cpu().view(-1)
+                    #scores = graph_states[i]['score'].cpu().view(-1)
                     pred_instance_scores = (
                             utils.sparse_graph_to_instance_scores(
                             image_index = (i, scene_index[i]),
                             indices = indices.tolist(),
                             instance_labels = instance_label,
                             scores = scores.tolist()))
-                
+                    #print(len(pred_instance_scores))
+                    #print(pred_instance_scores)
+                    
                     step_pred_instance_scores[step].update(pred_instance_scores)
                     step_target_instance_labels[step].update(
                             seq_target_instance_labels[i])
@@ -285,6 +280,12 @@ def test_graph(
              step_rewards,
              step_terminal,
              info) = test_env.step(actions)
+            
+            #input()
+            #print('-'*80)
+            
+            #print('-'*80)
+            #input()
             
             for i,t in enumerate(step_terminal):
                 # use step-tensors because it's one step out of date, and so

@@ -2,8 +2,8 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.graph as train_graph
 
-run = 'Feb04_15-46-25_mechagodzilla'
-epoch = 50
+run = None
+epoch = 0
 
 if run is not None:
     step_checkpoint = './checkpoint/%s/step_model_%04i.pt'%(run, epoch)
@@ -24,22 +24,25 @@ if __name__ == '__main__':
             # general settings
             num_epochs = 500,
             mini_epochs_per_epoch = 1,
-            mini_epoch_sequences = 2048,#*4,
-            mini_epoch_sequence_length = 1,
             
             # dataset settings
-            dataset = 'carbon_star',
-            num_processes = 1,
+            dataset = 'tiny_turbos2',
+            train_subset = 4,
+            num_processes = 4,
             randomize_viewpoint=True,
             
+            # rollout settings
+            train_steps_per_epoch = 1024,
+            
             # train settings
-            train_steps_per_epoch = 1024,#4096,
+            mini_epoch_sequences = 2048,
+            mini_epoch_sequence_length = 1,
             batch_size = 6,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
             
             # model settings
-            step_model_backbone = 'smp_fpn_r18',
+            step_model_backbone = 'smp_fpn_rnxt50',
             segment_id_matching = False,
             
             # test settings

@@ -4,8 +4,8 @@ import brick_gym.torch.train.test_graph as test_graph
 
 #run = 'Jan24_01-28-20_mechagodzilla'
 #epoch = 200
-run = 'Feb02_19-03-57_mechagodzilla'
-epoch = 500
+run = 'Feb06_17-55-40_mechagodzilla'
+epoch = 30
 
 if __name__ == '__main__':
     test_graph.test_checkpoint(
@@ -15,11 +15,11 @@ if __name__ == '__main__':
             
             # dataset settings
             dataset = 'tiny_turbos2',
-            num_processes = 8,
+            num_processes = 4,
             test_split = 'train',
-            test_subset = None,
+            test_subset = 4,
             
             # model settings
             step_model_name='nth_try',
-            step_model_backbone='smp_fpn_r18',
+            step_model_backbone='smp_fpn_rnxt50',
             segment_id_matching=True)

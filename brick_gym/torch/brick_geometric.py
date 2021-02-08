@@ -191,7 +191,7 @@ class BrickGraph(GraphData):
     
     def merge(self,
             other,
-            matching_nodes=None,    
+            matching_nodes=None,
             new_edges=None,
             new_edge_attr=None):
         

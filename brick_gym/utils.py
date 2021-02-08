@@ -16,9 +16,17 @@ def matrix_to_edge_scores(image_index, node_label, edge_matrix):
     
     return edge_scores
 
-def sparse_graph_to_edge_scores(image_index, node_label, edges, scores):
+def sparse_graph_to_edge_scores(
+        image_index, node_label, edges, scores, unidirectional):
+    
+    if unidirectional:
+        unidirectional_edges = edges[:,0] < edges[:,1]
+        edges = edges[unidirectional_edges]
+        scores = scores[unidirectional_edges]
+    
     edge_scores = {}
     for (a, b), score in zip(edges, scores):
+        score = float(score)
         if image_index is None:
             #edge_scores[a+1, b+1, node_label[a], node_label[b]] = score
             edge_scores[
