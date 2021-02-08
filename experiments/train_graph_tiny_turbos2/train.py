@@ -24,7 +24,7 @@ if __name__ == '__main__':
             # general settings
             num_epochs = 500,
             mini_epochs_per_epoch = 1,
-            mini_epoch_sequences = 2048,
+            mini_epoch_sequences = 2048*4,
             mini_epoch_sequence_length = 1,
             
             # dataset settings
@@ -34,12 +34,12 @@ if __name__ == '__main__':
             
             # train settings
             train_steps_per_epoch = 4096,
-            batch_size = 6,
+            batch_size = 4,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
             
             # model settings
-            step_model_backbone = 'smp_fpn_r18',
+            step_model_backbone = 'smp_fpn_r34',
             segment_id_matching = False,
             
             # test settings
