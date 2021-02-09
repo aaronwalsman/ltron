@@ -311,8 +311,12 @@ def train_label_confidence_epoch(
     
     print('-'*80)
     print('Train')
+    
+    #===========================================================================
+    # rollout
+    
     print('- '*40)
-    print('Generating Data')
+    print('Rolling out episodes to generate data')
     
     seq_terminal = []
     seq_observations = []
@@ -487,6 +491,12 @@ def train_label_confidence_epoch(
             for j in range(train_env.num_envs)
             for i in range(steps)])
     
+    #===========================================================================
+    # supervision
+    
+    print('- '*40)
+    print('Supervising rollout data')
+    
     running_node_loss = 0.
     running_confidence_loss = 0.
     total_correct_segments = 0
@@ -499,7 +509,7 @@ def train_label_confidence_epoch(
     dataset_size = seq_tensors['color_render'].shape[0]
     tlast = 0
     for mini_epoch in range(1, mini_epochs+1):
-        print('- '*40)
+        print('-   '*20)
         print('Training Mini Epoch: %i'%mini_epoch)
         
         # episode subsequences
@@ -769,7 +779,7 @@ def train_label_confidence_epoch(
                 seq_loss = seq_loss + step_loss
                 
                 if seq_id < log_debug:
-                    log_train_loss_step(
+                    log_train_supervision_step(
                             # log
                             step_clock,
                             log,
@@ -806,7 +816,7 @@ def log_train_rollout_step(
     log.add_text('train/actions',
             json.dumps(actions, cls=NumpyEncoder, indent=2))
 
-def log_train_loss_step(
+def log_train_supervision_step(
         # log
         step_clock,
         log,
@@ -823,6 +833,14 @@ def log_train_loss_step(
         # ground truth
         true_graph,
         score_targets):
+    '''
+    for (
+        image,
+        segmentation,
+        dense_label_logits,
+        dense_scores
+    '''
+    image_strip = make_image_strip(images
     
     #input
     log.add_image('train/train_images', images, step_clock[0],

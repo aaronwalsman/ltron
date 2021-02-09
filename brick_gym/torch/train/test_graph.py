@@ -1,3 +1,5 @@
+import os
+
 import PIL.Image as Image
 
 import torch
@@ -18,6 +20,7 @@ from brick_gym.torch.brick_geometric import (
 from brick_gym.torch.gym_tensor import (
         gym_space_to_tensors, gym_space_list_to_tensors, graph_to_gym_space)
 import brick_gym.torch.models.named_models as named_models
+from brick_gym.visualization.gym_dump import gym_dump
 
 def test_checkpoint(
         # load checkpoints
@@ -34,12 +37,23 @@ def test_checkpoint(
         step_model_name = 'nth_try',
         step_model_backbone = 'smp_fpn_r18',
         edge_model_name = 'subtract',
-        segment_id_matching = False):
+        segment_id_matching = False,
+        
+        # output settings
+        dump_debug=False):
     
     device = torch.device('cuda:0')
     
     dataset_info = get_dataset_info(dataset)
     num_classes = max(dataset_info['class_ids'].values())+1
+    
+    if dump_debug:
+        run = os.path.split(os.path.dirname(step_checkpoint))[-1]
+        debug_directory = './debug/%s'%run
+        if not os.path.exists(debug_directory):
+            os.makedirs(debug_directory)
+    else:
+        debug_directory = None
     
     print('='*80)
     print('Building the step model')
@@ -75,7 +89,9 @@ def test_checkpoint(
             step_model,
             edge_model,
             segment_id_matching,
-            test_env)
+            test_env,
+            dump_debug,
+            debug_directory)
 
 def test_graph(
         # model
@@ -84,7 +100,11 @@ def test_graph(
         segment_id_matching,
         
         # environment
-        test_env):
+        test_env,
+        
+        # output
+        dump_debug,
+        debug_directory):
     
     device = torch.device('cuda:0')
     #step_model.eval()
@@ -127,6 +147,14 @@ def test_graph(
                     step_observations,
                     test_env.single_observation_space,
                     device)
+            
+            if dump_debug:
+                gym_dump(
+                        step_observations,
+                        test_env.single_observation_space,
+                        os.path.join(debug_directory, 'observation_'))
+                import pdb
+                pdb.set_trace()
             
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(

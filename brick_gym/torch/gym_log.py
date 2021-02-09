@@ -39,18 +39,6 @@ def gym_log(label, data, space, log, step, log_json=True):
         pass
     elif isinstance(space, PixelSelectionSpace):
         pass
-    #elif isinstance(space, InstanceListSpace): # just default to the dict space
-    #    return 
-    #elif isinstance(space, EdgeScoreSpace):
-    #    pass
-    #elif isinstance(space, SparseEdgeSpace):
-    #    pass
-    #elif isinstance(space, SparseEdgeScoreSpace):
-    #    pass
-    #elif isinstance(space, GraphScoreSpace):
-    #    pass
-    #elif isinstance(space, SparseGraphScoreSpace):
-    #    pass
     elif isinstance(space, EdgeSpace):
         return data
     elif isinstance(space, gym.spaces.Discrete):
