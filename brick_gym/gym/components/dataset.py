@@ -14,7 +14,8 @@ class DatasetPathComponent(BrickEnvComponent):
             subset=None,
             rank=0,
             size=1,
-            reset_mode='uniform'):
+            reset_mode='uniform',
+            observe_episode_id=False):
         
         self.set_state({'episode' : 0, 'scene_path' : None})
         
@@ -26,6 +27,21 @@ class DatasetPathComponent(BrickEnvComponent):
         self.dataset_paths = get_dataset_paths(
                 self.dataset, self.split, self.subset, rank, size)
         
+        self.observe_episode_id = observe_episode_id
+        if self.observe_episode_id:
+            self.all_dataset_paths = get_dataset_paths(
+                    self.dataset, self.split)
+            self.observation_space = Discrete(len(self.all_dataset_paths)+1)
+    
+    def observe(self):
+        if self.observe_episode_id:
+            if self.scene_path is None:
+                return 0
+            else:
+                return self.all_dataset_paths.index(self.scene_path)
+        else:
+            return None
+    
     def reset(self):
         if self.reset_mode == 'uniform':
             self.scene_path = random.choice(self.dataset_paths)
@@ -41,6 +57,11 @@ class DatasetPathComponent(BrickEnvComponent):
             raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
         if self.scene_path is not None:
             self.episode += 1
+        
+        return self.observe()
+    
+    def step(self, action):
+        return self.observe(), 0., False, None
     
     def get_state(self):
         state = {'episode' : self.episode, 'scene_path' : self.scene_path}
