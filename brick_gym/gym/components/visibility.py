@@ -60,8 +60,9 @@ class InstanceVisibilityComponent(VisibilityComponent):
     
     def step(self, action):
         if self.multi:
-            for instance in numpy.nonzero(action):
-                self.hide_instance(instance+1)
+            for instance in numpy.nonzero(action)[0]:
+                if instance != 0:
+                    self.hide_instance(instance)
         else:
             self.hide_instance(action)
         
