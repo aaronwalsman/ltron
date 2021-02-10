@@ -40,6 +40,7 @@ if __name__ == '__main__':
             batch_size = 6,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
+            multi_hide = True,
             
             # model settings
             step_model_backbone = 'smp_fpn_rnxt50',

@@ -21,6 +21,7 @@ from brick_gym.torch.gym_tensor import (
         gym_space_to_tensors, gym_space_list_to_tensors, graph_to_gym_space)
 import brick_gym.torch.models.named_models as named_models
 from brick_gym.visualization.gym_dump import gym_dump
+from brick_gym.torch.visualization.image_strip import make_image_strips
 
 def test_checkpoint(
         # load checkpoints
@@ -109,6 +110,8 @@ def test_graph(
     device = torch.device('cuda:0')
     #step_model.eval()
     #edge_model.eval()
+    step_model.train()
+    edge_model.train()
     
     # get initial observations
     step_observations = test_env.reset()
@@ -147,14 +150,6 @@ def test_graph(
                     step_observations,
                     test_env.single_observation_space,
                     device)
-            
-            if dump_debug:
-                gym_dump(
-                        step_observations,
-                        test_env.single_observation_space,
-                        os.path.join(debug_directory, 'observation_'))
-                import pdb
-                pdb.set_trace()
             
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(
@@ -205,7 +200,8 @@ def test_graph(
                         seq_target_edge_dicts[i][key] = 1.
             
             # update the graph state using the edge model
-            graph_states, step_edge_logits, step_state_logits = edge_model(
+            input_graph_states = graph_states
+            graph_states, step_step_logits, step_state_logits = edge_model(
                     step_brick_lists,
                     graph_states,
                     max_edges=max_edges,
@@ -303,6 +299,121 @@ def test_graph(
                     step_target_instance_labels[step].update(
                             seq_target_instance_labels[i])
             
+            if dump_debug:
+                '''
+                gym_dump(
+                        step_observations,
+                        test_env.single_observation_space,
+                        os.path.join(debug_directory, 'observation_'))
+                '''
+                instance_id = step_tensors['segmentation_render'].cpu().numpy()
+                
+                pred_class_labels = torch.argmax(
+                        head_features['instance_label'], dim=1).cpu().numpy()
+                target_class_labels = []
+                for graph, seg in zip(step_tensors['graph_label'], instance_id):
+                    instance_label = graph.instance_label[:,0]
+                    target_class_labels.append(
+                            instance_label[seg].cpu().numpy())
+                
+                step_segment_id = [brick_list.segment_id.cpu().numpy()
+                        for brick_list in step_brick_lists]
+                step_step_probs = [
+                        torch.sigmoid(logits).cpu().numpy()
+                        for logits in step_step_logits]
+                step_step_match = [probs[...,0] for probs in step_step_probs]
+                step_step_edge = [probs[...,1] for probs in step_step_probs]
+                state_segment_id = [graph_state.segment_id.cpu().numpy()
+                        for graph_state in input_graph_states]
+                step_state_probs = [
+                        torch.sigmoid(logits).cpu().numpy()
+                        for logits in step_state_logits]
+                step_state_match = [probs[...,0] for probs in step_state_probs]
+                step_state_edge = [probs[...,1] for probs in step_state_probs]
+                pred_image_strips = make_image_strips(
+                        test_env.num_envs,
+                        concatenate=False,
+                        color_image = step_observations['color_render'],
+                        dense_score = dense_scores.cpu().numpy(),
+                        dense_class_labels = pred_class_labels,
+                        instance_id = instance_id,
+                        step_size = [max_instances_per_step]*test_env.num_envs,
+                        step_segment_ids = step_segment_id,
+                        step_step_match = step_step_match,
+                        step_step_edge = step_step_edge,
+                        state_size = [100]*test_env.num_envs,
+                        state_segment_ids = state_segment_id,
+                        step_state_match = step_state_match,
+                        step_state_edge = step_state_edge)
+                
+                correct = []
+                for target, predicted in zip(
+                        target_class_labels, pred_class_labels):
+                    correct.append(target == predicted)
+                
+                step_step_match_target = [numpy.eye(ss.shape[0])
+                        for ss in step_step_match]
+                
+                step_step_edge_target = []
+                step_state_edge_target = []
+                step_state_match_target = []
+                for brick_list, pred_graph, target_graph in zip(
+                        step_brick_lists,
+                        input_graph_states,
+                        step_tensors['graph_label']):
+                    full_edge_target = target_graph.edge_matrix(
+                            bidirectionalize=True).to(torch.bool).cpu().numpy()
+                    step_lookup = brick_list.segment_id[:,0].cpu().numpy()
+                    edge_target = full_edge_target[
+                            step_lookup][:,step_lookup]
+                    step_step_edge_target.append(edge_target)
+                    
+                    #state_lookup = graph.segment_id[:,0].cpu().numpy()
+                    #state_lookup = numpy.array(range(target_graph.num_nodes))
+                    #state_lookup = state_lookup[
+                    #        pred_graph.segment_id[:,0].cpu().numpy()]
+                    state_lookup = pred_graph.segment_id[:,0].cpu().numpy()
+                    edge_target = full_edge_target[
+                            step_lookup][:,state_lookup]
+                    step_state_edge_target.append(edge_target)
+                    
+                    step_lookup = step_lookup.reshape(step_lookup.shape[0], 1)
+                    state_lookup = state_lookup.reshape(
+                            1, state_lookup.shape[0])
+                    match_target = step_lookup == state_lookup
+                    step_state_match_target.append(match_target)
+                
+                target_image_strips = make_image_strips(
+                        test_env.num_envs,
+                        concatenate = False,
+                        color_image = step_observations['color_render'],
+                        dense_score = correct,
+                        dense_class_labels = target_class_labels,
+                        instance_id = instance_id,
+                        step_size = [max_instances_per_step]*test_env.num_envs,
+                        step_segment_ids = step_segment_id,
+                        step_step_match = step_step_match_target,
+                        step_step_edge = step_step_edge_target,
+                        state_size = [100]*test_env.num_envs,
+                        state_segment_ids = state_segment_id,
+                        step_state_match = step_state_match_target,
+                        step_state_edge = step_state_edge_target)
+                
+                for i, (pred_strip, target_strip) in enumerate(
+                        zip(pred_image_strips, target_image_strips)):
+                    if step_tensors['scene']['valid_scene_loaded'][i]:
+                        scene_id = step_tensors['dataset'][i]
+                        step_id = step_tensors['episode_length'][i]
+                        pred_strip_path = os.path.join(
+                                debug_directory,
+                                'pred_strip_%i_%i.png'%(scene_id, step_id))
+                        Image.fromarray(pred_strip).save(pred_strip_path)
+                        
+                        target_strip_path = os.path.join(
+                                debug_directory,
+                                'target_strip_%i_%i.png'%(scene_id, step_id))
+                        Image.fromarray(target_strip).save(target_strip_path)
+            
             # take actions
             (step_observations,
              step_rewards,
@@ -338,7 +449,7 @@ def test_graph(
             # done yet?
             all_finished = numpy.all(
                     step_tensors['scene']['valid_scene_loaded'] == 0)
-    
+            
     print('-'*80)
     print('Edge AP:')
     edge_ap_values = []

@@ -4,8 +4,8 @@ import brick_gym.torch.train.test_graph as test_graph
 
 #run = 'Jan24_01-28-20_mechagodzilla'
 #epoch = 200
-run = 'Feb07_18-35-52_mechagodzilla'
-epoch = 325
+run = 'Feb07_22-15-19_mechagodzilla'
+epoch = 250
 
 if __name__ == '__main__':
     test_graph.test_checkpoint(

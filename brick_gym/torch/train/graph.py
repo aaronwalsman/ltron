@@ -23,7 +23,7 @@ import brick_gym.evaluation as evaluation
 from brick_gym.dataset.paths import get_dataset_info
 from brick_gym.gym.brick_env import async_brick_env
 from brick_gym.gym.standard_envs import graph_supervision_env
-import brick_gym.visualization.image_generators as image_generators
+#import brick_gym.visualization.image_generators as image_generators
 
 from brick_gym.torch.brick_geometric import (
         BrickList, BrickGraph, BrickGraphBatch)
@@ -72,6 +72,7 @@ def train_label_confidence(
         matching_loss_weight = 1.0,
         edge_loss_weight = 1.0,
         max_instances_per_step = 8,
+        multi_hide = False,
         
         # model settings
         step_model_backbone = 'smp_fpn_r18',
@@ -98,6 +99,7 @@ def train_label_confidence(
     
     dataset_info = get_dataset_info(dataset)
     num_classes = max(dataset_info['class_ids'].values()) + 1
+    max_instances_per_scene = dataset_info['max_instances_per_scene']
     
     print('-'*80)
     print('Building the step model')
@@ -141,13 +143,14 @@ def train_label_confidence(
     train_env = async_brick_env(
             num_processes,
             graph_supervision_env,
-            dataset = dataset,
-            split = train_split,
-            subset = train_subset,
-            randomize_viewpoint = randomize_viewpoint,
-            randomize_viewpoint_frequency = 'reset',
-            randomize_colors = randomize_colors,
-            random_floating_bricks = random_floating_bricks)
+            dataset=dataset,
+            split=train_split,
+            subset=train_subset,
+            multi_hide=multi_hide,
+            randomize_viewpoint=randomize_viewpoint,
+            randomize_viewpoint_frequency='reset',
+            randomize_colors=randomize_colors,
+            random_floating_bricks=random_floating_bricks)
     
     '''
     print('-'*80)
@@ -189,6 +192,8 @@ def train_label_confidence(
                 matching_loss_weight,
                 edge_loss_weight,
                 max_instances_per_step,
+                multi_hide,
+                max_instances_per_scene,
                 segment_id_matching,
                 dataset_info,
                 log_train)
@@ -305,6 +310,8 @@ def train_label_confidence_epoch(
         matching_loss_weight,
         edge_loss_weight,
         max_instances_per_step,
+        multi_hide,
+        max_instances_per_scene,
         segment_id_matching,
         dataset_info,
         log_debug):
@@ -384,15 +391,21 @@ def train_label_confidence_epoch(
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
             actions = []
             for i, logits in enumerate(hide_logits):
-                if logits.shape[0]:
-                    distribution = Categorical(
-                            logits=logits, validate_args=True)
-                    #hide_distributions.append(distribution)
-                    segment_sample = distribution.sample()
-                    instance_sample = (
-                            step_brick_lists[i].segment_id[segment_sample])
+                if multi_hide:
+                    visibility_sample = numpy.zeros(
+                            max_instances_per_scene+1, dtype=numpy.bool)
+                    selected_instances = (
+                            step_brick_lists[i].segment_id[:,0].cpu().numpy())
+                    visibility_sample[selected_instances] = True
                 else:
-                    instance_sample = 0
+                    if logits.shape[0]:
+                        distribution = Categorical(
+                                logits=logits, validate_args=True)
+                        segment_sample = distribution.sample()
+                        visibility_sample = int(
+                                step_brick_lists[i].segment_id[segment_sample])
+                    else:
+                        visibility_sample = 0
                 
                 graph_data = graph_to_gym_space(
                         graph_states[i].cpu(),
@@ -401,7 +414,7 @@ def train_label_confidence_epoch(
                         segment_id_remap=True,
                 )
                 actions.append({
-                        'visibility':int(instance_sample),
+                        'visibility':visibility_sample,
                         'graph_task':graph_data,
                 })
             '''
@@ -822,7 +835,7 @@ def log_train_supervision_step(
         log,
         # input
         images,
-        segmentation,
+        segmentations,
         # predictions
         dense_label_logits,
         dense_scores,
@@ -833,19 +846,22 @@ def log_train_supervision_step(
         # ground truth
         true_graph,
         score_targets):
+    
     '''
-    for (
-        image,
-        segmentation,
-        dense_label_logits,
-        dense_scores
+    for (image, segmentation, label_logits, scores) in (
+            images,
+            segmentations,
+            dense_label_logits,
+            dense_scores):
+        make_image_strip(
     '''
-    image_strip = make_image_strip(images
+    
+    #image_strip = make_image_strip(images
     
     #input
     log.add_image('train/train_images', images, step_clock[0],
             dataformats='NCHW')
-    segmentation_mask = masks.color_index_to_byte(segmentation)
+    segmentation_mask = masks.color_index_to_byte(segmentations)
     log.add_image('train/train_segmentation', segmentation_mask, step_clock[0],
             dataformats='NHWC')
     
@@ -874,7 +890,7 @@ def log_train_supervision_step(
             continue
         true_instance_label_lookup = true_graph[i].instance_label.numpy()[:,0]
         true_instance_label_lookups.append(true_instance_label_lookup)
-        class_label_segmentation = true_instance_label_lookup[segmentation[i]]
+        class_label_segmentation = true_instance_label_lookup[segmentations[i]]
         class_label_image = masks.color_index_to_byte(class_label_segmentation)
         true_class_label_images.append(class_label_image)
         
@@ -885,7 +901,7 @@ def log_train_supervision_step(
         pred_instance_label_lookup[pred_brick_lists[i].segment_id[:,0]] = (
                 pred_lookup_partial.numpy())
         pred_instance_label_lookups.append(pred_instance_label_lookup)
-        class_label_segmentation = pred_instance_label_lookup[segmentation[i]]
+        class_label_segmentation = pred_instance_label_lookup[segmentations[i]]
         class_label_image = masks.color_index_to_byte(class_label_segmentation)
         pred_class_label_images.append(class_label_image)
     
@@ -1189,18 +1205,18 @@ def test_label_confidence_epoch(
                     action_weights = (
                             torch.sigmoid(action_logits[i]) *
                             segment_weights[i])
-                    confidence_image = image_generators.segment_weight_image(
-                            segmentations[i],
-                            action_weights.cpu().numpy(),
-                            segment_ids[i].cpu().numpy())
-                    Image.fromarray(confidence_image).save(
-                            'segment_confidence_%i_%i_%i.png'%(epoch, i, step))
-                    correct_image = image_generators.segment_weight_image(
-                            segmentations[i],
-                            correct[i].cpu().numpy(),
-                            segment_ids[i].cpu().numpy())
-                    Image.fromarray(correct_image).save(
-                            'correct_%i_%i_%i.png'%(epoch, i, step))
+                    #confidence_image = image_generators.segment_weight_image(
+                    #        segmentations[i],
+                    #        action_weights.cpu().numpy(),
+                    #        segment_ids[i].cpu().numpy())
+                    #Image.fromarray(confidence_image).save(
+                    #        'segment_confidence_%i_%i_%i.png'%(epoch, i, step))
+                    #correct_image = image_generators.segment_weight_image(
+                    #        segmentations[i],
+                    #        correct[i].cpu().numpy(),
+                    #        segment_ids[i].cpu().numpy())
+                    #Image.fromarray(correct_image).save(
+                    #        'correct_%i_%i_%i.png'%(epoch, i, step))
                     
                     metadata = {
                         'max_action' : int(max_action[i]),
