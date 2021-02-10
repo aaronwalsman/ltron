@@ -27,7 +27,7 @@ if __name__ == '__main__':
             
             # dataset settings
             dataset = 'tiny_turbos2',
-            train_subset = 4,
+            train_subset = 16,
             num_processes = 4,
             randomize_viewpoint=True,
             
