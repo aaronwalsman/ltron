@@ -118,6 +118,7 @@ def graph_supervision_env(
         height=256,
         print_traceback=True,
         dataset_reset_mode='uniform',
+        multi_hide=False,
         randomize_viewpoint=True,
         randomize_viewpoint_frequency='step',
         randomize_colors=True,
@@ -127,7 +128,13 @@ def graph_supervision_env(
     
     # dataset
     components['dataset'] = DatasetPathComponent(
-            dataset, split, subset, rank, size, reset_mode=dataset_reset_mode)
+            dataset,
+            split,
+            subset,
+            rank,
+            size,
+            reset_mode=dataset_reset_mode,
+            observe_episode_id=True)
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
     max_edges = dataset_info['max_edges_per_scene']
@@ -174,6 +181,7 @@ def graph_supervision_env(
     components['visibility'] = InstanceVisibilityComponent(
             max_instances = max_instances,
             scene_component = components['scene'],
+            multi = multi_hide,
             terminate_when_all_hidden = True)
     
     # color render
