@@ -131,10 +131,10 @@ class BrickScene:
     def add_brick_type(self, brick_type):
         new_type = self.brick_library.add_type(brick_type)
         if self.renderable:
-            if not self.renderer.mesh_exists(brick_type.mesh_name):
+            if not self.renderer.mesh_exists(new_type.mesh_name):
                 self.renderer.load_mesh(
-                        brick_type.mesh_name,
-                        **brick_type.renderpy_mesh_args())
+                        new_type.mesh_name,
+                        **new_type.renderpy_mesh_args())
     
     def add_colors(self, colors):
         new_colors = self.color_library.load_colors(colors)

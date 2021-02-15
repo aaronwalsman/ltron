@@ -116,6 +116,8 @@ def graph_supervision_env(
         size=1,
         width=256,
         height=256,
+        segmentation_width=None,
+        segmentation_height=None,
         print_traceback=True,
         dataset_reset_mode='uniform',
         multi_hide=False,
@@ -189,8 +191,12 @@ def graph_supervision_env(
             width, height, components['scene'], anti_alias=True)
     
     # segmentation render
+    if segmentation_width is None:
+        segmentation_width = width
+    if segmentation_height is None:
+        segmentation_height = height
     components['segmentation_render'] = SegmentationRenderComponent(
-            width, height, components['scene'])
+            segmentation_width, segmentation_height, components['scene'])
     
     # graph labels
     components['graph_label'] = InstanceGraphComponent(

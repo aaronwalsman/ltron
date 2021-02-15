@@ -31,6 +31,7 @@ from brick_gym.torch.gym_tensor import (
         gym_space_to_tensors, gym_space_list_to_tensors, graph_to_gym_space)
 from brick_gym.torch.gym_log import gym_log
 import brick_gym.torch.models.named_models as named_models
+from brick_gym.torch.models.frozen_batchnorm import FrozenBatchNormWrapper
 from brick_gym.torch.train.loss import (
         dense_instance_label_loss, dense_score_loss, cross_product_loss)
 
@@ -76,6 +77,7 @@ def train_label_confidence(
         
         # model settings
         step_model_backbone = 'smp_fpn_r18',
+        edge_model_name = 'subtract',
         segment_id_matching = False,
         
         # test settings
@@ -107,6 +109,8 @@ def train_label_confidence(
             'nth_try',
             backbone_name = step_model_backbone,
             num_classes = num_classes).cuda()
+    #step_model = FrozenBatchNormWrapper(step_model)
+    
     if step_checkpoint is not None:
         print('Loading step model checkpoint from:')
         print(step_checkpoint)
@@ -115,7 +119,7 @@ def train_label_confidence(
     print('-'*80)
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
-            'subtract',
+            edge_model_name,
             input_dim=256).cuda()
     if edge_checkpoint is not None:
         print('Loading edge model checkpoint from:')
@@ -140,12 +144,19 @@ def train_label_confidence(
     
     print('-'*80)
     print('Building the train environment')
+    if step_model_backbone == 'simple':
+        segmentation_width, segmentation_height = 64, 64
+    else:
+        segmentation_width, segmentation_height = 256, 256
     train_env = async_brick_env(
             num_processes,
             graph_supervision_env,
             dataset=dataset,
             split=train_split,
             subset=train_subset,
+            dataset_reset_mode='multi_pass',
+            segmentation_width = segmentation_width,
+            segmentation_height = segmentation_height,
             multi_hide=multi_hide,
             randomize_viewpoint=randomize_viewpoint,
             randomize_viewpoint_frequency='reset',
@@ -759,33 +770,37 @@ def train_label_confidence_epoch(
                                 step_step_edge_loss + #* step_step_num +
                                 step_state_edge_loss) #* step_state_num)
                     
-                    matching_loss = matching_loss / normalizer
-                    step_loss = step_loss + matching_loss * matching_loss_weight
-                    log.add_scalar(
-                            'loss/matching', matching_loss, step_clock[0])
-                    
-                    edge_loss = edge_loss / normalizer
-                    step_loss = step_loss + edge_loss * edge_loss_weight
-                    log.add_scalar('loss/edge', edge_loss, step_clock[0])
-                    
-                    step_step_match_acc = (
-                            step_step_matching_correct / step_step_normalizer)
-                    log.add_scalar('train_accuracy/step_step_match',
-                            step_step_match_acc, step_clock[0])
-                    step_step_edge_acc = (
-                            step_step_edge_correct / step_step_normalizer)
-                    log.add_scalar('train_accuracy/step_step_edge',
-                            step_step_edge_acc, step_clock[0])
-                    if step_state_normalizer:
-                        step_state_match_acc = (
-                                step_state_matching_correct /
-                                step_state_normalizer)
-                        log.add_scalar('train_accuracy/step_state_match',
-                                step_state_match_acc, step_clock[0])
-                        step_state_edge_acc = (
-                                step_state_edge_correct / step_state_normalizer)
-                        log.add_scalar('train_accuracy/step_state_edge',
-                                step_state_edge_acc, step_clock[0])
+                    if normalizer > 0.:
+                        matching_loss = matching_loss / normalizer
+                        step_loss = step_loss + (
+                                matching_loss * matching_loss_weight)
+                        log.add_scalar(
+                                'loss/matching', matching_loss, step_clock[0])
+                        
+                        edge_loss = edge_loss / normalizer
+                        step_loss = step_loss + edge_loss * edge_loss_weight
+                        log.add_scalar('loss/edge', edge_loss, step_clock[0])
+                        
+                        step_step_match_acc = (
+                                step_step_matching_correct /
+                                step_step_normalizer)
+                        log.add_scalar('train_accuracy/step_step_match',
+                                step_step_match_acc, step_clock[0])
+                        step_step_edge_acc = (
+                                step_step_edge_correct / step_step_normalizer)
+                        log.add_scalar('train_accuracy/step_step_edge',
+                                step_step_edge_acc, step_clock[0])
+                        if step_state_normalizer:
+                            step_state_match_acc = (
+                                    step_state_matching_correct /
+                                    step_state_normalizer)
+                            log.add_scalar('train_accuracy/step_state_match',
+                                    step_state_match_acc, step_clock[0])
+                            step_state_edge_acc = (
+                                    step_state_edge_correct /
+                                    step_state_normalizer)
+                            log.add_scalar('train_accuracy/step_state_edge',
+                                    step_state_edge_acc, step_clock[0])
                 
                 log.add_scalar('loss/total', step_loss, step_clock[0])
                 
@@ -885,15 +900,15 @@ def log_train_supervision_step(
     true_instance_label_lookups = []
     pred_instance_label_lookups = []
     for i in range(len(true_graph)):
-        if not pred_brick_lists[i].num_nodes:
-            pred_class_label_images.append(numpy.ones((256,256,3)))
-            continue
         true_instance_label_lookup = true_graph[i].instance_label.numpy()[:,0]
         true_instance_label_lookups.append(true_instance_label_lookup)
         class_label_segmentation = true_instance_label_lookup[segmentations[i]]
         class_label_image = masks.color_index_to_byte(class_label_segmentation)
         true_class_label_images.append(class_label_image)
         
+        if not pred_brick_lists[i].num_nodes:
+            pred_class_label_images.append(numpy.ones((256,256,3)))
+            continue
         pred_instance_label_lookup = numpy.zeros(
                 true_instance_label_lookup.shape, dtype=numpy.long)
         pred_lookup_partial = (

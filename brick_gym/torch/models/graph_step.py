@@ -34,12 +34,14 @@ class GraphStepModel(torch.nn.Module):
             score_model,
             segmentation_model,
             heads,
-            add_spatial_embedding=False):
+            add_spatial_embedding=False,
+            output_resolution=(256,256)):
         super(GraphStepModel, self).__init__()
         self.backbone = backbone
         self.add_spatial_embedding = add_spatial_embedding
         if self.add_spatial_embedding:
-            self.spatial_embedding_layer = AddSpatialEmbedding((256,256), 256)
+            self.spatial_embedding_layer = AddSpatialEmbedding(
+                    output_resolution, 256)
         self.score_model = score_model
         self.segmentation_model = segmentation_model
         self.heads = torch.nn.ModuleDict(heads)

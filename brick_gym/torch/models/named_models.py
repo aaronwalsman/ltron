@@ -12,6 +12,7 @@ from brick_gym.torch.models.graph_step import GraphStepModel
 from brick_gym.torch.models.mlp import LinearStack, Conv2dStack
 from brick_gym.torch.models.espnet import ESPNet
 from brick_gym.torch.models.eespnet_seg import EESPNet_Seg
+from brick_gym.torch.models.simple_fcn import SimpleFCN
 
 class UnknownModelError(Exception):
     pass
@@ -90,6 +91,8 @@ def named_fcn_backbone(name, output_channels):
     elif name == 'eespnet':
         return EESPNet_Seg(classes=output_channels,
                 pretrained='/media/awalsman/data_drive/brick-gym/brick_gym/torch/models/espnetv2_s_1.0.pth')
+    elif name == 'simple':
+        return SimpleFCN()
     
     if 'unet' in name:
         if 'coord' in name:
@@ -115,13 +118,20 @@ def named_edge_model(name, input_dim):
                 input_dim,
                 pre_compare_layers=3,
                 post_compare_layers=3,
-                compare_mode = 'add')
-    if name == 'subtract':
+                compare_mode='add')
+    elif name == 'subtract':
         return edge.EdgeModel(
                 input_dim,
                 pre_compare_layers=3,
                 post_compare_layers=3,
-                compare_mode = 'subtract')
+                compare_mode='subtract')
+    
+    elif name == 'squared_difference':
+        return edge.EdgeModel(
+                input_dim,
+                pre_compare_layers=3,
+                post_compare_layers=3,
+                compare_mode='squared_difference')
 
 def named_graph_model(
         name, backbone_name, edge_model_name, node_classes, shape):
@@ -191,11 +201,16 @@ def named_graph_step_model(
 def named_graph_step_model(name, backbone_name, num_classes):
     if name == 'nth_try':
         #encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
+        if backbone_name == 'simple':
+            output_resolution = (64, 64)
+        else:
+            output_resolution = (256, 256)
         return GraphStepModel(
                 backbone = named_fcn_backbone(backbone_name, 256),
                 score_model = Conv2dStack(3, 256, 256, 1),
                 segmentation_model = None,
                 add_spatial_embedding = True,
+                output_resolution = output_resolution,
                 heads = {
                     'x' : torch.nn.Identity(),
                     'instance_label' : Conv2dStack(3, 256, 256, num_classes),

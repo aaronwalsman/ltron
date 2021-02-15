@@ -1,3 +1,5 @@
+import numpy
+
 from renderpy.frame_buffer import FrameBufferWrapper
 import renderpy.masks as masks
 
@@ -118,11 +120,13 @@ class SegmentationRenderComponent(BrickEnvComponent):
     def __init__(self,
             height,
             width,
-            scene_component):
+            scene_component,
+            terminate_on_empty=True):
         
         self.width = width
         self.height = height
         self.scene_component = scene_component
+        self.terminate_on_empty = terminate_on_empty
         self.scene_component.brick_scene.make_renderable()
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, anti_alias=False)
@@ -144,7 +148,10 @@ class SegmentationRenderComponent(BrickEnvComponent):
     
     def step(self, action):
         self.segmentation = self.compute_observation()
-        return self.segmentation, 0., False, None
+        terminal = False
+        if self.terminate_on_empty:
+            terminal = numpy.all(self.segmentation == 0)
+        return self.segmentation, 0., terminal, None
     
     def set_state(self, state):
         self.compute_observation()
