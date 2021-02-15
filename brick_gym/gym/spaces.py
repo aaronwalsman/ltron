@@ -58,7 +58,7 @@ class MultiInstanceSelectionSpace(spaces.Box):
         super(MultiInstanceSelectionSpace, self).__init__(
                 low=False,
                 high=True,
-                shape=self.max_num_instances,
+                shape=(self.max_num_instances+1,),
                 dtype=numpy.bool)
 
 class PixelSelectionSpace(spaces.Box):

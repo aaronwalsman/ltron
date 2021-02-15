@@ -6,10 +6,8 @@ import numpy
 import gym.spaces
 
 from brick_gym.gym.spaces import (
-        ImageSpace, SegmentationSpace, StepSpace, InstanceSelectionSpace,
-        PixelSelectionSpace, InstanceBrickTypeSpace, EdgeScoreSpace,
-        SparseEdgeSpace, SparseEdgeScoreSpace, GraphScoreSpace,
-        SparseGraphScoreSpace)
+        ImageSpace, SegmentationSpace, StepSpace,
+        PixelSelectionSpace)
 
 import PIL.Image as Image
 
@@ -43,21 +41,7 @@ def gym_dump(data, space, path, dump_json=True):
         
     elif isinstance(space, StepSpace):
         pass
-    elif isinstance(space, InstanceSelectionSpace):
-        pass
     elif isinstance(space, PixelSelectionSpace):
-        pass
-    elif isinstance(space, InstanceBrickTypeSpace):
-        return data.tolist()
-    elif isinstance(space, EdgeScoreSpace):
-        pass
-    elif isinstance(space, SparseEdgeSpace):
-        pass
-    elif isinstance(space, SparseEdgeScoreSpace):
-        pass
-    elif isinstance(space, GraphScoreSpace):
-        pass
-    elif isinstance(space, SparseGraphScoreSpace):
         pass
     elif isinstance(space, gym.spaces.Dict):
         json_data = {}

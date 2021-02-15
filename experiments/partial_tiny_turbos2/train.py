@@ -27,7 +27,7 @@ if __name__ == '__main__':
             
             # dataset settings
             dataset = 'tiny_turbos2',
-            train_subset = None,
+            train_subset = 4,
             num_processes = 4,
             randomize_viewpoint=True,
             
@@ -36,10 +36,11 @@ if __name__ == '__main__':
             
             # train settings
             mini_epoch_sequences = 2048,
-            mini_epoch_sequence_length = 1,
-            batch_size = 6,
+            mini_epoch_sequence_length = 2,
+            batch_size = 4,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
+            multi_hide = True,
             
             # model settings
             step_model_backbone = 'smp_fpn_rnxt50',
