@@ -92,7 +92,7 @@ def named_fcn_backbone(name, output_channels):
         return EESPNet_Seg(classes=output_channels,
                 pretrained='/media/awalsman/data_drive/brick-gym/brick_gym/torch/models/espnetv2_s_1.0.pth')
     elif name == 'simple':
-        return SimpleFCN()
+        return SimpleFCN(decoder_channels=output_channels)
     
     if 'unet' in name:
         if 'coord' in name:
@@ -200,21 +200,26 @@ def named_graph_step_model(
 '''
 def named_graph_step_model(name, backbone_name, num_classes):
     if name == 'nth_try':
+        decoder_channels = 512
         #encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
         if backbone_name == 'simple':
             output_resolution = (64, 64)
         else:
             output_resolution = (256, 256)
         return GraphStepModel(
-                backbone = named_fcn_backbone(backbone_name, 256),
-                score_model = Conv2dStack(3, 256, 256, 1),
+                backbone = named_fcn_backbone(backbone_name, decoder_channels),
+                score_model = Conv2dStack(
+                        3, decoder_channels, decoder_channels, 1),
                 segmentation_model = None,
                 add_spatial_embedding = True,
+                decoder_channels = decoder_channels,
                 output_resolution = output_resolution,
                 heads = {
                     'x' : torch.nn.Identity(),
-                    'instance_label' : Conv2dStack(3, 256, 256, num_classes),
-                    'hide_action' : Conv2dStack(3, 256, 256, 1)
+                    'instance_label' : Conv2dStack(
+                            3, decoder_channels, decoder_channels, num_classes),
+                    'hide_action' : Conv2dStack(
+                            3, decoder_channels, decoder_channels, 1)
                 })
     elif name == 'nth_try_nose':
         return GraphStepModel(

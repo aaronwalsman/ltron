@@ -35,7 +35,7 @@ def dense_instance_label_loss(
     return instance_label_loss
 
 def dense_score_loss(
-        dense_scores,
+        dense_score_logits,
         correct,
         foreground,
         background_weight = 0.01,
@@ -44,15 +44,15 @@ def dense_score_loss(
     
     # get dimensions and reshape to batch_size x h x w
     # this removes any single channel
-    b = dense_scores.shape[0]
-    h, w = dense_scores.shape[-2:]
-    dense_scores = dense_scores.view(b, h, w)
+    b = dense_score_logits.shape[0]
+    h, w = dense_score_logits.shape[-2:]
+    dense_score_logits = dense_score_logits.view(b, h, w)
     correct = correct.view(b, h, w)
     
     # bce scores to correct
     # TODO: _with_logits
-    score_loss = binary_cross_entropy(
-            dense_scores,
+    score_loss = binary_cross_entropy_with_logits(
+            dense_score_logits,
             correct.float() * foreground,
             reduction = 'none')
     

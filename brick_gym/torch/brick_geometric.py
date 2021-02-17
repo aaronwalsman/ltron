@@ -4,7 +4,7 @@ import collections
 import torch
 
 from torch_sparse import coalesce
-from torch_scatter import scatter_max
+from torch_scatter import scatter_max, scatter_add
 
 from torch_geometric.data import Data as GraphData
 from torch_geometric.utils import to_dense_adj
@@ -52,17 +52,98 @@ class BrickList(GraphData):
     '''
     
     @staticmethod
-    def segmentations_to_brick_lists(
-            scores, segmentation, feature_dict, max_instances=None):
-        # get dimensions (this works for either 3 or 4 dimensional tensors)
-        b, h, w = scores.shape[0], scores.shape[-2], scores.shape[-1]
-        scores = scores.view(b,h,w)
+    def segmentations_to_brick_lists_average(
+            score_logits, segmentation, feature_dict, max_instances=None):
+        b, h, w = (
+                score_logits.shape[0],
+                score_logits.shape[-2],
+                score_logits.shape[-1])
+        score_logits = score_logits.view(b,1,h,w)
         
-        # scatter_max the scores using the segmentation
+        scores = torch.sigmoid(score_logits)
+        total_scores = scatter_add(
+                scores.view(b,1,-1), segmentation.view(b,1,-1))
+        
+        # there is probably a more efficient way to do this
+        normalizer = scatter_add(
+                torch.ones_like(scores.view(b,1,-1)),
+                segmentation.view(b,1,-1))
+        
+        segment_features = {}
+        for feature_name, feature_values in feature_dict.items():
+            c = feature_values.shape[1]
+            weighted_feature_values = (scores * feature_values).view(b, c, -1)
+            segment_features[feature_name] = scatter_add(
+                    weighted_feature_values, segmentation.view(b, 1, -1))
+        
+        '''
+        if (max_instances is not None and
+                max_instances < raw_segment_score.shape[1]):
+            raw_segment_score, remap_segment_id = torch.topk(
+                    raw_segment_score, max_instances)
+            raw_source_index = torch.gather(
+                    raw_source_index, 1, remap_segment_id)
+        else:
+            remap_segment_id = None
+        '''
+        
+        valid_segments = torch.where(normalizer > 0.)
+        
+        brick_lists = []
+        for i in range(b):
+            item_entries = valid_segments[0] == i
+            nonzero_ids = valid_segments[-1][item_entries]
+            num_segments = nonzero_ids.shape[0]
+            batch_entries = [i] * num_segments
+            
+            segment_total_scores = total_scores[batch_entries, :, nonzero_ids]
+            segment_normalizer = normalizer[batch_entries, :, nonzero_ids]
+            segment_normalized_scores = segment_total_scores/segment_normalizer
+            
+            if (max_instances is not None and
+                    max_instances < segment_total_scores.shape[0]):
+                segment_total_scores, topk = torch.topk(
+                        segment_total_scores.view(-1), max_instances)
+                segment_total_scores = segment_total_scores.view(-1,1)
+                segment_normalized_scores = segment_normalized_scores[topk]
+                segment_ids = nonzero_ids[topk]
+            else:
+                topk = None
+                segment_ids = nonzero_ids
+            
+            graph_data = {}
+            for feature_name, feature_values in segment_features.items():
+                features = feature_values[batch_entries, :, nonzero_ids]
+                if topk is not None:
+                    features = features[topk]
+                features = features / segment_total_scores
+                graph_data[feature_name] = features
+            
+            brick_lists.append(BrickList(
+                    score=segment_normalized_scores,
+                    segment_id=segment_ids.unsqueeze(1),
+                    **graph_data))
+        
+        batch = BrickListBatch(brick_lists)
+        
+        return batch
+    
+    @staticmethod
+    def segmentations_to_brick_lists(
+            score_logits, segmentation, feature_dict, max_instances=None):
+        # get dimensions (this works for either 3 or 4 dimensional tensors)
+        b, h, w = (
+                score_logits.shape[0],
+                score_logits.shape[-2],
+                score_logits.shape[-1])
+        score_logits = score_logits.view(b,h,w)
+        
+        # scatter_max the score_logits using the segmentation
         # raw_segment_score: the highest score for each segment
         # raw_source_index: the pixel location where raw_segment_score was found
+        score = torch.sigmoid(score_logits)
         raw_segment_score, raw_source_index = scatter_max(
-                scores.view(b,-1), segmentation.view(b,-1))
+                score.view(b,-1), segmentation.view(b,-1))
         
         if (max_instances is not None and
                 max_instances < raw_segment_score.shape[1]):

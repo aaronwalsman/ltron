@@ -38,8 +38,8 @@ if __name__ == '__main__':
             
             # train settings
             mini_epoch_sequences = 2048,
-            mini_epoch_sequence_length = 4,
-            batch_size = 8,
+            mini_epoch_sequence_length = 1,
+            batch_size = 32,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
             multi_hide = True,
@@ -55,7 +55,7 @@ if __name__ == '__main__':
             test_steps_per_epoch = 8, #512,
             
             # logging settings
-            log_train=8,
+            log_train=0,
             
             # checkpoint settings
             checkpoint_frequency=5)

@@ -40,13 +40,14 @@ class SimpleDecoder(torch.nn.Module):
         
 
 class SimpleFCN(torch.nn.Module):
-    def __init__(self, pretrained=True):
+    def __init__(self, pretrained=True, decoder_channels=256):
         super(SimpleFCN, self).__init__()
         backbone = tv_models.resnet50(pretrained=pretrained)
         backbone = resnet.ResnetBackbone(backbone, fcn=True)
         self.encoder = backbone
         self.decoder = SimpleDecoder(
-                encoder_channels=(2048, 1024, 512, 256))
+                encoder_channels=(2048, 1024, 512, 256),
+                decoder_channels=decoder_channels)
     
     def forward(self, x):
         xn = self.encoder(x)
