@@ -74,7 +74,8 @@ class RandomFloatingBricks(BrickEnvComponent):
             
             brick_type = random.choice(self.bricks)
             if brick_type not in brick_scene.brick_library:
-                brick_scene.brick_library.add_type(brick_type)
+                #brick_scene.brick_library.add_type(brick_type)
+                brick_scene.add_brick_type(brick_type)
             brick_color = random.choice(self.colors)
             if brick_color not in brick_scene.color_library:
                 brick_scene.load_colors([brick_color])

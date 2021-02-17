@@ -78,8 +78,10 @@ class EdgeModel(torch.nn.Module):
                 step_step_x = step_one_x + one_step_x
             elif self.compare_mode == 'subtract':
                 step_step_x = step_one_x - one_step_x
-            elif self.compare_mode == 'subtract_squared':
+            elif self.compare_mode == 'squared_difference':
                 step_step_x = (step_one_x - one_step_x)**2
+            else:
+                raise ValueError('Unknown compare mode: %s'%self.compare_mode)
         
             # post-compare step_step_x
             if self.split_heads:
@@ -136,8 +138,10 @@ class EdgeModel(torch.nn.Module):
                 step_state_x = step_one_x + one_state_x
             elif self.compare_mode == 'subtract':
                 step_state_x = step_one_x - one_state_x
-            elif self.compare_mode == 'subtract_squared':
+            elif self.compare_mode == 'squared_difference':
                 step_state_x = (step_one_x - one_state_x)**2
+            else:
+                raise ValueError('Unknown compare mode: %s'%self.compare_mode)
             
             # post-compare step_state_x
             if self.split_heads:

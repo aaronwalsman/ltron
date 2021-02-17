@@ -215,9 +215,11 @@ class UNet(nn.Module):
     def __init__(self, input_channels, feature_dim, output_dim, coord_conv):
         super(UNet, self).__init__()
         self.encoder = UNet_Encoder(input_channels, feature_dim)
+        num_encoders = 1
         self.decoder = UNet_Decoder(
                 num_encoders, feature_dim, output_dim, coordconv=coord_conv)
     
     def forward(self, x):
         x = self.encoder(x)
-        out = self.decoder(x)
+        out = self.decoder([x])
+        return out

@@ -3,9 +3,10 @@ import torch
 import brick_gym.torch.models.spatial as spatial
 
 class ResnetBackbone(torch.nn.Module):
-    def __init__(self, resnet):
+    def __init__(self, resnet, fcn=False):
         super(ResnetBackbone, self).__init__()
         self.resnet = resnet
+        self.fcn = fcn
     
     def forward(self, x):
         x = self.resnet.conv1(x)
@@ -13,12 +14,15 @@ class ResnetBackbone(torch.nn.Module):
         x = self.resnet.relu(x)
         x = self.resnet.maxpool(x)
         
-        x = self.resnet.layer1(x)
-        x = self.resnet.layer2(x)
-        x = self.resnet.layer3(x)
-        x = self.resnet.layer4(x)
+        x1 = self.resnet.layer1(x)
+        x2 = self.resnet.layer2(x1)
+        x3 = self.resnet.layer3(x2)
+        x4 = self.resnet.layer4(x3)
         
-        return x
+        if self.fcn:
+            return x4, x3, x2, x1
+        else:
+            return x
 
 def replace_fc(resnet, num_classes):
     fc = resnet.fc

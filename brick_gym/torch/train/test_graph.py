@@ -47,6 +47,7 @@ def test_checkpoint(
     
     dataset_info = get_dataset_info(dataset)
     num_classes = max(dataset_info['class_ids'].values())+1
+    max_instances_per_scene = dataset_info['max_instances_per_scene']
     
     if dump_debug:
         run = os.path.split(os.path.dirname(step_checkpoint))[-1]
@@ -80,6 +81,7 @@ def test_checkpoint(
             split=test_split,
             subset=test_subset,
             dataset_reset_mode = 'single_pass',
+            multi_hide=True,
             randomize_viewpoint = False,
             randomize_viewpoint_frequency = 'reset',
             randomize_colors = False,
@@ -91,6 +93,7 @@ def test_checkpoint(
             edge_model,
             segment_id_matching,
             test_env,
+            max_instances_per_scene,
             dump_debug,
             debug_directory)
 
@@ -102,6 +105,8 @@ def test_graph(
         
         # environment
         test_env,
+        
+        max_instances_per_scene,
         
         # output
         dump_debug,
@@ -209,6 +214,7 @@ def test_graph(
             
             # figure out which instances to hide
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
+            '''
             #hide_logits = [sbl.score.view(-1) for sbl in step_brick_lists]
             hide_indices = []
             for i, logits in enumerate(hide_logits):
@@ -219,17 +225,32 @@ def test_graph(
                             int(step_brick_lists[i].segment_id[segment].cpu()))
                 else:
                     hide_indices.append(0)
+            '''
             
             # construct the action
             actions = []
-            for hide_index, graph_state in zip(hide_indices, graph_states):
+            #for hide_index, graph_state in zip(hide_indices, graph_states):
+            for i, logits in enumerate(hide_logits):
+                if True: #multi_hide:
+                    visibility_sample = numpy.zeros(
+                            max_instances_per_scene+1, dtype=numpy.bool)
+                    selected_instances = (
+                            step_brick_lists[i].segment_id[:,0].cpu().numpy())
+                    visibility_sample[selected_instances] = True
+                else:
+                    if logits.shape[0]:
+                        hide_value, segment = torch.max(logits, dim=0)
+                        segment = int(segment.cpu())
+                        visibility_sample = int(
+                                step_brick_lists[i].segment_id[segment_sample])
+                
                 graph_action = graph_to_gym_space(
-                        graph_state.cpu(),
+                        graph_states[i].cpu(),
                         test_env.single_action_space['graph_task'],
                         process_instance_logits=True,
                         segment_id_remap=True)
                 actions.append({
-                        'visibility':hide_index,
+                        'visibility':visibility_sample,
                         'graph_task':graph_action})
             
             for i in range(test_env.num_envs):
@@ -459,11 +480,12 @@ def test_graph(
         edge_ap_values.append(edge_ap)
         print('  Step %i: %f'%(step, edge_ap))
     
+    '''
     import matplotlib.pyplot as pyplot
     pyplot.plot(edge_ap_values)
     pyplot.ylim(0, 1)
     pyplot.show()
-    
+    '''
     print('-'*80)
     print('Instance AP:')
     instance_ap_values = []
@@ -474,10 +496,12 @@ def test_graph(
         instance_ap_values.append(instance_ap)
         print('  Step %i: %f'%(step, instance_ap))
     
+    '''
     import matplotlib.pyplot as pyplot
     pyplot.plot(instance_ap_values)
     pyplot.ylim(0, 1)
     pyplot.show()
+    '''
     
     print('Average instance ap: %f'%(
             sum_all_instance_ap/total_all_ap))

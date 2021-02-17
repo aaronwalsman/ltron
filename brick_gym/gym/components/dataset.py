@@ -17,21 +17,29 @@ class DatasetPathComponent(BrickEnvComponent):
             reset_mode='uniform',
             observe_episode_id=False):
         
-        self.set_state({'episode' : 0, 'scene_path' : None})
-        
         self.reset_mode = reset_mode
         self.dataset = dataset
         self.split = split
         self.subset = subset
         self.dataset_info = get_dataset_info(self.dataset)
-        self.dataset_paths = get_dataset_paths(
-                self.dataset, self.split, self.subset, rank, size)
+        if reset_mode == 'multi_pass':
+            self.dataset_paths = get_dataset_paths(
+                    self.dataset, self.split, self.subset)
+        else:
+            self.dataset_paths = get_dataset_paths(
+                    self.dataset, self.split, self.subset, rank, size)
         
         self.observe_episode_id = observe_episode_id
         if self.observe_episode_id:
             self.all_dataset_paths = get_dataset_paths(
                     self.dataset, self.split)
             self.observation_space = Discrete(len(self.all_dataset_paths)+1)
+        
+        if self.reset_mode == 'multi_pass':
+            start_episode = rank * len(self.dataset_paths) // size
+            self.set_state({'episode' : start_episode, 'scene_path' : None})
+        else:
+            self.set_state({'episode' : 0, 'scene_path' : None})
     
     def observe(self):
         if self.observe_episode_id:
@@ -45,7 +53,7 @@ class DatasetPathComponent(BrickEnvComponent):
     def reset(self):
         if self.reset_mode == 'uniform':
             self.scene_path = random.choice(self.dataset_paths)
-        elif self.reset_mode == 'sequential':
+        elif self.reset_mode == 'sequential' or self.reset_mode == 'multi_pass':
             self.scene_path = self.dataset_paths[
                     self.episode % len(self.dataset_paths)]
         elif self.reset_mode == 'single_pass':
