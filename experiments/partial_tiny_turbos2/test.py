@@ -17,8 +17,8 @@ if __name__ == '__main__':
             # dataset settings
             dataset = 'tiny_turbos2',
             num_processes = 4,
-            test_split = 'train',
-            test_subset = 16,
+            test_split = 'test',
+            test_subset = None,
             
             # model settings
             step_model_name='nth_try',

@@ -120,7 +120,7 @@ def train_label_confidence(
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
             edge_model_name,
-            input_dim=256).cuda()
+            input_dim=512).cuda()
     if edge_checkpoint is not None:
         print('Loading edge model checkpoint from:')
         print(edge_checkpoint)
@@ -256,7 +256,7 @@ def test_checkpoint(
         test_subset = None,
         num_processes = 4,
         test_steps = 4096,
-        log_debug = False,
+        log_test = False,
         randomize_viewpoint = True):
     
     step_clock = [0]
@@ -298,7 +298,7 @@ def test_checkpoint(
             step_model,
             edge_model,
             test_env,
-            log_debug)
+            log_test)
 
 def train_label_confidence_epoch(
         epoch,
@@ -325,7 +325,7 @@ def train_label_confidence_epoch(
         max_instances_per_scene,
         segment_id_matching,
         dataset_info,
-        log_debug):
+        log_train):
     
     print('-'*80)
     print('Train')
@@ -370,7 +370,7 @@ def train_label_confidence_epoch(
             
             #-------------------------------------------------------------------
             # step model forward pass
-            step_brick_lists, _, dense_scores, head_features = step_model(
+            step_brick_lists, _, dense_score_logits, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
                     max_instances = max_instances_per_step)
@@ -448,7 +448,7 @@ def train_label_confidence_epoch(
             
             #-------------------------------------------------------------------
             # prestep logging
-            if step < log_debug:
+            if step < log_train:
                 space = train_env.single_observation_space
                 log_train_rollout_step(
                         step_clock,
@@ -554,7 +554,10 @@ def train_label_confidence_epoch(
                 y_graph = seq_tensors['graph_label'][step_indices].cuda()
                 
                 # step forward pass
-                step_brick_lists, _, dense_scores, head_features = step_model(
+                (step_brick_lists,
+                 _,
+                 dense_score_logits,
+                 head_features) = step_model(
                         x_im, x_seg, max_instances=max_instances_per_step)
                 
                 # select graph state from memory for all terminal sequences
@@ -608,7 +611,9 @@ def train_label_confidence_epoch(
                             instance_label_prediction ==
                             dense_instance_label_target)
                     score_loss = dense_score_loss(
-                            dense_scores, correct, foreground)
+                            dense_score_logits,
+                            correct,
+                            foreground)
                     step_loss = step_loss + score_loss * score_loss_weight
                     log.add_scalar('loss/score', score_loss, step_clock[0])
                     log.add_scalar('train_accuracy/dense_instance_label',
@@ -806,7 +811,7 @@ def train_label_confidence_epoch(
                 
                 seq_loss = seq_loss + step_loss
                 
-                if seq_id < log_debug:
+                if seq_id < log_train:
                     log_train_supervision_step(
                             # log
                             step_clock,
@@ -816,7 +821,7 @@ def train_label_confidence_epoch(
                             x_seg.cpu().numpy(),
                             # predictions
                             instance_label_logits.cpu().detach(),
-                            dense_scores.cpu().detach(),
+                            torch.sigmoid(dense_score_logits).cpu().detach(),
                             step_brick_lists.cpu().detach(),
                             graph_states,
                             [torch.sigmoid(l).cpu().detach()
@@ -1101,7 +1106,7 @@ def test_label_confidence_epoch(
                     torch.cuda.current_device())
             
             # step model forward pass
-            step_brick_lists, _, dense_scores, head_features = step_model(
+            step_brick_lists, _, dense_score_logits, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'])
             
@@ -1153,7 +1158,7 @@ def test_label_confidence_epoch(
                     in zip(step_brick_lists, segment_samples)]
             actions = [{'visibility':int(i.cpu())} for i in instance_samples]
             
-            if step < log_debug:
+            if step < log_test:
                 space = train_env.single_observation_space
                 log_train_rollout_step(
                         step_clock,
