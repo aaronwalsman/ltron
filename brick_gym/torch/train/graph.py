@@ -102,6 +102,8 @@ def train_label_confidence(
     dataset_info = get_dataset_info(dataset)
     num_classes = max(dataset_info['class_ids'].values()) + 1
     max_instances_per_scene = dataset_info['max_instances_per_scene']
+    if random_floating_bricks:
+        max_instances_per_scene += 20
     
     print('-'*80)
     print('Building the step model')

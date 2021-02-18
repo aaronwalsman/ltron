@@ -28,16 +28,16 @@ if __name__ == '__main__':
             # dataset settings
             dataset = 'tiny_turbos2',
             train_split = 'train',
-            train_subset = 1,
-            num_processes = 1,
+            train_subset = None,
+            num_processes = 4,
             randomize_viewpoint=True,
-            random_floating_bricks=False,
+            random_floating_bricks=True,
             
             # rollout settings
-            train_steps_per_epoch = 1024,
+            train_steps_per_epoch = 2048,#1024,
             
             # train settings
-            mini_epoch_sequences = 2048,
+            mini_epoch_sequences = 4096,#2048,
             mini_epoch_sequence_length = 1,
             batch_size = 32,
             #edge_loss_weight = 0.,

@@ -140,6 +140,11 @@ def graph_supervision_env(
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
     max_edges = dataset_info['max_edges_per_scene']
+    # this shouldn't generate more edges, but maybe it accidentally
+    # does sometimes?
+    if random_floating_bricks:
+        max_edges += 20
+    
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
     # scene
