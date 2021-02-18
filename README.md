@@ -15,7 +15,7 @@
 - Install [LDraw](https://www.ldraw.org/) using our script to download this and put it in the right place.  Just run `bin/install_ldraw`
 - Install the [LDCad](http://www.melkert.net/LDCad) shadow library.  TODO: Incorporate this into the `install_ldraw` script.
   - Get `shadow.zip` from Aaron.
-  - Unzip it in the `brick-gym/data` directory so that you have `brick-gym/shadow/offLibShadow/...`
+  - Unzip it in the `brick-gym/data` directory so that you have `brick-gym/shadow/offLib/offLibShadow/...`
 - Install the [Open Model Repository](https://omr.ldraw.org/).  This contains files representing official Lego sets that have been reverse engineered by the online Lego community.  We have conveniently scraped this and packed it into a dataset.
   - Get `OMR.zip` from Aaron.
   - Unzip it in the `brick-gym/data` directory so that you have `brick-gym/data/OMR/ldraw/...`
