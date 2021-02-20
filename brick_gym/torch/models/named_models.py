@@ -198,7 +198,7 @@ def named_graph_step_model(
                         1)
         }
 '''
-def named_graph_step_model(name, backbone_name, num_classes):
+def named_graph_step_model(name, backbone_name, decoder_channels, num_classes):
     if name == 'nth_try':
         decoder_channels = 512
         #encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
@@ -231,4 +231,26 @@ def named_graph_step_model(name, backbone_name, num_classes):
                     'x' : torch.nn.Identity(),
                     'instance_label' : Conv2dStack(3, 256, 256, num_classes),
                     'hide_action' : Conv2dStack(3, 256, 256, 1)
+                })
+    elif name == 'fcos':
+        decoder_channels = 512
+        if backbone_name == 'simple':
+            output_resolution = (64, 64)
+        else:
+            output_resolution = (256, 256)
+        return GraphStepModel(
+                backbone = named_fcn_backbone(backbone_name, decoder_channels),
+                score_model = Conv2dStack(
+                        3, decoder_channels, decoder_channels, 1),
+                segmentation_model = FCOS_SEGMENTATION_CONVERTER,
+                add_spatial_embedding = True,
+                decoder_channels = decoder_channels,
+                output_resolution = output_resolution,
+                heads = {
+                    'x' : torch.nn.Identity(),
+                    'instance_label' : Covn2dStack(
+                            3, decoder_channels, decoder_channels, num_classes),
+                    'hide_action' : Conv2dStack(
+                            3, decoder_channels, decoder_channels, 1),
+                    'fcos_boxes' : FCOS_BOX_HEAD
                 })

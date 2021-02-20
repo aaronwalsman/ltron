@@ -12,13 +12,15 @@ class LDrawDocument:
     @staticmethod
     def parse_document(file_path, reference_table = None, shadow = False):
         file_name, ext = os.path.splitext(file_path)
-        if ext == '.mpd':
+        if ext == '.mpd' or ext == '.ldr':
             try:
                 return LDrawMPDMainFile(file_path, reference_table, shadow)
             except LDrawMissingFileComment:
                 return LDrawLDR(file_path, reference_table, shadow)
-        elif ext == '.ldr':
-            return LDrawLDR(file_path, reference_table, shadow)
+        # this doesn't work because a lot of ".ldr" files are actually
+        # structured as ".mpd" files
+        #elif ext == '.ldr':
+        #    return LDrawLDR(file_path, reference_table, shadow)
         elif ext == '.dat':
             return LDrawDAT(file_path, reference_table, shadow)
     
