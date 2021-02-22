@@ -123,6 +123,24 @@ class LDrawDocument:
                 
         return parts
     '''
+    
+    def get_all_vertices(self):
+        vertices = []
+        for command in self.commands:
+            if isinstance(command, (LDrawTriangleCommand, LDrawQuadCommand)):
+                vertices.append(command.vertices)
+            elif isinstance(command, LDrawImportCommand):
+                child_doc = (
+                        self.reference_table['ldraw'][command.reference_name])
+                child_vertices = child_doc.get_all_vertices()
+                child_transform = command.transform
+                child_vertices = numpy.dot(child_transform, child_vertices)
+                vertices.append(child_vertices)
+        
+        if len(vertices):
+            return numpy.concatenate(vertices, axis=1)
+        else:
+            return numpy.zeros((4,0))
 
 class LDrawMPDMainFile(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):

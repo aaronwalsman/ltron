@@ -77,6 +77,7 @@ def train_label_confidence(
         multi_hide = False,
         
         # model settings
+        step_model_name = 'nth_try',
         step_model_backbone = 'smp_fpn_r18',
         decoder_channels = 512,
         edge_model_name = 'subtract',
@@ -108,7 +109,7 @@ def train_label_confidence(
     print('-'*80)
     print('Building the step model')
     step_model = named_models.named_graph_step_model(
-            'nth_try',
+            step_model_name,
             backbone_name = step_model_backbone,
             decoder_channels = decoder_channels,
             num_classes = num_classes).cuda()
@@ -123,7 +124,7 @@ def train_label_confidence(
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
             edge_model_name,
-            input_dim=512).cuda()
+            input_dim=decoder_channels).cuda()
     if edge_checkpoint is not None:
         print('Loading edge model checkpoint from:')
         print(edge_checkpoint)
@@ -378,6 +379,9 @@ def train_label_confidence_epoch(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
                     max_instances = max_instances_per_step)
+            # MURU: We should change this part as well to not take in ground
+            # truth segmentation, but instead use the segmentation model.
+            # Basically, we should set the second argument to None.
             
             #-------------------------------------------------------------------
             # build new graph state for all terminal sequences
@@ -559,10 +563,12 @@ def train_label_confidence_epoch(
                 
                 # step forward pass
                 (step_brick_lists,
-                 _,
+                 predicted_segmentation,
                  dense_score_logits,
                  head_features) = step_model(
                         x_im, x_seg, max_instances=max_instances_per_step)
+                # MURU: 'fcos_features' should exist as a key in head_features
+                # here.  This is what should get losses applied.
                 
                 # select graph state from memory for all terminal sequences
                 # TODO: Is there more we need to do here to make sure gradients

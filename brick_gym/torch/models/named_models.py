@@ -200,7 +200,6 @@ def named_graph_step_model(
 '''
 def named_graph_step_model(name, backbone_name, decoder_channels, num_classes):
     if name == 'nth_try':
-        decoder_channels = 512
         #encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
         if backbone_name == 'simple':
             output_resolution = (64, 64)
@@ -233,7 +232,6 @@ def named_graph_step_model(name, backbone_name, decoder_channels, num_classes):
                     'hide_action' : Conv2dStack(3, 256, 256, 1)
                 })
     elif name == 'fcos':
-        decoder_channels = 512
         if backbone_name == 'simple':
             output_resolution = (64, 64)
         else:
