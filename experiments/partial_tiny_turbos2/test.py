@@ -5,7 +5,8 @@ import brick_gym.torch.train.test_graph as test_graph
 #run = 'Jan24_01-28-20_mechagodzilla'
 #epoch = 200
 #run = 'Feb10_11-50-54_gpu3'
-run = 'Feb10_11-43-04_gpu3'
+#run = 'Feb10_11-43-04_gpu3'
+run = 'Feb17_22-57-19_gpu3' #'Feb17_22-57-19_gpu3'
 epoch = 500
 
 if __name__ == '__main__':
@@ -22,7 +23,7 @@ if __name__ == '__main__':
             
             # model settings
             step_model_name='nth_try',
-            step_model_backbone='smp_fpn_rnxt50',
+            step_model_backbone='simple',
             segment_id_matching=False,
             
             # output settings
