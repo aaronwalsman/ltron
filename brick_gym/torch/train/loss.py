@@ -96,7 +96,7 @@ def cross_product_loss(
     #neg_weight = 1./(h*w)**0.5
     #neg_weight = 1.0
     neg_weight = (min(h,w) / (h*w)) * 2.
-    pos_weight = (1. - neg_weight) * 2.
+    pos_weight = (1. - neg_weight)
     #print('n:', neg_weight)
     #print('p:', pos_weight)
     

@@ -37,6 +37,7 @@ def test_checkpoint(
         # model settings
         step_model_name = 'nth_try',
         step_model_backbone = 'smp_fpn_r18',
+        decoder_channels = 512,
         edge_model_name = 'squared_difference',
         segment_id_matching = False,
         
@@ -62,6 +63,7 @@ def test_checkpoint(
     step_model = named_models.named_graph_step_model(
             step_model_name,
             backbone_name = step_model_backbone,
+            decoder_channels = decoder_channels,
             num_classes = num_classes).cuda()
     step_model.load_state_dict(torch.load(step_checkpoint))
     
@@ -69,7 +71,7 @@ def test_checkpoint(
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
             edge_model_name,
-            input_dim=512).cuda()
+            input_dim=decoder_channels).cuda()
     edge_model.load_state_dict(torch.load(edge_checkpoint))
     
     print('='*80)
@@ -80,6 +82,8 @@ def test_checkpoint(
             dataset = dataset,
             split=test_split,
             subset=test_subset,
+            segmentation_width = 64,
+            segmentation_height = 64,
             dataset_reset_mode = 'single_pass',
             multi_hide=True,
             segmentation_width = 64,

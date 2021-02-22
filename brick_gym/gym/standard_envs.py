@@ -119,12 +119,14 @@ def graph_supervision_env(
         segmentation_width=None,
         segmentation_height=None,
         print_traceback=True,
+        load_scenes=True,
         dataset_reset_mode='uniform',
         multi_hide=False,
         randomize_viewpoint=True,
         randomize_viewpoint_frequency='step',
         randomize_colors=True,
-        random_floating_bricks=True):
+        random_floating_bricks=True,
+        random_bricks_per_scene=(10,20)):
     
     components = collections.OrderedDict()
     
@@ -148,7 +150,11 @@ def graph_supervision_env(
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
     # scene
-    components['scene'] = SceneComponent(path_component = components['dataset'])
+    if load_scenes:
+        path_component = components['dataset']
+    else:
+        path_component = None
+    components['scene'] = SceneComponent(path_component=path_component)
     
     # viewpoint
     if randomize_viewpoint:
@@ -170,6 +176,7 @@ def graph_supervision_env(
         components['random_floating_bricks'] = RandomFloatingBricks(
                 components['scene'],
                 list(dataset_info['class_ids'].keys()),
+                bricks_per_scene=random_bricks_per_scene,
                 dataset_info['all_colors'])
         max_instances += (
                 components['random_floating_bricks'].bricks_per_scene[-1])
