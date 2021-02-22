@@ -63,7 +63,8 @@ class GraphStepModel(torch.nn.Module):
         
         #dense_graph_scores = dense_scores * (segmentation != 0).unsqueeze(1)
         dense_graph_score_logits = (
-                dense_score_logits * (segmentation != 0).unsqueeze(1))
+                dense_score_logits * (segmentation != 0).unsqueeze(1) + 
+                -50. * (segmentation == 0).unsqueeze(1))
         
         if False:
             batch_lists = BrickList.segmentations_to_brick_lists(
