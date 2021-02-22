@@ -59,7 +59,7 @@ class GraphStepModel(torch.nn.Module):
         # compute the segmentation if it wasn't supplied externally
         if segmentation is None:
             assert segmentation_model is not None
-            segmentation = self.segmentation_model(x)
+            segmentation = self.segmentation_model(head_features)
         
         #dense_graph_scores = dense_scores * (segmentation != 0).unsqueeze(1)
         dense_graph_score_logits = (

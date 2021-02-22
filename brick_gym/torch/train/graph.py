@@ -78,6 +78,7 @@ def train_label_confidence(
         
         # model settings
         step_model_backbone = 'smp_fpn_r18',
+        decoder_channels = 512,
         edge_model_name = 'subtract',
         segment_id_matching = False,
         
@@ -111,6 +112,7 @@ def train_label_confidence(
     step_model = named_models.named_graph_step_model(
             'nth_try',
             backbone_name = step_model_backbone,
+            decoder_channels = decoder_channels,
             num_classes = num_classes).cuda()
     #step_model = FrozenBatchNormWrapper(step_model)
     
