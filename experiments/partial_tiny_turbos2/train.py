@@ -37,6 +37,8 @@ if __name__ == '__main__':
             train_steps_per_epoch = 2048,#1024,
             
             # train settings
+            learning_rate = 1e-4,
+            weight_decay = 1e-6,
             mini_epoch_sequences = 4096,#2048,
             mini_epoch_sequence_length = 1,
             batch_size = 32,

@@ -65,6 +65,7 @@ def train_label_confidence(
         train_steps_per_epoch = 4096,
         batch_size = 6,
         learning_rate = 3e-4,
+        weight_decay = 1e-5,
         instance_label_loss_weight = 0.8,
         instance_label_background_weight = 0.05,
         score_loss_weight = 0.2,
@@ -132,7 +133,8 @@ def train_label_confidence(
     print('Building the optimizer')
     optimizer = torch.optim.Adam(
             list(step_model.parameters()) + list(edge_model.parameters()),
-            lr=learning_rate)
+            lr=learning_rate,
+            weight_decay=weight_decay)
     if optimizer_checkpoint is not None:
         print('Loading optimizer checkpoint from:')
         print(optimizer_checkpoint)

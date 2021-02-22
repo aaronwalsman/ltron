@@ -37,7 +37,7 @@ def test_checkpoint(
         # model settings
         step_model_name = 'nth_try',
         step_model_backbone = 'smp_fpn_r18',
-        edge_model_name = 'subtract',
+        edge_model_name = 'squared_difference',
         segment_id_matching = False,
         
         # output settings
@@ -69,7 +69,7 @@ def test_checkpoint(
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
             edge_model_name,
-            input_dim=256).cuda()
+            input_dim=512).cuda()
     edge_model.load_state_dict(torch.load(edge_checkpoint))
     
     print('='*80)
@@ -82,6 +82,8 @@ def test_checkpoint(
             subset=test_subset,
             dataset_reset_mode = 'single_pass',
             multi_hide=True,
+            segmentation_width = 64,
+            segmentation_height = 64,
             randomize_viewpoint = False,
             randomize_viewpoint_frequency = 'reset',
             randomize_colors = False,
@@ -146,7 +148,7 @@ def test_graph(
     sum_all_edge_ap = 0.
     total_all_ap = 0
     
-    max_instances_per_step = 8
+    max_instances_per_step = 1
     
     while not all_finished:
         with torch.no_grad():
