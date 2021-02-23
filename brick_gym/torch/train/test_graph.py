@@ -91,7 +91,10 @@ def test_checkpoint(
             randomize_viewpoint = False,
             randomize_viewpoint_frequency = 'reset',
             randomize_colors = False,
-            random_floating_bricks=False)
+            random_floating_bricks=random_floating_bricks,
+            random_bricks_per_scene=random_bricks_per_scene,
+            random_bricks_subset=random_bricks_subset,
+            random_bricks_rotation_mode=random_bricks_rotation_mode)
     
     # test
     test_graph(

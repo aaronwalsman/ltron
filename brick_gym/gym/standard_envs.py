@@ -126,7 +126,9 @@ def graph_supervision_env(
         randomize_viewpoint_frequency='step',
         randomize_colors=True,
         random_floating_bricks=True,
-        random_bricks_per_scene=(10,20)):
+        random_bricks_per_scene=(10,20),
+        random_bricks_subset=None,
+        random_bricks_rotation_mode='local_identity'):
     
     components = collections.OrderedDict()
     
@@ -142,10 +144,6 @@ def graph_supervision_env(
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
     max_edges = dataset_info['max_edges_per_scene']
-    # this shouldn't generate more edges, but maybe it accidentally
-    # does sometimes?
-    if random_floating_bricks:
-        max_edges += 20
     
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
@@ -155,6 +153,26 @@ def graph_supervision_env(
     else:
         path_component = None
     components['scene'] = SceneComponent(path_component=path_component)
+    
+    # random floating bricks
+    if random_floating_bricks:
+        if random_bricks_subset is None:
+            random_bricks = list(dataset_info['class_ids'].keys())
+        else:
+            random_bricks = list(
+                    dataset_info['class_ids'].keys())[:random_bricks_subset]
+        components['random_floating_bricks'] = RandomFloatingBricks(
+                components['scene'],
+                random_bricks,
+                dataset_info['all_colors'],
+                bricks_per_scene = random_bricks_per_scene,
+                rotation_mode = random_bricks_rotation_mode)
+        max_instances += (
+                components['random_floating_bricks'].bricks_per_scene[-1])
+        # this shouldn't generate more edges, but maybe it accidentally
+        # does sometimes?
+        max_edges += (
+                components['random_floating_bricks'].bricks_per_scene[-1])
     
     # viewpoint
     if randomize_viewpoint:
@@ -170,16 +188,6 @@ def graph_supervision_env(
                 azimuth = math.radians(-135.),
                 elevation = math.radians(-30.),
                 aspect_ratio = width/height)
-    
-    # random floating bricks
-    if random_floating_bricks:
-        components['random_floating_bricks'] = RandomFloatingBricks(
-                components['scene'],
-                list(dataset_info['class_ids'].keys()),
-                bricks_per_scene=random_bricks_per_scene,
-                dataset_info['all_colors'])
-        max_instances += (
-                components['random_floating_bricks'].bricks_per_scene[-1])
     
     # episode length
     components['episode_length'] = MaxEpisodeLengthComponent(max_instances)

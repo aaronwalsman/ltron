@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="brick-gym",
     version="0.0.1",
-    install_requires = ['gym', 'tqdm', 'numpy'],
+    install_requires = ['gym', 'tqdm', 'numpy', 'pyquaternion'],
     author="Aaron Walsman",
     author_email="aaronwalsman@gmail.com",
     description="Machine learning environment for LDraw bricks.",

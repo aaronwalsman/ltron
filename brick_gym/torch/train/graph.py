@@ -60,6 +60,10 @@ def train_label_confidence(
         randomize_viewpoint = True,
         randomize_colors = True,
         random_floating_bricks = False,
+        random_bricks_per_scene = (10,20),
+        random_bricks_subset = None,
+        random_bricks_rotation_mode = None,
+        load_scenes = True,
         
         # train settings
         train_steps_per_epoch = 4096,
@@ -161,6 +165,7 @@ def train_label_confidence(
             dataset=dataset,
             split=train_split,
             subset=train_subset,
+            load_scenes=load_scenes,
             dataset_reset_mode='multi_pass',
             segmentation_width = segmentation_width,
             segmentation_height = segmentation_height,
@@ -168,7 +173,10 @@ def train_label_confidence(
             randomize_viewpoint=randomize_viewpoint,
             randomize_viewpoint_frequency='reset',
             randomize_colors=randomize_colors,
-            random_floating_bricks=random_floating_bricks)
+            random_floating_bricks=random_floating_bricks,
+            random_bricks_per_scene=random_bricks_per_scene,
+            random_bricks_subset=random_bricks_subset,
+            random_bricks_rotation_mode=random_bricks_rotation_mode)
     
     '''
     print('-'*80)

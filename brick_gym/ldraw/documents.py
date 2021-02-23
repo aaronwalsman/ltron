@@ -23,6 +23,8 @@ class LDrawDocument:
         #    return LDrawLDR(file_path, reference_table, shadow)
         elif ext == '.dat':
             return LDrawDAT(file_path, reference_table, shadow)
+        else:
+            raise ValueError('Unknown extension: %s (%s)'%(file_path, ext))
     
     def set_reference_table(self, reference_table):
         if reference_table is None:

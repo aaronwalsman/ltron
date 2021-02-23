@@ -52,7 +52,7 @@ class GraphStepModel(torch.nn.Module):
         if self.add_spatial_embedding:
             x = self.spatial_embedding_layer(x)
         #dense_scores = torch.sigmoid(self.score_model(x))
-        dense_score_logits = self.score_model(x)
+        dense_score_logits = self.score_model(x.detach())
         head_features = {head_name : head_model(x)
                 for head_name, head_model in self.heads.items()}
         

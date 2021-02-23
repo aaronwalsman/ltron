@@ -2,6 +2,8 @@ import random
 
 import numpy
 
+from pyquaternion import Quaternion
+
 from brick_gym.geometry.utils import squared_distance
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
@@ -12,7 +14,8 @@ class RandomFloatingBricks(BrickEnvComponent):
             colors,
             bricks_per_scene = (10,20),
             min_brick_distance = 50,
-            brick_placement_distance = (50, 100)):
+            brick_placement_distance = (50, 100),
+            rotation_mode = 'identity'):
         
         self.scene_component = scene_component
         self.bricks = bricks
@@ -20,6 +23,7 @@ class RandomFloatingBricks(BrickEnvComponent):
         self.bricks_per_scene = bricks_per_scene
         self.min_brick_distance = min_brick_distance
         self.brick_placement_distance = brick_placement_distance
+        self.rotation_mode = rotation_mode
         
     def reset(self):
         try:
@@ -47,7 +51,6 @@ class RandomFloatingBricks(BrickEnvComponent):
                     for transform in all_brick_transforms]
             
             if len(all_brick_positions):
-            
                 while True:
                     distance = random.uniform(*brick_placement_distance)
                     offset = [1,1,1]
@@ -73,7 +76,24 @@ class RandomFloatingBricks(BrickEnvComponent):
                                     [0, 1, 0, offset[1]],
                                     [0, 0, 1, offset[2]],
                                     [0, 0, 0, 1]]))
+                        if self.rotation_mode == 'identity':
+                            new_brick_transform[:3,:3] = numpy.eye(3)
+                        elif self.rotation_mode == 'uniform':
+                            q = Quaternion.random()
+                            new_brick_transform[:3,:3] = q.rotation_matrix
                         break
+            
+            else:
+                if (self.rotation_mode == 'identity' or
+                        self.rotation_mode == 'local_identity'):
+                    new_brick_transform = numpy.array([
+                            [1, 0, 0, 0],
+                            [0,-1, 0, 0],
+                            [0, 0,-1, 0],
+                            [0, 0, 0, 1]])
+                elif self.rotation_mode == 'uniform':
+                    q = Quaternion.random()
+                    new_brick_transform = q.transformation_matrix
             
             brick_type = random.choice(self.bricks)
             if brick_type not in brick_scene.brick_library:
