@@ -176,8 +176,8 @@ def graph_supervision_env(
         components['random_floating_bricks'] = RandomFloatingBricks(
                 components['scene'],
                 list(dataset_info['class_ids'].keys()),
-                bricks_per_scene=random_bricks_per_scene,
-                dataset_info['all_colors'])
+                dataset_info['all_colors'],
+                bricks_per_scene=random_bricks_per_scene)
         max_instances += (
                 components['random_floating_bricks'].bricks_per_scene[-1])
     
