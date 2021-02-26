@@ -86,15 +86,14 @@ def test_checkpoint(
             segmentation_height = 64,
             dataset_reset_mode = 'single_pass',
             multi_hide=True,
-            segmentation_width = 64,
-            segmentation_height = 64,
             randomize_viewpoint = False,
             randomize_viewpoint_frequency = 'reset',
             randomize_colors = False,
-            random_floating_bricks=random_floating_bricks,
-            random_bricks_per_scene=random_bricks_per_scene,
-            random_bricks_subset=random_bricks_subset,
-            random_bricks_rotation_mode=random_bricks_rotation_mode)
+            random_floating_bricks=False)
+            #random_floating_bricks=random_floating_bricks,
+            #random_bricks_per_scene=random_bricks_per_scene,
+            #random_bricks_subset=random_bricks_subset,
+            #random_bricks_rotation_mode=random_bricks_rotation_mode)
     
     # test
     test_graph(
@@ -364,7 +363,7 @@ def test_graph(
                         test_env.num_envs,
                         concatenate=False,
                         color_image = step_observations['color_render'],
-                        dense_score = dense_scores.cpu().numpy(),
+                        dense_score = torch.sigmoid(dense_scores).cpu().numpy(),
                         dense_class_labels = pred_class_labels,
                         instance_id = instance_id,
                         step_size = [max_instances_per_step]*test_env.num_envs,
