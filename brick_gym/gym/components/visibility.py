@@ -68,6 +68,32 @@ class InstanceVisibilityComponent(VisibilityComponent):
         
         return None, 0., self.check_terminal(), None
 
+class InstanceRemovabilityComponent(BrickEnvComponent):
+    def __init__(self,
+            max_instances,
+            scene_component):
+        
+        self.max_instances = max_instances
+        self.scene_component = scene_component
+        self.observation_space = bg_spaces.MultiInstanceSelectionSpace(
+                self.max_instances)
+    
+    def compute_observation(self):
+        scene = self.scene_component.brick_scene
+        observation = numpy.zeros(self.max_instances+1, dtype=numpy.bool)
+        for instance_id, instance in scene.instances.items():
+            removable, direction = scene.is_instance_removable(instance)
+            if removable:
+                observation[int(instance_id)] = True
+        
+        return observation
+    
+    def reset(self):
+        return self.compute_observation()
+    
+    def step(self, action):
+        return self.compute_observation(), 0, False, None
+
 class PixelVisibilityComponent(VisibilityComponent):
     def __init__(self,
             width,

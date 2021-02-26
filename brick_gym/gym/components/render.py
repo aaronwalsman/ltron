@@ -5,7 +5,7 @@ import renderpy.masks as masks
 
 import brick_gym.gym.spaces as bg_spaces
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
-import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
+#import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
 '''
 class RendererComponent(BrickEnvComponent):
     def __init__(self,

@@ -20,7 +20,7 @@ investigate = '''
 1180-1 - Space Port Moon Buggy.mpd
 1462-1 - Galactic Scout.mpd
 1472-1 - Holiday Home.mpd
-=============== Processes from here upwards ======================
+=============== 2021/2/22 below here ======================
 1477-1 - %7BRed Race Car Number 3%7D.mpd
 1478-1 - Mobile Satellite Up-Link.mpd
 1479-1 - 2-Pilot Craft.mpd
@@ -56,6 +56,7 @@ investigate = '''
 1952-1 - Dairy Tanker.mpd
 1969-1 - Mini Robot.mpd
 1974-4 - Star Quest.mpd
+=============== 2021/2/22 above here ======================
 20006-1 - Clone Turbo Tank - Mini.mpd
 20009-1 - AT-TE Walker - Mini.mpd
 20011-1 - Garbage Truck.mpd
@@ -101,7 +102,8 @@ dataset_paths = [
     '10036-1 - Pizza To Go.mpd:10036 - car.ldr',
     '10128-1 - Train Level Crossing.mpd:10128 - car.ldr',
     '10156-1 - LEGO Truck.mpd:10156 - truck.ldr',
-    '10159-1 - City Airport -City Logo Box.mpd:10159 - airplane.ldr',
+    # big and has custom parts
+    #'10159-1 - City Airport -City Logo Box.mpd:10159 - airplane.ldr',
     '10159-1 - City Airport -City Logo Box.mpd:10159 - helicopter.ldr',
     '10159-1 - City Airport -City Logo Box.mpd:10159 - baggage car.ldr',
     '10159-1 - City Airport -City Logo Box.mpd:10159 - baggage trailer.ldr',
@@ -128,6 +130,57 @@ dataset_paths = [
     '1472-1 - Holiday Home.mpd:1472 - car 2.ldr',
     '1472-1 - Holiday Home.mpd:1472 - boat.ldr',
     '1472-1 - Holiday Home.mpd:1472 - trailer.ldr',
+    #=============== 2021/2/22 below here ======================
+    '1477-1 - %7BRed Race Car Number 3%7D.mpd',
+    '1478-1 - Mobile Satellite Up-Link.mpd',
+    '1479-1 - 2-Pilot Craft.mpd:1479 - spaceship.ldr',
+    '1484-1 - Weetabix Town House.mpd:1484 - smallcar.ldr',
+    '1489-1 - Mobile Car Crane.mpd:1489 - passenger car.ldr',
+    '1489-1 - Mobile Car Crane.mpd:1489 - car crane.ldr',
+    '1490-1 - Town Bank.mpd:1490 - car.ldr',
+    '1496-1 - Rally Car.mpd:1496 - car.ldr',
+    '1557-1 - Scooter.mpd:1557 - space scooter - scooter.ldr',
+    '1591 - Danone Truck.mpd',
+    '1620-1 - Astro Dart.mpd:1620 - spaceship.ldr',
+    '1621-1 - Lunar MPV Vehicle.mpd:1621 - vehicle.ldr',
+    '1631-1 - Black Racer.mpd',
+    '1632-1 - Motor Boat.mpd',
+    '1633-1 - Loader Tractor.mpd',
+    '1656-1 - Evacuation Team.mpd:1656 - tractor.ldr',
+    '1656-1 - Evacuation Team.mpd:1656 - cart.ldr',
+    '1656-1 - Evacuation Team.mpd:1656 - car.ldr',
+    '1656-1 - Evacuation Team.mpd:1656 - truck.ldr',
+    '1656-1 - Evacuation Team.mpd:1656 - trailer.ldr',
+    '1682-1 - Space Shuttle.mpd:1682 - car.ldr',
+    '1682-1 - Space Shuttle.mpd:1682 - trailer.ldr',
+    '1702-1 - Fire Fighter 4 x 4.mpd:1702 - car.ldr',
+    '1704-1 - Ice Planet Satellite Plough.mpd:1704 - vehicle + container.ldr',
+    '1713-1 - Shipwrecked Pirate.mpd:1713 - raft.ldr',
+    '1714-1 - Surveillance Scooter.mpd:1714 - spaceship.ldr',
+    '1731-1 - Ice Planet Scooter.mpd:1731 - spaceship.ldr',
+    '1772-1 - Airport Container Truck.mpd:1772 - car.ldr',
+    '1772-1 - Airport Container Truck.mpd:1772 - container.ldr',
+    '1773-1 - Airline Main_YbM0Kh4.mpd:1773 - car.ldr',
+    '1773-1 - Airline Main_YbM0Kh4.mpd:1773 - trailer.ldr',
+    '1775-1 - Jet.mpd:1775 - airplane.ldr',
+    '1792-1 - Pleasure Cruiser.mpd:1792 - boat.ldr',
+    '1793-1 - Space Station Zenon.mpd:1793 - vehicle.ldr',
+    '1793-1 - Space Station Zenon.mpd:1793 - cockpit.ldr',
+    '1808-1 - Light Aircraft and _3j8215M.mpd:1808 - airplane.ldr',
+    '1831-1 - Maersk Line Container Lorry.mpd:1831 - truck.ldr',
+    '1831-1 - Maersk Line Container Lorry.mpd:1831 - trailer.ldr',
+    '1831-1 - Maersk Line Container Lorry.mpd:1831 - container.ldr',
+    '1875-1 - Meteor Monitor.mpd:1875 - spaceship.ldr',
+    '1887-1 - Scout Patrol Ship.mpd:1887 - spaceship.ldr',
+    '1896-1 - Trauma Team.mpd:1896 - car 1.ldr',
+    '1896-1 - Trauma Team.mpd:1896 - helicopter.ldr',
+    '1896-1 - Trauma Team.mpd:1896 - car 2.ldr',
+    '1916-1 - Starion Patrol.mpd:1916 - spaceship.ldr',
+    '1952-1 - Dairy Tanker.mpd:1952 - car.ldr',
+    '1952-1 - Dairy Tanker.mpd:1952 - trailer.ldr',
+    '1969-1 - Mini Robot.mpd:1969 - robot.ldr',
+    '1974-4 - Star Quest.mpd:1974 - vehicle.ldr',
+    #===================== FINISHED HERE =====================
     
     # from tiny turbos 3
     '30030-1 - Racing Car.mpd',

@@ -72,7 +72,7 @@ class InstanceGraphComponent(BrickEnvComponent):
         edge_index = 0
         for instance_name in snap_connections:
             instance_id = int(instance_name)
-            for other_name, _ in snap_connections[instance_name]:
+            for other_name, _, _ in snap_connections[instance_name]:
                 other_id = int(other_name)
                 if other_id < instance_id:
                     unidirectional_edges.add((other_id, instance_id))

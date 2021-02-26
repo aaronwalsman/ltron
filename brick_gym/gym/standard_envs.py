@@ -1,6 +1,7 @@
 import math
 import collections
 
+import brick_gym.config as config
 from brick_gym.gym.brick_env import BrickEnv
 from brick_gym.gym.components.scene import SceneComponent
 from brick_gym.gym.components.episode import MaxEpisodeLengthComponent
@@ -11,11 +12,13 @@ from brick_gym.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent)
 from brick_gym.gym.components.viewpoint import (
         RandomizedAzimuthalViewpointComponent, FixedAzimuthalViewpointComponent)
-from brick_gym.gym.components.visibility import InstanceVisibilityComponent
+from brick_gym.gym.components.visibility import (
+        InstanceVisibilityComponent, InstanceRemovabilityComponent)
 from brick_gym.gym.components.graph_tasks import InstanceGraphConstructionTask
 from brick_gym.gym.components.colors import RandomizeColorsComponent
-from brick_gym.gym.components.random_floating_bricks import (
-        RandomFloatingBricks)
+from brick_gym.gym.components.random_floating_bricks import RandomFloatingBricks
+from brick_gym.gym.components.random_floating_pairs import RandomFloatingPairs
+from brick_gym.gym.components.spatial_info import BrickHeight
 
 def segmentation_supervision_env(
         dataset,
@@ -125,7 +128,8 @@ def graph_supervision_env(
         randomize_viewpoint=True,
         randomize_viewpoint_frequency='step',
         randomize_colors=True,
-        random_floating_bricks=True,
+        random_floating_bricks=False,
+        random_floating_pairs=False,
         random_bricks_per_scene=(10,20),
         random_bricks_subset=None,
         random_bricks_rotation_mode='local_identity'):
@@ -189,6 +193,21 @@ def graph_supervision_env(
                 elevation = math.radians(-30.),
                 aspect_ratio = width/height)
     
+    # random floating pairs
+    if random_floating_pairs:
+        augmentations = config.datasets[dataset].replace(
+                '.json', '_edge_augmentations.json')
+        components['random_floating_pairs'] = RandomFloatingPairs(
+                components['scene'],
+                augmentations,
+                dataset_info['all_colors'],
+                pairs_per_scene = random_bricks_per_scene,
+                rotation_mode = random_bricks_rotation_mode)
+        max_instances += (
+                components['random_floating_pairs'].pairs_per_scene[-1]*2)
+        max_edges += (
+                components['random_floating_pairs'].pairs_per_scene[-1]*2)
+    
     # episode length
     components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
     
@@ -205,6 +224,15 @@ def graph_supervision_env(
             scene_component = components['scene'],
             multi = multi_hide,
             terminate_when_all_hidden = True)
+    
+    # brick height (TEMP)
+    components['brick_height'] = BrickHeight(
+            max_instances,
+            components['scene'])
+    
+    components['removability'] = InstanceRemovabilityComponent(
+            max_instances,
+            components['scene'])
     
     # color render
     components['color_render'] = ColorRenderComponent(

@@ -39,7 +39,7 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         for instance_a in scene_connections:
             brick_instance_a = brick_scene.instances[instance_a]
             class_a = class_lookup[str(brick_instance_a.brick_type)]
-            for instance_b, snap_id in scene_connections[instance_a]:
+            for instance_b, snap_id, _ in scene_connections[instance_a]:
                 brick_instance_b = brick_scene.instances[instance_b]
                 id_a = int(instance_a)
                 id_b = int(instance_b)
@@ -100,8 +100,23 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         #te = time.time()
         #print('graph_task de:', te-td)
         
-        _, _, instance_ap = evaluation.edge_ap(
+        pr, cpr, instance_ap = evaluation.edge_ap(
                 predicted_instances, self.true_instances)
+        
+        '''
+        import random
+        r = random.randint(1,12121231231)
+        print('cpr', r)
+        print(cpr, r)
+        print(instance_ap, r)
+        print(predicted_instances, r)
+        print(self.true_instances)
+        y, x = zip(*cpr)
+        import matplotlib.pyplot as pyplot
+        pyplot.plot(x, y)
+        pyplot.savefig('fig_%i.png'%r)
+        print('---', r)
+        '''
         
         ###################3
         #tf = time.time()
