@@ -102,10 +102,19 @@ class BrickList(GraphData):
             
             if (max_instances is not None and
                     max_instances < segment_total_scores.shape[0]):
+                
+                # this is wrong but performs better for some reason
                 segment_total_scores, topk = torch.topk(
                         segment_total_scores.view(-1), max_instances)
                 segment_total_scores = segment_total_scores.view(-1,1)
                 segment_normalized_scores = segment_normalized_scores[topk]
+                
+                '''
+                segment_normalized_scores, topk = torch.topk(
+                        segment_normalized_scores.view(-1), max_instances)
+                segment_normalized_scores = segment_normalized_scores.view(-1,1)
+                segment_total_scores = segment_total_scores[topk]
+                '''
                 segment_ids = nonzero_ids[topk]
             else:
                 topk = None
