@@ -105,15 +105,15 @@ def start_viewer(
             state['batch_time'] = t_now
         state['steps'] += 1
         
-        #manager.enable_frame('part_mask')
         part_mask_frame.enable()
         scene.mask_render(flip_y=True)
-        #state['part_mask'] = manager.read_pixels('part_mask')
         state['part_mask'] = part_mask_frame.read_pixels()
         
         window.enable_window()
         if state['render_mode'] == 'color':
             scene.color_render(flip_y=False)
+        if state['render_mode'] == 'removable':
+            scene.removable_render(flip_y=False)
         elif state['render_mode'] == 'mask':
             scene.mask_render(flip_y=False)
     
@@ -126,8 +126,14 @@ def start_viewer(
     
     def keypress(key, x, y):
         if key == b'm':
-            if state['render_mode'] == 'color':
+            if state['render_mode'] != 'mask':
                 state['render_mode'] = 'mask'
+            else:
+                state['render_mode'] = 'color'
+        
+        if key == b'r':
+            if state['render_mode'] != 'removable':
+                state['render_mode'] = 'removable'
             else:
                 state['render_mode'] = 'color'
         
@@ -198,7 +204,6 @@ def start_viewer(
                     s for s in connected_instances if int(s) > instance_id)
             print('Outgoing Unidirectional Edges:')
             print(list(sorted(unidirectional)))
-            
     
     window.start_main_loop(
             glutDisplayFunc = render,
