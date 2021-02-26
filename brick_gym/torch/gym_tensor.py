@@ -68,6 +68,9 @@ def gym_space_to_tensors(
         elif isinstance(space, spaces.Discrete):
             return data
         
+        elif isinstance(space, spaces.Box):
+            return torch.FloatTensor(data).to(device)
+        
         elif isinstance(space, spaces.Dict):
             return {key : recurse(data[key], space[key]) for key in data}
         
@@ -112,6 +115,11 @@ def gym_space_list_to_tensors(
         
         elif isinstance(space, spaces.Tuple):
             return tuple(recurse(data[i], space[i]) for i in len(data[0]))
+        
+        elif isinstance(space, spaces.Box):
+            c = data[0].shape[-1]
+            tensor = torch.stack(data, dim=-2)
+            return tensor.view(-1, c)
     
     return recurse(tensors, space)
 
