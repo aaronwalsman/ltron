@@ -95,12 +95,14 @@ class BrickInstanceTable(collections.abc.MutableMapping):
         return len(self.instances)
         
 class BrickInstance:
-    def __init__(self, instance_id, brick_type, color, transform):
+    def __init__(self,
+            instance_id, brick_type, color, transform, mask_color=None):
         self.instance_id = instance_id
         self.instance_name = str(self.instance_id)
         self.brick_type = brick_type
         self.color = color
         self.transform = transform
+        self.mask_color = mask_color
     
     def __int__(self):
         return self.instance_id
@@ -121,6 +123,9 @@ class BrickInstance:
             'transform' : self.transform,
         }
         if renderpy_available:
-            instance_args['mask_color'] = masks.color_index_to_byte(
-                    self.instance_id)/255.
+            if self.mask_color is None:
+                instance_args['mask_color'] = masks.color_index_to_byte(
+                        self.instance_id)/255.
+            else:
+                instance_args['mask_color'] = self.mask_color
         return instance_args
