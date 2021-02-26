@@ -8,6 +8,7 @@ import numpy
 try:
     from renderpy.core import Renderpy
     import renderpy.camera as camera
+    import renderpy.masks as masks
     import renderpy.assets as drpy_assets
     renderpy_available = True
 except ImportError:
@@ -259,7 +260,8 @@ class BrickScene:
             snap_position = numpy.dot(snap.transform, [0,0,0,1])[:3]
             snaps_in_radius = self.snap_tracker.lookup(snap_position, radius)
             other_snaps.extend(
-                    [s for s in snaps_in_radius if s[0] != str(instance)])
+                    [s + (i,) for s in snaps_in_radius
+                        if s[0] != str(instance)])
         return other_snaps
     
     def get_all_snap_connections(self):
@@ -275,13 +277,45 @@ class BrickScene:
         all_edges = set()
         for instance_a_name in snap_connections:
             instance_a_id = int(instance_a_name)
-            for instance_b_name, snap_id in snap_connections[instance_a_name]:
+            connections = snap_connections[instance_a_name]
+            for instance_b_name, snap_id_b, snap_id_a in connections:
                 instance_b_id = int(instance_b_name)
                 if instance_a_id < instance_b_id or not unidirectional:
                     all_edges.add((instance_a_id, instance_b_id))
         all_edges = numpy.array(list(all_edges)).T
         return all_edges
     
+    def is_instance_removable(self, instance, radius=1):
+        instance = self.instances[instance]
+        other_snaps = self.get_instance_snap_connections(instance, radius)
+        
+        instance_snaps = instance.get_snaps()
+        snap_genders = []
+        snap_axes = []
+        for other_instance_id, other_snap_id, this_snap_id in other_snaps:
+            if self.instance_hidden(other_instance_id):
+                continue
+            
+            snap = instance_snaps[this_snap_id]
+            snap_genders.append(snap.gender)
+            snap_axis = numpy.dot(
+                    snap.transform, numpy.array([[0],[1],[0],[0]]))[:,0]
+            snap_axis = snap_axis / numpy.linalg.norm(snap_axis)
+            snap_axes.append(snap_axis)
+        
+        if len(snap_axes) == 0:
+            return True, None
+        
+        if len(snap_axes) == 1:
+            return True, snap_axes[0]
+        
+        if not all(snap_genders[0] == g for g in snap_genders[1:]):
+            return False, None
+        
+        if not all(numpy.dot(snap_axes[0], a) > 0.95 for a in snap_axes[1:]):
+            return False, None
+        
+        return True, snap_axes[0]
     '''
     def get_edge_dict(self):
         graph_edges = self.get_all_snap_connections()
@@ -332,6 +366,22 @@ class BrickScene:
                 'default',
                 texture_directory = self.default_image_light)
         self.renderer.set_active_image_light('default')
+    
+    def removable_render(self, *args, **kwargs):
+        for instance_id, instance in self.instances.items():
+            instance_data = self.renderer.scene_description[
+                    'instances'][instance.instance_name]
+            removable, axis = self.is_instance_removable(instance)
+            mask_color = (float(removable),)*3
+            instance_data['mask_color'] = mask_color
+        
+        self.mask_render(*args, **kwargs)
+        
+        for instance_id, instance in self.instances.items():
+            instance_data = self.renderer.scene_description[
+                    'instances'][instance.instance_name]
+            mask_color = masks.color_index_to_byte(int(instance_id)) / 255.
+            instance_data['mask_color'] = mask_color
     
     pass_through_functions = set((
             'set_ambient_color',
