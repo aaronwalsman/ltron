@@ -135,6 +135,7 @@ def cross_product_image(
     else:
         cells_x = cells_x + 1
     cell_height = max_height // cells_y
+    cell_height = min(cell_height, 16)
     
     small_image = numpy.zeros((cells_y, cells_x, 3), dtype=numpy.uint8)
     
