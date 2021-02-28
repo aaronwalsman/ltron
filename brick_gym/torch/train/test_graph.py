@@ -121,10 +121,10 @@ def test_graph(
         debug_directory):
     
     device = torch.device('cuda:0')
-    #step_model.eval()
-    #edge_model.eval()
-    step_model.train()
-    edge_model.train()
+    step_model.eval()
+    edge_model.eval()
+    #step_model.train()
+    #edge_model.train()
     
     # get initial observations
     step_observations = test_env.reset()
@@ -139,15 +139,32 @@ def test_graph(
     
     # initialize statistic variables
     step_pred_edge_dicts = []
+    step_pred_bland_edge_dicts = []
     step_target_edge_dicts = []
+    step_target_bland_edge_dicts = []
     seq_target_edge_dicts = [{} for _ in range(test_env.num_envs)]
+    seq_target_bland_edge_dicts = [{} for _ in range(test_env.num_envs)]
+    
+    #=========================== this is better =======================
+    terminal_pred_edge_dict = {}
+    terminal_pred_bland_edge_dict = {}
+    terminal_pred_instance_dict = {}
+    terminal_target_edge_dict = {}
+    terminal_target_bland_edge_dict = {}
+    terminal_target_instance_dict = {}
+    prev_pred_edges = [{} for _ in range(test_env.num_envs)]
+    prev_pred_bland_edges = [{} for _ in range(test_env.num_envs)]
+    prev_pred_instances = [{} for _ in range(test_env.num_envs)]
+    #==================================================================
     
     step_pred_instance_scores = []
     step_target_instance_labels = []
     seq_target_instance_labels = [{} for _ in range(test_env.num_envs)]
     
+    # this is per-scene so it's wrong (a little bit)
     sum_terminal_instance_ap = 0.
     sum_terminal_edge_ap = 0.
+    sum_terminal_bland_edge_ap = 0.
     total_terminal_ap = 0
     
     sum_all_instance_ap = 0.
@@ -158,29 +175,36 @@ def test_graph(
     
     while not all_finished:
         with torch.no_grad():
+            
+            #-------------------------------------------------------------------
+            # data storage and conversion
             # gym -> torch
             step_tensors = gym_space_to_tensors(
                     step_observations,
                     test_env.single_observation_space,
                     device)
             
+            #-------------------------------------------------------------------
             # step model forward pass
             step_brick_lists, _, dense_scores, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
                     max_instances = max_instances_per_step)
             
+            #-------------------------------------------------------------------
             # build new graph state for all terminal sequences
             # (do this here so we can use the brick_feature_spec from the model)
             # also update the target instance labels and graphs
             for i, terminal in enumerate(step_terminal):
                 if terminal:
                     
-                    # print something
+                    #-----------------------------------------------------------
+                    # convince the user that something is happening
                     if step_tensors['scene']['valid_scene_loaded'][i]:
                         print('Loading scene %i for process %i'%(
                                 scene_index[i], i))
                     
+                    #-----------------------------------------------------------
                     # make a new empty graph to represent the progress state
                     empty_brick_list = BrickList(
                             step_brick_lists[i].brick_feature_spec())
@@ -188,6 +212,7 @@ def test_graph(
                             empty_brick_list, edge_attr_channels=1).cuda()
                     scene_index[i] += 1
                     
+                    #-----------------------------------------------------------
                     # update the target instance labels
                     target_instance_labels = (
                             step_tensors['graph_label'][i].instance_label).cpu()
@@ -198,12 +223,16 @@ def test_graph(
                             continue
                         key = ((i, scene_index[i]), j, label)
                         seq_target_instance_labels[i][key] = 1.
+                    terminal_target_instance_dict.update(
+                        seq_target_instance_labels[i])
                     
+                    #-----------------------------------------------------------
                     # update the target graph edges
                     target_edges = step_tensors['graph_label'][i].edge_index
                     unidirectional = target_edges[0] < target_edges[1]
                     target_edges = target_edges[:,unidirectional]
                     seq_target_edge_dicts[i].clear()
+                    seq_target_bland_edge_dicts[i].clear()
                     for j in range(target_edges.shape[1]):
                         a = int(target_edges[0,j])
                         b = int(target_edges[1,j])
@@ -211,8 +240,15 @@ def test_graph(
                         lb = int(target_instance_labels[b])
                         key = ((i, scene_index[i]), a, b, la, lb)
                         seq_target_edge_dicts[i][key] = 1.
+                        bland_key = ((i, scene_index[i]), a, b)
+                        seq_target_bland_edge_dicts[i][bland_key] = 1.
+                    terminal_target_edge_dict.update(
+                            seq_target_edge_dicts[i])
+                    terminal_target_bland_edge_dict.update(
+                            seq_target_bland_edge_dicts[i])
             
-            # update the graph state using the edge model
+            #-------------------------------------------------------------------
+            # edge_model_forward_pass
             input_graph_states = graph_states
             graph_states, step_step_logits, step_state_logits = edge_model(
                     step_brick_lists,
@@ -220,7 +256,8 @@ def test_graph(
                     max_edges=max_edges,
                     segment_id_matching=segment_id_matching)
             
-            # figure out which instances to hide
+            #-------------------------------------------------------------------
+            # act
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
             '''
             #hide_logits = [sbl.score.view(-1) for sbl in step_brick_lists]
@@ -235,7 +272,6 @@ def test_graph(
                     hide_indices.append(0)
             '''
             
-            # construct the action
             actions = []
             #for hide_index, graph_state in zip(hide_indices, graph_states):
             for i, logits in enumerate(hide_logits):
@@ -285,7 +321,9 @@ def test_graph(
                 step = int(step_tensors['episode_length'][i].cpu())
                 while len(step_pred_edge_dicts) <= step:
                     step_pred_edge_dicts.append({})
+                    step_pred_bland_edge_dicts.append({})
                     step_target_edge_dicts.append({})
+                    step_target_bland_edge_dicts.append({})
                     step_pred_instance_scores.append({})
                     step_target_instance_labels.append({})
                 
@@ -304,10 +342,30 @@ def test_graph(
                         scores = scores,
                         unidirectional = True)
                 step_pred_edge_dicts[step].update(pred_edges)
-                step_target_edge_dicts[step].update(seq_target_edge_dicts[i])
+                pred_bland_edges = utils.sparse_graph_to_edge_scores(
+                        image_index = (i, scene_index[i]),
+                        node_label = action['instances']['label'],
+                        edges = edges.T,
+                        scores = scores,
+                        unidirectional = True,
+                        include_node_labels = False)
+                step_pred_bland_edge_dicts[step].update(pred_bland_edges)
                 
-                _, _, tmp_ap = evaluation.edge_ap(
-                        pred_edges, seq_target_edge_dicts[i])
+                step_target_edge_dicts[step].update(seq_target_edge_dicts[i])
+                step_target_bland_edge_dicts[step].update(
+                        seq_target_bland_edge_dicts[i])
+                
+                if step_terminal[i]:
+                    terminal_pred_edge_dict.update(prev_pred_edges[i])
+                    terminal_pred_bland_edge_dict.update(
+                            prev_pred_bland_edges[i])
+                
+                # ugh, I dislike this so much.
+                prev_pred_edges[i] = pred_edges
+                prev_pred_bland_edges[i] = pred_bland_edges
+                
+                #_, _, tmp_ap = evaluation.edge_ap(
+                #        pred_edges, seq_target_edge_dicts[i])
                 
                 # report which instances were predicted this frame
                 if graph_states[i].num_nodes:
@@ -326,7 +384,14 @@ def test_graph(
                     
                     step_pred_instance_scores[step].update(pred_instance_scores)
                     step_target_instance_labels[step].update(
-                            seq_target_instance_labels[i])
+                            seq_target_instance_labels[i])  
+                    
+                    if step_terminal[i]:
+                        terminal_pred_instance_dict.update(
+                                prev_pred_instances[i])
+                    
+                    # ugh, I dislike this too... so much
+                    prev_pred_instances[i] = pred_instance_scores
             
             if dump_debug:
                 '''
@@ -449,12 +514,6 @@ def test_graph(
              step_terminal,
              info) = test_env.step(actions)
             
-            #input()
-            #print('-'*80)
-            
-            #print('-'*80)
-            #input()
-            
             for i,t in enumerate(step_terminal):
                 # use step-tensors because it's one step out of date, and so
                 # we won't end up clipping the last one.
@@ -480,13 +539,28 @@ def test_graph(
                     step_tensors['scene']['valid_scene_loaded'] == 0)
             
     print('-'*80)
-    print('Edge AP:')
+    print('Edge AP: regular (bland)')
     edge_ap_values = []
-    for step, (pred_edge_dict, target_edge_dict) in enumerate(zip(
-                step_pred_edge_dicts, step_target_edge_dicts)):
+    for step, (
+            pred_edge_dict,
+            pred_bland,
+            target_edge_dict,
+            target_bland) in enumerate(zip(
+            step_pred_edge_dicts,
+            step_pred_bland_edge_dicts,
+            step_target_edge_dicts,
+            step_target_bland_edge_dicts)):
         _, _, edge_ap = evaluation.edge_ap(pred_edge_dict, target_edge_dict)
+        _, _, bland_edge_ap = evaluation.edge_ap(pred_bland, target_bland)
         edge_ap_values.append(edge_ap)
-        print('  Step %i: %f'%(step, edge_ap))
+        print('  Step %i: %f (%f)'%(step, edge_ap, bland_edge_ap))
+    
+    _, _, edge_ap = evaluation.edge_ap(
+            terminal_pred_edge_dict, terminal_target_edge_dict)
+    _, _, bland_edge_ap = evaluation.edge_ap(
+            terminal_pred_bland_edge_dict, terminal_target_bland_edge_dict)
+    print('Terminal: %f (%f)'%(edge_ap, bland_edge_ap))
+    
     
     '''
     import matplotlib.pyplot as pyplot
@@ -503,6 +577,9 @@ def test_graph(
                 pred_instance_dict, target_instance_dict)
         instance_ap_values.append(instance_ap)
         print('  Step %i: %f'%(step, instance_ap))
+    _, _, instance_ap = evaluation.edge_ap(
+            terminal_pred_instance_dict, terminal_target_instance_dict)
+    print('Terminal: %f'%instance_ap)
     
     '''
     import matplotlib.pyplot as pyplot
@@ -510,6 +587,9 @@ def test_graph(
     pyplot.ylim(0, 1)
     pyplot.show()
     '''
+    
+    print('='*80)
+    print('Single Step Stats:')
     
     print('Average instance ap: %f'%(
             sum_all_instance_ap/total_all_ap))

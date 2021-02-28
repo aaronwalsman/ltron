@@ -17,7 +17,12 @@ def matrix_to_edge_scores(image_index, node_label, edge_matrix):
     return edge_scores
 
 def sparse_graph_to_edge_scores(
-        image_index, node_label, edges, scores, unidirectional):
+        image_index,
+        node_label,
+        edges,
+        scores,
+        unidirectional,
+        include_node_labels=True):
     
     if unidirectional:
         unidirectional_edges = edges[:,0] < edges[:,1]
@@ -27,17 +32,34 @@ def sparse_graph_to_edge_scores(
     edge_scores = {}
     for (a, b), score in zip(edges, scores):
         score = float(score)
+        
+        key = []
+        if image_index is not None:
+            key.append(image_index)
+        key.append(int(a))
+        key.append(int(b))
+        if include_node_labels:
+            key.append(int(node_label[a]))
+            key.append(int(node_label[b]))
+        
+        edge_scores[tuple(key)] = score
+        
+        '''
         if image_index is None:
-            #edge_scores[a+1, b+1, node_label[a], node_label[b]] = score
-            edge_scores[
-                    int(a), int(b),
-                    int(node_label[a]), int(node_label[b])] = score
+            in include_node_labels:
+                #edge_scores[a+1, b+1, node_label[a], node_label[b]] = score
+                edge_scores[
+                        int(a), int(b),
+                        int(node_label[a]), int(node_label[b])] = score
+            else:
+                edge_scores[int(a), int(b)] = score
         else:
             #edge_scores[image_index,a+1,b+1,node_label[a],node_label[b]] = (
             #        score)
             edge_scores[image_index,
                     int(a), int(b),
                     int(node_label[a]), int(node_label[b])] = score
+        '''
     
     return edge_scores
 

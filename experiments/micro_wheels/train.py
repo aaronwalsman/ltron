@@ -2,10 +2,6 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.graph as train_graph
 
-#run = 'Feb24_11-25-43_mechagodzilla'
-#epoch = 380
-#run = 'Feb24_19-26-26_mechagodzilla' #None #'Feb23_00-57-59_mechagodzilla'
-#epoch = 35
 run = None
 epoch = 0
 
@@ -30,14 +26,16 @@ if __name__ == '__main__':
             mini_epochs_per_epoch = 1,
             
             # dataset settings
-            dataset = 'tiny_turbos2',
+            dataset = 'micro_wheels',
             train_split = 'train',
-            train_subset = 4,
+            train_subset = None,
             num_processes = 4,
             randomize_viewpoint=True,
-            random_floating_bricks=False,
+            random_floating_bricks=True,
             random_floating_pairs=False,
-            random_bricks_rotation_mode='uniform',
+            random_bricks_rotation_mode='identity',
+            load_scenes=False,
+            random_bricks_per_scene=(20,30),
             
             # rollout settings
             train_steps_per_epoch = 1024,
