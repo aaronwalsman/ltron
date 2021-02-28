@@ -32,6 +32,8 @@ def make_image_strip(
     max_height = 0
     strip_components = []
     
+    target_height = color_image.shape[0]
+    
     for raw, converter in (
             (color_image, lambda x : x),
             (dense_score, single_float_to_three_bytes),
@@ -42,6 +44,9 @@ def make_image_strip(
         
         if raw is not None:
             image = converter(raw)
+            while image.shape[0] <= target_height // 2:
+                image = numpy.repeat(image, 2, axis=0)
+                image = numpy.repeat(image, 2, axis=1)
             strip_components.append(image)
             max_height = max(max_height, image.shape[0])
     
