@@ -136,6 +136,7 @@ class BrickScene:
                 self.renderer.load_mesh(
                         new_type.mesh_name,
                         **new_type.renderpy_mesh_args())
+        return new_type
     
     def add_colors(self, colors):
         new_colors = self.color_library.load_colors(colors)
@@ -144,6 +145,7 @@ class BrickScene:
                 self.renderer.load_material(
                         brick_color.material_name,
                         **brick_color.renderpy_material_args())
+        return new_colors
     
     def add_instance(self, brick_type, brick_color, transform):
         brick_instance = self.instances.add_instance(
@@ -154,6 +156,8 @@ class BrickScene:
                     **brick_instance.renderpy_instance_args())
         if self.track_snaps:
             self.update_instance_snaps(brick_instance)
+        
+        return brick_instance
     
     def import_ldraw(self, path):
         #t0 = time.time()
@@ -216,6 +220,10 @@ class BrickScene:
     def show_all_instances(self):
         for instance_id, instance in self.instances.items():
             self.show_instance(instance_id)
+    
+    def hide_all_instances(self):
+        for instance_id, instance in self.instances.items():
+            self.hide_instance(instance_id)
     
     def renderable_snap(self, snap):
         return isinstance(snap, SnapCylinder)
