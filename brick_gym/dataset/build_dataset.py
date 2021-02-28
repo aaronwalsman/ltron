@@ -8,7 +8,7 @@ from brick_gym.bricks.brick_scene import BrickScene
 
 random.seed(141414)
 
-def build_dataset(name, path_root, paths, test_size):
+def build_dataset(name, path_root, paths, test_set):
     # intialize data
     data = {}
     data['splits'] = {}
@@ -18,7 +18,10 @@ def build_dataset(name, path_root, paths, test_size):
     
     data['splits']['all'] = list(sorted(relative_paths))
     
-    test_paths = random.sample(relative_paths, test_size)
+    if isinstance(test_set, int):
+        test_paths = random.sample(relative_paths, test_set)
+    else:
+        test_paths = test_set
     data['splits']['test'] = list(sorted(test_paths))
     
     train_paths = set(relative_paths) - set(test_paths)
