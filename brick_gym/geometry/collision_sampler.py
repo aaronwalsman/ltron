@@ -1,4 +1,4 @@
-from numpy import np
+import numpy as np
 from numpy.linalg import inv
 from itertools import product, chain
 
@@ -9,9 +9,10 @@ def get_all_snap_rotations(snap):
         # Rotate around the y axis
         # From https://en.wikipedia.org/wiki/Rotation_matrix
         rotation = np.array([
-            [np.cos(theta), 0, np.sin(theta)],
-            [0, 1, 0],
-            [-np.sin(theta), 0, np.cos(theta)],
+            [np.cos(theta), 0, np.sin(theta), 0],
+            [0, 1, 0, 0],
+            [-np.sin(theta), 0, np.cos(theta), 0],
+            [0, 0, 0, 1],
         ])
         transform = snap.transform @ rotation @ inv(snap.transform)
         cloned_snaps.append(snap.transformed_copy(transform))
@@ -19,17 +20,19 @@ def get_all_snap_rotations(snap):
 
 
 def get_all_transformed_snaps(snaps):
+    """
+    Returns a list of all male snaps with quarter rotations about y
+    and return a list of female snaps (no rotations applied) because
+    only one piece needs to rotate
+    """
     male = [s for s in snaps if s.gender.lower() == 'm']
     all_male = []
     for snap in male:
         all_male.extend(get_all_snap_rotations(snap))
     female = [s for s in snaps if s.gender.lower() == 'f']
-    all_female = []
-    for snap in female:
-        all_female.extend(get_all_snap_rotations(snap))
     return {
         'male': all_male,
-        'female': all_female,
+        'female': female,
     }
 
 
