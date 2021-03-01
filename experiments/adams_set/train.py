@@ -2,12 +2,8 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.graph as train_graph
 
-#run = 'Feb24_11-25-43_mechagodzilla'
-#epoch = 380
-#run = 'Feb24_19-26-26_mechagodzilla' #None #'Feb23_00-57-59_mechagodzilla'
-#epoch = 35
-run = None
-epoch = 0
+run = None #'Feb10_13-50-08_mechagodzilla'
+epoch = 40
 
 if run is not None:
     step_checkpoint = './checkpoint/%s/step_model_%04i.pt'%(run, epoch)
@@ -30,14 +26,12 @@ if __name__ == '__main__':
             mini_epochs_per_epoch = 1,
             
             # dataset settings
-            dataset = 'tiny_turbos2',
+            dataset = 'small_vehicles',
             train_split = 'train',
-            train_subset = 4,
+            train_subset = None,
             num_processes = 4,
             randomize_viewpoint=True,
             random_floating_bricks=False,
-            random_floating_pairs=True,
-            random_bricks_rotation_mode='local_identity',
             
             # rollout settings
             train_steps_per_epoch = 1024,
@@ -46,12 +40,11 @@ if __name__ == '__main__':
             learning_rate = 1e-4,
             weight_decay = 1e-6,
             mini_epoch_sequences = 2048,
-            mini_epoch_sequence_length = 1,
-            batch_size = 32,
+            mini_epoch_sequence_length = 4,
+            batch_size = 8,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
             multi_hide = True,
-            max_instances_per_step=8,
             
             # model settings
             #step_model_backbone = 'smp_fpn_rnxt50',
@@ -64,7 +57,7 @@ if __name__ == '__main__':
             test_steps_per_epoch = 8, #512,
             
             # logging settings
-            log_train=8,
+            log_train=16,
             
             # checkpoint settings
             checkpoint_frequency=5)

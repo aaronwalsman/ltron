@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+import brick_gym.config as config
+from brick_gym.dataset.build_dataset import build_dataset
+
+dataset_paths = [
+    "4096 - Micro Wheels - AB Forklift.mpd",
+    "4096 - Micro Wheels - AB Loader.mpd",
+    "4096 - Micro Wheels - AB Truck and Trailer.mpd",
+    "4096 - Micro Wheels - EB Combine Harvester.mpd",
+    "4096 - Micro Wheels - EB Crane.mpd",
+    "4096 - Micro Wheels - EB Tractor and Trailer.mpd",
+    "4096 - Micro Wheels - EB Truck.mpd",
+    "4096 - Micro Wheels - QB 4WD.mpd",
+    "4096 - Micro Wheels - QB Cement Mixer.mpd",
+    "4096 - Micro Wheels - QB Formula1.mpd",
+    "4096 - Micro Wheels - QB Roadster 1.mpd",
+    "4096 - Micro Wheels - QB Roadster 2.mpd",
+    "4096 - Micro Wheels - QB Truck.mpd"
+]
+
+from brick_gym.bricks.brick_scene import BrickScene
+import os
+import random
+part_types = {}
+for path in dataset_paths:
+    scene = BrickScene()
+    scene.import_ldraw(os.path.join(config.paths['omr'], 'ldraw', path))
+    part_types[path] = set()
+    for instance_id, instance in scene.instances.items():
+        brick_type = str(instance.brick_type)
+        part_types[path].add(brick_type)
+
+while True:
+    test_set = random.sample(dataset_paths, 5)
+    train_set = set(dataset_paths) - set(test_set)
+    
+    test_parts = set.union(*[part_types[path] for path in test_set])
+    train_parts = set.union(*[part_types[path] for path in train_set])
+    
+    if not len(test_parts - train_parts):
+        print('Train:')
+        for path in train_set:
+            print(path)
+        
+        print('Test:')
+        for path in test_set:
+            print(path)
+        
+        break
+
+test_set = [os.path.join('ldraw', path) for path in test_set]
+build_dataset('micro_wheels', config.paths['omr'], dataset_paths, test_set)

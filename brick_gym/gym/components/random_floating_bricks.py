@@ -14,7 +14,7 @@ class RandomFloatingBricks(BrickEnvComponent):
             colors,
             bricks_per_scene = (10,20),
             min_brick_distance = 50,
-            brick_placement_distance = (50, 100),
+            brick_placement_distance = (40, 60),#(50, 100),
             rotation_mode = 'identity'):
         
         self.scene_component = scene_component
@@ -77,7 +77,10 @@ class RandomFloatingBricks(BrickEnvComponent):
                                     [0, 0, 1, offset[2]],
                                     [0, 0, 0, 1]]))
                         if self.rotation_mode == 'identity':
-                            new_brick_transform[:3,:3] = numpy.eye(3)
+                            r = numpy.eye(3)
+                            r[1,1] = -1
+                            r[2,2] = -1
+                            new_brick_transform[:3,:3] = r
                         elif self.rotation_mode == 'uniform':
                             q = Quaternion.random()
                             new_brick_transform[:3,:3] = q.rotation_matrix

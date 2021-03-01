@@ -110,11 +110,15 @@ class BrickInstance:
     def __str__(self):
         return self.instance_name
     
+    def get_snap(self, i):
+        return self.brick_type.snaps[i].transformed_copy(self.transform)
+    
     def get_snaps(self):
-        snaps = []
-        for snap in self.brick_type.snaps:
-            snaps.append(snap.transformed_copy(self.transform))
-        return snaps
+        return [self.get_snap(i) for i in range(len(self.brick_type.snaps))]
+        #snaps = []
+        #for snap in self.brick_type.snaps:
+        #    snaps.append(snap.transformed_copy(self.transform))
+        #return snaps
     
     def renderpy_instance_args(self):
         instance_args = {
