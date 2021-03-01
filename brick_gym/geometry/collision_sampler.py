@@ -36,10 +36,10 @@ def get_all_transformed_snaps(snaps):
     }
 
 
-def get_all_transformed_snap_pairs(instance1, instance2):
-    snaps1 = get_all_transformed_snaps(instance1.get_snaps())
-    snaps2 = get_all_transformed_snaps(instance2.get_snaps())
+def get_all_transformed_snap_pairs(instance1_snaps, instance2_snaps):
+    snaps1 = get_all_transformed_snaps(instance1_snaps)
+    snaps2 = get_all_transformed_snaps(instance2_snaps)
     return chain(
         product(snaps1['male'], snaps2['female']),
-        product(snaps1['female'], snaps1['male']),
+        product(snaps1['female'], snaps2['male']),
     )
