@@ -180,19 +180,33 @@ class SnapCylinder(SnapStyle):
         if close_enough(self.center, other.center, tolerance):
             return True
     
-    def get_snap_mesh(self):
-        assert renderpy_available
+    def get_sec_parts(self):
         sec_parts = self.secs.split()
         sec_parts = zip(sec_parts[::3], sec_parts[1::3], sec_parts[2::3])
+        return list(sec_parts)
+    
+    def contains_stud_radius(self):
+        sec_parts = self.get_sec_parts()
+        for c, r, l in sec_parts:
+            if (c.upper() == 'R' or c.upper() == 'S') and float(r) == 6:
+                return True
+        return False
+    
+    def get_snap_mesh(self):
+        assert renderpy_available
+        sec_parts = self.get_sec_parts()
         sections = []
         previous_length = 0
+        if self.center:
+            previous_length += sum(
+                    float(sec_part[-1]) for sec_part in sec_parts)/2.
         for cross_section, radius, length in sec_parts:
             radius = float(radius)
             if self.gender == 'F':
                 radius *= 1.01
             length = -float(length)
             sections.append((radius, length + previous_length))
-            previous_length = length
+            previous_length += length
         return primitives.multi_cylinder(sections = sections)
 
 class SnapClip(SnapStyle):
