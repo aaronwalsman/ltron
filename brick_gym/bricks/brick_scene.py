@@ -1,5 +1,6 @@
 import time
 import math
+import os
 
 import numpy
 
@@ -143,8 +144,8 @@ class BrickScene:
         if self.renderable:
             for new_color in new_colors:
                 self.renderer.load_material(
-                        brick_color.material_name,
-                        **brick_color.renderpy_material_args())
+                        new_color.material_name,
+                        **new_color.renderpy_material_args())
         return new_colors
     
     def add_instance(self, brick_type, brick_color, transform):
@@ -200,6 +201,31 @@ class BrickScene:
         if self.track_snaps:
             for brick_instance in new_instances:
                 self.update_instance_snaps(brick_instance)
+    
+    def export_ldraw(self, path):
+        directory, file_name = os.path.split(path)
+        lines = [
+                '0 FILE %s'%file_name,
+                '0 Main',
+                '0 Name: %s'%file_name,
+                '0 Author: BrickScene',
+                "0 LICENSE Just use it, it's fine, I don't care"
+        ]
+        for instance in self.instances.values():
+            color = instance.color
+            t = self.upright @ instance.transform
+            str_transform = (' '.join(['%f']*12))%(
+                    t[0,3], t[1,3], t[2,3],
+                    t[0,0], t[0,1], t[0,2],
+                    t[1,0], t[1,1], t[1,2],
+                    t[2,0], t[2,1], t[2,2])
+                    
+            brick_type_name = str(instance.brick_type)
+            line = '1 %i %s %s'%(color, str_transform, brick_type_name)
+            lines.append(line)
+        
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
     
     #===========================================================================
     # instance manipulation
@@ -264,7 +290,6 @@ class BrickScene:
         instance = self.instances[instance]
         other_snaps = []
         for i, snap in enumerate(instance.get_snaps()):
-            snap_id = (str(instance), i)
             snap_position = numpy.dot(snap.transform, [0,0,0,1])[:3]
             snaps_in_radius = self.snap_tracker.lookup(snap_position, radius)
             other_snaps.extend(
@@ -354,6 +379,19 @@ class BrickScene:
         self.renderer.set_instance_material(
                 instance.instance_name,
                 new_color)
+    
+    def set_instance_transform(self, instance, new_transform):
+        instance = self.instances[instance]
+        instance.transform = new_transform
+        self.renderer.set_instance_transform(
+                instance.instance_name,
+                new_transform)
+    
+    def remove_instance(self, instance):
+        instance = self.instances[instance]
+        if self.renderable:
+            self.renderer.remove_instance(instance.instance_name)
+        del(self.instances[instance])
     
     #===========================================================================
     # materials
