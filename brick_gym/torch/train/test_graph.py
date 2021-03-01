@@ -435,7 +435,7 @@ def test_graph(
                         step_segment_ids = step_segment_id,
                         step_step_match = step_step_match,
                         step_step_edge = step_step_edge,
-                        state_size = [100]*test_env.num_envs,
+                        state_size = [120]*test_env.num_envs,
                         state_segment_ids = state_segment_id,
                         step_state_match = step_state_match,
                         step_state_edge = step_state_edge)
@@ -488,7 +488,7 @@ def test_graph(
                         step_segment_ids = step_segment_id,
                         step_step_match = step_step_match_target,
                         step_step_edge = step_step_edge_target,
-                        state_size = [100]*test_env.num_envs,
+                        state_size = [120]*test_env.num_envs,
                         state_segment_ids = state_segment_id,
                         step_state_match = step_state_match_target,
                         step_state_edge = step_state_edge_target)
