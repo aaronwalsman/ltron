@@ -15,6 +15,7 @@ def resolve_path(path):
 
 paths = {key : resolve_path(value)
         for key, value in dict(parser['paths']).items()}
+paths['data'] = resolve_path(parser['DEFAULT']['data'])
 
 datasets = {key : resolve_path(value)
         for key, value in dict(parser['datasets']).items()}
