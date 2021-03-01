@@ -6,12 +6,13 @@ from renderpy.image import save_image, save_depth
 
 def check_collision(
         scene,
-        instance,
+        target_instances,
         snap_transform,
-        instance_snap_gender,
-        resolution=(512,512),
+        target_snap_gender,
+        resolution=(64,64),
         frame_buffer=None,
         max_intersection=4,
+        dump_images=None,
     ):
     
     #===========================================================================
@@ -38,10 +39,6 @@ def check_collision(
     orthographic_height = 100 # TMP
     near_clip = 1 # TMP
     far_clip = 2000 # TMP
-    if instance_snap_gender.upper() == 'M':
-        brick_direction = 1
-    else:
-        brick_direction = -1
     
     #scene.set_ambient_color((1,1,1))
     scene.load_image_light('default', texture_directory='grey_cube')
@@ -50,21 +47,40 @@ def check_collision(
     #===========================================================================
     # render the scene depth map
     #---------------------------------------------------------------------------
-    # show everything except for the target instance
+    # show everything except for the target instances
     scene.show_all_instances()
-    scene.hide_instance(instance)
+    for instance in target_instances:
+        scene.hide_instance(instance)
     #---------------------------------------------------------------------------
     # setup the camera
     camera_transform = snap_transform.copy()
     render_axis = snap_transform[:3,1]
     render_axis /= numpy.linalg.norm(render_axis)
-    camera_transform[:3,3] += render_axis * camera_distance * brick_direction
-    y_to_neg_z = numpy.array([
+    m_direction = -1
+    f_direction = 1
+    m_rotate = numpy.array([
             [1, 0, 0, 0],
             [0, 0,-1, 0],
             [0, 1, 0, 0],
             [0, 0, 0, 1]])
-    camera_transform = numpy.dot(camera_transform, y_to_neg_z)
+    f_rotate = numpy.array([
+            [1, 0, 0, 0],
+            [0, 0, 1, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 1]])
+
+    if target_snap_gender.upper() == 'M':
+        scene_axis = render_axis * f_direction
+        scene_rotate = f_rotate
+        target_axis = render_axis * m_direction
+        target_rotate = m_rotate
+    else:
+        scene_axis = render_axis * m_direction
+        scene_rotate = m_rotate
+        target_axis = render_axis * f_direction
+        target_rotate = f_rotate
+    camera_transform[:3,3] += scene_axis * camera_distance
+    camera_transform = numpy.dot(camera_transform, scene_rotate)
     scene.set_camera_pose(numpy.linalg.inv(camera_transform))
     orthographic_projection = orthographic_matrix(
             l = -orthographic_width,
@@ -90,17 +106,13 @@ def check_collision(
     #---------------------------------------------------------------------------
     # hide everything except for the target instance
     scene.hide_all_instances()
-    scene.show_instance(instance)
+    for instance in target_instances:
+        scene.show_instance(instance)
     #---------------------------------------------------------------------------
     # setup the camera
     camera_transform = snap_transform.copy()
-    camera_transform[:3,3] -= render_axis * camera_distance * brick_direction
-    y_to_pos_z = numpy.array([
-            [1, 0, 0, 0],
-            [0, 0, 1, 0],
-            [0, 1, 0, 0],
-            [0, 0, 0, 1]])
-    camera_transform = numpy.dot(camera_transform, y_to_pos_z)
+    camera_transform[:3,3] += target_axis * camera_distance
+    camera_transform = numpy.dot(camera_transform, target_rotate)
     scene.set_camera_pose(numpy.linalg.inv(camera_transform))
     scene.set_projection(orthographic_projection)
     #---------------------------------------------------------------------------
@@ -126,21 +138,28 @@ def check_collision(
     
     #===========================================================================
     # check collision
-    save_image(scene_mask, './tmp_scene_mask.png')
-    save_image(instance_mask, './tmp_instance_mask.png')
-    save_depth(scene_depth_map, './tmp_scene_depth.npy')
-    save_depth(instance_depth_map, './tmp_instance_depth.npy')
-    save_image(scene_color, './tmp_scene_color.png')
-    save_image(instance_color, './tmp_instance_color.png')
-    
     valid_pixels = numpy.sum(instance_mask != 0, axis=-1) != 0
     
     scene_depth_map -= camera_distance
     scene_depth_map *= -1.
     instance_depth_map -= camera_distance
-    offset = (scene_depth_map - instance_depth_map).reshape(resolution)
+    offset = (scene_depth_map - instance_depth_map).reshape(valid_pixels.shape)
     offset *= valid_pixels
     
     collision = numpy.max(offset) > max_intersection
+    
+    #===========================================================================
+    # dump images
+    if dump_images is not None:
+        save_image(scene_mask, './%s_scene_mask.png'%dump_images)
+        save_image(instance_mask, './%s_instance_mask.png'%dump_images)
+        save_depth(scene_depth_map, './%s_scene_depth.npy'%dump_images)
+        save_depth(instance_depth_map, './%s_instance_depth.npy'%dump_images)
+        save_image(scene_color, './%s_scene_color.png'%dump_images)
+        save_image(instance_color, './%s_instance_color.png'%dump_images)
+        
+        collision_pixels = (offset > max_intersection).astype(numpy.uint8)
+        collision_pixels = collision_pixels * 255
+        save_image(collision_pixels, './%s_collision.png'%dump_images)
     
     return collision
