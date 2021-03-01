@@ -36,8 +36,8 @@ if __name__ == '__main__':
             num_processes = 4,
             randomize_viewpoint=True,
             random_floating_bricks=False,
-            random_floating_pairs=False,
-            random_bricks_rotation_mode='uniform',
+            random_floating_pairs=True,
+            random_bricks_rotation_mode='local_identity',
             
             # rollout settings
             train_steps_per_epoch = 1024,
