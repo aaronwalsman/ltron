@@ -144,12 +144,12 @@ RegularAxleWheelSampler = AxleWheelSubAssemblySampler(
 WideAxleWheelSampler = AxleWheelSubAssemblySampler(
         '6157.dat',
         [numpy.array([
-            [0, 0,-1, 38],
+            [0, 0,-1, 40],
             [0, 1, 0,  5],
             [1, 0, 0,  0],
             [0, 0, 0,  1]]),
          numpy.array([
-            [0, 0, 1,-38],
+            [0, 0, 1,-40],
             [0, 1, 0,  5],
             [1, 0, 0,  0],
             [0, 0, 0,  1]])],

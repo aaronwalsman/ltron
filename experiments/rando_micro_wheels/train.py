@@ -29,7 +29,8 @@ if __name__ == '__main__':
             dataset = 'rando_micro_wheels',
             train_split = 'all',
             train_subset = None,
-            num_processes = 4,
+            image_resolution = (384,384),
+            num_processes = 16,
             randomize_viewpoint=True,
             
             #load_scenes=False,
@@ -46,11 +47,11 @@ if __name__ == '__main__':
             weight_decay = 1e-6,
             mini_epoch_sequences = 2048,
             mini_epoch_sequence_length = 1,
-            batch_size = 32,
+            batch_size = 16,
             #edge_loss_weight = 0.,
             #matching_loss_weight = 0.,
             multi_hide = True,
-            max_instances_per_step=4,
+            max_instances_per_step=8,
             
             # model settings
             #step_model_backbone = 'smp_fpn_rnxt50',
