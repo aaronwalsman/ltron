@@ -43,6 +43,8 @@ class BrickEnv(gym.Env):
             if self.print_traceback:
                 exc_class, exc, exc_traceback = sys.exc_info()
                 print(''.join(traceback.format_tb(exc_traceback)))
+                print(exc_class)
+                print(exc)
             raise
     
     def check_action(self, action):

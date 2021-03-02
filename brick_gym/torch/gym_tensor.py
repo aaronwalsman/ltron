@@ -1,5 +1,5 @@
 import torch
-from torchvision.transforms.functional import to_tensor
+import torchvision.transforms as transforms
 
 import numpy
 
@@ -11,8 +11,17 @@ from brick_gym.gym.spaces import (
 from brick_gym.torch.brick_geometric import (
         BrickList, BrickGraph, BrickListBatch, BrickGraphBatch)
 
+default_image_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225])])
+
 def gym_space_to_tensors(
-        data, space, device=torch.device('cpu'), image_transform=to_tensor):
+        data,
+        space,
+        device=torch.device('cpu'),
+        image_transform=default_image_transform):
     def recurse(data, space):
         if isinstance(space, ImageSpace):
             if len(data.shape) == 3:
@@ -80,7 +89,10 @@ def gym_space_to_tensors(
     return recurse(data, space)
 
 def gym_space_list_to_tensors(
-        data, space, device=torch.device('cpu'), image_transform=to_tensor):
+        data,
+        space,
+        device=torch.device('cpu'),
+        image_transform=default_image_transform):
     '''
     Everything added here should be set up so that if it already has a batch
     dimension, that should become the PRIMARY dimension (dimension 0) so that
@@ -117,9 +129,9 @@ def gym_space_list_to_tensors(
             return tuple(recurse(data[i], space[i]) for i in len(data[0]))
         
         elif isinstance(space, spaces.Box):
-            c = data[0].shape[-1]
-            tensor = torch.stack(data, dim=-2)
-            return tensor.view(-1, c)
+            c = data[0].shape[-1:]
+            tensor = torch.stack(data, dim=1)
+            return tensor.view(-1, *c)
     
     return recurse(tensors, space)
 

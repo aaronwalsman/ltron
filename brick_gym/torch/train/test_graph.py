@@ -33,6 +33,7 @@ def test_checkpoint(
         num_processes=8,
         test_split='test',
         test_subset=None,
+        image_resolution=(256,256),
         
         # model settings
         step_model_name = 'nth_try',
@@ -64,7 +65,8 @@ def test_checkpoint(
             step_model_name,
             backbone_name = step_model_backbone,
             decoder_channels = decoder_channels,
-            num_classes = num_classes).cuda()
+            num_classes = num_classes,
+            input_resolution = image_resolution).cuda()
     step_model.load_state_dict(torch.load(step_checkpoint))
     
     print('-'*80)
@@ -76,14 +78,21 @@ def test_checkpoint(
     
     print('='*80)
     print('Building the test environment')
+    if step_model_backbone == 'simple':
+        segmentation_width, segmentation_height = (
+                image_resolution[0] // 4, image_resolution[0] // 4)
+    else:
+        segmentation_width, segmentation_height = image_resolution
     test_env = async_brick_env(
             num_processes,
             graph_supervision_env,
             dataset = dataset,
             split=test_split,
             subset=test_subset,
-            segmentation_width = 64,
-            segmentation_height = 64,
+            width = image_resolution[0],
+            height = image_resolution[1],
+            segmentation_width = segmentation_width,
+            segmentation_height = segmentation_height,
             dataset_reset_mode = 'single_pass',
             multi_hide=True,
             randomize_viewpoint = False,
