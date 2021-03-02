@@ -18,7 +18,7 @@ from brick_gym.gym.components.graph_tasks import InstanceGraphConstructionTask
 from brick_gym.gym.components.colors import RandomizeColorsComponent
 from brick_gym.gym.components.random_floating_bricks import RandomFloatingBricks
 from brick_gym.gym.components.random_floating_pairs import RandomFloatingPairs
-from brick_gym.gym.components.spatial_info import BrickHeight
+from brick_gym.gym.components.spatial_info import BrickPosition
 
 def segmentation_supervision_env(
         dataset,
@@ -226,10 +226,9 @@ def graph_supervision_env(
             terminate_when_all_hidden = True)
     
     # brick height (TEMP)
-    components['brick_height'] = BrickHeight(
+    components['brick_position'] = BrickPosition(
             max_instances,
             components['scene'])
-    
     components['removability'] = InstanceRemovabilityComponent(
             max_instances,
             components['scene'])

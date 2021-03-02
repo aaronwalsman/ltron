@@ -40,7 +40,9 @@ class SimpleDecoder(torch.nn.Module):
         
 
 class SimpleFCN(torch.nn.Module):
-    def __init__(self, pretrained=True, decoder_channels=256):
+    def __init__(self,
+            pretrained=True,
+            decoder_channels=256):
         super(SimpleFCN, self).__init__()
         backbone = tv_models.resnet50(pretrained=pretrained)
         backbone = resnet.ResnetBackbone(backbone, fcn=True)
@@ -53,4 +55,4 @@ class SimpleFCN(torch.nn.Module):
         xn = self.encoder(x)
         x = self.decoder(*xn)
         
-        return x
+        return x, xn

@@ -33,7 +33,8 @@ class GraphStepModel(torch.nn.Module):
             backbone,
             score_model,
             segmentation_model,
-            heads,
+            dense_heads,
+            single_heads,
             add_spatial_embedding=False,
             decoder_channels=256,
             output_resolution=(256,256)):
@@ -45,10 +46,14 @@ class GraphStepModel(torch.nn.Module):
                     output_resolution, decoder_channels)
         self.score_model = score_model
         self.segmentation_model = segmentation_model
-        self.heads = torch.nn.ModuleDict(heads)
+        self.heads = torch.nn.ModuleDict(dense_heads)
+        self.single_heads = torch.nn.ModuleDict(single_heads)
     
     def forward(self, x, segmentation=None, max_instances=None):
-        x = self.backbone(x)
+        x, xn = self.backbone(x)
+        if len(self.single_heads):
+            xs = torch.nn.functional.adaptive_avg_pool2d(xn[0], (1,1))
+            xs = torch.flatten(xs, 1)
         if self.add_spatial_embedding:
             x = self.spatial_embedding_layer(x)
         #dense_scores = torch.sigmoid(self.score_model(x))
@@ -56,6 +61,8 @@ class GraphStepModel(torch.nn.Module):
         dense_score_logits = self.score_model(x)
         head_features = {head_name : head_model(x)
                 for head_name, head_model in self.heads.items()}
+        head_features.update({head_name : head_model(xs)
+                for head_name, head_model in self.single_heads.items()})
         
         # compute the segmentation if it wasn't supplied externally
         if segmentation is None:

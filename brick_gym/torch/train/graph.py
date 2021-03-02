@@ -57,6 +57,7 @@ def train_label_confidence(
         train_subset = None,
         test_split = 'test',
         test_subset = None,
+        image_resolution = (256,256),
         randomize_viewpoint = True,
         randomize_colors = True,
         random_floating_bricks = False,
@@ -121,7 +122,8 @@ def train_label_confidence(
             step_model_name,
             backbone_name = step_model_backbone,
             decoder_channels = decoder_channels,
-            num_classes = num_classes).cuda()
+            num_classes = num_classes,
+            input_resolution = image_resolution).cuda()
     #step_model = FrozenBatchNormWrapper(step_model)
     
     if step_checkpoint is not None:
@@ -159,9 +161,10 @@ def train_label_confidence(
     print('-'*80)
     print('Building the train environment')
     if step_model_backbone == 'simple':
-        segmentation_width, segmentation_height = 64, 64
+        segmentation_width, segmentation_height = (
+                image_resolution[0] // 4, image_resolution[0] // 4)
     else:
-        segmentation_width, segmentation_height = 256, 256
+        segmentation_width, segmentation_height = image_resolution
     train_env = async_brick_env(
             num_processes,
             graph_supervision_env,
@@ -170,6 +173,8 @@ def train_label_confidence(
             subset=train_subset,
             load_scenes=load_scenes,
             dataset_reset_mode='multi_pass',
+            width = image_resolution[0],
+            height = image_resolution[1],
             segmentation_width = segmentation_width,
             segmentation_height = segmentation_height,
             multi_hide=multi_hide,
@@ -657,7 +662,7 @@ def train_label_confidence_epoch(
                             dense_instance_label_target)
                     score_target = correct
                     
-                    if False:
+                    if True:
                         score_loss = dense_score_loss(
                                 dense_score_logits,
                                 score_target,
@@ -1078,7 +1083,8 @@ def log_train_supervision_step(
         true_class_label_images.append(class_label_image)
         
         if not pred_brick_lists[i].num_nodes:
-            pred_class_label_images.append(numpy.ones((256,256,3)))
+            #pred_class_label_images.append(numpy.ones((256,256,3)))
+            pred_class_label_images.append(numpy.ones_like(class_label_image))
             continue
         pred_instance_label_lookup = numpy.zeros(
                 true_instance_label_lookup.shape, dtype=numpy.long)

@@ -14,6 +14,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
             elevation = (math.radians(-15), math.radians(-45)),
             tilt = (math.radians(-45.), math.radians(45.)),
             field_of_view = (math.radians(60.), math.radians(60.)),
+            distance = (0.8, 1.2),
             aspect_ratio = 1.,
             near_clip = 1.,
             far_clip = 5000.,
@@ -26,6 +27,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         self.elevation = elevation
         self.tilt = tilt
         self.field_of_view = field_of_view
+        self.distance = distance
         self.aspect_ratio = aspect_ratio
         self.near_clip = near_clip
         self.far_clip = far_clip
@@ -41,6 +43,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         elevation = random.uniform(*self.elevation)
         tilt = random.uniform(*self.tilt)
         field_of_view = random.uniform(*self.field_of_view)
+        distance_scale = random.uniform(*self.distance)
         
         self.projection = camera.projection_matrix(
                 field_of_view,
@@ -54,7 +57,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         bbox_min, bbox_max = bbox
         bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
         center = bbox_min + bbox_range * 0.5
-        distance = camera.framing_distance_for_bbox(
+        distance = distance_scale * camera.framing_distance_for_bbox(
                 bbox, self.projection, self.bbox_distance_scale)
         camera_pose = camera.azimuthal_pose_to_matrix(
                 [azimuth, elevation, tilt, distance, 0.0, 0.0],

@@ -27,6 +27,13 @@ samplers = [
     AntennaSampler,
     SpinnerPlateSampler,
     FolderSampler,
+    # three different wheel types, so repeating three times
+    RegularAxleWheelSampler,
+    RegularAxleWheelSampler,
+    RegularAxleWheelSampler,
+    # three different wheel types, so repeating three times
+    WideAxleWheelSampler,
+    WideAxleWheelSampler,
     WideAxleWheelSampler,
     SingleSubAssemblySampler('2412b.dat'),
     SingleSubAssemblySampler('2436a.dat'),
