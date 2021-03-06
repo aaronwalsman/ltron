@@ -178,6 +178,7 @@ def train_label_confidence(
             segmentation_width = segmentation_width,
             segmentation_height = segmentation_height,
             multi_hide=multi_hide,
+            visibility_mode='pixel',
             randomize_viewpoint=randomize_viewpoint,
             randomize_viewpoint_frequency='reset',
             randomize_colors=randomize_colors,
@@ -455,23 +456,6 @@ def train_label_confidence_epoch(
                         'visibility':visibility_sample,
                         'graph_task':graph_data,
                 })
-            '''
-            segment_samples = [dist.sample() for dist in hide_distributions]
-            
-            instance_samples = [brick_list.segment_id[sample]
-                    for brick_list, sample
-                    in zip(step_brick_lists, segment_samples)]
-            
-            for i, graph_state in zip(instance_samples, graph_states):
-                graph_data = graph_to_gym_space(
-                        graph_state.cpu(),
-                        train_env.single_action_space['graph_task'],
-                        process_instance_logits=True,
-                        segment_id_remap=True)
-                actions.append({
-                        'visibility':int(i.cpu()),
-                        'graph_task':graph_data})
-            '''
             
             #-------------------------------------------------------------------
             # prestep logging
@@ -521,9 +505,6 @@ def train_label_confidence_epoch(
                     info['graph_task']['edge_ap'] for info in step_info]
             all_instance_ap = [
                     info['graph_task']['instance_ap'] for info in step_info]
-            
-            #import pdb
-            #pdb.set_trace()
             
             log.add_scalar(
                     'train_rollout/step_edge_ap',
@@ -596,6 +577,20 @@ def train_label_confidence_epoch(
             for step in range(mini_epoch_sequence_length):
                 step_indices = (start_indices + step) % dataset_size
                 
+                #--------------------------------------
+                # RECENTLY MOVED
+                # select graph state from memory for all terminal sequences
+                # TODO: Is there more we need to do here to make sure gradients
+                #       get clipped here?
+                for i, terminal in enumerate(step_terminal):
+                    if terminal:
+                        graph_states[i] = seq_graph_state[
+                                step_indices[i]].detach().cuda()
+                
+                # update step terminal
+                step_terminal = seq_terminal[step_indices]
+                #-------------------------------------
+                
                 # put the data on the graphics card
                 x_im = seq_tensors['color_render'][step_indices].cuda()
                 x_seg = seq_tensors['segmentation_render'][step_indices].cuda()
@@ -609,17 +604,6 @@ def train_label_confidence_epoch(
                         x_im, x_seg, max_instances=max_instances_per_step)
                 # MURU: 'fcos_features' should exist as a key in head_features
                 # here.  This is what should get losses applied.
-                
-                # select graph state from memory for all terminal sequences
-                # TODO: Is there more we need to do here to make sure gradients
-                #       get clipped here?
-                for i, terminal in enumerate(step_terminal):
-                    if terminal:
-                        graph_states[i] = seq_graph_state[
-                                step_indices[i]].detach().cuda()
-                
-                # update step terminal
-                step_terminal = seq_terminal[step_indices]
                 
                 # upate the graph state using the edge model
                 (new_graph_states,
