@@ -13,7 +13,9 @@ from brick_gym.gym.components.render import (
 from brick_gym.gym.components.viewpoint import (
         RandomizedAzimuthalViewpointComponent, FixedAzimuthalViewpointComponent)
 from brick_gym.gym.components.visibility import (
-        InstanceVisibilityComponent, InstanceRemovabilityComponent)
+        InstanceVisibilityComponent,
+        PixelVisibilityComponent,
+        InstanceRemovabilityComponent)
 from brick_gym.gym.components.graph_tasks import InstanceGraphConstructionTask
 from brick_gym.gym.components.colors import RandomizeColorsComponent
 from brick_gym.gym.components.random_floating_bricks import RandomFloatingBricks
@@ -125,8 +127,10 @@ def graph_supervision_env(
         load_scenes=True,
         dataset_reset_mode='uniform',
         multi_hide=False,
+        visibility_mode='instance',
         randomize_viewpoint=True,
         randomize_viewpoint_frequency='step',
+        randomize_distance=True,
         randomize_colors=True,
         random_floating_bricks=False,
         random_floating_pairs=False,
@@ -156,7 +160,8 @@ def graph_supervision_env(
         path_component = components['dataset']
     else:
         path_component = None
-    components['scene'] = SceneComponent(path_component=path_component)
+    components['scene'] = SceneComponent(
+            path_component=path_component, renderable=True)
     
     # random floating bricks
     if random_floating_bricks:
@@ -178,10 +183,54 @@ def graph_supervision_env(
         max_edges += (
                 components['random_floating_bricks'].bricks_per_scene[-1])
     
+    # episode length
+    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
+    
+    # color randomization
+    if randomize_colors:
+        components['color_randomization'] = RandomizeColorsComponent(
+                dataset_info['all_colors'],
+                components['scene'],
+                randomize_frequency='step')
+    
+    # visiblity action space
+    if visibility_mode == 'instance':
+        components['visibility'] = InstanceVisibilityComponent(
+                max_instances = max_instances,
+                scene_component = components['scene'],
+                multi = multi_hide,
+                terminate_when_all_hidden = True)
+    elif visibility_mode == 'pixel':
+        # segmentation render
+        if segmentation_width is None:
+            segmentation_width = width
+        if segmentation_height is None:
+            segmentation_height = height
+        components['pre_segmentation_render'] = SegmentationRenderComponent(
+                segmentation_width, segmentation_height, components['scene'])
+        components['visibility'] = PixelVisibilityComponent(
+                width = width,
+                height = height,
+                scene_component = components['scene'],
+                segmentation_component = components['pre_segmentation_render'],
+                terminate_when_all_hidden = True)
+    elif visibility_mode == 'multi_pixel':
+        raise NotImplementedError
+        components['visibility'] = MultiPixelVisibilityComponent(
+                width = width,
+                height = height,
+                scene_component = components['scene'],
+                terminate_when_all_hidden = True)
+    
     # viewpoint
+    if randomize_distance:
+        distance = (0.8, 1.2)
+    else:
+        distance = (1.0, 1.0)
     if randomize_viewpoint:
         components['viewpoint'] = RandomizedAzimuthalViewpointComponent(
                 components['scene'],
+                distance = distance,
                 #azimuth = math.radians(-135.),
                 #elevation = math.radians(-30.),
                 aspect_ratio = width/height,
@@ -189,6 +238,7 @@ def graph_supervision_env(
     else:
         components['viewpoint'] = FixedAzimuthalViewpointComponent(
                 components['scene'],
+                distance = distance,
                 azimuth = math.radians(-135.),
                 elevation = math.radians(-30.),
                 aspect_ratio = width/height)
@@ -207,23 +257,6 @@ def graph_supervision_env(
                 components['random_floating_pairs'].pairs_per_scene[-1]*2)
         max_edges += (
                 components['random_floating_pairs'].pairs_per_scene[-1]*2)
-    
-    # episode length
-    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
-    
-    # color randomization
-    if randomize_colors:
-        components['color_randomization'] = RandomizeColorsComponent(
-                dataset_info['all_colors'],
-                components['scene'],
-                randomize_frequency='step')
-    
-    # visiblity action space
-    components['visibility'] = InstanceVisibilityComponent(
-            max_instances = max_instances,
-            scene_component = components['scene'],
-            multi = multi_hide,
-            terminate_when_all_hidden = True)
     
     # brick height (TEMP)
     components['brick_position'] = BrickPosition(
