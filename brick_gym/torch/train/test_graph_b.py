@@ -68,7 +68,7 @@ def test_checkpoint(
             num_classes = num_classes,
             input_resolution = image_resolution).cuda()
     step_model.load_state_dict(torch.load(step_checkpoint))
-    
+
     print('-'*80)
     print('Building the edge model')
     edge_model = named_models.named_edge_model(
@@ -97,6 +97,7 @@ def test_checkpoint(
             multi_hide=True,
             randomize_viewpoint = False,
             randomize_viewpoint_frequency = 'reset',
+            randomize_distance = False,
             randomize_colors = False,
             random_floating_bricks=False)
             #random_floating_bricks=random_floating_bricks,
@@ -122,7 +123,6 @@ def test_graph(
         
         # environment
         test_env,
-        
         max_instances_per_scene,
         
         # output
@@ -146,6 +146,7 @@ def test_graph(
     all_finished = False
     scene_index = [ 0 for _ in range(test_env.num_envs)]
     
+    '''
     # initialize statistic variables
     step_pred_edge_dicts = []
     step_pred_bland_edge_dicts = []
@@ -169,16 +170,21 @@ def test_graph(
     step_pred_instance_scores = []
     step_target_instance_labels = []
     seq_target_instance_labels = [{} for _ in range(test_env.num_envs)]
+    '''
     
+    target_graphs = {}
+    predicted_graphs = {}
+    
+    # stop using bad per-scene metrics
     # this is per-scene so it's wrong (a little bit)
-    sum_terminal_instance_ap = 0.
-    sum_terminal_edge_ap = 0.
-    sum_terminal_bland_edge_ap = 0.
-    total_terminal_ap = 0
+    #sum_terminal_instance_ap = 0.
+    #sum_terminal_edge_ap = 0.
+    #sum_terminal_bland_edge_ap = 0.
+    #total_terminal_ap = 0
     
-    sum_all_instance_ap = 0.
-    sum_all_edge_ap = 0.
-    total_all_ap = 0
+    #sum_all_instance_ap = 0.
+    #sum_all_edge_ap = 0.
+    #total_all_ap = 0
     
     max_instances_per_step = 1
     
@@ -195,20 +201,32 @@ def test_graph(
             
             #-------------------------------------------------------------------
             # step model forward pass
-            step_brick_lists, _, dense_scores, head_features = step_model(
+            # THIS NEEDS TO CHANGE BASED ON ACTION SPACE/EVALUATION CONVERSATION
+            segmentation_input = None #step_tensors['segmentation_render']
+            (step_brick_lists,
+             segmentation,
+             dense_scores,
+             head_features) = step_model(
                     step_tensors['color_render'],
-                    step_tensors['segmentation_render'],
+                    segmentation_input,
                     max_instances = max_instances_per_step)
+            
+            for i, brick_list in enumerate(step_brick_lists):
+                y, x = brick_list.pos[0]
+                segment_id = step_tensors['segmentation_render'][i,y,x]
+                brick_list['segment_id'] = segment_id.view(1,1)
+                brick_list['brick_feature_names'] = tuple(sorted(
+                        brick_list['brick_feature_names'] + ('segment_id',)))
             
             #-------------------------------------------------------------------
             # build new graph state for all terminal sequences
             # (do this here so we can use the brick_feature_spec from the model)
-            # also update the target instance labels and graphs
+            # also update the target graphs
             for i, terminal in enumerate(step_terminal):
                 if terminal:
                     
                     #-----------------------------------------------------------
-                    # convince the user that something is happening
+                    # progress
                     if step_tensors['scene']['valid_scene_loaded'][i]:
                         print('Loading scene %i for process %i'%(
                                 scene_index[i], i))
@@ -221,6 +239,14 @@ def test_graph(
                             empty_brick_list, edge_attr_channels=1).cuda()
                     scene_index[i] += 1
                     
+                    #-----------------------------------------------------------
+                    # update the target graph
+                    valid_scene = step_tensors['scene']['valid_scene_loaded'][i]
+                    if valid_scene:
+                        target_graph = step_tensors['graph_label'][i].cpu()
+                        target_graphs[i, scene_index[i]] = target_graph
+                    
+                    '''
                     #-----------------------------------------------------------
                     # update the target instance labels
                     target_instance_labels = (
@@ -255,11 +281,15 @@ def test_graph(
                             seq_target_edge_dicts[i])
                     terminal_target_bland_edge_dict.update(
                             seq_target_bland_edge_dicts[i])
+                    '''
             
             #-------------------------------------------------------------------
             # edge_model_forward_pass
             input_graph_states = graph_states
-            graph_states, step_step_logits, step_state_logits = edge_model(
+            (graph_states,
+             step_step_logits,
+             step_state_logits,
+             _, _, _) = edge_model(
                     step_brick_lists,
                     graph_states,
                     max_edges=max_edges,
@@ -281,6 +311,8 @@ def test_graph(
                     hide_indices.append(0)
             '''
             
+            # BELOW THIS NEEDS TO CHANGE BASED ON
+            # EVALUATION/ACTION SPACE DISCUSSION
             actions = []
             #for hide_index, graph_state in zip(hide_indices, graph_states):
             for i, logits in enumerate(hide_logits):
@@ -306,6 +338,7 @@ def test_graph(
                         'visibility':visibility_sample,
                         'graph_task':graph_action})
             
+            '''
             for i in range(test_env.num_envs):
                 # report which edges were predicted this frame
                 step = int(step_tensors['episode_length'][i].cpu())
@@ -364,13 +397,16 @@ def test_graph(
                     instance_label = torch.argmax(
                             graph_states[i].instance_label, dim=-1).cpu()
                     #scores = graph_states[i]['score'].cpu().view(-1)
-                    
-                    pred_instance_scores = (
-                            utils.sparse_graph_to_instance_scores(
-                            image_index = (i, scene_index[i]),
+                    #pred_instance_scores = (
+                    #        utils.sparse_graph_to_instance_scores(
+                    #        image_index = (i, scene_index[i]),
+                    #        indices = indices.tolist(),
+                    #        instance_labels = instance_label,
+                    #        scores = scores.tolist()))
+                    predictions, false_negatives = (
+                            utils.sparse_graph_to_instance_map_scores(
                             indices = indices.tolist(),
-                            instance_labels = instance_label,
-                            scores = scores.tolist()))
+                            instance_labels
                     
                     step_pred_instance_scores[step].update(pred_instance_scores)
                     step_target_instance_labels[step].update(
@@ -382,7 +418,7 @@ def test_graph(
                     
                     # ugh, I dislike this too... so much
                     prev_pred_instances[i] = pred_instance_scores
-            
+            '''
             if dump_debug:
                 '''
                 gym_dump(
@@ -414,6 +450,13 @@ def test_graph(
                         for logits in step_state_logits]
                 step_state_match = [probs[...,0] for probs in step_state_probs]
                 step_state_edge = [probs[...,1] for probs in step_state_probs]
+                
+                if 'cluster_center' in head_features:
+                    center_voting_offsets = head_features['cluster_center']
+                    center_voting_offsets = center_voting_offsets.cpu().numpy()
+                else:
+                    center_voting_offsets = None
+                
                 pred_image_strips = make_image_strips(
                         test_env.num_envs,
                         concatenate=False,
@@ -421,6 +464,7 @@ def test_graph(
                         dense_score = torch.sigmoid(dense_scores).cpu().numpy(),
                         dense_class_labels = pred_class_labels,
                         instance_id = instance_id,
+                        center_voting_offsets = center_voting_offsets,
                         step_size = [max_instances_per_step]*test_env.num_envs,
                         step_segment_ids = step_segment_id,
                         step_step_match = step_step_match,
@@ -504,6 +548,14 @@ def test_graph(
              step_terminal,
              info) = test_env.step(actions)
             
+            for i, t in enumerate(step_terminal):
+                if t:
+                    #-----------------------------------------------------------
+                    # store the predicted graph
+                    valid_scene = step_tensors['scene']['valid_scene_loaded'][i]
+                    if valid_scene:
+                        predicted_graphs[i, scene_index[i]] = graph_states[i]
+            '''
             for i,t in enumerate(step_terminal):
                 # use step-tensors because it's one step out of date, and so
                 # we won't end up clipping the last one.
@@ -523,82 +575,67 @@ def test_graph(
                     sum_all_edge_ap += (
                             info[i]['graph_task']['edge_ap'])
                     total_all_ap += 1
-            
+            '''
             # done yet?
             all_finished = numpy.all(
                     step_tensors['scene']['valid_scene_loaded'] == 0)
-            
+    
+    assert target_graphs.keys() == predicted_graphs.keys()
+    instance_class_predictions = []
+    class_false_negatives = {}
+    extant_classes = set()
+    for key, predicted_graph in predicted_graphs.items():
+        p_instance_label = torch.softmax(predicted_graph.instance_label, dim=1)
+        target_graph = target_graphs[key]
+        for i, segment_id in enumerate(predicted_graph.segment_id):
+            correct_label = int(target_graph.instance_label[segment_id,0])
+            extant_classes.add(correct_label)
+            for j in range(p_instance_label.shape[1]):
+                instance_class_predictions.append(
+                        ((j, float(p_instance_label[i,j])), correct_label))
+        matched_instances = set(
+                predicted_graph.segment_id.view(-1).cpu().numpy().tolist())
+        all_instances = torch.nonzero(
+                target_graph.instance_label.view(-1), as_tuple=False).view(-1)
+        all_instances = set(all_instances.cpu().numpy().tolist())
+        unmatched_instances = all_instances - matched_instances
+        for instance in unmatched_instances:
+            unmatched_class_label = target_graph.instance_label[instance]
+            if unmatched_class_label not in class_false_negatives:
+                class_false_negatives[unmatched_class_label] = 0
+            class_false_negatives[unmatched_class_label] += 1
+    
+    mAP, class_ap = evaluation.instance_map(
+            instance_class_predictions, class_false_negatives, extant_classes)
+    
     print('-'*80)
-    print('Edge AP: regular (bland)')
-    edge_ap_values = []
-    for step, (
-            pred_edge_dict,
-            pred_bland,
-            target_edge_dict,
-            target_bland) in enumerate(zip(
-            step_pred_edge_dicts,
-            step_pred_bland_edge_dicts,
-            step_target_edge_dicts,
-            step_target_bland_edge_dicts)):
-        _, _, edge_ap = evaluation.edge_ap(pred_edge_dict, target_edge_dict)
-        _, _, bland_edge_ap = evaluation.edge_ap(pred_bland, target_bland)
-        edge_ap_values.append(edge_ap)
-        print('  Step %i: %f (%f)'%(step, edge_ap, bland_edge_ap))
+    print('Terminal Instance mAP: %.01f'%(mAP*100))
     
-    _, _, edge_ap = evaluation.edge_ap(
-            terminal_pred_edge_dict, terminal_target_edge_dict)
-    _, _, bland_edge_ap = evaluation.edge_ap(
-            terminal_pred_bland_edge_dict, terminal_target_bland_edge_dict)
-    print('Terminal: %f (%f)'%(edge_ap, bland_edge_ap))
-    
-    
-    '''
-    import matplotlib.pyplot as pyplot
-    pyplot.plot(edge_ap_values)
-    pyplot.ylim(0, 1)
-    pyplot.show()
-    '''
+    predicted_edges = {}
+    unfiltered_predicted_edges = {}
+    target_edges = {}
+    for key, predicted_graph in predicted_graphs.items():
+        for i in range(predicted_graph.edge_index.shape[1]):
+            a, b = predicted_graph.edge_index[:,i]
+            a = int(predicted_graph.segment_id[a,0])
+            b = int(predicted_graph.segment_id[b,0])
+            unfiltered_predicted_edges[key, a, b] = float(
+                    predicted_graph.edge_attr[i,0])
+            if a == b:
+                continue
+            if a > b:
+                a,b = b,a
+            predicted_edges[key, a, b] = float(predicted_graph.edge_attr[i,0])
+        
+        target_graph = target_graphs[key]
+        for i in range(target_graph.edge_index.shape[1]):
+            a, b = target_graph.edge_index[:,i]
+            class_a = target_graph.instance_label[a,0]
+            class_b = target_graph.instance_label[b,0]
+            if class_a == 0 or class_b == 0:
+                continue
+            target_edges[key, int(a), int(b)] = 1.0
+        
+    _, _, edge_ap = evaluation.edge_ap(predicted_edges, target_edges)
     print('-'*80)
-    print('Instance AP:')
-    instance_ap_values = []
-    for step, (pred_instance_dict, target_instance_dict) in enumerate(zip(
-                step_pred_instance_scores, step_target_instance_labels)):
-        _, _, instance_ap = evaluation.edge_ap(
-                pred_instance_dict, target_instance_dict)
-        instance_ap_values.append(instance_ap)
-        print('  Step %i: %f'%(step, instance_ap))
-    _, _, instance_ap = evaluation.edge_ap(
-            terminal_pred_instance_dict, terminal_target_instance_dict)
-    print('Terminal: %f'%instance_ap)
-    
-    '''
-    import matplotlib.pyplot as pyplot
-    pyplot.plot(instance_ap_values)
-    pyplot.ylim(0, 1)
-    pyplot.show()
-    '''
-    
-    print('='*80)
-    print('Single Step Stats:')
-    
-    print('Average instance ap: %f'%(
-            sum_all_instance_ap/total_all_ap))
-    print('Average edge ap: %f'%(
-            sum_all_edge_ap/total_all_ap))
-    print('Average terminal instance ap: %f'%(
-            sum_terminal_instance_ap/total_terminal_ap))
-    print('Average terminal edge ap: %f'%(
-            sum_terminal_edge_ap/total_terminal_ap))
-    
-    # statistics I want:
-    # confident node-labelling accuracy (PR-curve)
-    #   record each classification, corresponding confidence and ground-truth
-    # edge AP over entire dataset for each step using predicted matching
-    #   record predicted and ground truth edge dictionaries
-    # edge AP over entire dataset using ground-truth matching
-    #   "
-    # edge AP over entire dataset using ground-truth matching and edges
-    #   "
-    # for both train and test set
-    #
-    # note that per-step rewards are not a good enough signal for any of this
+    print('Terminal Edge AP: %.01f'%(edge_ap*100))
