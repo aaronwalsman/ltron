@@ -74,6 +74,36 @@ def edge_ap(edges, ground_truth):
     false_negatives = len(set(ground_truth.keys()) - set(edges.keys()))
     return ap(scores, ground_truth_scores, false_negatives)
 
+def instance_map(
+        instance_class_predictions, class_false_negatives, extant_classes):
+    per_class_predictions = {}
+    per_class_ground_truth = {}
+    #for class_prediction, true_label in instance_class_predictions:
+    for (class_label, score), true_label in instance_class_predictions:
+        #import pdb
+        #pdb.set_trace()
+        #for class_label, score in class_prediction:
+        if class_label not in per_class_predictions:
+            per_class_predictions[class_label] = []
+            per_class_ground_truth[class_label] = []
+        per_class_predictions[class_label].append(score)
+        per_class_ground_truth[class_label].append(
+                float(class_label == true_label))
+    
+    class_ap = {}
+    for class_label in per_class_predictions:
+        if class_label not in extant_classes:
+            continue
+        _, _, class_ap[class_label] = ap(
+                per_class_predictions[class_label],
+                per_class_ground_truth[class_label],
+                class_false_negatives.get(class_label, 0))
+        #import pdb
+        #pdb.set_trace()
+    
+    return sum(class_ap.values())/len(class_ap), class_ap
+
+'''
 def dataset_node_and_edge_ap(model, multi_env, dump_images=False):
     
     num_paths = multi_env.get_attr('num_paths')
@@ -156,3 +186,4 @@ def dataset_node_and_edge_ap(model, multi_env, dump_images=False):
     print(average_episode_step_ap)
     
     return step_edge_ap
+'''
