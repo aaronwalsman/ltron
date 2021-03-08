@@ -1,3 +1,4 @@
+import random
 import time
 import math
 import os
@@ -15,6 +16,8 @@ import PIL.Image as Image
 import tqdm
 
 import torch_geometric.utils as tg_utils
+
+from torch_scatter import scatter_add
 
 import renderpy.masks as masks
 from renderpy.json_numpy import NumpyEncoder
@@ -79,6 +82,12 @@ def train_label_confidence(
         score_ratio = 0.1,
         matching_loss_weight = 1.0,
         edge_loss_weight = 1.0,
+        #-----------------
+        center_local_loss_weight = 0.1,
+        center_cluster_loss_weight = 0.0,
+        center_separation_loss_weight = 1.0,
+        center_separation_distance = 5,
+        #-----------------
         max_instances_per_step = 8,
         multi_hide = False,
         
@@ -178,6 +187,7 @@ def train_label_confidence(
             segmentation_width = segmentation_width,
             segmentation_height = segmentation_height,
             multi_hide=multi_hide,
+            visibility_mode='instance',
             randomize_viewpoint=randomize_viewpoint,
             randomize_viewpoint_frequency='reset',
             randomize_colors=randomize_colors,
@@ -226,6 +236,12 @@ def train_label_confidence(
                 score_ratio,
                 matching_loss_weight,
                 edge_loss_weight,
+                #-----------------
+                center_local_loss_weight,
+                center_cluster_loss_weight,
+                center_separation_loss_weight,
+                center_separation_distance,
+                #-----------------
                 max_instances_per_step,
                 multi_hide,
                 max_instances_per_scene,
@@ -272,57 +288,6 @@ def train_label_confidence(
         print('-'*80)
         print('Elapsed: %.04f'%(time.time() - epoch_start))
 
-def test_checkpoint(
-        step_checkpoint,
-        edge_checkpoint,
-        dataset,
-        test_split = 'test',
-        test_subset = None,
-        num_processes = 4,
-        test_steps = 4096,
-        log_test = False,
-        randomize_viewpoint = True):
-    
-    step_clock = [0]
-    log = SummaryWriter()
-    
-    dataset_info = get_dataset_info(dataset)
-    num_classes = max(dataset_info['class_ids'].values()) + 1
-    
-    print('='*80)
-    print('Building the step_model')
-    step_model = named_models.named_graph_step_model(
-            'nth_try',
-            node_classes = num_classes).cuda()
-    model_state_dict = torch.load(checkpoint)
-    step_model.load_state_dict(model_state_dict)
-    
-    print('='*80)
-    print('Building the edge model')
-    edge_model = named_models.named_edge_model(
-            'default',
-            input_dim=256,
-            output_dim=2).cuda()
-    
-    print('Building the test environment')
-    test_env = async_brick_env(
-            num_processes,
-            graph_supervision_env,
-            dataset = dataset,
-            split = test_split,
-            randomize_viewpoint = randomize_viewpoint,
-            randomize_viewpoint_frequency = 'reset',
-            randomize_colors = False)
-    
-    test_label_confidence_epoch(
-            0,
-            step_clock,
-            log,
-            math.ceil(test_steps / num_processes),
-            step_model,
-            edge_model,
-            test_env,
-            log_test)
 
 def train_label_confidence_epoch(
         epoch,
@@ -344,6 +309,12 @@ def train_label_confidence_epoch(
         score_ratio,
         matching_loss_weight,
         edge_loss_weight,
+        #------------------
+        center_local_loss_weight,
+        center_cluster_loss_weight,
+        center_separation_loss_weight,
+        center_separation_distance,
+        #------------------
         max_instances_per_step,
         multi_hide,
         max_instances_per_scene,
@@ -418,7 +389,12 @@ def train_label_confidence_epoch(
             
             #-------------------------------------------------------------------
             # edge model forward pass
-            graph_states, step_step_logits, step_state_logits = edge_model(
+            (graph_states,
+             step_step_logits,
+             step_state_logits,
+             extra_extra_logits,
+             step_extra_logits,
+             state_extra_logits) = edge_model(
                     step_brick_lists,
                     graph_states,
                     max_edges=max_edges,    
@@ -455,23 +431,6 @@ def train_label_confidence_epoch(
                         'visibility':visibility_sample,
                         'graph_task':graph_data,
                 })
-            '''
-            segment_samples = [dist.sample() for dist in hide_distributions]
-            
-            instance_samples = [brick_list.segment_id[sample]
-                    for brick_list, sample
-                    in zip(step_brick_lists, segment_samples)]
-            
-            for i, graph_state in zip(instance_samples, graph_states):
-                graph_data = graph_to_gym_space(
-                        graph_state.cpu(),
-                        train_env.single_action_space['graph_task'],
-                        process_instance_logits=True,
-                        segment_id_remap=True)
-                actions.append({
-                        'visibility':int(i.cpu()),
-                        'graph_task':graph_data})
-            '''
             
             #-------------------------------------------------------------------
             # prestep logging
@@ -521,9 +480,6 @@ def train_label_confidence_epoch(
                     info['graph_task']['edge_ap'] for info in step_info]
             all_instance_ap = [
                     info['graph_task']['instance_ap'] for info in step_info]
-            
-            #import pdb
-            #pdb.set_trace()
             
             log.add_scalar(
                     'train_rollout/step_edge_ap',
@@ -596,6 +552,20 @@ def train_label_confidence_epoch(
             for step in range(mini_epoch_sequence_length):
                 step_indices = (start_indices + step) % dataset_size
                 
+                #--------------------------------------
+                # RECENTLY MOVED
+                # select graph state from memory for all terminal sequences
+                # TODO: Is there more we need to do here to make sure gradients
+                #       get clipped here?
+                for i, terminal in enumerate(step_terminal):
+                    if terminal:
+                        graph_states[i] = seq_graph_state[
+                                step_indices[i]].detach().cuda()
+                
+                # update step terminal
+                step_terminal = seq_terminal[step_indices]
+                #-------------------------------------
+                
                 # put the data on the graphics card
                 x_im = seq_tensors['color_render'][step_indices].cuda()
                 x_seg = seq_tensors['segmentation_render'][step_indices].cuda()
@@ -610,23 +580,52 @@ def train_label_confidence_epoch(
                 # MURU: 'fcos_features' should exist as a key in head_features
                 # here.  This is what should get losses applied.
                 
-                # select graph state from memory for all terminal sequences
-                # TODO: Is there more we need to do here to make sure gradients
-                #       get clipped here?
-                for i, terminal in enumerate(step_terminal):
-                    if terminal:
-                        graph_states[i] = seq_graph_state[
-                                step_indices[i]].detach().cuda()
-                
-                # update step terminal
-                step_terminal = seq_terminal[step_indices]
+                # sample a little bit extra for edge training
+                num_extra = None
+                bs = head_features['x'].shape[0]
+                #extra_brick_vectors = torch.zeros(
+                #       bs, num_extra, step_brick_lists[0]['x'].shape[1]).cuda()
+                #extra_segment_ids = torch.zeros(
+                #        bs, num_extra, dtype=torch.long).cuda()
+                extra_brick_vectors = []
+                extra_segment_ids = []
+                valid_locations = x_seg != 0
+                for i in range(bs):
+                    if num_extra is None:
+                        extra_brick_vectors.append(None)
+                        extra_segment_ids.append(None)
+                    else:
+                        valid_i = torch.nonzero(
+                                valid_locations[i], as_tuple=False)
+                        num_valid_i = valid_i.shape[0]
+                        if num_valid_i > num_extra:
+                            indices = random.sample(
+                                    range(num_valid_i), num_extra)
+                            sample_locations = valid_i[indices]
+                        else:
+                            sample_locations = valid_i
+                        
+                        ebv = head_features['x'][
+                                i,:,sample_locations[:,0],sample_locations[:,1]]
+                        extra_brick_vectors.append(
+                                torch.transpose(ebv, 0, 1).contiguous())
+                        extra_segment_ids.append(x_seg[
+                                i,sample_locations[:,0],sample_locations[:,1]])
                 
                 # upate the graph state using the edge model
+                if num_extra:
+                    input_extra_brick_vectors = extra_brick_vectors
+                else:
+                    input_extra_brick_vectors = None
                 (new_graph_states,
                  step_step_logits,
-                 step_state_logits) = edge_model(
+                 step_state_logits,
+                 extra_extra_logits,
+                 step_extra_logits,
+                 state_extra_logits) = edge_model(
                         step_brick_lists,
                         graph_states,
+                        extra_brick_vectors=input_extra_brick_vectors,
                         max_edges=max_edges,
                         segment_id_matching=segment_id_matching)
                 
@@ -727,7 +726,71 @@ def train_label_confidence_epoch(
                             float(torch.sum(correct)) /
                             float(torch.numel(correct)),
                             step_clock[0])
-                
+                    
+                    # center voting
+                    if center_cluster_loss_weight > 0.:
+                        center_data = head_features['cluster_center']
+                        center_offsets = center_data[:,:2]
+                        center_attention = center_data[:,[2]]
+                        h, w = center_offsets.shape[2:]
+                        y = torch.arange(h).view(1,1,h,1).expand(1,1,h,w).cuda()
+                        x = torch.arange(w).view(1,1,1,w).expand(1,1,h,w).cuda()
+                        positions = torch.cat((y,x), dim=1) + center_offsets
+                        b = positions.shape[0]
+                        
+                        #normalizer = torch.ones_like(center_attention)
+                        
+                        exp_attention = torch.exp(center_attention)
+                        exp_positions = positions * exp_attention
+                        
+                        #positions_1d = positions[:,0] * w + positions[:,1]
+                        #positions_1d = positions_1d.view(b,2,-1)
+                        summed_positions = scatter_add(
+                                exp_positions.view(b, 2, -1),
+                                x_seg.view(b, 1, -1))
+                        normalizer = scatter_add(
+                                exp_attention.view(b, 1, -1),
+                                x_seg.view(b, 1, -1))
+                        cluster_centers = (
+                                summed_positions / normalizer)
+                        
+                        #--------
+                        # losses
+                        #--------
+                        # make the offsets small
+                        # (encourage cluster center to be near object center)
+                        offset_norm = torch.norm(center_offsets, dim=1)
+                        center_loss = torch.nn.functional.smooth_l1_loss(
+                                offset_norm,
+                                torch.zeros_like(offset_norm),
+                                reduction='none')
+                        center_loss = center_loss * (x_seg != 0)
+                        center_loss = torch.mean(center_loss)
+                        
+                        # make the offsets as close as possible to the centers
+                        offset_targets = []
+                        for i in range(b):
+                            offset_target_b = torch.index_select(
+                                    cluster_centers[i], 1, x_seg[i].view(-1))
+                            offset_targets.append(offset_target_b.view(2, h, w))
+                        position_targets = torch.stack(offset_targets, dim=0)
+                        cluster_loss = torch.nn.functional.smooth_l1_loss(
+                                positions, position_targets, reduction='none')
+                        cluster_loss = cluster_loss * (x_seg != 0).unsqueeze(1)
+                        cluster_loss = torch.mean(cluster_loss)
+                        
+                        cluster_total_loss = (
+                                center_loss * center_local_loss_weight +
+                                cluster_loss * center_cluster_loss_weight)
+                        
+                        log.add_scalar('loss/center_loss',
+                                center_loss * center_local_loss_weight,
+                                step_clock[0])
+                        log.add_scalar('loss/cluster_loss',
+                                cluster_loss * center_cluster_loss_weight,
+                                step_clock[0])
+                        step_loss = step_loss + cluster_total_loss
+                    
                     # visibility supervision
                     dense_visibility = head_features['hide_action']
                     '''
@@ -791,11 +854,19 @@ def train_label_confidence_epoch(
                     step_state_normalizer = 0.
                     for (step_step,
                          step_state,
+                         extra_extra,
+                         step_extra,
+                         state_extra,
+                         extra_lookup,
                          brick_list,
                          graph_state,
                          y) in zip(
                             step_step_logits,
                             step_state_logits,
+                            extra_extra_logits,
+                            step_extra_logits,
+                            state_extra_logits,
+                            extra_segment_ids,
                             step_brick_lists,
                             graph_states,
                             y_graph):
@@ -904,9 +975,36 @@ def train_label_confidence_epoch(
                                 step_state_edge_pred &
                                 (~step_state_edge_target))
                         
+                        if extra_extra is None:
+                            extra_extra_edge_loss = 0.
+                        else:
+                            extra_extra_edge_target = full_edge_target[
+                                    extra_lookup][:,extra_lookup]
+                            extra_extra_edge_loss = cross_product_loss(
+                                    extra_extra[:,:,1], extra_extra_edge_target)
+                        
+                        if step_extra is None:
+                            step_extra_edge_loss = 0.
+                        else:
+                            step_extra_edge_target = full_edge_target[
+                                    step_lookup][:,extra_lookup]
+                            step_extra_edge_loss = cross_product_loss(
+                                    step_extra[:,:,1], step_extra_edge_target)
+                        
+                        if state_extra is None:
+                            state_extra_edge_loss = 0.
+                        else:
+                            state_extra_edge_target = full_edge_target[
+                                    state_lookup][:,extra_lookup]
+                            state_extra_edge_loss = cross_product_loss(
+                                    state_extra[:,:,1], state_extra_edge_target)
+                        
                         edge_loss = (edge_loss +
                                 step_step_edge_loss + #* step_step_num +
-                                step_state_edge_loss) #* step_state_num)
+                                step_state_edge_loss + #* step_state_num)
+                                extra_extra_edge_loss +
+                                step_extra_edge_loss +
+                                state_extra_edge_loss)
                     
                     if normalizer > 0.:
                         matching_loss = matching_loss / normalizer

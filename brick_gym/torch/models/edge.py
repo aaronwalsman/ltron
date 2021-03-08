@@ -5,6 +5,115 @@ import torch_geometric.utils as tg_utils
 from brick_gym.torch.brick_geometric import BrickGraph
 import brick_gym.torch.models.mlp as mlp
 
+class DenseEdgeModel(torch.nn.Module):
+    def __init__(self,
+            in_channels,
+            pre_compare_layers=3,
+            post_compare_layers=3,
+            compare_mode='squared_difference',
+            bias=True):
+        
+        super(DenseEdgeModel, self).__init__()
+        
+        self.in_channels = in_channels
+        self.out_channels = 2
+        self.compare_mode = compare_mode
+        if bias:
+            stdv = 1. / (in_channels**0.5)
+            initial_bias = torch.zeros(1, in_channels).uniform_(-stdv,stdv)
+            self.bias = torch.nn.Parameter(initial_bias)
+        else:
+            self.bias = None
+        
+        self.pre_compare = mlp.Conv2dStack(
+                pre_compare_layers,
+                in_channels,
+                in_channels,
+                in_channels)
+        
+        self.post_compare = mlp.Conv2dStack(
+                post_compare_layers,
+                in_channels,
+                in_channels,
+                2)
+        
+    def forward(self,
+            x,
+            primary_indices,
+            compare_indices,
+            progress_graphs,
+            max_edges = None):
+        
+        x = self.pre_compare(x)
+        bs, c, h, w = x.shape
+        x = x.view(bs, c, -1)
+        
+        # filter
+        x_primary = x
+        if primary_indices is not None:
+            x_primary = torch.transpose(x_primary,1,2).reshape(bs*h*w,c)
+            primary_k = primary_indices.shape[-1]
+            x_primary = x_primary[primary_indices.view(-1)]
+            x_primary = x_primary.view(bs, primary_k, c)
+            x_primary = torch.transpose(x_primary, 1, 2)
+        x_primary = x_primary.view(bs, c, -1, 1)
+        
+        print(x_primary.shape)
+        
+        x_compare = x
+        if compare_indices is not None:
+            x_compare = torch.transpose(x_compare,1,2).reshape(bs*h*w,c)
+            compare_k = compare_indices.shape[-1]
+            x_compare = x_compare[compare_indices.view(-1)]
+            x_compare = x_compare.view(bs, compare_k, c)
+            x_compare = torch.transpose(x_compare, 1, 2)
+        x_compare = x_compare.view(bs, c, 1, -1)
+        
+        print(x_compare.shape)
+        
+        #import pdb
+        #pdb.set_trace()
+        
+        # compare all pixels against each other
+        if self.compare_mode == 'add':
+            x_x = x_primary + x_compare
+        elif self.compare_mode == 'subtract':
+            x_x = x_primary - x_compare
+        elif self.compare_mode == 'squared_difference':
+            x_x = (x_primary - x_compare)**2
+        else:
+            raise ValueError('Unknown compare mode: %s'%self.compare_mode)
+        
+        import pdb
+        pdb.set_trace()
+        x_x = self.post_compare(x_x)
+        
+        x_ps = []
+        for i, progress_graph in enumerate(progress_graphs):
+            x_i = x_one[[i]] # 1 x c x topk x 1
+            
+            progress_x = progress_graph.x
+            n, c = progress_x.shape
+            progress_x = progress_x.moveaxis(progress_x,1,0).view(1,c,n,1)
+            progress_x = self.pre_compare(progress_x)
+            
+            if self.compare_mode == 'add':
+                x_p = progress_x + x_compare
+            elif self.compare_mode == 'subtract':
+                x_p = x_one - progress_x
+            elif self.compare_mode == 'squared_difference':
+                x_p = (x_one - progress_x)**2
+            else:
+                raise ValueError('Unknown compare mode: %s'%self.compare_mode)
+            
+            x_p = self.post_compare(x_p)
+            x_ps.append(x_p)
+        
+        import pdb
+        pdb.set_trace()
+        
+        return x_x, x_ps
+
 class EdgeModel(torch.nn.Module):
     def __init__(self,
             in_channels,
@@ -51,9 +160,48 @@ class EdgeModel(torch.nn.Module):
                     in_channels,
                     2)
     
+    def compare(self, a, b):
+        a_num, channels = a.shape
+        b_num, channels = b.shape
+        a_one_x = a.view(a_num, 1, channels)
+        one_b_x = b.view(1, b_num, channels)
+        if self.compare_mode == 'add':
+            a_b_x = a_one_x + one_b_x
+        elif self.compare_mode == 'subtract':
+            a_b_x = a_one_x - one_b_x
+        elif self.compare_mode == 'squared_difference':
+            a_b_x = (a_one_x - one_b_x)**2
+        else:
+            raise ValueError('Unknown compare mode: %s'%self.compare_mode)
+    
+        # post-compare a_b_x
+        if self.split_heads:
+            a_match_b_logits = self.matching_head(
+                    a_b_x.view(a_num * b_num, channels))
+            a_match_b_logits = a_match_b_logits.view(
+                    a_num, b_num)
+            
+            a_edge_b_logits = self.edge_head(
+                    a_b_x.view(a_num * b_num, channels))
+            a_edge_b_logits = a_edge_b_logits.view(
+                    a_num, b_num)
+            
+            a_b_x = torch.stack(
+                    (a_match_b_logits, a_edge_b_logits), dim=-1)
+        
+        else:
+            a_b_x = self.post_compare(
+                    a_b_x.view(a_num * b_num, channels))
+            a_b_x = a_b_x.view(a_num, b_num, 2)
+            a_match_b_logits = a_b_x[..., 0]
+            a_edge_b_logits = a_b_x[..., 1]
+        
+        return a_b_x, a_match_b_logits, a_edge_b_logits
+    
     def forward(self,
             step_lists,
             state_graphs,
+            extra_brick_vectors=None,
             edge_threshold=0.05,
             max_edges=None,
             match_threshold=0.5,
@@ -62,16 +210,24 @@ class EdgeModel(torch.nn.Module):
         merged_graphs = []
         step_step_logits = []
         step_state_logits = []
-        for step_list, state_graph in zip(step_lists, state_graphs):
+        extra_extra_logits = []
+        step_extra_logits = []
+        state_extra_logits = []
+        for i, (step_list, state_graph) in enumerate(
+                zip(step_lists, state_graphs)):
             # -----------------------
             # compute step-step edges
             
             # pre-compare step_list
             step_x = step_list.x
             step_x = self.pre_compare(step_x)
-            step_num, channels = step_x.shape
             
+            (step_step_x,
+             step_match_step_logits,
+             step_edge_step_logits) = self.compare(step_x, step_x)
+            '''
             # compare step_x with step_x
+            step_num, channels = step_x.shape
             step_one_x = step_x.view(step_num, 1, channels)
             one_step_x = step_x.view(1, step_num, channels)
             if self.compare_mode == 'add':
@@ -107,7 +263,7 @@ class EdgeModel(torch.nn.Module):
                 #step_step_score = torch.sigmoid(step_step_x)
                 #step_edge_step = step_step_score[...,1]
                 #step_match_step = step_step_score[...,1] # unused
-            
+            '''
             # sparsify edge list and edge scores
             step_edge_step_scores = torch.sigmoid(step_edge_step_logits)
             sparse_step_edge_step_entries = tg_utils.dense_to_sparse(
@@ -130,9 +286,13 @@ class EdgeModel(torch.nn.Module):
             # pre-compare state_graph
             state_x = state_graph.x
             state_x = self.pre_compare(state_x)
-            state_num, state_channels = state_x.shape
             
+            (step_state_x,
+             step_match_state_logits,
+             step_edge_state_logits) = self.compare(step_x, state_x)
+            '''
             # compare step_x with state_x
+            state_num, channels = state_x.shape
             one_state_x = state_x.view(1, state_num, channels)
             if self.compare_mode == 'add':
                 step_state_x = step_one_x + one_state_x
@@ -168,6 +328,7 @@ class EdgeModel(torch.nn.Module):
                 #step_edge_state = step_state_score[...,1]
                 step_match_state_logits = step_state_x[...,0]
                 step_edge_state_logits = step_state_x[...,1]
+            '''
             
             # sparsify edge list and edge scores
             step_edge_state_scores = torch.sigmoid(step_edge_state_logits)
@@ -234,8 +395,38 @@ class EdgeModel(torch.nn.Module):
             merged_graphs.append(merged_graph)
             step_step_logits.append(step_step_x)
             step_state_logits.append(step_state_x)
+            
+            # -------------------------
+            # compute extra edge logits
+            if extra_brick_vectors is None:
+                extra_extra_logits.append(None)
+                step_extra_logits.append(None)
+                state_extra_logits.append(None)
+            else:
+                (extra_extra_x,
+                 extra_match_extra_logits,
+                 extra_edge_extra_logits) = self.compare(
+                        extra_brick_vectors[i], extra_brick_vectors[i])
+                extra_extra_logits.append(extra_extra_x)
+                
+                (step_extra_x,
+                 step_match_extra_logits,
+                 step_edge_extra_logits) = self.compare(
+                        step_x, extra_brick_vectors[i])
+                step_extra_logits.append(step_extra_x)
+                
+                (state_extra_x,
+                 state_match_extra_logits,
+                 state_edge_extra_logits) = self.compare(
+                        state_x, extra_brick_vectors[i])
+                state_extra_logits.append(state_extra_x)
         
-        return merged_graphs, step_step_logits, step_state_logits
+        return (merged_graphs,
+                step_step_logits,
+                step_state_logits,
+                extra_extra_logits,
+                step_extra_logits,
+                state_extra_logits)
         
         '''
         if graph_b is not None:

@@ -203,6 +203,83 @@ class BrickList(GraphData):
         
         return batch
     
+    @staticmethod
+    def single_best_brick_lists(
+            score_logits, feature_dict):
+        # get dimensions (this works for either 3 or 4 dimensional tensors)
+        b, h, w = (
+                score_logits.shape[0],
+                score_logits.shape[-2],
+                score_logits.shape[-1])
+        score_logits = score_logits.view(b,h*w)
+        
+        '''
+        # scatter_max the score_logits using the segmentation
+        # raw_segment_score: the highest score for each segment
+        # raw_source_index: the pixel location where raw_segment_score was found
+        score = torch.sigmoid(score_logits)
+        raw_segment_score, raw_source_index = scatter_max(
+                score.view(b,-1), segmentation.view(b,-1))
+        
+        if (max_instances is not None and
+                max_instances < raw_segment_score.shape[1]):
+            raw_segment_score, remap_segment_id = torch.topk(
+                    raw_segment_score, max_instances)
+            raw_source_index = torch.gather(
+                    raw_source_index, 1, remap_segment_id)
+        else:
+            remap_segment_id = None
+        
+        # filter out the segments that have no contributing pixels
+        # segment_score: filtered raw_segment_score
+        # source_index: filtered raw_source_index
+        valid_segments = torch.where(raw_segment_score > 0.)
+        '''
+        
+        max_score, max_score_locations = torch.max(score_logits, dim=-1)
+        positions = torch.stack(
+                (max_score_locations // w, max_score_locations % w), dim=1)
+        
+        brick_lists = []
+        for i in range(b):
+            '''
+            item_entries = valid_segments[0] == i
+            nonzero_ids = valid_segments[1][item_entries]
+            if remap_segment_id is None:
+                segment_ids = nonzero_ids
+            else:
+                segment_ids = remap_segment_id[i][nonzero_ids]
+            
+            num_segments = nonzero_ids.shape[0]
+            batch_entries = [i] * num_segments
+            
+            item_segment_score = raw_segment_score[batch_entries, nonzero_ids]
+            item_source_index = raw_source_index[batch_entries, nonzero_ids]
+            
+            positions = torch.stack(
+                    (item_source_index // w, item_source_index % w), dim=1)
+            '''
+            graph_data = {}
+            for feature_name, feature_values in feature_dict.items():
+                c = feature_values.shape[1]
+                #segment_features = feature_values.view(b, c, -1)[
+                #        batch_entries, :, item_source_index]
+                segment_features = feature_values.view(b, c, -1)[
+                         [i], :, max_score_locations[i]]
+                graph_data[feature_name] = segment_features
+            
+            brick_lists.append(BrickList(
+                    score=torch.sigmoid(max_score[[i]]).unsqueeze(1),
+                    #score=item_segment_score.unsqueeze(1),
+                    #segment_id=segment_ids.unsqueeze(1),
+                    #pos=positions,
+                    pos=positions[[i]],
+                    **graph_data))
+        
+        batch = BrickListBatch(brick_lists)
+        
+        return batch
+    
     def cuda(self):
         features = {feature_name : self[feature_name].cuda()
                 for feature_name in self.brick_feature_names}

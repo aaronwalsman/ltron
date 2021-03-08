@@ -318,6 +318,34 @@ class BrickScene:
         all_edges = numpy.array(list(all_edges)).T
         return all_edges
     
+    def get_unoccupied_snaps(self):
+        # get all snaps
+        all_scene_snaps = set()
+        for instance_id, instance in self.instances.items():
+            brick_type = instance.brick_type
+            all_scene_snaps |= set(
+                    (instance_id, i)
+                    for i in range(len(brick_type.snaps)))
+        # build a list of occupied snaps
+        all_snap_connections = self.get_all_snap_connections()
+        occupied_snaps = set()
+        for a_id, connections in all_snap_connections.items():
+            for b_id, b_snap, a_snap in connections:
+                occupied_snaps.add((a_id, a_snap))
+                occupied_snaps.add((b_id, b_snap))
+        # build a list of unoccupied snaps
+        unoccupied_snaps = all_scene_snaps - occupied_snaps
+        unoccupied_snaps = [
+                self.instances[instance_id].get_snap(snap_id)
+                for instance_id, snap_id in unoccupied_snaps]
+        # filter for studs
+        unoccupied_snaps = [
+                snap for snap in unoccupied_snaps
+                if (isinstance(snap, SnapCylinder) and
+                        snap.contains_stud_radius())]
+        
+        return unoccupied_snaps
+    
     def is_instance_removable(self, instance, radius=1):
         instance = self.instances[instance]
         other_snaps = self.get_instance_snap_connections(instance, radius)

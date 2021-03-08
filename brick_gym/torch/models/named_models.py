@@ -8,7 +8,7 @@ import brick_gym.torch.models.resnet as bg_resnet
 import brick_gym.torch.models.edge as edge
 #import brick_gym.torch.models.graph as graph
 import brick_gym.torch.models.unet as unet
-from brick_gym.torch.models.graph_step import GraphStepModel
+from brick_gym.torch.models.graph_step import SlimGraphStepModel, GraphStepModel
 from brick_gym.torch.models.mlp import LinearStack, Conv2dStack
 from brick_gym.torch.models.espnet import ESPNet
 from brick_gym.torch.models.eespnet_seg import EESPNet_Seg
@@ -118,6 +118,16 @@ def named_edge_model(name, input_dim):
     raise UnknownModelError('Unknown edge model: %s'%name)
 '''
 
+def named_dense_edge_model(name, input_dim):
+    if name == 'squared_difference':
+        return edge.DenseEdgeModel(
+                input_dim,
+                pre_compare_layers=3,
+                post_compare_layers=3,
+                compare_mode = 'squared_difference')
+    else:
+        raise NotImplementedError
+
 def named_edge_model(name, input_dim):
     if name == 'default':
         return edge.EdgeModel(
@@ -204,6 +214,43 @@ def named_graph_step_model(
                         1)
         }
 '''
+def named_slim_graph_step_model(
+        name,
+        backbone_name,
+        decoder_channels,
+        num_classes,
+        input_resolution,
+        viewpoint_head=False):
+    if name == 'oth_try':
+        if backbone_name == 'simple':
+            output_resolution = (
+                    input_resolution[0]//4, input_resolution[1]//4)
+        else:
+            raise NotImplementedError
+        if viewpoint_head:
+            single_heads = {
+                'viewpoint' : torch.nn.Linear(2048, 4)
+            }
+        else:
+            single_heads = {}
+        return SlimGraphStepModel(
+                backbone = named_fcn_backbone(backbone_name, decoder_channels),
+                add_spatial_embedding=True,
+                decoder_channels = decoder_channels,
+                output_resolution = output_resolution,
+                dense_heads = {
+                    'x' : torch.nn.Identity(),
+                    'instance_label' : Conv2dStack(
+                        3, decoder_channels, decoder_channels, num_classes),
+                    'instance_confidence' : Conv2dStack(
+                        3, decoder_channels, decoder_channels, 1),
+                    'edge_confidence' : Conv2dStack(
+                        3, decoder_channels, decoder_channels, 1)},
+                single_heads = single_heads
+        )
+    else:
+        raise NotImplementedError
+
 def named_graph_step_model(
         name,
         backbone_name,
@@ -241,6 +288,38 @@ def named_graph_step_model(
                 },
                 single_heads = single_heads,
         )
+    elif name == 'center_voting':
+        if backbone_name == 'simple':
+            output_resolution = (
+                    input_resolution[0]//4, input_resolution[1]//4)
+        else:
+            output_resolution = input_resolution
+        if viewpoint_head:
+            single_heads = {
+                'viewpoint' : torch.nn.Linear(2048, 4)
+            }
+        else:
+            single_heads = {}
+        return GraphStepModel(
+                backbone = named_fcn_backbone(backbone_name, decoder_channels),
+                score_model = Conv2dStack(
+                        3, decoder_channels, decoder_channels, 1),
+                segmentation_model = None,
+                add_spatial_embedding = True,
+                decoder_channels = decoder_channels,
+                output_resolution = output_resolution,
+                dense_heads = {
+                    'x' : torch.nn.Identity(),
+                    'instance_label' : Conv2dStack(
+                            3, decoder_channels, decoder_channels, num_classes),
+                    'hide_action' : Conv2dStack(
+                            3, decoder_channels, decoder_channels, 1),
+                    'cluster_center' : Conv2dStack(
+                            3, decoder_channels, decoder_channels, 3),
+                },
+                single_heads = single_heads,
+        )
+    
     elif name == 'nth_try_nose':
         return GraphStepModel(
                 backbone = named_fcn_backbone('smp_fpn_rnxt50', 256),

@@ -63,6 +63,10 @@ def sparse_graph_to_edge_scores(
     
     return edge_scores
 
+def sparse_graph_to_instance_map_scores(
+        indices, instance_labels, scores):
+    pass
+
 def sparse_graph_to_instance_scores(
         image_index, indices, instance_labels, scores):
     instance_scores = {}
