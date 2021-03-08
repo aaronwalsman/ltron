@@ -45,7 +45,8 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
                 id_b = int(instance_b)
                 class_b = class_lookup[str(brick_instance_b.brick_type)]
                 if id_a < id_b:
-                    self.true_edges[(id_a, id_b, class_a, class_b)] = 1.0
+                    #self.true_edges[(id_a, id_b, class_a, class_b)] = 1.0
+                    self.true_edges[(id_a, id_b)] = 1.0
         
         self.true_instances = {}
         for instance in brick_scene.instances:
@@ -77,6 +78,7 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
                 edges = edge_index.T,
                 scores = edge_scores,
                 unidirectional = True,
+                include_node_labels = False
         )
         
         ###################3
