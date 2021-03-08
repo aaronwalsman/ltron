@@ -2,7 +2,7 @@
 #import brick_gym.torch.train.graph_d as graph_d
 import brick_gym.torch.train.graph as train_graph
 
-run = 'Feb28_23-41-32_mechagodzilla'
+run = None #'Feb28_23-41-32_mechagodzilla'
 epoch = 500
 
 if run is not None:
@@ -43,13 +43,13 @@ if __name__ == '__main__':
             train_steps_per_epoch = 1024,
             
             # train settings
-            learning_rate = 1e-4,
+            learning_rate = 1e-2,
             weight_decay = 1e-6,
             mini_epoch_sequences = 2048,
             mini_epoch_sequence_length = 1,
             batch_size = 16,
-            #edge_loss_weight = 0.,
-            #matching_loss_weight = 0.,
+            edge_loss_weight = 0.,
+            matching_loss_weight = 0.,
             multi_hide = True,
             max_instances_per_step=8,
             
