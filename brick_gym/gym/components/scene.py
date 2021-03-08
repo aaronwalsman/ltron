@@ -6,6 +6,7 @@ class SceneComponent(BrickEnvComponent):
     def __init__(self,
             path_component=None,
             initial_scene_path=None,
+            renderable=True,
             default_image_light='grey_cube'):
         
         self.path_component = path_component
@@ -14,6 +15,7 @@ class SceneComponent(BrickEnvComponent):
         
         self.brick_scene = BrickScene(
                 opengl_mode = 'egl',
+                renderable=renderable,
                 default_image_light = default_image_light)
         
         if self.initial_scene_path is not None:
