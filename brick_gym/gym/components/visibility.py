@@ -102,12 +102,12 @@ class PixelVisibilityComponent(VisibilityComponent):
             segmentation_component,
             terminate_when_all_hidden=False):
         
-        super(InstanceVisibilityComponent, self).__init__(
+        super(PixelVisibilityComponent, self).__init__(
                 scene_component = scene_component,
                 terminate_when_all_hidden = terminate_when_all_hidden)
         self.width = width
         self.height = height
-        self.mask_render_component = mask_render_component
+        self.segmentation_component = segmentation_component
         
         self.action_space = bg_spaces.PixelSelectionSpace(
                 self.width, self.height)
