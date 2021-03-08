@@ -1,5 +1,7 @@
 import numpy
 
+from PIL import Image, ImageDraw
+
 import renderpy.masks as masks
 
 def make_image_strips(num_strips, concatenate=False, **kwargs):
@@ -20,6 +22,7 @@ def make_image_strip(
         dense_class_labels = None,
         mask_segmentation = None,
         instance_id = None,
+        center_voting_offsets = None,
         step_size = None,
         step_segment_ids = None,
         step_step_match = None,
@@ -33,6 +36,14 @@ def make_image_strip(
     strip_components = []
     
     target_height = color_image.shape[0]
+    
+    if center_voting_offsets is not None:
+        vector_image = offset_image(
+                instance_id,
+                center_voting_offsets,
+                8)
+        strip_components.append(vector_image)
+        max_height = vector_image.shape[0]
     
     for raw, converter in (
             (color_image, lambda x : x),
@@ -159,3 +170,51 @@ def cross_product_image(
     large_image = numpy.repeat(large_image, cell_height, axis=1)
     
     return large_image
+
+def offset_image(
+        segmentation, offsets, cell_height):
+    
+    small_image = masks.color_index_to_byte(segmentation)
+    large_image = numpy.repeat(small_image, cell_height, axis=0)
+    large_image = numpy.repeat(large_image, cell_height, axis=1)
+    
+    #large_image = Image.fromarray(large_image)
+    #draw = ImageDraw.Draw(large_image)
+    
+    from skimage.draw import line
+    
+    h, w = offsets.shape[-2:]
+    for y in range(h):
+        for x in range(w):
+            if segmentation[y,x] == 0:
+                continue
+            start_x = round(x * cell_height + 0.5 * cell_height)
+            start_y = round(y * cell_height + 0.5 * cell_height)
+            end_x = round((round(x + offsets[1,y,x]) + 0.5) * cell_height)
+            end_y = round((round(y + offsets[0,y,x]) + 0.5) * cell_height)
+            #end_x = round(
+            #        (round(start_x + offsets[1,y,x]) + 0.5) * cell_height)
+            #end_y = round(
+            #        (round(start_y + offsets[0,y,x]) + 0.5) * cell_height)
+            #end_x = round(start_x + offsets[1,y,x]) * cell_height)
+            #end_y = round(start_y + offsets[0,y,x]) * cell_height)
+            
+            if start_x < 0 or start_x > 511:
+                continue
+            if start_y < 0 or start_y > 511:
+                continue
+            if end_x < 0 or end_x > 511:
+                continue
+            if end_y < 0 or end_y > 511:
+                continue
+            #draw.line((start_x, start_y, end_x, end_y), fill=(0,128,0))
+            rr, cc = line(start_y, start_x, end_y, end_x)
+            
+            segment_id = segmentation[y,x]
+            color = masks.color_index_to_byte(segment_id+1)
+            
+            large_image[rr, cc] = color
+    
+    #large_image = numpy.array(large_image)
+    return large_image
+
