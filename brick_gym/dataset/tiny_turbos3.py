@@ -9,6 +9,9 @@ import brick_gym.config as config
 from brick_gym.bricks.brick_scene import BrickScene
 
 breakout = {
+    '4096 - Micro Wheels - AB Truck and Trailer.mpd' : [
+            '4096 - ab truck.ldr'
+    ],
     '8123' : ['8123 - 1.ldr'],
             #'8123 - 2.ldr'], # duplicate of - 1 except for button helmet color
     '8124' : ['8124 - 1.ldr',
@@ -18,19 +21,29 @@ breakout = {
     '8126' : ['8126 - 8126-1.ldr',
             '8126 - 8126-2.ldr'],
     '8134' : ['8134 - 8134-1.ldr',
-            '8134 - 8134-2.ldr'],
-            #'8134 - 8134-3.ldr'], # 164 parts, second largest
+            '8134 - 8134-2.ldr',
+            #'8134 - 8134-3.ldr', # 164 parts, second largest
+            '8134 - 8134-3-a.ldr', # just the cab please
+            '8134 - 8134-3-b.ldr', # and actualy the flatbed too
+    ],
     '8135' : ['8135 - 8135-1.ldr',
             '8135 - 8135-2.ldr',
             '8135 - 8135-3.ldr',
             '8135 - 8135-4.ldr'],
     '8147' : ['8147 - 8147-1.ldr',
             '8147 - 8147-2.ldr',
-            #'8147 - 8147-3.ldr', # 104 parts, seems manageable
+            '8147 - 8147-3.ldr', # 104 parts, seems manageable
             #'8147 - 8147-4.ldr', # 101 parts, but longer than 8147-3
+            '8147 - 8147-4-a.ldr', # cab
+            '8147 - 8147-4-c.ldr', # trailer
             '8147 - 8147-5.ldr',
-            '8147 - 8147-6.ldr'],
+            '8147 - 8147-6.ldr',
             #'8147 - 8147-7.ldr'], # 121 parts, quite large
+            '8147 - 8147-7-a.ldr', # but hey!  we can separate it out!
+            #'8147 - 8147-7-b.ldr', # just a connector
+            #'8147 - 8147-7-c.ldr', # no wheels, long and has strange pieces
+            '8147 - 8147-7-d.ldr', # end of the trailer
+    ],
     '8152' : ['8152 - 8152-1.ldr',
             '8152 - 8152-2.ldr',
             '8152 - 8152-3.ldr',
@@ -43,6 +56,8 @@ breakout = {
             '8154 - 8154-5.ldr',
             '8154 - 8154-6.ldr',
             #'8154 - 8154-7.ldr', # 202 parts, largest (way too big for 256x256)
+            '8154 - 8154-7-a.ldr', # cab
+            #'8154 - 8154-7-b.ldr' # trailer, long weird parts, quite large
             '8154 - 8154-8.ldr'],
     '8182' : ['8182 - 8182-1.ldr',
             '8182 - 8182-2.ldr',
@@ -192,6 +207,9 @@ for set_number, set_list in existing_sets.items():
         if set_number in breakout:
             file_paths = ['%s:%s'%(existing_set, subdocument)
                     for subdocument in breakout[set_number]]
+        elif existing_set in breakout:
+            file_paths = ['%s:%s'%(existing_set, subdocument)
+                    for subdocument in breakout[existing_set]]
         else:
             file_paths = [existing_set]
         #breakout_paths.extend(file_paths)
@@ -254,7 +272,7 @@ print('%i total brick types'%len(instance_counts))
 
 random.seed(1234)
 breakout_paths = list(sorted(breakout_paths))
-test_set = sorted(random.sample(breakout_paths, 24))
+test_set = sorted(random.sample(breakout_paths, 20))
 train_set = [path for path in breakout_paths if path not in test_set]
 
 all_tiny_turbos = ['ldraw/' + set_name for set_name in breakout_paths]
