@@ -11,7 +11,9 @@ from brick_gym.gym.components.labels import (
 from brick_gym.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent)
 from brick_gym.gym.components.viewpoint import (
-        RandomizedAzimuthalViewpointComponent, FixedAzimuthalViewpointComponent)
+        ControlledAzimuthalViewpointComponent,
+        RandomizedAzimuthalViewpointComponent,
+        FixedAzimuthalViewpointComponent)
 from brick_gym.gym.components.visibility import (
         InstanceVisibilityComponent,
         PixelVisibilityComponent,
@@ -129,6 +131,7 @@ def graph_supervision_env(
         multi_hide=False,
         visibility_mode='instance',
         randomize_viewpoint=True,
+        controlled_viewpoint=False,
         randomize_viewpoint_frequency='step',
         randomize_distance=True,
         randomize_colors=True,
@@ -235,6 +238,14 @@ def graph_supervision_env(
                 #elevation = math.radians(-30.),
                 aspect_ratio = width/height,
                 randomize_frequency=randomize_viewpoint_frequency)
+    elif controlled_viewpoint:
+        components['viewpoint'] = ControlledAzimuthalViewpointComponent(
+                components['scene'],
+                azimuth_steps = 24,
+                elevation_range = (math.radians(-15), math.radians(-45)),
+                elevation_steps = 4,
+                distance_range = (100,300),
+                distance_steps = 5)
     else:
         components['viewpoint'] = FixedAzimuthalViewpointComponent(
                 components['scene'],

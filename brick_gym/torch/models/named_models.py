@@ -267,7 +267,7 @@ def named_graph_step_model(
             output_resolution = input_resolution
         if viewpoint_head:
             single_heads = {
-                'viewpoint' : torch.nn.Linear(2048, 4)
+                'viewpoint' : torch.nn.Linear(2048, 5)
             }
         else:
             single_heads = {}

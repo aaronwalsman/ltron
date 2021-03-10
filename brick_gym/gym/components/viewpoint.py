@@ -3,6 +3,8 @@ import random
 
 import numpy
 
+import gym.spaces as spaces
+
 import renderpy.camera as camera
 
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
@@ -22,7 +24,6 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
             start_position = 'uniform'):
         
         self.scene_component = scene_component
-        self.azimuth_range = azimuth_range
         self.azimuth_steps = azimuth_steps
         self.elevation_range = elevation_range
         self.elevation_steps = elevation_steps
@@ -42,7 +43,7 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         self.elevation_spacing = (
                 elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
         self.distance_spacing = (
-                distance_range[1] - distance_range[2]) / (distance_steps-1)
+                distance_range[1] - distance_range[0]) / (distance_steps-1)
     
     def reset(self):
         if self.start_position == 'uniform':
@@ -84,11 +85,12 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
     
     def set_camera(self):
         scene = self.scene_component.brick_scene
-        azimuth = random.uniform(*self.azimuth)
-        elevation = random.uniform(*self.elevation)
-        tilt = random.uniform(*self.tilt)
-        field_of_view = random.uniform(*self.field_of_view)
-        distance_scale = random.uniform(*self.distance)
+        azimuth = self.position[0] * self.azimuth_spacing
+        elevation = (self.position[1] * self.elevation_spacing +
+                self.elevation_range[0])
+        field_of_view = self.field_of_view
+        distance = (self.position[1] * self.distance_spacing +
+                self.distance_range[0])
         
         # projection
         self.projection = camera.projection_matrix(
@@ -99,8 +101,12 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         scene.set_projection(self.projection)
         
         # pose
+        bbox = scene.get_instance_center_bbox()
+        bbox_min, bbox_max = bbox
+        bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
+        center = bbox_min + bbox_range * 0.5
         camera_pose = camera.azimuthal_pose_to_matrix(
-                [azimuth, elevation, tilt, distance, 0.0, 0.0],
+                [azimuth, elevation, 0, distance, 0.0, 0.0],
                 center = center)
         scene.set_camera_pose(camera_pose)
 

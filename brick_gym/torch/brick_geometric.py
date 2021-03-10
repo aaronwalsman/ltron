@@ -64,6 +64,12 @@ class BrickList(GraphData):
         total_scores = scatter_add(
                 scores.view(b,1,-1), segmentation.view(b,1,-1))
         
+        ##################################################
+        # to get positions out
+        _, max_source_index = scatter_max(
+                scores.view(b,-1), segmentation.view(b,-1))
+        ##################################################
+        
         # there is probably a more efficient way to do this
         normalizer = scatter_add(
                 torch.ones_like(scores.view(b,1,-1)),
@@ -102,23 +108,27 @@ class BrickList(GraphData):
             
             if (max_instances is not None and
                     max_instances < segment_total_scores.shape[0]):
-                
+                '''
                 # this is wrong but performs better for some reason
                 segment_total_scores, topk = torch.topk(
                         segment_total_scores.view(-1), max_instances)
                 segment_total_scores = segment_total_scores.view(-1,1)
                 segment_normalized_scores = segment_normalized_scores[topk]
-                
                 '''
+                
                 segment_normalized_scores, topk = torch.topk(
                         segment_normalized_scores.view(-1), max_instances)
                 segment_normalized_scores = segment_normalized_scores.view(-1,1)
                 segment_total_scores = segment_total_scores[topk]
-                '''
+                
                 segment_ids = nonzero_ids[topk]
             else:
                 topk = None
                 segment_ids = nonzero_ids
+            
+            max_ids = max_source_index[i][segment_ids]
+            positions = torch.stack(
+                    (max_ids // w, max_ids % w), dim=1)
             
             graph_data = {}
             for feature_name, feature_values in segment_features.items():
@@ -131,6 +141,7 @@ class BrickList(GraphData):
             brick_lists.append(BrickList(
                     score=segment_normalized_scores,
                     segment_id=segment_ids.unsqueeze(1),
+                    pos=positions,
                     **graph_data))
         
         batch = BrickListBatch(brick_lists)
@@ -312,6 +323,11 @@ class BrickList(GraphData):
     
     def detach(self):
         features = {feature_name : self[feature_name].detach()
+                for feature_name in self.brick_feature_names}
+        return BrickList(**features)
+    
+    def clone(self):
+        features = {feature_name : self[feature_name].clone()
                 for feature_name in self.brick_feature_names}
         return BrickList(**features)
 
@@ -536,6 +552,14 @@ class BrickGraph(GraphData):
                 for feature_name in self.brick_feature_names}).detach()
         edge_index = self.edge_index.detach()
         edge_attr = self.edge_attr.detach()
+        return BrickGraph(
+                brick_list, edge_index=edge_index, edge_attr=edge_attr)
+    
+    def clone(self):
+        brick_list = BrickList(**{feature_name : self[feature_name]
+                for feature_name in self.brick_feature_names}).clone()
+        edge_index = self.edge_index.clone()
+        edge_attr = self.edge_attr.clone()
         return BrickGraph(
                 brick_list, edge_index=edge_index, edge_attr=edge_attr)
 

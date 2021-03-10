@@ -76,17 +76,14 @@ def edge_ap(edges, ground_truth):
 
 def instance_map(
         instance_class_predictions, class_false_negatives, extant_classes):
+    
     per_class_predictions = {}
     per_class_ground_truth = {}
-    #for class_prediction, true_label in instance_class_predictions:
     for (class_label, score), true_label in instance_class_predictions:
-        #import pdb
-        #pdb.set_trace()
-        #for class_label, score in class_prediction:
         if class_label not in per_class_predictions:
             per_class_predictions[class_label] = []
             per_class_ground_truth[class_label] = []
-        per_class_predictions[class_label].append(score)
+        per_class_predictions[class_label].append(float(score))
         per_class_ground_truth[class_label].append(
                 float(class_label == true_label))
     
@@ -98,8 +95,6 @@ def instance_map(
                 per_class_predictions[class_label],
                 per_class_ground_truth[class_label],
                 class_false_negatives.get(class_label, 0))
-        #import pdb
-        #pdb.set_trace()
     
     return sum(class_ap.values())/len(class_ap), class_ap
 
