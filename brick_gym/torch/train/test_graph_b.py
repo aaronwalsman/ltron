@@ -202,7 +202,10 @@ def test_graph(
             #-------------------------------------------------------------------
             # step model forward pass
             # THIS NEEDS TO CHANGE BASED ON ACTION SPACE/EVALUATION CONVERSATION
-            segmentation_input = None #step_tensors['segmentation_render']
+            if use_ground_truth_segmentation:
+                segmentation_input = step_tensors['segmentation_render']
+            else:
+                segmentation_input = None
             (step_brick_lists,
              segmentation,
              dense_scores,

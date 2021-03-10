@@ -42,7 +42,6 @@ edge_threshold = 0.05
 
 def train_label_confidence(
         # load checkpoints
-        settings_file = None,
         step_checkpoint = None,
         edge_checkpoint = None,
         optimizer_checkpoint = None,
@@ -50,8 +49,6 @@ def train_label_confidence(
         # general settings
         num_epochs = 9999,
         mini_epochs_per_epoch = 1,
-        mini_epoch_sequences = 2048,
-        mini_epoch_sequence_length = 2,
         
         # dasaset settings
         dataset = 'random_stack',
@@ -62,7 +59,6 @@ def train_label_confidence(
         test_subset = None,
         image_resolution = (256,256),
         randomize_viewpoint = True,
-        controlled_viewpoint = False,
         randomize_colors = True,
         random_floating_bricks = False,
         random_floating_pairs = False,
@@ -78,30 +74,23 @@ def train_label_confidence(
         weight_decay = 1e-5,
         instance_label_loss_weight = 0.8,
         instance_label_background_weight = 0.05,
-        score_loss_weight = 0.2,
-        score_background_weight = 0.05,
-        score_ratio = 0.1,
-        matching_loss_weight = 1.0,
+        #score_loss_weight = 0.2,
+        #score_background_weight = 0.05,
+        #score_ratio = 0.1,
+        #matching_loss_weight = 1.0,
         edge_loss_weight = 1.0,
         #-----------------
-        center_local_loss_weight = 0.1,
-        center_cluster_loss_weight = 0.0,
-        center_separation_loss_weight = 1.0,
-        center_separation_distance = 5,
+        center_local_loss_weight=0.0,
+        center_cluster_loss_weight=0.0,
+        center_separation_loss_weight=0.0,
+        center_separation_distance=0.0,
         #-----------------
-        max_instances_per_step = 8,
-        multi_hide = False,
         
         # model settings
         step_model_name = 'nth_try',
         step_model_backbone = 'smp_fpn_r18',
         decoder_channels = 512,
         edge_model_name = 'subtract',
-        segment_id_matching = False,
-        
-        # test settings
-        test_frequency = 1,
-        test_steps_per_epoch = 1024,
         
         # checkpoint settings
         checkpoint_frequency = 1,
@@ -133,9 +122,7 @@ def train_label_confidence(
             backbone_name = step_model_backbone,
             decoder_channels = decoder_channels,
             num_classes = num_classes,
-            input_resolution = image_resolution,
-            viewpoint_head = controlled_viewpoint).cuda()
-    #step_model = FrozenBatchNormWrapper(step_model)
+            input_resolution = image_resolution).cuda()
     
     if step_checkpoint is not None:
         print('Loading step model checkpoint from:')
@@ -188,10 +175,9 @@ def train_label_confidence(
             height = image_resolution[1],
             segmentation_width = segmentation_width,
             segmentation_height = segmentation_height,
-            multi_hide=multi_hide,
+            multi_hide=True,
             visibility_mode='instance',
             randomize_viewpoint=randomize_viewpoint,
-            controlled_viewpoint=controlled_viewpoint,
             randomize_viewpoint_frequency='reset',
             randomize_colors=randomize_colors,
             random_floating_bricks=random_floating_bricks,
@@ -225,8 +211,6 @@ def train_label_confidence(
                 math.ceil(train_steps_per_epoch / num_processes),
                 #train_steps_per_epoch,
                 mini_epochs_per_epoch,
-                mini_epoch_sequences,
-                mini_epoch_sequence_length,
                 batch_size,
                 step_model,
                 edge_model,
@@ -234,10 +218,9 @@ def train_label_confidence(
                 train_env,
                 instance_label_loss_weight,
                 instance_label_class_weight,
-                score_loss_weight,
-                score_background_weight,
-                score_ratio,
-                matching_loss_weight,
+                #score_loss_weight,
+                #score_background_weight,
+                #score_ratio,
                 edge_loss_weight,
                 #-----------------
                 center_local_loss_weight,
@@ -245,10 +228,7 @@ def train_label_confidence(
                 center_separation_loss_weight,
                 center_separation_distance,
                 #-----------------
-                max_instances_per_step,
-                multi_hide,
                 max_instances_per_scene,
-                segment_id_matching,
                 dataset_info,
                 log_train)
         
@@ -275,19 +255,6 @@ def train_label_confidence(
             print('Saving optimizer to: %s'%optimizer_path)
             torch.save(optimizer.state_dict(), optimizer_path)
         
-        '''
-        if test_frequency is not None and epoch % test_frequency == 0:
-            test_label_confidence_epoch(
-                    epoch,
-                    step_clock,
-                    log,
-                    math.ceil(test_steps_per_epoch / num_processes),
-                    step_model,
-                    edge_model,
-                    test_env,
-                    log_test)
-        '''
-        
         print('-'*80)
         print('Elapsed: %.04f'%(time.time() - epoch_start))
 
@@ -298,8 +265,6 @@ def train_label_confidence_epoch(
         log,
         steps,
         mini_epochs,
-        mini_epoch_sequences,
-        mini_epoch_sequence_length,
         batch_size,
         step_model,
         edge_model,
@@ -307,10 +272,9 @@ def train_label_confidence_epoch(
         train_env,
         instance_label_loss_weight,
         instance_label_class_weight,
-        score_loss_weight,
-        score_background_weight,
-        score_ratio,
-        matching_loss_weight,
+        #score_loss_weight,
+        #score_background_weight,
+        #score_ratio,
         edge_loss_weight,
         #------------------
         center_local_loss_weight,
@@ -318,10 +282,7 @@ def train_label_confidence_epoch(
         center_separation_loss_weight,
         center_separation_distance,
         #------------------
-        max_instances_per_step,
-        multi_hide,
         max_instances_per_scene,
-        segment_id_matching,
         dataset_info,
         log_train):
     
@@ -334,10 +295,7 @@ def train_label_confidence_epoch(
     print('- '*40)
     print('Rolling out episodes to generate data')
     
-    seq_terminal = []
     seq_observations = []
-    seq_graph_state = []
-    seq_rewards = []
     
     device = torch.device('cuda:0')
     
@@ -357,7 +315,6 @@ def train_label_confidence_epoch(
             # data storage and conversion
             
             # store observation
-            seq_terminal.append(step_terminal)
             seq_observations.append(step_observations)
             
             # convert gym observations to torch tensors
@@ -371,24 +328,16 @@ def train_label_confidence_epoch(
             step_brick_lists, _, dense_score_logits, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
-                    max_instances = max_instances_per_step)
+                    max_instances = 1000)
             # MURU: We should change this part as well to not take in ground
             # truth segmentation, but instead use the segmentation model.
             # Basically, we should set the second argument to None.
             
-            #-------------------------------------------------------------------
-            # build new graph state for all terminal sequences
-            # (do this here so we can use the brick_feature_spec from the model)
             for i, terminal in enumerate(step_terminal):
-                if terminal:
-                    empty_brick_list = BrickList(
-                            step_brick_lists[i].brick_feature_spec())
-                    graph_states[i] = BrickGraph(
-                            empty_brick_list, edge_attr_channels=1).cuda()
-            
-            # store the graph_state before it gets updated
-            # (we want the graph state that was input to this step)
-            seq_graph_state.append([g.detach().cpu() for g in graph_states])
+                empty_brick_list = BrickList(
+                        step_brick_lists[i].brick_feature_spec())
+                graph_states[i] = BrickGraph(
+                        empty_brick_list, edge_attr_channels=1).cuda()
             
             #-------------------------------------------------------------------
             # edge model forward pass
@@ -401,11 +350,11 @@ def train_label_confidence_epoch(
                     step_brick_lists,
                     graph_states,
                     max_edges=max_edges,    
-                    segment_id_matching=segment_id_matching)
+                    segment_id_matching=False)
             
+            '''
             #-------------------------------------------------------------------
             # act
-            hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
             actions = []
             for i, logits in enumerate(hide_logits):
                 if multi_hide:
@@ -414,15 +363,6 @@ def train_label_confidence_epoch(
                     selected_instances = (
                             step_brick_lists[i].segment_id[:,0].cpu().numpy())
                     visibility_sample[selected_instances] = True
-                else:
-                    if logits.shape[0]:
-                        distribution = Categorical(
-                                logits=logits, validate_args=True)
-                        segment_sample = distribution.sample()
-                        visibility_sample = int(
-                                step_brick_lists[i].segment_id[segment_sample])
-                    else:
-                        visibility_sample = 0
                 
                 graph_data = graph_to_gym_space(
                         graph_states[i].cpu(),
@@ -434,7 +374,7 @@ def train_label_confidence_epoch(
                         'visibility':visibility_sample,
                         'graph_task':graph_data,
                 })
-            
+            '''
             #-------------------------------------------------------------------
             # prestep logging
             if step < log_train:
@@ -443,8 +383,8 @@ def train_label_confidence_epoch(
                         step_clock,
                         log,
                         step_observations,
-                        space,
-                        actions)
+                        space)
+                        #actions)
             
             '''
             ######
@@ -463,7 +403,7 @@ def train_label_confidence_epoch(
                 #pdb.set_trace()
             ######
             '''
-            
+            '''
             #-------------------------------------------------------------------
             # step
             (step_observations,
@@ -471,7 +411,7 @@ def train_label_confidence_epoch(
              step_terminal,
              step_info) = train_env.step(actions)
             step_terminal = torch.BoolTensor(step_terminal)
-            
+            '''
             #-------------------------------------------------------------------
             # poststep log
             log.add_scalar(
@@ -479,6 +419,7 @@ def train_label_confidence_epoch(
                     sum(step_rewards)/len(step_rewards),
                     step_clock[0])
             
+            '''
             all_edge_ap = [
                     info['graph_task']['edge_ap'] for info in step_info]
             all_instance_ap = [
@@ -492,7 +433,9 @@ def train_label_confidence_epoch(
                     'train_rollout/step_instance_ap',
                     sum(all_instance_ap)/len(all_instance_ap),
                     step_clock[0])
-            
+            '''
+            # are we going to have to fly blind a little bit?
+            '''
             num_terminal = sum(step_terminal)
             if num_terminal:
                 sum_terminal_edge_ap = sum(
@@ -507,8 +450,10 @@ def train_label_confidence_epoch(
                         sum_terminal_instance_ap/num_terminal, step_clock[0])
             
             seq_rewards.append(step_rewards)
-            
+            '''
             step_clock[0] += 1
+        
+        step_observations = train_env.reset()
     
     print('- '*40)
     print('Converting rollout data to tensors')
@@ -516,23 +461,12 @@ def train_label_confidence_epoch(
     # when joining these into one long list, make sure sequences are preserved
     seq_tensors = gym_space_list_to_tensors(
             seq_observations, train_env.single_observation_space)
-    seq_terminal = torch.stack(seq_terminal, axis=1).reshape(-1)
-    seq_graph_state = BrickGraphBatch([
-            seq_graph_state[i][j]
-            for j in range(train_env.num_envs)
-            for i in range(steps)])
     
     #===========================================================================
     # supervision
     
     print('- '*40)
     print('Supervising rollout data')
-    
-    running_node_loss = 0.
-    running_confidence_loss = 0.
-    total_correct_segments = 0
-    total_correct_correct_segments = 0
-    total_segments = 0
     
     step_model.train()
     edge_model.train()
@@ -543,569 +477,575 @@ def train_label_confidence_epoch(
         print('-   '*20)
         print('Training Mini Epoch: %i'%mini_epoch)
         
+        num_images = seq_tensors['color_render'].shape[0]
+        indices = list(range(num_images))
+        random.shuffle(indices)
+        
         # episode subsequences
-        iterate = tqdm.tqdm(range(mini_epoch_sequences//batch_size))
-        for seq_id in iterate:
-            start_indices = torch.randint(dataset_size, (batch_size,))
-            step_terminal = [True for _ in range(batch_size)]
-            graph_states = [None for _ in range(batch_size)]
+        #iterate = tqdm.tqdm(range(mini_epoch_sequences//batch_size))
+        iterate = tqdm.tqdm(range(0,num_images,batch_size))
+        for start in iterate:
+            #start_indices = torch.randint(dataset_size, (batch_size,))
+            batch_indices = indices[start:(start+batch_size)]
             seq_loss = 0.
             
-            # steps per episode subsequence
-            for step in range(mini_epoch_sequence_length):
-                step_indices = (start_indices + step) % dataset_size
-                
-                #--------------------------------------
-                # RECENTLY MOVED
-                # select graph state from memory for all terminal sequences
-                # TODO: Is there more we need to do here to make sure gradients
-                #       get clipped here?
-                for i, terminal in enumerate(step_terminal):
-                    if terminal:
-                        graph_states[i] = seq_graph_state[
-                                step_indices[i]].detach().cuda()
-                
-                # update step terminal
-                step_terminal = seq_terminal[step_indices]
-                #-------------------------------------
-                
-                # put the data on the graphics card
-                x_im = seq_tensors['color_render'][step_indices].cuda()
-                x_seg = seq_tensors['segmentation_render'][step_indices].cuda()
-                y_graph = seq_tensors['graph_label'][step_indices].cuda()
-                
-                # step forward pass
-                (step_brick_lists,
-                 predicted_segmentation,
-                 dense_score_logits,
-                 head_features) = step_model(
-                        x_im, x_seg, max_instances=max_instances_per_step)
-                # MURU: 'fcos_features' should exist as a key in head_features
-                # here.  This is what should get losses applied.
-                
-                # sample a little bit extra for edge training
-                num_extra = None
-                bs = head_features['x'].shape[0]
-                #extra_brick_vectors = torch.zeros(
-                #       bs, num_extra, step_brick_lists[0]['x'].shape[1]).cuda()
-                #extra_segment_ids = torch.zeros(
-                #        bs, num_extra, dtype=torch.long).cuda()
-                extra_brick_vectors = []
-                extra_segment_ids = []
-                valid_locations = x_seg != 0
-                for i in range(bs):
-                    if num_extra is None:
-                        extra_brick_vectors.append(None)
-                        extra_segment_ids.append(None)
-                    else:
-                        valid_i = torch.nonzero(
-                                valid_locations[i], as_tuple=False)
-                        num_valid_i = valid_i.shape[0]
-                        if num_valid_i > num_extra:
-                            indices = random.sample(
-                                    range(num_valid_i), num_extra)
-                            sample_locations = valid_i[indices]
-                        else:
-                            sample_locations = valid_i
-                        
-                        ebv = head_features['x'][
-                                i,:,sample_locations[:,0],sample_locations[:,1]]
-                        extra_brick_vectors.append(
-                                torch.transpose(ebv, 0, 1).contiguous())
-                        extra_segment_ids.append(x_seg[
-                                i,sample_locations[:,0],sample_locations[:,1]])
-                
-                # upate the graph state using the edge model
-                if num_extra:
-                    input_extra_brick_vectors = extra_brick_vectors
+            #--------------------------------------
+            # RECENTLY MOVED
+            # select graph state from memory for all terminal sequences
+            # TODO: Is there more we need to do here to make sure gradients
+            #       get clipped here?
+            #for i, terminal in enumerate(step_terminal):
+            #    if terminal:
+            #        graph_states[i] = seq_graph_state[
+            #                step_indices[i]].detach().cuda()
+            
+            # put the data on the graphics card
+            x_im = seq_tensors['color_render'][batch_indices].cuda()
+            x_seg = seq_tensors['segmentation_render'][batch_indices].cuda()
+            y_graph = seq_tensors['graph_label'][batch_indices].cuda()
+            
+            # step forward pass
+            (step_brick_lists,
+             predicted_segmentation,
+             dense_score_logits,
+             head_features) = step_model(
+                    x_im, x_seg, max_instances=1000)
+            # MURU: 'fcos_features' should exist as a key in head_features
+            # here.  This is what should get losses applied.
+            
+            graph_states = []
+            for i, terminal in enumerate(step_terminal):
+                empty_brick_list = BrickList(
+                        step_brick_lists[i].brick_feature_spec())
+                graph_states.append(BrickGraph(
+                        empty_brick_list, edge_attr_channels=1).cuda())
+            
+            # sample a little bit extra for edge training
+            num_extra = None
+            bs = head_features['x'].shape[0]
+            #extra_brick_vectors = torch.zeros(
+            #       bs, num_extra, step_brick_lists[0]['x'].shape[1]).cuda()
+            #extra_segment_ids = torch.zeros(
+            #        bs, num_extra, dtype=torch.long).cuda()
+            extra_brick_vectors = []
+            extra_segment_ids = []
+            valid_locations = x_seg != 0
+            for i in range(bs):
+                if num_extra is None:
+                    extra_brick_vectors.append(None)
+                    extra_segment_ids.append(None)
                 else:
-                    input_extra_brick_vectors = None
-                (new_graph_states,
-                 step_step_logits,
-                 step_state_logits,
-                 extra_extra_logits,
-                 step_extra_logits,
-                 state_extra_logits) = edge_model(
+                    valid_i = torch.nonzero(
+                            valid_locations[i], as_tuple=False)
+                    num_valid_i = valid_i.shape[0]
+                    if num_valid_i > num_extra:
+                        indices = random.sample(
+                                range(num_valid_i), num_extra)
+                        sample_locations = valid_i[indices]
+                    else:
+                        sample_locations = valid_i
+                    
+                    ebv = head_features['x'][
+                            i,:,sample_locations[:,0],sample_locations[:,1]]
+                    extra_brick_vectors.append(
+                            torch.transpose(ebv, 0, 1).contiguous())
+                    extra_segment_ids.append(x_seg[
+                            i,sample_locations[:,0],sample_locations[:,1]])
+            
+            # upate the graph state using the edge model
+            if num_extra:
+                input_extra_brick_vectors = extra_brick_vectors
+            else:
+                input_extra_brick_vectors = None
+            (new_graph_states,
+             step_step_logits,
+             step_state_logits,
+             extra_extra_logits,
+             step_extra_logits,
+             state_extra_logits) = edge_model(
+                    step_brick_lists,
+                    graph_states,
+                    extra_brick_vectors=input_extra_brick_vectors,
+                    max_edges=max_edges,
+                    segment_id_matching=False)
+            
+            step_loss = 0.
+            
+            #---------------------------------------------------------------
+            # dense supervision
+            
+            # instance_label supervision
+            y_instance_label = [
+                    graph['instance_label'][:,0] for graph in y_graph]
+            dense_instance_label_target = torch.stack([
+                    y[seg] for y,seg in zip(y_instance_label, x_seg)])
+            instance_label_logits = head_features['instance_label']
+            instance_label_loss = dense_instance_label_loss(
+                    instance_label_logits,
+                    dense_instance_label_target,
+                    instance_label_class_weight)
+            step_loss = (step_loss +
+                    instance_label_loss * instance_label_loss_weight)
+            log.add_scalar(
+                    'loss/instance_label',
+                    instance_label_loss, step_clock[0])
+            
+            foreground = x_seg != 0
+            foreground_total = torch.sum(foreground)
+            if foreground_total:
+                # score supervision
+                instance_label_prediction = torch.argmax(
+                        instance_label_logits, dim=1)
+                correct = (
+                        instance_label_prediction ==
+                        dense_instance_label_target)
+                score_target = correct
+                
+                if False:
+                    score_loss = dense_score_loss(
+                            dense_score_logits,
+                            score_target,
+                            foreground)
+                
+                elif False:
+                    # TMP HEIGHT BASED THING
+                    brick_y = seq_tensors[
+                            'brick_height'][step_indices].cuda()
+                    valid_entries = torch.stack(
+                            [g.instance_label != 0 for g in y_graph], dim=0)
+                    valid_entries = valid_entries.view(len(y_graph), -1)
+                    brick_y = brick_y + -100000 * ~valid_entries
+                    max_height, max_index = torch.max(brick_y, dim=-1)
+                    brick_y = brick_y +  200000 * ~valid_entries
+                    min_height, min_index = torch.min(brick_y, dim=-1)
+                    #is_max_height = torch.abs(
+                    #        max_height.unsqueeze(-1) - brick_y) <= 1
+                    height_percent = (
+                            (brick_y - min_height.unsqueeze(-1)).float()/
+                            (max_height - min_height).unsqueeze(1))
+                    height_percent = height_percent * valid_entries
+                    
+                    # make dense
+                    score_target = []
+                    for i in range(len(y_graph)):
+                        #score_target.append(is_max_height[i][x_seg[i]])
+                        target = height_percent[i][x_seg[i]]
+                        #import pdb
+                        #pdb.set_trace()
+                        #dense_valid = valid_entries[i][x_seg[i]]
+                        #target = target * dense_valid
+                        score_target.append(target)
+                    score_target = torch.stack(score_target)
+                    #score_loss = torch.nn.functional.smooth_l1_loss(
+                    #        dense_score_logits.squeeze(1), score_target)
+                    score_loss = (
+                     torch.nn.functional.binary_cross_entropy_with_logits(
+                            dense_score_logits.squeeze(1), score_target))
+                    '''
+                    score_loss = dense_score_loss(
+                            dense_score_logits,
+                            score_target,
+                            foreground)
+                    '''
+                
+                elif False:
+                    removable = seq_tensors[
+                            'removability'][step_indices].cuda()
+                    score_target = []
+                    for i in range(len(y_graph)):
+                        target = removable[i].float()[x_seg[i]]
+                        score_target.append(target)
+                    score_target = torch.stack(score_target)
+                    score_loss = (
+                     torch.nn.functional.binary_cross_entropy_with_logits(
+                            dense_score_logits.squeeze(1), score_target))
+                
+                '''
+                step_loss = step_loss + score_loss * score_loss_weight
+                log.add_scalar('loss/score', score_loss, step_clock[0])
+                log.add_scalar('train_accuracy/dense_instance_label',
+                        float(torch.sum(correct)) /
+                        float(torch.numel(correct)),
+                        step_clock[0])
+                '''
+                # center voting
+                if center_cluster_loss_weight > 0.:
+                    center_data = head_features['cluster_center']
+                    center_offsets = center_data[:,:2]
+                    center_attention = center_data[:,[2]]
+                    h, w = center_offsets.shape[2:]
+                    y = torch.arange(h).view(1,1,h,1).expand(1,1,h,w).cuda()
+                    x = torch.arange(w).view(1,1,1,w).expand(1,1,h,w).cuda()
+                    positions = torch.cat((y,x), dim=1) + center_offsets
+                    b = positions.shape[0]
+                    
+                    #normalizer = torch.ones_like(center_attention)
+                    
+                    exp_attention = torch.exp(center_attention)
+                    exp_positions = positions * exp_attention
+                    
+                    #positions_1d = positions[:,0] * w + positions[:,1]
+                    #positions_1d = positions_1d.view(b,2,-1)
+                    summed_positions = scatter_add(
+                            exp_positions.view(b, 2, -1),
+                            x_seg.view(b, 1, -1))
+                    normalizer = scatter_add(
+                            exp_attention.view(b, 1, -1),
+                            x_seg.view(b, 1, -1))
+                    cluster_centers = (
+                            summed_positions / normalizer)
+                    
+                    #--------
+                    # losses
+                    #--------
+                    # make the offsets small
+                    # (encourage cluster center to be near object center)
+                    offset_norm = torch.norm(center_offsets, dim=1)
+                    center_loss = torch.nn.functional.smooth_l1_loss(
+                            offset_norm,
+                            torch.zeros_like(offset_norm),
+                            reduction='none')
+                    center_loss = center_loss * (x_seg != 0)
+                    center_loss = torch.mean(center_loss)
+                    
+                    # make the offsets as close as possible to the centers
+                    offset_targets = []
+                    for i in range(b):
+                        offset_target_b = torch.index_select(
+                                cluster_centers[i], 1, x_seg[i].view(-1))
+                        offset_targets.append(offset_target_b.view(2, h, w))
+                    position_targets = torch.stack(offset_targets, dim=0)
+                    cluster_loss = torch.nn.functional.smooth_l1_loss(
+                            positions, position_targets, reduction='none')
+                    cluster_loss = cluster_loss * (x_seg != 0).unsqueeze(1)
+                    cluster_loss = torch.mean(cluster_loss)
+                    
+                    cluster_total_loss = (
+                            center_loss * center_local_loss_weight +
+                            cluster_loss * center_cluster_loss_weight)
+                    
+                    log.add_scalar('loss/center_loss',
+                            center_loss * center_local_loss_weight,
+                            step_clock[0])
+                    log.add_scalar('loss/cluster_loss',
+                            cluster_loss * center_cluster_loss_weight,
+                            step_clock[0])
+                    step_loss = step_loss + cluster_total_loss
+                
+                # visibility supervision
+                dense_visibility = head_features['hide_action']
+                '''
+                visibility_loss = binary_cross_entropy(
+                        torch.sigmoid(dense_visibility),
+                        correct.unsqueeze(1).float(),
+                        #(correct & (x_seg != 0)).unsqueeze(1).float(),
+                        reduction='none')
+                #visibility_loss = torch.mean(
+                #        visibility_loss * correct * score_ratio +
+                #        visibility_loss * ~correct)
+                visibility_loss = torch.sum(
+                        visibility_loss * (x_seg != 0)) / foreground_total
+                '''
+                '''
+                visibility_loss = dense_score_loss(
+                        dense_visibility,
+                        correct,
+                        foreground)
+                step_loss = step_loss + visibility_loss * score_loss_weight
+                log.add_scalar(
+                        'loss/visibility', visibility_loss, step_clock[0])
+                '''
+            
+            instance_correct = 0.
+            total_instances = 0.
+            for brick_list, target_graph in zip(step_brick_lists, y_graph):
+                instance_label_target = (
+                        target_graph.instance_label[
+                            brick_list.segment_id[:,0]])[:,0]
+                if brick_list.num_nodes:
+                    instance_label_pred = torch.argmax(
+                            brick_list.instance_label, dim=-1)
+                    instance_correct += float(torch.sum(
+                            instance_label_target ==
+                            instance_label_pred).cpu())
+                    total_instances += instance_label_pred.shape[0]
+            if total_instances:
+                log.add_scalar('train_accuracy/step_instance_label',
+                        instance_correct / total_instances,
+                        step_clock[0])
+            else:
+                print('no instances?')
+            
+            if edge_loss_weight != 0. or matching_loss_weight != 0.:
+                # edges and matching
+                matching_loss = 0.
+                edge_loss = 0.
+                normalizer = 0.
+                step_step_matching_correct = 0.
+                step_step_edge_correct = 0.
+                step_step_edge_tp = 0.
+                step_step_edge_fp = 0.
+                step_step_edge_fn = 0.
+                step_step_normalizer = 0.
+                step_state_matching_correct = 0.
+                step_state_edge_correct = 0.
+                step_state_edge_tp = 0.
+                step_state_edge_fp = 0.
+                step_state_edge_fn = 0.
+                step_state_normalizer = 0.
+                for (step_step,
+                     step_state,
+                     extra_extra,
+                     step_extra,
+                     state_extra,
+                     extra_lookup,
+                     brick_list,
+                     graph_state,
+                     y) in zip(
+                        step_step_logits,
+                        step_state_logits,
+                        extra_extra_logits,
+                        step_extra_logits,
+                        state_extra_logits,
+                        extra_segment_ids,
                         step_brick_lists,
                         graph_states,
-                        extra_brick_vectors=input_extra_brick_vectors,
-                        max_edges=max_edges,
-                        segment_id_matching=segment_id_matching)
-                
-                step_loss = 0.
-                
-                #---------------------------------------------------------------
-                # dense supervision
-                
-                # instance_label supervision
-                y_instance_label = [
-                        graph['instance_label'][:,0] for graph in y_graph]
-                dense_instance_label_target = torch.stack([
-                        y[seg] for y,seg in zip(y_instance_label, x_seg)])
-                instance_label_logits = head_features['instance_label']
-                instance_label_loss = dense_instance_label_loss(
-                        instance_label_logits,
-                        dense_instance_label_target,
-                        instance_label_class_weight)
-                step_loss = (step_loss +
-                        instance_label_loss * instance_label_loss_weight)
-                log.add_scalar(
-                        'loss/instance_label',
-                        instance_label_loss, step_clock[0])
-                
-                foreground = x_seg != 0
-                foreground_total = torch.sum(foreground)
-                if foreground_total:
-                    # score supervision
-                    instance_label_prediction = torch.argmax(
-                            instance_label_logits, dim=1)
-                    correct = (
-                            instance_label_prediction ==
-                            dense_instance_label_target)
-                    score_target = correct
+                        y_graph):
                     
-                    if True:
-                        score_loss = dense_score_loss(
-                                dense_score_logits,
-                                score_target,
-                                foreground)
+                    '''
+                    normalizer += brick_list.num_nodes**2
+                    normalizer += (
+                            brick_list.num_nodes *
+                            graph_state.num_nodes) * 2
+                    '''
+                    step_step_num = brick_list.num_nodes**2
+                    step_step_normalizer += step_step_num
+                    step_state_num = (
+                            brick_list.num_nodes *
+                            graph_state.num_nodes) * 2
+                    step_state_normalizer += step_state_num
+                    normalizer += step_step_num + step_state_num
                     
-                    elif False:
-                        # TMP HEIGHT BASED THING
-                        brick_y = seq_tensors[
-                                'brick_height'][step_indices].cuda()
-                        valid_entries = torch.stack(
-                                [g.instance_label != 0 for g in y_graph], dim=0)
-                        valid_entries = valid_entries.view(len(y_graph), -1)
-                        brick_y = brick_y + -100000 * ~valid_entries
-                        max_height, max_index = torch.max(brick_y, dim=-1)
-                        brick_y = brick_y +  200000 * ~valid_entries
-                        min_height, min_index = torch.min(brick_y, dim=-1)
-                        #is_max_height = torch.abs(
-                        #        max_height.unsqueeze(-1) - brick_y) <= 1
-                        height_percent = (
-                                (brick_y - min_height.unsqueeze(-1)).float()/
-                                (max_height - min_height).unsqueeze(1))
-                        height_percent = height_percent * valid_entries
-                        
-                        # make dense
-                        score_target = []
-                        for i in range(len(y_graph)):
-                            #score_target.append(is_max_height[i][x_seg[i]])
-                            target = height_percent[i][x_seg[i]]
-                            #import pdb
-                            #pdb.set_trace()
-                            #dense_valid = valid_entries[i][x_seg[i]]
-                            #target = target * dense_valid
-                            score_target.append(target)
-                        score_target = torch.stack(score_target)
-                        #score_loss = torch.nn.functional.smooth_l1_loss(
-                        #        dense_score_logits.squeeze(1), score_target)
-                        score_loss = (
-                         torch.nn.functional.binary_cross_entropy_with_logits(
-                                dense_score_logits.squeeze(1), score_target))
-                        '''
-                        score_loss = dense_score_loss(
-                                dense_score_logits,
-                                score_target,
-                                foreground)
-                        '''
+                    # matching loss
+                    # step step
+                    step_step_matching_target = torch.eye(
+                            brick_list.num_nodes,
+                            dtype=torch.bool).to(device)
+                    '''
+                    step_step_matching_loss = binary_cross_entropy(
+                            step_step[:,:,0], step_step_matching_target,
+                            reduction = 'sum')
+                    '''
+                    '''
+                    step_step_matching_loss = cross_product_loss(
+                            step_step[:,:,0], step_step_matching_target)
+                    step_step_matching_pred = step_step[:,:,0] > 0.5
+                    step_step_matching_correct += torch.sum(
+                            step_step_matching_pred ==
+                            step_step_matching_target)
+                    '''
+                    # step state
+                    step_state_matching_target = (
+                            brick_list.segment_id ==
+                            graph_state.segment_id.t())
+                    '''
+                    step_state_matching_loss = binary_cross_entropy(
+                            step_state[:,:,0], step_state_matching_target,
+                            reduction = 'sum') * 2
+                    '''
+                    '''
+                    step_state_matching_loss = cross_product_loss(
+                            step_state[:,:,0],
+                            step_state_matching_target) * 2
+                    step_state_matching_pred = step_state[:,:,0] > 0.5
+                    step_state_matching_correct += torch.sum(
+                            step_state_matching_pred ==
+                            step_state_matching_target) * 2
                     
+                    matching_loss = (matching_loss +
+                            step_step_matching_loss + #* step_step_num +
+                            step_state_matching_loss) #* step_state_num)
+                    '''
+                    # edge loss
+                    full_edge_target = y.edge_matrix(
+                            bidirectionalize=True).to(torch.bool)
+                    
+                    step_lookup = brick_list.segment_id[:,0]
+                    step_step_edge_target = full_edge_target[
+                            step_lookup][:,step_lookup]
+                    '''
+                    step_step_edge_loss = binary_cross_entropy(
+                            step_step[:,:,1], step_step_edge_target,
+                            reduction = 'sum')
+                    '''
+                    step_step_edge_loss = cross_product_loss(
+                            step_step[:,:,1], step_step_edge_target)
+                    step_step_edge_pred = step_step[:,:,1] > 0.5
+                    step_step_edge_correct += torch.sum(
+                            step_step_edge_pred ==
+                            step_step_edge_target)
+                    step_step_edge_tp += torch.sum(
+                            step_step_edge_pred &
+                            step_step_edge_target)
+                    step_step_edge_fn += torch.sum(
+                            (~step_step_edge_pred) &
+                            step_step_edge_target)
+                    step_step_edge_fp += torch.sum(
+                            step_step_edge_pred &
+                            (~step_step_edge_target))
+                    
+                    state_lookup = graph_state.segment_id[:,0]
+                    step_state_edge_target = full_edge_target[
+                            step_lookup][:,state_lookup]
+                    '''
+                    step_state_edge_loss = binary_cross_entropy(
+                            step_state[:,:,1], step_state_edge_target,
+                            reduction = 'sum')
+                    '''
+                    step_state_edge_loss = cross_product_loss(
+                            step_state[:,:,1], step_state_edge_target) * 2
+                    step_state_edge_pred = step_state[:,:,1] > 0.5
+                    step_state_edge_correct += torch.sum(
+                            step_state_edge_pred ==
+                            step_state_edge_target) * 2
+                    step_state_edge_tp += torch.sum(
+                            step_state_edge_pred &
+                            step_state_edge_target)
+                    step_state_edge_fn += torch.sum(
+                            (~step_state_edge_pred) &
+                            step_state_edge_target)
+                    step_state_edge_fp += torch.sum(
+                            step_state_edge_pred &
+                            (~step_state_edge_target))
+                    
+                    if extra_extra is None:
+                        extra_extra_edge_loss = 0.
                     else:
-                        removable = seq_tensors[
-                                'removability'][step_indices].cuda()
-                        score_target = []
-                        for i in range(len(y_graph)):
-                            target = removable[i].float()[x_seg[i]]
-                            score_target.append(target)
-                        score_target = torch.stack(score_target)
-                        score_loss = (
-                         torch.nn.functional.binary_cross_entropy_with_logits(
-                                dense_score_logits.squeeze(1), score_target))
+                        extra_extra_edge_target = full_edge_target[
+                                extra_lookup][:,extra_lookup]
+                        extra_extra_edge_loss = cross_product_loss(
+                                extra_extra[:,:,1], extra_extra_edge_target)
                     
-                    step_loss = step_loss + score_loss * score_loss_weight
-                    log.add_scalar('loss/score', score_loss, step_clock[0])
-                    log.add_scalar('train_accuracy/dense_instance_label',
-                            float(torch.sum(correct)) /
-                            float(torch.numel(correct)),
-                            step_clock[0])
+                    if step_extra is None:
+                        step_extra_edge_loss = 0.
+                    else:
+                        step_extra_edge_target = full_edge_target[
+                                step_lookup][:,extra_lookup]
+                        step_extra_edge_loss = cross_product_loss(
+                                step_extra[:,:,1], step_extra_edge_target)
                     
-                    # center voting
-                    if center_cluster_loss_weight > 0.:
-                        center_data = head_features['cluster_center']
-                        center_offsets = center_data[:,:2]
-                        center_attention = center_data[:,[2]]
-                        h, w = center_offsets.shape[2:]
-                        y = torch.arange(h).view(1,1,h,1).expand(1,1,h,w).cuda()
-                        x = torch.arange(w).view(1,1,1,w).expand(1,1,h,w).cuda()
-                        positions = torch.cat((y,x), dim=1) + center_offsets
-                        b = positions.shape[0]
-                        
-                        #normalizer = torch.ones_like(center_attention)
-                        
-                        exp_attention = torch.exp(center_attention)
-                        exp_positions = positions * exp_attention
-                        
-                        #positions_1d = positions[:,0] * w + positions[:,1]
-                        #positions_1d = positions_1d.view(b,2,-1)
-                        summed_positions = scatter_add(
-                                exp_positions.view(b, 2, -1),
-                                x_seg.view(b, 1, -1))
-                        normalizer = scatter_add(
-                                exp_attention.view(b, 1, -1),
-                                x_seg.view(b, 1, -1))
-                        cluster_centers = (
-                                summed_positions / normalizer)
-                        
-                        #--------
-                        # losses
-                        #--------
-                        # make the offsets small
-                        # (encourage cluster center to be near object center)
-                        offset_norm = torch.norm(center_offsets, dim=1)
-                        center_loss = torch.nn.functional.smooth_l1_loss(
-                                offset_norm,
-                                torch.zeros_like(offset_norm),
-                                reduction='none')
-                        center_loss = center_loss * (x_seg != 0)
-                        center_loss = torch.mean(center_loss)
-                        
-                        # make the offsets as close as possible to the centers
-                        offset_targets = []
-                        for i in range(b):
-                            offset_target_b = torch.index_select(
-                                    cluster_centers[i], 1, x_seg[i].view(-1))
-                            offset_targets.append(offset_target_b.view(2, h, w))
-                        position_targets = torch.stack(offset_targets, dim=0)
-                        cluster_loss = torch.nn.functional.smooth_l1_loss(
-                                positions, position_targets, reduction='none')
-                        cluster_loss = cluster_loss * (x_seg != 0).unsqueeze(1)
-                        cluster_loss = torch.mean(cluster_loss)
-                        
-                        cluster_total_loss = (
-                                center_loss * center_local_loss_weight +
-                                cluster_loss * center_cluster_loss_weight)
-                        
-                        log.add_scalar('loss/center_loss',
-                                center_loss * center_local_loss_weight,
-                                step_clock[0])
-                        log.add_scalar('loss/cluster_loss',
-                                cluster_loss * center_cluster_loss_weight,
-                                step_clock[0])
-                        step_loss = step_loss + cluster_total_loss
+                    if state_extra is None:
+                        state_extra_edge_loss = 0.
+                    else:
+                        state_extra_edge_target = full_edge_target[
+                                state_lookup][:,extra_lookup]
+                        state_extra_edge_loss = cross_product_loss(
+                                state_extra[:,:,1], state_extra_edge_target)
                     
-                    # visibility supervision
-                    dense_visibility = head_features['hide_action']
-                    '''
-                    visibility_loss = binary_cross_entropy(
-                            torch.sigmoid(dense_visibility),
-                            correct.unsqueeze(1).float(),
-                            #(correct & (x_seg != 0)).unsqueeze(1).float(),
-                            reduction='none')
-                    #visibility_loss = torch.mean(
-                    #        visibility_loss * correct * score_ratio +
-                    #        visibility_loss * ~correct)
-                    visibility_loss = torch.sum(
-                            visibility_loss * (x_seg != 0)) / foreground_total
-                    '''
-                    
-                    visibility_loss = dense_score_loss(
-                            dense_visibility,
-                            correct,
-                            foreground)
-                    step_loss = step_loss + visibility_loss * score_loss_weight
-                    log.add_scalar(
-                            'loss/visibility', visibility_loss, step_clock[0])
-                    
+                    edge_loss = (edge_loss +
+                            step_step_edge_loss + #* step_step_num +
+                            step_state_edge_loss + #* step_state_num)
+                            extra_extra_edge_loss +
+                            step_extra_edge_loss +
+                            state_extra_edge_loss)
                 
-                instance_correct = 0.
-                total_instances = 0.
-                for brick_list, target_graph in zip(step_brick_lists, y_graph):
-                    instance_label_target = (
-                            target_graph.instance_label[
-                                brick_list.segment_id[:,0]])[:,0]
-                    if brick_list.num_nodes:
-                        instance_label_pred = torch.argmax(
-                                brick_list.instance_label, dim=-1)
-                        instance_correct += float(torch.sum(
-                                instance_label_target ==
-                                instance_label_pred).cpu())
-                        total_instances += instance_label_pred.shape[0]
-                if total_instances:
-                    log.add_scalar('train_accuracy/step_instance_label',
-                            instance_correct / total_instances,
-                            step_clock[0])
-                else:
-                    print('no instances?')
-                
-                if edge_loss_weight != 0. or matching_loss_weight != 0.:
-                    # edges and matching
-                    matching_loss = 0.
-                    edge_loss = 0.
-                    normalizer = 0.
-                    step_step_matching_correct = 0.
-                    step_step_edge_correct = 0.
-                    step_step_edge_tp = 0.
-                    step_step_edge_fp = 0.
-                    step_step_edge_fn = 0.
-                    step_step_normalizer = 0.
-                    step_state_matching_correct = 0.
-                    step_state_edge_correct = 0.
-                    step_state_edge_tp = 0.
-                    step_state_edge_fp = 0.
-                    step_state_edge_fn = 0.
-                    step_state_normalizer = 0.
-                    for (step_step,
-                         step_state,
-                         extra_extra,
-                         step_extra,
-                         state_extra,
-                         extra_lookup,
-                         brick_list,
-                         graph_state,
-                         y) in zip(
-                            step_step_logits,
-                            step_state_logits,
-                            extra_extra_logits,
-                            step_extra_logits,
-                            state_extra_logits,
-                            extra_segment_ids,
-                            step_brick_lists,
-                            graph_states,
-                            y_graph):
-                        
-                        '''
-                        normalizer += brick_list.num_nodes**2
-                        normalizer += (
-                                brick_list.num_nodes *
-                                graph_state.num_nodes) * 2
-                        '''
-                        step_step_num = brick_list.num_nodes**2
-                        step_step_normalizer += step_step_num
-                        step_state_num = (
-                                brick_list.num_nodes *
-                                graph_state.num_nodes) * 2
-                        step_state_normalizer += step_state_num
-                        normalizer += step_step_num + step_state_num
-                        
-                        # matching loss
-                        # step step
-                        step_step_matching_target = torch.eye(
-                                brick_list.num_nodes,
-                                dtype=torch.bool).to(device)
-                        '''
-                        step_step_matching_loss = binary_cross_entropy(
-                                step_step[:,:,0], step_step_matching_target,
-                                reduction = 'sum')
-                        '''
-                        step_step_matching_loss = cross_product_loss(
-                                step_step[:,:,0], step_step_matching_target)
-                        step_step_matching_pred = step_step[:,:,0] > 0.5
-                        step_step_matching_correct += torch.sum(
-                                step_step_matching_pred ==
-                                step_step_matching_target)
-                        
-                        # step state
-                        step_state_matching_target = (
-                                brick_list.segment_id ==
-                                graph_state.segment_id.t())
-                        '''
-                        step_state_matching_loss = binary_cross_entropy(
-                                step_state[:,:,0], step_state_matching_target,
-                                reduction = 'sum') * 2
-                        '''
-                        step_state_matching_loss = cross_product_loss(
-                                step_state[:,:,0],
-                                step_state_matching_target) * 2
-                        step_state_matching_pred = step_state[:,:,0] > 0.5
-                        step_state_matching_correct += torch.sum(
-                                step_state_matching_pred ==
-                                step_state_matching_target) * 2
-                        
-                        matching_loss = (matching_loss +
-                                step_step_matching_loss + #* step_step_num +
-                                step_state_matching_loss) #* step_state_num)
-                        
-                        # edge loss
-                        full_edge_target = y.edge_matrix(
-                                bidirectionalize=True).to(torch.bool)
-                        
-                        step_lookup = brick_list.segment_id[:,0]
-                        step_step_edge_target = full_edge_target[
-                                step_lookup][:,step_lookup]
-                        '''
-                        step_step_edge_loss = binary_cross_entropy(
-                                step_step[:,:,1], step_step_edge_target,
-                                reduction = 'sum')
-                        '''
-                        step_step_edge_loss = cross_product_loss(
-                                step_step[:,:,1], step_step_edge_target)
-                        step_step_edge_pred = step_step[:,:,1] > 0.5
-                        step_step_edge_correct += torch.sum(
-                                step_step_edge_pred ==
-                                step_step_edge_target)
-                        step_step_edge_tp += torch.sum(
-                                step_step_edge_pred &
-                                step_step_edge_target)
-                        step_step_edge_fn += torch.sum(
-                                (~step_step_edge_pred) &
-                                step_step_edge_target)
-                        step_step_edge_fp += torch.sum(
-                                step_step_edge_pred &
-                                (~step_step_edge_target))
-                        
-                        state_lookup = graph_state.segment_id[:,0]
-                        step_state_edge_target = full_edge_target[
-                                step_lookup][:,state_lookup]
-                        '''
-                        step_state_edge_loss = binary_cross_entropy(
-                                step_state[:,:,1], step_state_edge_target,
-                                reduction = 'sum')
-                        '''
-                        step_state_edge_loss = cross_product_loss(
-                                step_state[:,:,1], step_state_edge_target) * 2
-                        step_state_edge_pred = step_state[:,:,1] > 0.5
-                        step_state_edge_correct += torch.sum(
-                                step_state_edge_pred ==
-                                step_state_edge_target) * 2
-                        step_state_edge_tp += torch.sum(
-                                step_state_edge_pred &
-                                step_state_edge_target)
-                        step_state_edge_fn += torch.sum(
-                                (~step_state_edge_pred) &
-                                step_state_edge_target)
-                        step_state_edge_fp += torch.sum(
-                                step_state_edge_pred &
-                                (~step_state_edge_target))
-                        
-                        if extra_extra is None:
-                            extra_extra_edge_loss = 0.
-                        else:
-                            extra_extra_edge_target = full_edge_target[
-                                    extra_lookup][:,extra_lookup]
-                            extra_extra_edge_loss = cross_product_loss(
-                                    extra_extra[:,:,1], extra_extra_edge_target)
-                        
-                        if step_extra is None:
-                            step_extra_edge_loss = 0.
-                        else:
-                            step_extra_edge_target = full_edge_target[
-                                    step_lookup][:,extra_lookup]
-                            step_extra_edge_loss = cross_product_loss(
-                                    step_extra[:,:,1], step_extra_edge_target)
-                        
-                        if state_extra is None:
-                            state_extra_edge_loss = 0.
-                        else:
-                            state_extra_edge_target = full_edge_target[
-                                    state_lookup][:,extra_lookup]
-                            state_extra_edge_loss = cross_product_loss(
-                                    state_extra[:,:,1], state_extra_edge_target)
-                        
-                        edge_loss = (edge_loss +
-                                step_step_edge_loss + #* step_step_num +
-                                step_state_edge_loss + #* step_state_num)
-                                extra_extra_edge_loss +
-                                step_extra_edge_loss +
-                                state_extra_edge_loss)
+                if normalizer > 0.:
+                    #matching_loss = matching_loss / normalizer
+                    #step_loss = step_loss + (
+                    #        matching_loss * matching_loss_weight)
+                    #log.add_scalar(
+                    #        'loss/matching', matching_loss, step_clock[0])
                     
-                    if normalizer > 0.:
-                        matching_loss = matching_loss / normalizer
-                        step_loss = step_loss + (
-                                matching_loss * matching_loss_weight)
-                        log.add_scalar(
-                                'loss/matching', matching_loss, step_clock[0])
+                    edge_loss = edge_loss * edge_loss_weight / normalizer
+                    step_loss = step_loss + edge_loss
+                    log.add_scalar('loss/edge', edge_loss, step_clock[0])
+                    
+                    step_step_match_acc = (
+                            step_step_matching_correct /
+                            step_step_normalizer)
+                    log.add_scalar('train_accuracy/step_step_match',
+                            step_step_match_acc, step_clock[0])
+                    step_step_edge_acc = (
+                            step_step_edge_correct / step_step_normalizer)
+                    log.add_scalar('train_accuracy/step_step_edge_acc',
+                            step_step_edge_acc, step_clock[0])
+                    
+                    p_norm = step_step_edge_tp + step_step_edge_fp
+                    step_step_edge_p = step_step_edge_tp / p_norm
+                    r_norm = step_step_edge_tp + step_step_edge_fn
+                    step_step_edge_r = step_step_edge_tp / r_norm
+                    step_step_edge_f1 = 2 * (
+                            (step_step_edge_p * step_step_edge_r) /
+                            (step_step_edge_p + step_step_edge_r))
+                    if p_norm > 0:
+                        log.add_scalar('train_accuracy/step_step_edge_p',
+                                step_step_edge_p, step_clock[0])
+                    if r_norm > 0:
+                        log.add_scalar('train_accuracy/step_step_edge_r',
+                                step_step_edge_r, step_clock[0])
+                    if p_norm>0 and r_norm>0 and step_step_edge_tp>0:
+                        log.add_scalar('train_accuracy/step_step_edge_f1',
+                                step_step_edge_f1, step_clock[0])
+                    
+                    if step_state_normalizer:
+                        step_state_match_acc = (
+                                step_state_matching_correct /
+                                step_state_normalizer)
+                        log.add_scalar('train_accuracy/step_state_match',
+                                step_state_match_acc, step_clock[0])
+                        step_state_edge_acc = (
+                                step_state_edge_correct /
+                                step_state_normalizer)
+                        log.add_scalar('train_accuracy/step_state_edge_acc',
+                                step_state_edge_acc, step_clock[0])
                         
-                        edge_loss = edge_loss * edge_loss_weight / normalizer
-                        step_loss = step_loss + edge_loss
-                        log.add_scalar('loss/edge', edge_loss, step_clock[0])
-                        
-                        step_step_match_acc = (
-                                step_step_matching_correct /
-                                step_step_normalizer)
-                        log.add_scalar('train_accuracy/step_step_match',
-                                step_step_match_acc, step_clock[0])
-                        step_step_edge_acc = (
-                                step_step_edge_correct / step_step_normalizer)
-                        log.add_scalar('train_accuracy/step_step_edge_acc',
-                                step_step_edge_acc, step_clock[0])
-                        
-                        p_norm = step_step_edge_tp + step_step_edge_fp
-                        step_step_edge_p = step_step_edge_tp / p_norm
-                        r_norm = step_step_edge_tp + step_step_edge_fn
-                        step_step_edge_r = step_step_edge_tp / r_norm
-                        step_step_edge_f1 = 2 * (
-                                (step_step_edge_p * step_step_edge_r) /
-                                (step_step_edge_p + step_step_edge_r))
+                        p_norm = step_state_edge_tp + step_state_edge_fp
+                        step_state_edge_p = step_state_edge_tp / p_norm
+                        r_norm = step_state_edge_tp + step_state_edge_fn
+                        step_state_edge_r = step_state_edge_tp / r_norm
+                        step_state_edge_f1 = 2 * (
+                                (step_state_edge_p * step_state_edge_r) /
+                                (step_state_edge_p + step_state_edge_r))
                         if p_norm > 0:
-                            log.add_scalar('train_accuracy/step_step_edge_p',
-                                    step_step_edge_p, step_clock[0])
+                            log.add_scalar(
+                                    'train_accuracy/step_state_edge_p',
+                                    step_state_edge_p, step_clock[0])
                         if r_norm > 0:
-                            log.add_scalar('train_accuracy/step_step_edge_r',
-                                    step_step_edge_r, step_clock[0])
-                        if p_norm>0 and r_norm>0 and step_step_edge_tp>0:
-                            log.add_scalar('train_accuracy/step_step_edge_f1',
-                                    step_step_edge_f1, step_clock[0])
-                        
-                        if step_state_normalizer:
-                            step_state_match_acc = (
-                                    step_state_matching_correct /
-                                    step_state_normalizer)
-                            log.add_scalar('train_accuracy/step_state_match',
-                                    step_state_match_acc, step_clock[0])
-                            step_state_edge_acc = (
-                                    step_state_edge_correct /
-                                    step_state_normalizer)
-                            log.add_scalar('train_accuracy/step_state_edge_acc',
-                                    step_state_edge_acc, step_clock[0])
-                            
-                            p_norm = step_state_edge_tp + step_state_edge_fp
-                            step_state_edge_p = step_state_edge_tp / p_norm
-                            r_norm = step_state_edge_tp + step_state_edge_fn
-                            step_state_edge_r = step_state_edge_tp / r_norm
-                            step_state_edge_f1 = 2 * (
-                                    (step_state_edge_p * step_state_edge_r) /
-                                    (step_state_edge_p + step_state_edge_r))
-                            if p_norm > 0:
-                                log.add_scalar(
-                                        'train_accuracy/step_state_edge_p',
-                                        step_state_edge_p, step_clock[0])
-                            if r_norm > 0:
-                                log.add_scalar(
-                                        'train_accuracy/step_state_edge_r',
-                                        step_state_edge_r, step_clock[0])
-                            if p_norm>0 and r_norm>0 and step_state_edge_tp>0:
-                                log.add_scalar(
-                                        'train_accuracy/step_state_edge_f1',
-                                        step_state_edge_f1, step_clock[0])
-                
-                log.add_scalar('loss/total', step_loss, step_clock[0])
-                
-                seq_loss = seq_loss + step_loss
-                
-                if seq_id < log_train:
-                    log_train_supervision_step(
-                            # log
-                            step_clock,
-                            log,
-                            # input
-                            x_im.cpu().numpy(),
-                            x_seg.cpu().numpy(),
-                            # predictions
-                            instance_label_logits.cpu().detach(),
-                            torch.sigmoid(dense_score_logits).cpu().detach(),
-                            step_brick_lists.cpu().detach(),
-                            graph_states,
-                            [torch.sigmoid(l).cpu().detach()
-                             for l in step_step_logits],
-                            [torch.sigmoid(l).cpu().detach()
-                             for l in step_state_logits],
-                            # ground truth
-                            y_graph.cpu(),
-                            score_target)
-                
-                graph_states = new_graph_states
-                step_clock[0] += 1
+                            log.add_scalar(
+                                    'train_accuracy/step_state_edge_r',
+                                    step_state_edge_r, step_clock[0])
+                        if p_norm>0 and r_norm>0 and step_state_edge_tp>0:
+                            log.add_scalar(
+                                    'train_accuracy/step_state_edge_f1',
+                                    step_state_edge_f1, step_clock[0])
+            
+            log.add_scalar('loss/total', step_loss, step_clock[0])
+            
+            seq_loss = seq_loss + step_loss
+            
+            if start/batch_size < log_train:
+                log_train_supervision_step(
+                        # log
+                        step_clock,
+                        log,
+                        # input
+                        x_im.cpu().numpy(),
+                        x_seg.cpu().numpy(),
+                        # predictions
+                        instance_label_logits.cpu().detach(),
+                        torch.sigmoid(dense_score_logits).cpu().detach(),
+                        step_brick_lists.cpu().detach(),
+                        graph_states,
+                        [torch.sigmoid(l).cpu().detach()
+                         for l in step_step_logits],
+                        [torch.sigmoid(l).cpu().detach()
+                         for l in step_state_logits],
+                        # ground truth
+                        y_graph.cpu(),
+                        score_target)
+            
+            graph_states = new_graph_states
+            step_clock[0] += 1
             
             seq_loss.backward()
             optimizer.step()
@@ -1115,11 +1055,11 @@ def log_train_rollout_step(
         step_clock,
         log,
         step_observations,
-        space,
-        actions):
+        space):
+        #actions):
     log_step_observations('train', step_clock, log, step_observations, space)
-    log.add_text('train/actions',
-            json.dumps(actions, cls=NumpyEncoder, indent=2))
+    #log.add_text('train/actions',
+    #        json.dumps(actions, cls=NumpyEncoder, indent=2))
 
 def log_train_supervision_step(
         # log

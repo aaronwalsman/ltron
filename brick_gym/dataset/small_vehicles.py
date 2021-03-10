@@ -181,6 +181,26 @@ dataset_paths = [
     '1969-1 - Mini Robot.mpd:1969 - robot.ldr',
     '1974-4 - Star Quest.mpd:1974 - vehicle.ldr',
     #===================== FINISHED HERE =====================
+    #3/8/2021 below here
+    '20006-1 - Clone Turbo Tank - Mini.mpd',
+    '20009-1 - AT-TE Walker - Mini.mpd',
+    '20011-1 - Garbage Truck.mpd',
+    '20014-1 - 4 x 4 Dynamo.mpd',
+    '20019-1 - Slave I.mpd',
+    '20021-1 - Bounty Hunter Gunship - Mini.mpd',
+    '2140-1 - ANWB Roadside Assistance Crew.mpd:2140 - car 1.ldr',
+    '2140-1 - ANWB Roadside Assistance Crew.mpd:2140 - car 2.ldr',
+    '2140-1 - ANWB Roadside Assistance Crew.mpd:2140 - car 3.ldr',
+    '2148-1 - LEGO Truck.mpd:2148 - truck.ldr',
+    '2149-1 - Color Line Container Lorry.mpd:2149 - truck.ldr',
+    '2149-1 - Color Line Container Lorry.mpd:2149 - trailer.ldr',
+    '2149-1 - Color Line Container Lorry.mpd:2149 - container.ldr' # not a vhc
+    '2150-1 - Train Station.mpd:2150 - luggage car 1.ldr',
+    '2150-1 - Train Station.mpd:2150 - luggage car 2.ldr',
+    '2531-1 - Rescue Helicopter and Jeep.mpd:2531 - car.ldr',
+    '2531-1 - Rescue Helicopter and Jeep.mpd:2531 - helicopter.ldr',
+    '2541-1 - Adventurers Car.mpd:2541 - car.ldr',
+    '2542-1 - Adventurers Aeroplane.mpd:2542 - aeroplane.ldr',
     
     # from tiny turbos 3
     '30030-1 - Racing Car.mpd',
@@ -188,6 +208,41 @@ dataset_paths = [
     '30034-1 - Racing Tow Truck.mpd',
     '30035-1 - Racing Car.mpd',
     '30036-1 - Buggy Racer.mpd',
+    
+    # scanning again
+    '30050-1 - Republic Attack Shuttle - Mini.mpd',
+    '30051-1 - X-wing Fighter - Mini.mpd',
+    '30052-1 - AAT - Mini.mpd',
+    '30053-1 - Republic Attack Cruiser - Mini.mpd',
+    '30054-1 - AT-ST - Mini.mpd',
+    '30055-1 - Vulture Droid - Mini.mpd',
+    '30056 - Star Destroyer.mpd',
+    '30090-1 - Desert Glider.mpd', # contains minifig
+    '30091-1 - Desert Rover.mpd', # contains minifig
+    '3015-1 - Space Police Car.mpd:3015 - spaceship.ldr',
+    '30161-1 - Batmobile.mpd',
+    '30181-1 - Helicopter.ldr',
+    '30190 - Ferrari 150deg Italia.mpd',
+    '30191-1 - Scuderia Ferrari Truck.mpd',
+    '30192-1 - Ferrari F40.mpd',
+    #'30193-1 - 250 GT Berlinetta.mpd', # incomplete
+    '30194-1 - 458 Italia.mpd',
+    '30195-1 - FXX.mpd',
+    '30277 - First Order Star Destroyer.mpd',
+    #'30283-1 - Off-Road.mpd', # incomplete
+    '30284-1 - Tractor.mpd',
+    '30300-1 - The Batman Tumbler.mpd',
+    '30311-1 - Swamp Police Helicopter.mpd:30311 - helicopter.ldr',
+    '30312-1 - Demolition Driller.mpd:30312 - driller.ldr',
+    '30313-1 - Garbage Truck.mpd:30313 - truck.ldr',
+    '3056-1 - Go-Kart.mpd', # contains minifig
+    '30572 - Race Car.mpd',
+    '3063-1 - Heartlake Flying Club.mpd:3063 - plane.ldr' # contains friends mfg
+    # STOPPED HERE
+    
+    
+    
+    # tiny turbos continues here
     '4096 - Micro Wheels - AB Forklift.mpd',
     '4096 - Micro Wheels - AB Loader.mpd',
     '4096 - Micro Wheels - AB Truck and Trailer.mpd',
@@ -323,4 +378,6 @@ dataset_paths = [
     'Black Racer.mpd',
 ]
 
-build_dataset('small_vehicles', config.paths['omr'], dataset_paths, 24)
+print(len(dataset_paths))
+
+#build_dataset('small_vehicles', config.paths['omr'], dataset_paths, 24)
