@@ -41,6 +41,7 @@ def test_checkpoint(
         decoder_channels = 512,
         edge_model_name = 'squared_difference',
         segment_id_matching = False,
+        use_ground_truth_segmentation = False,
         
         # output settings
         dump_debug=False):
@@ -110,6 +111,7 @@ def test_checkpoint(
             step_model,
             edge_model,
             segment_id_matching,
+            use_ground_truth_segmentation,
             test_env,
             max_instances_per_scene,
             dump_debug,
@@ -120,6 +122,7 @@ def test_graph(
         step_model,
         edge_model,
         segment_id_matching,
+        use_ground_truth_segmentation,
         
         # environment
         test_env,
@@ -215,11 +218,13 @@ def test_graph(
                     max_instances = max_instances_per_step)
             
             for i, brick_list in enumerate(step_brick_lists):
-                y, x = brick_list.pos[0]
-                segment_id = step_tensors['segmentation_render'][i,y,x]
-                brick_list['segment_id'] = segment_id.view(1,1)
-                brick_list['brick_feature_names'] = tuple(sorted(
-                        brick_list['brick_feature_names'] + ('segment_id',)))
+                if not use_ground_truth_segmentation:
+                    y, x = brick_list.pos[0]
+                    segment_id = step_tensors['segmentation_render'][i,y,x]
+                    brick_list['segment_id'] = segment_id.view(1,1)
+                    brick_list['brick_feature_names'] = tuple(sorted(
+                            brick_list['brick_feature_names'] +
+                            ('segment_id',)))
             
             #-------------------------------------------------------------------
             # build new graph state for all terminal sequences
@@ -458,7 +463,7 @@ def test_graph(
                     center_voting_offsets = head_features['cluster_center']
                     center_voting_offsets = center_voting_offsets.cpu().numpy()
                 else:
-                    center_voting_offsets = None
+                    center_voting_offsets = [None] * test_env.num_envs
                 
                 pred_image_strips = make_image_strips(
                         test_env.num_envs,
@@ -613,6 +618,9 @@ def test_graph(
     
     print('-'*80)
     print('Terminal Instance mAP: %.01f'%(mAP*100))
+    
+    for class_label, class_ap in class_ap.items():
+        print('  %i: %f'%(class_label, class_ap))
     
     predicted_edges = {}
     unfiltered_predicted_edges = {}
