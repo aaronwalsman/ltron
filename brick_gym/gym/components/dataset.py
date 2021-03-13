@@ -15,10 +15,14 @@ class DatasetPathComponent(BrickEnvComponent):
             rank=0,
             size=1,
             reset_mode='uniform',
+            augment_dataset=None,
+            p_augment = 0.5,
             observe_episode_id=False):
         
         self.reset_mode = reset_mode
         self.dataset = dataset
+        self.augment_dataset = augment_dataset
+        self.p_augment = p_augment
         self.split = split
         self.subset = subset
         self.dataset_info = get_dataset_info(self.dataset)
@@ -28,6 +32,11 @@ class DatasetPathComponent(BrickEnvComponent):
         else:
             self.dataset_paths = get_dataset_paths(
                     self.dataset, self.split, self.subset, rank, size)
+        
+        if self.augment_dataset is not None:
+            self.augment_info = get_dataset_info(self.augment_dataset)
+            self.augment_paths = get_dataset_paths(
+                    self.augment_dataset, 'all')
         
         self.observe_episode_id = observe_episode_id
         if self.observe_episode_id:
@@ -46,25 +55,33 @@ class DatasetPathComponent(BrickEnvComponent):
             if self.scene_path is None:
                 return 0
             else:
-                return self.all_dataset_paths.index(self.scene_path)
+                try:
+                    return self.all_dataset_paths.index(self.scene_path)
+                except ValueError:
+                    return 0
         else:
             return None
     
     def reset(self):
-        if self.reset_mode == 'uniform':
-            self.scene_path = random.choice(self.dataset_paths)
-        elif self.reset_mode == 'sequential' or self.reset_mode == 'multi_pass':
-            self.scene_path = self.dataset_paths[
-                    self.episode % len(self.dataset_paths)]
-        elif self.reset_mode == 'single_pass':
-            if self.episode < len(self.dataset_paths):
-                self.scene_path = self.dataset_paths[self.episode]
-            else:
-                self.scene_path = None
+        if (self.augment_dataset is not None and
+                random.random() < self.p_augment):
+            self.scene_path = random.choice(self.augment_paths)
         else:
-            raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
-        if self.scene_path is not None:
-            self.episode += 1
+            if self.reset_mode == 'uniform':
+                self.scene_path = random.choice(self.dataset_paths)
+            elif (self.reset_mode == 'sequential' or
+                    self.reset_mode == 'multi_pass'):
+                self.scene_path = self.dataset_paths[
+                        self.episode % len(self.dataset_paths)]
+            elif self.reset_mode == 'single_pass':
+                if self.episode < len(self.dataset_paths):
+                    self.scene_path = self.dataset_paths[self.episode]
+                else:
+                    self.scene_path = None
+            else:
+                raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
+            if self.scene_path is not None:
+                self.episode += 1
         
         return self.observe()
     
