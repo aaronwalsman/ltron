@@ -121,6 +121,7 @@ def graph_supervision_env(
         subset=None,
         rank=0,
         size=1,
+        augment_dataset=None,
         width=256,
         height=256,
         segmentation_width=None,
@@ -150,11 +151,18 @@ def graph_supervision_env(
             subset,
             rank,
             size,
+            augment_dataset=augment_dataset,
             reset_mode=dataset_reset_mode,
             observe_episode_id=True)
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
     max_edges = dataset_info['max_edges_per_scene']
+    if components['dataset'].augment_dataset is not None:
+        augment_info = components['dataset'].augment_info
+        max_instances = max(
+                max_instances, augment_info['max_instances_per_scene'])
+        max_edges = max(
+                max_edges, augment_info['max_edges_per_scene'])
     
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
