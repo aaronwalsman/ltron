@@ -68,6 +68,7 @@ class GraphStepModel(torch.nn.Module):
             dense_heads,
             single_heads,
             add_spatial_embedding=False,
+            add_viewpoint_embedding=False,
             decoder_channels=256,
             output_resolution=(256,256)):
         super(GraphStepModel, self).__init__()
@@ -76,6 +77,11 @@ class GraphStepModel(torch.nn.Module):
         if self.add_spatial_embedding:
             self.spatial_embedding_layer = AddSpatialEmbedding(
                     output_resolution, decoder_channels)
+        self.add_viewpoint_embedding = add_viewpoint_embedding
+        if self.add_viewpoint_embedding:
+            self.azimuth_embedding = torch.nn.Embedding(24, decoder_channels)
+            self.elevation_embedding = torch.nn.Embedding(4, decoder_channels)
+            self.distance_embedding = torch.nn.Embedding(4, decoder_channels)
         self.score_model = score_model
         self.segmentation_model = segmentation_model
         self.heads = torch.nn.ModuleDict(dense_heads)
@@ -84,6 +90,7 @@ class GraphStepModel(torch.nn.Module):
     def forward(self,
             x,
             segmentation=None,
+            viewpoint=None,
             max_instances=None,
             brick_vector_mode='average'):
         x, xn = self.backbone(x)
@@ -92,6 +99,12 @@ class GraphStepModel(torch.nn.Module):
             xs = torch.flatten(xs, 1)
         if self.add_spatial_embedding:
             x = self.spatial_embedding_layer(x)
+        if self.add_viewpoint_embedding:
+            b, c = x.shape[:2]
+            azimuth = self.azimuth_embedding(viewpoint[:,0]).view(b,c,1,1)
+            elevation = self.elevation_embedding(viewpoint[:,1]).view(b,c,1,1)
+            distance = self.distance_embedding(viewpoint[:,2]).view(b,c,1,1)
+            x = x + azimuth + elevation + distance
         #dense_scores = torch.sigmoid(self.score_model(x))
         #dense_score_logits = self.score_model(x.detach())
         dense_score_logits = self.score_model(x)
