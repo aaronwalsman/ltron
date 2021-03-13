@@ -160,6 +160,42 @@ class EdgeModel(torch.nn.Module):
                     in_channels,
                     2)
     
+    def compare_square_batch(self, a):
+        bs, a_num, channels = a.shape
+        bs_a_one_x = a.view(bs, a_num, 1, channels)
+        bs_one_a_x = a.view(bs, 1, a_num, channels)
+        if self.compare_mode == 'add':
+            bs_a_a_x = bs_a_one_x + bs_a_one_x
+        elif self.compare_mode == 'subtract':
+            bs_a_a_x = bs_a_one_x - bs_one_a_x
+        elif self.compare_mode == 'squared_difference':
+            bs_a_a_x = (bs_a_one_x - bs_one_a_x)**2
+        else:
+            raise ValueError('Unknown compare mode: %s'%self.compare_mode)
+        
+        if self.split_heads:
+            a_match_a_logits = self.matching_head(
+                    bs_a_a_x.view(bs * a_num * a_num, channels))
+            a_match_a_logits = a_match_a_logits.view(
+                    bs, a_num, a_num)
+            
+            a_edge_a_logits = self.edge_head(
+                    bs_a_a_x.view(bs, a_num * a_num, channels))
+            a_edge_a_logits = a_edge_a_logits.view(
+                    bs, a_num, a_num)
+            
+            bs_a_a_x = torch.stack(
+                    (a_match_a_logits, a_edge_a_logits), dim=-1)
+        
+        else:
+            bs_a_a_x = self.post_compare(
+                    bs_a_a_x.view(bs * a_num * a_num, channels))
+            bs_a_a_x = bs_a_a_x.view(bs, a_num, a_num, 2)
+            a_match_a_logits = bs_a_a_x[..., 0]
+            a_edge_a_logits = bs_a_a_x[..., 1]
+        
+        return bs_a_a_x, a_match_a_logits, a_edge_a_logits
+    
     def compare(self, a, b):
         a_num, channels = a.shape
         b_num, channels = b.shape
@@ -174,7 +210,7 @@ class EdgeModel(torch.nn.Module):
         else:
             raise ValueError('Unknown compare mode: %s'%self.compare_mode)
     
-        # post-compare a_b_x
+        # post-compare bs_a_a_x
         if self.split_heads:
             a_match_b_logits = self.matching_head(
                     a_b_x.view(a_num * b_num, channels))

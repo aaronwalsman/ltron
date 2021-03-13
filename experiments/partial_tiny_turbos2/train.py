@@ -6,8 +6,8 @@ import brick_gym.torch.train.graph as train_graph
 #epoch = 380
 #run = 'Feb24_19-26-26_mechagodzilla' #None #'Feb23_00-57-59_mechagodzilla'
 #epoch = 35
-run = None
-epoch = 0
+run = None #'Mar07_23-27-29_mechagodzilla'
+epoch = 0 # 20
 
 if run is not None:
     step_checkpoint = './checkpoint/%s/step_model_%04i.pt'%(run, epoch)
@@ -40,24 +40,31 @@ if __name__ == '__main__':
             random_bricks_rotation_mode='local_identity',
             
             # rollout settings
-            train_steps_per_epoch = 1024,
-            
+            train_steps_per_epoch = 1024, 
             # train settings
             learning_rate = 1e-4,
             weight_decay = 1e-6,
-            mini_epoch_sequences = 2048,
-            mini_epoch_sequence_length = 1,
-            batch_size = 32,
-            #edge_loss_weight = 0.,
+            mini_epoch_sequences = 2048//4,
+            mini_epoch_sequence_length = 4,
+            batch_size = 8,
+            #edge_loss_weight = 10.,
             #matching_loss_weight = 0.,
+            #--------------
+            center_local_loss_weight = 0.05,
+            center_cluster_loss_weight = 0.0, #1.0,
+            center_separation_loss_weight = 1.0,
+            center_separation_distance = 5,
+            #--------------
             multi_hide = True,
             max_instances_per_step=8,
             
             # model settings
             #step_model_backbone = 'smp_fpn_rnxt50',
+            step_model_name = 'nth_try', #'center_voting',
             step_model_backbone = 'simple',
             edge_model_name = 'squared_difference',
             segment_id_matching = False,
+            decoder_channels = 512,
             
             # test settings
             test_frequency = None,

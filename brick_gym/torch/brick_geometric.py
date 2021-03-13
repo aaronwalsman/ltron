@@ -61,6 +61,9 @@ class BrickList(GraphData):
         score_logits = score_logits.view(b,1,h,w)
         
         scores = torch.sigmoid(score_logits)
+        if 'removability' in feature_dict:
+            scores = scores * torch.sigmoid(
+                    feature_dict['removability'].view(b,1,h,w))
         total_scores = scatter_add(
                 scores.view(b,1,-1), segmentation.view(b,1,-1))
         
@@ -77,10 +80,12 @@ class BrickList(GraphData):
         
         segment_features = {}
         for feature_name, feature_values in feature_dict.items():
-            c = feature_values.shape[1]
-            weighted_feature_values = (scores * feature_values).view(b, c, -1)
-            segment_features[feature_name] = scatter_add(
-                    weighted_feature_values, segmentation.view(b, 1, -1))
+            if len(feature_values.shape) > 2:
+                c = feature_values.shape[1]
+                weighted_feature_values = (
+                        scores * feature_values).view(b, c, -1)
+                segment_features[feature_name] = scatter_add(
+                        weighted_feature_values, segmentation.view(b, 1, -1))
         
         '''
         if (max_instances is not None and
@@ -162,6 +167,9 @@ class BrickList(GraphData):
         # raw_segment_score: the highest score for each segment
         # raw_source_index: the pixel location where raw_segment_score was found
         score = torch.sigmoid(score_logits)
+        if 'removability' in feature_dict:
+            score = score * torch.sigmoid(
+                    feature_dict['removability'].view(b,h,w))
         raw_segment_score, raw_source_index = scatter_max(
                 score.view(b,-1), segmentation.view(b,-1))
         
@@ -224,6 +232,11 @@ class BrickList(GraphData):
                 score_logits.shape[-1])
         score_logits = score_logits.view(b,h*w)
         
+        score = torch.sigmoid(score_logits)
+        if 'removability' in feature_dict:
+            score = score * torch.sigmoid(
+                    feature_dict['removability'].view(b,h*w))
+        
         '''
         # scatter_max the score_logits using the segmentation
         # raw_segment_score: the highest score for each segment
@@ -247,7 +260,7 @@ class BrickList(GraphData):
         valid_segments = torch.where(raw_segment_score > 0.)
         '''
         
-        max_score, max_score_locations = torch.max(score_logits, dim=-1)
+        max_score, max_score_locations = torch.max(score, dim=-1)
         positions = torch.stack(
                 (max_score_locations // w, max_score_locations % w), dim=1)
         
@@ -280,7 +293,8 @@ class BrickList(GraphData):
                 graph_data[feature_name] = segment_features
             
             brick_lists.append(BrickList(
-                    score=torch.sigmoid(max_score[[i]]).unsqueeze(1),
+                    #score=torch.sigmoid(max_score[[i]]).unsqueeze(1),
+                    score=max_score[[i]].unsqueeze(1),
                     #score=item_segment_score.unsqueeze(1),
                     #segment_id=segment_ids.unsqueeze(1),
                     #pos=positions,

@@ -75,7 +75,7 @@ def gym_space_to_tensors(
         # keep the default spaces last because brick_gym's custom spaces
         # inherit from them so those cases should be caught first
         elif isinstance(space, spaces.Discrete):
-            return data
+            return torch.LongTensor(data).to(device)
         
         elif isinstance(space, spaces.Box):
             return torch.FloatTensor(data).to(device)
@@ -129,7 +129,13 @@ def gym_space_list_to_tensors(
             return tuple(recurse(data[i], space[i]) for i in len(data[0]))
         
         elif isinstance(space, spaces.Box):
-            c = data[0].shape[-1:]
+            #c = data[0].shape[-1:]
+            c = data[0].shape[1:]
+            tensor = torch.stack(data, dim=1)
+            return tensor.view(-1, *c)
+        
+        elif isinstance(space, spaces.Discrete):
+            c = data[0].shape[1:]
             tensor = torch.stack(data, dim=1)
             return tensor.view(-1, *c)
     

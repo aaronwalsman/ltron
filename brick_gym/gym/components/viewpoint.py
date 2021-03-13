@@ -35,6 +35,11 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         self.far_clip = far_clip
         self.start_position = start_position
         
+        self.observation_space = spaces.Dict({
+                'azimuth' : spaces.Discrete(azimuth_steps),
+                'elevation' : spaces.Discrete(elevation_steps),
+                'distance' : spaces.Discrete(distance_steps)
+        })
         self.action_space = spaces.Discrete(7)
         self.num_locations = azimuth_steps * elevation_steps * distance_steps
         self.location = None
@@ -44,6 +49,12 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
                 elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
         self.distance_spacing = (
                 distance_range[1] - distance_range[0]) / (distance_steps-1)
+    
+    def compute_observation(self):
+        return {'azimuth' : self.position[0],
+                'elevation' : self.position[1],
+                'distance' : self.position[2]}
+                
     
     def reset(self):
         if self.start_position == 'uniform':
@@ -55,7 +66,7 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
             self.position = list(start_position)
         self.set_camera()
         
-        return None
+        return self.compute_observation()
     
     def step(self, action):
         if action == 0:
@@ -81,7 +92,9 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         
         self.set_camera()
         
-        return None, 0, False, None
+        #tmp_reward = self.position[1] + self.position[2]
+        
+        return self.compute_observation(), 0., False, None
     
     def set_camera(self):
         scene = self.scene_component.brick_scene
@@ -89,7 +102,7 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         elevation = (self.position[1] * self.elevation_spacing +
                 self.elevation_range[0])
         field_of_view = self.field_of_view
-        distance = (self.position[1] * self.distance_spacing +
+        distance = (self.position[2] * self.distance_spacing +
                 self.distance_range[0])
         
         # projection

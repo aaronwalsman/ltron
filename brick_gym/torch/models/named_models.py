@@ -257,7 +257,8 @@ def named_graph_step_model(
         decoder_channels,
         num_classes,
         input_resolution,
-        viewpoint_head=False):
+        viewpoint_head=False,
+        removability_head=False):
     if name == 'nth_try':
         #encoder = 'smp_fpn_r18' #'smp_fpn_rnxt50'
         if backbone_name == 'simple':
@@ -267,25 +268,31 @@ def named_graph_step_model(
             output_resolution = input_resolution
         if viewpoint_head:
             single_heads = {
-                'viewpoint' : torch.nn.Linear(2048, 5)
+                'viewpoint' : torch.nn.Linear(2048, 7)
             }
         else:
             single_heads = {}
+        dense_heads = {
+            'x' : torch.nn.Identity(),
+            'instance_label' : Conv2dStack(
+                    3, decoder_channels, decoder_channels, num_classes),
+            'hide_action' : Conv2dStack(
+                    3, decoder_channels, decoder_channels, 1)
+        }
+        if removability_head:
+            dense_heads['removability'] = Conv2dStack(
+                    3, decoder_channels, decoder_channels, 1)
+        
         return GraphStepModel(
                 backbone = named_fcn_backbone(backbone_name, decoder_channels),
                 score_model = Conv2dStack(
                         3, decoder_channels, decoder_channels, 1),
                 segmentation_model = None,
                 add_spatial_embedding = True,
+                add_viewpoint_embedding = viewpoint_head,
                 decoder_channels = decoder_channels,
                 output_resolution = output_resolution,
-                dense_heads = {
-                    'x' : torch.nn.Identity(),
-                    'instance_label' : Conv2dStack(
-                            3, decoder_channels, decoder_channels, num_classes),
-                    'hide_action' : Conv2dStack(
-                            3, decoder_channels, decoder_channels, 1)
-                },
+                dense_heads = dense_heads,
                 single_heads = single_heads,
         )
     elif name == 'center_voting':

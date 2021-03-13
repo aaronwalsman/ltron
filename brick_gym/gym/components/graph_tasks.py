@@ -137,7 +137,7 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         #tg = time.time()
         #print('graph_task final:', tg-tf)
         
-        return None, edge_ap, terminal, info
+        return None, edge_ap * instance_ap, terminal, info
 
 '''
 class GraphConstructionTask(BrickEnvComponent):

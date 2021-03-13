@@ -63,7 +63,6 @@ def train_label_confidence(
         augment_dataset = None,
         image_resolution = (256,256),
         randomize_viewpoint = True,
-        controlled_viewpoint = False,
         randomize_colors = True,
         random_floating_bricks = False,
         random_floating_pairs = False,
@@ -89,6 +88,10 @@ def train_label_confidence(
         center_cluster_loss_weight = 0.0,
         center_separation_loss_weight = 1.0,
         center_separation_distance = 5,
+        #-----------------
+        removability_loss_weight = 0.0,
+        #-----------------
+        viewpoint_loss_weight = 0.0,
         #-----------------
         max_instances_per_step = 8,
         multi_hide = False,
@@ -135,7 +138,8 @@ def train_label_confidence(
             decoder_channels = decoder_channels,
             num_classes = num_classes,
             input_resolution = image_resolution,
-            viewpoint_head = controlled_viewpoint).cuda()
+            viewpoint_head = viewpoint_loss_weight > 0.,
+            removability_head = removability_loss_weight > 0.).cuda()
     #step_model = FrozenBatchNormWrapper(step_model)
     
     if step_checkpoint is not None:
@@ -193,7 +197,7 @@ def train_label_confidence(
             multi_hide=multi_hide,
             visibility_mode='instance',
             randomize_viewpoint=randomize_viewpoint,
-            controlled_viewpoint=controlled_viewpoint,
+            controlled_viewpoint=viewpoint_loss_weight > 0.,
             randomize_viewpoint_frequency='reset',
             randomize_colors=randomize_colors,
             random_floating_bricks=random_floating_bricks,
@@ -246,6 +250,10 @@ def train_label_confidence(
                 center_cluster_loss_weight,
                 center_separation_loss_weight,
                 center_separation_distance,
+                #-----------------
+                removability_loss_weight,
+                #-----------------
+                viewpoint_loss_weight,
                 #-----------------
                 max_instances_per_step,
                 multi_hide,
@@ -320,6 +328,10 @@ def train_label_confidence_epoch(
         center_separation_loss_weight,
         center_separation_distance,
         #------------------
+        removability_loss_weight,
+        #------------------
+        viewpoint_loss_weight,
+        #------------------
         max_instances_per_step,
         multi_hide,
         max_instances_per_scene,
@@ -340,6 +352,7 @@ def train_label_confidence_epoch(
     seq_observations = []
     seq_graph_state = []
     seq_rewards = []
+    seq_viewpoint_actions = []
     
     device = torch.device('cuda:0')
     
@@ -370,9 +383,16 @@ def train_label_confidence_epoch(
             
             #-------------------------------------------------------------------
             # step model forward pass
+            viewpoint_input = None
+            if 'viewpoint' in step_tensors:
+                a = step_tensors['viewpoint']['azimuth']
+                e = step_tensors['viewpoint']['elevation']
+                d = step_tensors['viewpoint']['distance']
+                viewpoint_input = torch.stack((a,e,d), dim=1)
             step_brick_lists, _, dense_score_logits, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
+                    viewpoint = viewpoint_input,
                     max_instances = max_instances_per_step)
             # MURU: We should change this part as well to not take in ground
             # truth segmentation, but instead use the segmentation model.
@@ -410,12 +430,24 @@ def train_label_confidence_epoch(
             hide_logits = [sbl.hide_action.view(-1) for sbl in step_brick_lists]
             actions = []
             for i, logits in enumerate(hide_logits):
+                action = {}
+                
+                do_hide = True
+                if 'viewpoint' in head_features:
+                    viewpoint_distribution = Categorical(
+                            logits=head_features['viewpoint'][i])
+                    viewpoint_action = viewpoint_distribution.sample()
+                    action['viewpoint'] = viewpoint_action.cpu().numpy()
+                    if viewpoint_action != 0:
+                        do_hide = False
+                    
                 if multi_hide:
                     visibility_sample = numpy.zeros(
                             max_instances_per_scene+1, dtype=numpy.bool)
-                    selected_instances = (
+                    if do_hide:
+                        selected_instances = (
                             step_brick_lists[i].segment_id[:,0].cpu().numpy())
-                    visibility_sample[selected_instances] = True
+                        visibility_sample[selected_instances] = True
                 else:
                     if logits.shape[0]:
                         distribution = Categorical(
@@ -426,16 +458,20 @@ def train_label_confidence_epoch(
                     else:
                         visibility_sample = 0
                 
+                action['visibility'] = visibility_sample
+                
                 graph_data = graph_to_gym_space(
                         graph_states[i].cpu(),
                         train_env.single_action_space['graph_task'],
                         process_instance_logits=True,
                         segment_id_remap=True,
                 )
-                actions.append({
-                        'visibility':visibility_sample,
-                        'graph_task':graph_data,
-                })
+                action['graph_task'] = graph_data
+                
+                actions.append(action)
+            
+            seq_viewpoint_actions.append([
+                    int(action['viewpoint']) for action in actions])
             
             #-------------------------------------------------------------------
             # prestep logging
@@ -524,6 +560,28 @@ def train_label_confidence_epoch(
             for j in range(train_env.num_envs)
             for i in range(steps)])
     
+    seq_rewards = [seq_rewards[i][j]
+            for j in range(train_env.num_envs)
+            for i in range(steps)]
+    
+    seq_viewpoint_actions = torch.LongTensor([seq_viewpoint_actions[i][j]
+            for j in range(train_env.num_envs)
+            for i in range(steps)])
+    
+    seq_returns = []
+    ret = 0.
+    gamma = 0.9
+    for reward, terminal in zip(reversed(seq_rewards), reversed(seq_terminal)):
+        ret += reward
+        seq_returns.append(ret)
+        ret *= gamma
+        if terminal:
+            ret = 0.
+    seq_returns = torch.FloatTensor(list(reversed(seq_returns)))
+    seq_norm_returns = (
+            (seq_returns - torch.mean(seq_returns)) /
+            (seq_returns.std() + 0.001))
+    
     #===========================================================================
     # supervision
     
@@ -577,13 +635,55 @@ def train_label_confidence_epoch(
                 y_graph = seq_tensors['graph_label'][step_indices].cuda()
                 
                 # step forward pass
+                viewpoint_input = None
+                if 'viewpoint' in seq_tensors:
+                    a = seq_tensors['viewpoint']['azimuth'][step_indices]
+                    a = a.cuda()
+                    e = seq_tensors['viewpoint']['elevation'][step_indices]
+                    e = e.cuda()
+                    d = seq_tensors['viewpoint']['distance'][step_indices]
+                    d = d.cuda()
+                    viewpoint_input = torch.stack((a,e,d), dim=1)
                 (step_brick_lists,
                  predicted_segmentation,
                  dense_score_logits,
                  head_features) = step_model(
-                        x_im, x_seg, max_instances=max_instances_per_step)
+                        x_im,
+                        x_seg,
+                        viewpoint = viewpoint_input,
+                        max_instances = max_instances_per_step)
                 # MURU: 'fcos_features' should exist as a key in head_features
                 # here.  This is what should get losses applied.
+                
+                step_loss = 0.
+                
+                #=================#
+                # POLICY GRADIENT #
+                #=================#
+                if 'viewpoint' in head_features:
+                    y_returns = seq_norm_returns[step_indices].cuda()
+                    batch_actions = seq_viewpoint_actions[step_indices].cuda()
+                    '''
+                    pg_loss = torch.nn.functional.cross_entropy(
+                            head_features['viewpoint'],
+                            torch.ones(head_features['viewpoint'].shape[:-1],
+                                    dtype=torch.long).cuda()*2)
+                    step_loss = step_loss + pg_loss
+                    log.add_scalar(
+                            'loss/policy_gradient',
+                            pg_loss, step_clock[0])
+                    '''
+                    
+                    action_dist = Categorical(
+                            logits = head_features['viewpoint'])
+                    logp = action_dist.log_prob(batch_actions)
+                    pg_loss = torch.mean(
+                            -logp * y_returns) * viewpoint_loss_weight
+                    step_loss = step_loss + pg_loss
+                    log.add_scalar(
+                            'loss/policy_gradient',
+                            pg_loss, step_clock[0])
+                    
                 
                 # sample a little bit extra for edge training
                 num_extra = None
@@ -633,8 +733,6 @@ def train_label_confidence_epoch(
                         extra_brick_vectors=input_extra_brick_vectors,
                         max_edges=max_edges,
                         segment_id_matching=segment_id_matching)
-                
-                step_loss = 0.
                 
                 #---------------------------------------------------------------
                 # dense supervision
@@ -796,6 +894,44 @@ def train_label_confidence_epoch(
                                 step_clock[0])
                         step_loss = step_loss + cluster_total_loss
                     
+                    # removability loss
+                    if removability_loss_weight > 0.:
+                        removable_instances = seq_tensors[
+                                'removability']['removable'][step_indices]
+                        removable_instances = removable_instances.bool()
+                        removable_directions = seq_tensors[
+                                'removability']['direction'][step_indices]
+                        
+                        good_direction = removable_directions[:,:,2] >= 0.
+                        #good_direction_b = torch.norm(
+                        #        removable_directions, dim=2) < 1e-5
+                        #good_direction = good_direction_a | good_direction_b
+                        removable_instances = (
+                                removable_instances & good_direction)
+                        if not torch.all(
+                                torch.sum(removable_instances, dim=-1)>0):
+                            print('NO REMOVABLE INSTANCES!!!')
+                        
+                        removability_target = []
+                        for i in range(len(y_graph)):
+                            target = removable_instances[i][x_seg[i]]
+                            removability_target.append(target)
+                        removability_target = torch.stack(removability_target)
+                        removability_target = removability_target.cuda()
+                        #removability_loss = (
+                        # torch.nn.functional.binary_cross_entropy_with_logits(
+                        #        head_features['removability'],
+                        #        removability_target.unsqueeze(1)))
+                        removability_loss = dense_score_loss(
+                                head_features['removability'],
+                                removability_target,
+                                foreground)
+                        
+                        step_loss = step_loss + (
+                                removability_loss * removability_loss_weight)
+                    else:
+                        removability_target = None
+                    
                     # visibility supervision
                     dense_visibility = head_features['hide_action']
                     '''
@@ -810,14 +946,16 @@ def train_label_confidence_epoch(
                     visibility_loss = torch.sum(
                             visibility_loss * (x_seg != 0)) / foreground_total
                     '''
-                    
-                    visibility_loss = dense_score_loss(
-                            dense_visibility,
-                            correct,
-                            foreground)
-                    step_loss = step_loss + visibility_loss * score_loss_weight
-                    log.add_scalar(
-                            'loss/visibility', visibility_loss, step_clock[0])
+                    if False:
+                        visibility_loss = dense_score_loss(
+                                dense_visibility,
+                                correct,
+                                foreground)
+                        step_loss = (
+                                step_loss + visibility_loss * score_loss_weight)
+                        log.add_scalar(
+                                'loss/visibility',
+                                visibility_loss, step_clock[0])
                     
                 
                 instance_correct = 0.
@@ -1104,7 +1242,9 @@ def train_label_confidence_epoch(
                              for l in step_state_logits],
                             # ground truth
                             y_graph.cpu(),
-                            score_target)
+                            score_target,
+                            removability_target,
+                            head_features.get('removability', None))
                 
                 graph_states = new_graph_states
                 step_clock[0] += 1
@@ -1139,7 +1279,9 @@ def log_train_supervision_step(
         pred_step_state,
         # ground truth
         true_graph,
-        score_targets):
+        score_targets,
+        removability_target,
+        removability_prediction):
     
     '''
     for (image, segmentation, label_logits, scores) in (
@@ -1173,6 +1315,13 @@ def log_train_supervision_step(
             dense_scores,
             step_clock[0],
             dataformats='NCHW')
+    
+    if removability_prediction is not None:
+        log.add_image(
+                'train/pred_removability',
+                torch.sigmoid(removability_prediction),
+                step_clock[0],
+                dataformats='NCHW')
     
     true_class_label_images = []
     pred_class_label_images = []
@@ -1307,6 +1456,12 @@ def log_train_supervision_step(
             step_clock[0],
             dataformats='NCHW')
     
+    if removability_target is not None:
+        log.add_image('train/true_removability_targets',
+                removability_target.unsqueeze(1),
+                step_clock[0],
+                dataformats='NCHW')
+    
     log.add_text('train/true_instance_labels',
             json.dumps(true_instance_label_lookups,
                     cls=NumpyEncoder, indent=2),
@@ -1316,7 +1471,6 @@ def log_step_observations(split, step_clock, log, step_observations, space):
     
     label = '%s/observations'%split
     gym_log(label, step_observations, space, log, step_clock[0])
-    
     
     '''
     # dump observation
