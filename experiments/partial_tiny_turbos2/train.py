@@ -26,18 +26,18 @@ if __name__ == '__main__':
             optimizer_checkpoint = optimizer_checkpoint,
             
             # general settings
-            num_epochs = 500,
+            num_epochs = 1000,
             mini_epochs_per_epoch = 1,
             
             # dataset settings
             dataset = 'tiny_turbos2',
             train_split = 'train',
-            train_subset = 4,
-            num_processes = 4,
+            train_subset = None,
+            num_processes = 8,
             randomize_viewpoint=True,
             random_floating_bricks=False,
             random_floating_pairs=False,
-            random_bricks_rotation_mode='uniform',
+            random_bricks_rotation_mode='local_identity',
             
             # rollout settings
             train_steps_per_epoch = 1024, 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
             test_steps_per_epoch = 8, #512,
             
             # logging settings
-            log_train=8,
+            log_train=0,
             
             # checkpoint settings
-            checkpoint_frequency=5)
+            checkpoint_frequency=25)

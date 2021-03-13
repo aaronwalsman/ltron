@@ -221,7 +221,7 @@ class BrickScene:
                     t[2,0], t[2,1], t[2,2])
                     
             brick_type_name = str(instance.brick_type)
-            line = '1 %i %s %s'%(color, str_transform, brick_type_name)
+            line = '1 %s %s %s'%(color, str_transform, brick_type_name)
             lines.append(line)
         
         with open(path, 'w') as f:
@@ -346,7 +346,8 @@ class BrickScene:
         
         return unoccupied_snaps
     
-    def is_instance_removable(self, instance, radius=1):
+    def is_instance_removable(
+            self, instance, direction_space='scene', radius=1):
         instance = self.instances[instance]
         other_snaps = self.get_instance_snap_connections(instance, radius)
         
@@ -354,15 +355,19 @@ class BrickScene:
         snap_genders = []
         snap_axes = []
         for other_instance_id, other_snap_id, this_snap_id in other_snaps:
-            if self.instance_hidden(other_instance_id):
+            if self.renderable and self.instance_hidden(other_instance_id):
                 continue
             
             snap = instance_snaps[this_snap_id]
             snap_genders.append(snap.gender)
             snap_axis = numpy.dot(
-                    snap.transform, numpy.array([[0],[1],[0],[0]]))[:,0]
+                    snap.transform, numpy.array([[0],[-1],[0],[0]]))[:,0]
+            if snap.gender.upper() == 'M':
+                snap_axis = -snap_axis
+            if direction_space == 'camera':
+                snap_axis = numpy.dot(self.get_camera_pose(), snap_axis)
             snap_axis = snap_axis / numpy.linalg.norm(snap_axis)
-            snap_axes.append(snap_axis)
+            snap_axes.append(snap_axis[:3])
         
         if len(snap_axes) == 0:
             return True, None
