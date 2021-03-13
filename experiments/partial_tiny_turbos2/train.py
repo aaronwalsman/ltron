@@ -32,7 +32,7 @@ if __name__ == '__main__':
             # dataset settings
             dataset = 'tiny_turbos2',
             train_split = 'train',
-            train_subset = None,
+            train_subset = 4,
             num_processes = 8,
             randomize_viewpoint=True,
             random_floating_bricks=False,
