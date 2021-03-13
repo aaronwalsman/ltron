@@ -244,8 +244,8 @@ def graph_supervision_env(
                 azimuth_steps = 24,
                 elevation_range = (math.radians(-15), math.radians(-45)),
                 elevation_steps = 4,
-                distance_range = (100,300),
-                distance_steps = 5)
+                distance_range = (200,350),
+                distance_steps = 4)
     else:
         components['viewpoint'] = FixedAzimuthalViewpointComponent(
                 components['scene'],
