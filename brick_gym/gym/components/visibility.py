@@ -1,5 +1,7 @@
 import numpy
 
+import gym.spaces as gym_spaces
+
 import brick_gym.gym.spaces as bg_spaces
 from brick_gym.gym.components.brick_env_component import BrickEnvComponent
 
@@ -75,18 +77,29 @@ class InstanceRemovabilityComponent(BrickEnvComponent):
         
         self.max_instances = max_instances
         self.scene_component = scene_component
-        self.observation_space = bg_spaces.MultiInstanceSelectionSpace(
-                self.max_instances)
+        self.observation_space = gym_spaces.Dict({
+                'removable' : bg_spaces.MultiInstanceSelectionSpace(
+                    self.max_instances),
+                'direction' : bg_spaces.MultiInstanceDirectionSpace(
+                    self.max_instances),
+        })
     
     def compute_observation(self):
         scene = self.scene_component.brick_scene
-        observation = numpy.zeros(self.max_instances+1, dtype=numpy.bool)
+        removable_observation = numpy.zeros(
+                self.max_instances+1, dtype=numpy.bool)
+        direction_observation = numpy.zeros(
+                (self.max_instances+1, 3))
         for instance_id, instance in scene.instances.items():
-            removable, direction = scene.is_instance_removable(instance)
+            removable, direction = scene.is_instance_removable(
+                    instance, direction_space='camera')
             if removable:
-                observation[int(instance_id)] = True
+                removable_observation[int(instance_id)] = True
+            if direction is not None:
+                direction_observation[int(instance_id)] = direction 
         
-        return observation
+        return {'removable' : removable_observation,
+                'direction' : direction_observation}
     
     def reset(self):
         return self.compute_observation()
