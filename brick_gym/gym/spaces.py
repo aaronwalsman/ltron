@@ -72,6 +72,14 @@ class PixelSelectionSpace(spaces.Box):
                 low=False, high=True, shape=(height, width),
                 dtype=numpy.bool)
 
+class MultiInstanceDirectionSpace(spaces.Box):
+    def __init__(self, max_num_instances):
+        self.max_num_instances = max_num_instances
+        super(MultiInstanceDirectionSpace, self).__init__(
+                low=-1.0,
+                high=1.0,
+                shape=(self.max_num_instances+1,3))
+
 #class InstanceListSpace(spaces.Box):
 #    '''
 #    A variable length discrete vector of instance class ids represented as
