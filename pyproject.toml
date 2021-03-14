@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "brick-gym"
+version = "0.1.0"
+description = "LDraw OpenAI Gym Environment"
+authors = ["Aaron Walsman <awalsman@cs.washington.edu>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.7.1"
+numpy = "^1.20.0"
+torch = "^1.5.1"
+gym = "^0.18.0"
+Pillow = "7.2.0"
+renderpy = "^0.1.0"
+requests = "^2.25.1"
+tqdm = "^4.57.0"
+
+[tool.poetry.dev-dependencies]
+ipython = "^7.20.0"
+plotly = "^4.14.3"
+jupyter = "^1.0.0"
+renderpy = {path = "../renderpy", develop = true}
+ipywidgets = "^7.6.3"
+pandas = "^1.2.3"
+psutil = "^5.8.0"
+kaleido = "^0.2.1"
+
+[tool.poetry.scripts]
+brick-viewer = "brick_gym.console.brick_viewer:run"
+make-dataset-metadata = "brick_gym.console.make_dataset_metadata:run"
+train-semantic-segmentation = "brick_gym.console.train_semantic_segmentation:run"
+train-graph = "brick_gym.console.train_graph:run"
+train-graph-b = "brick_gym.console.train_graph_b:run"
+install-ldraw = "brick_gym.console.install_ldraw:run"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
