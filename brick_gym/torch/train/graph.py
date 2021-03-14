@@ -102,6 +102,7 @@ def train_label_confidence(
         decoder_channels = 512,
         edge_model_name = 'subtract',
         segment_id_matching = False,
+        brick_vector_mode = 'average',
         
         # test settings
         test_frequency = 1,
@@ -259,6 +260,7 @@ def train_label_confidence(
                 multi_hide,
                 max_instances_per_scene,
                 segment_id_matching,
+                brick_vector_mode,
                 dataset_info,
                 log_train)
         
@@ -336,6 +338,7 @@ def train_label_confidence_epoch(
         multi_hide,
         max_instances_per_scene,
         segment_id_matching,
+        brick_vector_mode,
         dataset_info,
         log_train):
     
@@ -393,7 +396,8 @@ def train_label_confidence_epoch(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
                     viewpoint = viewpoint_input,
-                    max_instances = max_instances_per_step)
+                    max_instances = max_instances_per_step,
+                    brick_vector_mode = brick_vector_mode)
             # MURU: We should change this part as well to not take in ground
             # truth segmentation, but instead use the segmentation model.
             # Basically, we should set the second argument to None.
@@ -470,8 +474,9 @@ def train_label_confidence_epoch(
                 
                 actions.append(action)
             
-            seq_viewpoint_actions.append([
-                    int(action['viewpoint']) for action in actions])
+            if 'viewpoint' in actions[0]:
+                seq_viewpoint_actions.append([
+                        int(action['viewpoint']) for action in actions])
             
             #-------------------------------------------------------------------
             # prestep logging
@@ -564,9 +569,10 @@ def train_label_confidence_epoch(
             for j in range(train_env.num_envs)
             for i in range(steps)]
     
-    seq_viewpoint_actions = torch.LongTensor([seq_viewpoint_actions[i][j]
-            for j in range(train_env.num_envs)
-            for i in range(steps)])
+    if len(seq_viewpoint_actions):
+        seq_viewpoint_actions = torch.LongTensor([seq_viewpoint_actions[i][j]
+                for j in range(train_env.num_envs)
+                for i in range(steps)])
     
     seq_returns = []
     ret = 0.
@@ -651,7 +657,8 @@ def train_label_confidence_epoch(
                         x_im,
                         x_seg,
                         viewpoint = viewpoint_input,
-                        max_instances = max_instances_per_step)
+                        max_instances = max_instances_per_step,
+                        brick_vector_mode = brick_vector_mode)
                 # MURU: 'fcos_features' should exist as a key in head_features
                 # here.  This is what should get losses applied.
                 

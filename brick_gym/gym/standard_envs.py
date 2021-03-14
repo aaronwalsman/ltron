@@ -133,6 +133,7 @@ def graph_supervision_env(
         visibility_mode='instance',
         randomize_viewpoint=True,
         controlled_viewpoint=False,
+        controlled_viewpoint_start_position='uniform',
         randomize_viewpoint_frequency='step',
         randomize_distance=True,
         randomize_colors=True,
@@ -253,7 +254,8 @@ def graph_supervision_env(
                 elevation_range = (math.radians(-15), math.radians(-45)),
                 elevation_steps = 4,
                 distance_range = (200,350),
-                distance_steps = 4)
+                distance_steps = 4,
+                start_position = controlled_viewpoint_start_position)
     else:
         components['viewpoint'] = FixedAzimuthalViewpointComponent(
                 components['scene'],

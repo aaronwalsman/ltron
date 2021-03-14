@@ -34,6 +34,7 @@ def test_checkpoint(
         test_split='test',
         test_subset=None,
         image_resolution=(256,256),
+        controlled_viewpoint=False,
         
         # model settings
         step_model_name = 'nth_try',
@@ -67,7 +68,8 @@ def test_checkpoint(
             backbone_name = step_model_backbone,
             decoder_channels = decoder_channels,
             num_classes = num_classes,
-            input_resolution = image_resolution).cuda()
+            input_resolution = image_resolution,
+            viewpoint_head = controlled_viewpoint).cuda()
     step_model.load_state_dict(torch.load(step_checkpoint))
 
     print('-'*80)
@@ -97,6 +99,8 @@ def test_checkpoint(
             dataset_reset_mode = 'single_pass',
             multi_hide=True,
             randomize_viewpoint = False,
+            controlled_viewpoint = controlled_viewpoint,
+            controlled_viewpoint_start_position = (4,3,3),
             randomize_viewpoint_frequency = 'reset',
             randomize_distance = False,
             randomize_colors = False,
@@ -209,12 +213,19 @@ def test_graph(
                 segmentation_input = step_tensors['segmentation_render']
             else:
                 segmentation_input = None
+            viewpoint_input = None
+            if 'viewpoint' in step_tensors:
+                a = step_tensors['viewpoint']['azimuth']
+                e = step_tensors['viewpoint']['elevation']
+                d = step_tensors['viewpoint']['distance']
+                viewpoint_input = torch.stack((a,e,d), dim=1)
             (step_brick_lists,
              segmentation,
              dense_scores,
              head_features) = step_model(
                     step_tensors['color_render'],
                     segmentation_input,
+                    viewpoint = viewpoint_input,
                     max_instances = max_instances_per_step)
             
             for i, brick_list in enumerate(step_brick_lists):
@@ -324,12 +335,24 @@ def test_graph(
             actions = []
             #for hide_index, graph_state in zip(hide_indices, graph_states):
             for i, logits in enumerate(hide_logits):
+                action = {}
+                
+                do_hide = True
+                if 'viewpoint' in head_features:
+                    viewpoint_distribution = Categorical(
+                            logits=head_features['viewpoint'][i])
+                    viewpoint_action = viewpoint_distribution.sample()
+                    action['viewpoint'] = viewpoint_action.cpu().numpy()
+                    if viewpoint_action != 0:
+                        do_hide = False
+                
                 if True: #multi_hide:
                     visibility_sample = numpy.zeros(
                             max_instances_per_scene+1, dtype=numpy.bool)
-                    selected_instances = (
+                    if do_hide:
+                        selected_instances = (
                             step_brick_lists[i].segment_id[:,0].cpu().numpy())
-                    visibility_sample[selected_instances] = True
+                        visibility_sample[selected_instances] = True
                 else:
                     if logits.shape[0]:
                         hide_value, segment = torch.max(logits, dim=0)
@@ -337,14 +360,18 @@ def test_graph(
                         visibility_sample = int(
                                 step_brick_lists[i].segment_id[segment_sample])
                 
-                graph_action = graph_to_gym_space(
+                action['visibility'] = visibility_sample
+                
+                graph_data = graph_to_gym_space(
                         graph_states[i].cpu(),
                         test_env.single_action_space['graph_task'],
                         process_instance_logits=True,
                         segment_id_remap=True)
-                actions.append({
-                        'visibility':visibility_sample,
-                        'graph_task':graph_action})
+                action['graph_task'] = graph_data
+                actions.append(action)
+                #actions.append({
+                #        'visibility':visibility_sample,
+                #        'graph_task':graph_action})
             
             '''
             for i in range(test_env.num_envs):
@@ -585,7 +612,7 @@ def test_graph(
                     total_all_ap += 1
             '''
             # done yet?
-            all_finished = numpy.all(
+            all_finished = torch.all(
                     step_tensors['scene']['valid_scene_loaded'] == 0)
     
     assert target_graphs.keys() == predicted_graphs.keys()

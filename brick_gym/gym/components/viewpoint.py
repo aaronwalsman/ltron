@@ -63,7 +63,7 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
                     random.randint(0, self.elevation_steps-1),
                     random.randint(0, self.distance_steps-1)]
         else:
-            self.position = list(start_position)
+            self.position = list(self.start_position)
         self.set_camera()
         
         return self.compute_observation()
