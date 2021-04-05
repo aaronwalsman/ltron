@@ -7,11 +7,11 @@ import numpy
 import gym
 import gym.spaces as spaces
 
-import brick_gym.config as config
-import brick_gym.evaluation as evaluation
-from brick_gym.dataset.paths import (
+import ltron.config as config
+import ltron.evaluation as evaluation
+from ltron.dataset.paths import (
         get_metadata, get_dataset_info, get_dataset_paths)
-import brick_gym.dataset.ldraw_environment as ldraw_environment
+import ltron.dataset.ldraw_environment as ldraw_environment
 
 class GraphEnv(gym.Env):
     def __init__(self,

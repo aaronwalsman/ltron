@@ -1,28 +1,28 @@
 import math
 import collections
 
-import brick_gym.config as config
-from brick_gym.gym.brick_env import BrickEnv
-from brick_gym.gym.components.scene import SceneComponent
-from brick_gym.gym.components.episode import MaxEpisodeLengthComponent
-from brick_gym.gym.components.dataset import DatasetPathComponent
-from brick_gym.gym.components.labels import (
+import ltron.config as config
+from ltron.gym.brick_env import BrickEnv
+from ltron.gym.components.scene import SceneComponent
+from ltron.gym.components.episode import MaxEpisodeLengthComponent
+from ltron.gym.components.dataset import DatasetPathComponent
+from ltron.gym.components.labels import (
         InstanceListComponent, InstanceGraphComponent)
-from brick_gym.gym.components.render import (
+from ltron.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent)
-from brick_gym.gym.components.viewpoint import (
+from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent,
         RandomizedAzimuthalViewpointComponent,
         FixedAzimuthalViewpointComponent)
-from brick_gym.gym.components.visibility import (
+from ltron.gym.components.visibility import (
         InstanceVisibilityComponent,
         PixelVisibilityComponent,
         InstanceRemovabilityComponent)
-from brick_gym.gym.components.graph_tasks import InstanceGraphConstructionTask
-from brick_gym.gym.components.colors import RandomizeColorsComponent
-from brick_gym.gym.components.random_floating_bricks import RandomFloatingBricks
-from brick_gym.gym.components.random_floating_pairs import RandomFloatingPairs
-from brick_gym.gym.components.spatial_info import BrickPosition
+from ltron.gym.components.graph_tasks import InstanceGraphConstructionTask
+from ltron.gym.components.colors import RandomizeColorsComponent
+from ltron.gym.components.random_floating_bricks import RandomFloatingBricks
+from ltron.gym.components.random_floating_pairs import RandomFloatingPairs
+from ltron.gym.components.spatial_info import BrickPosition
 
 def segmentation_supervision_env(
         dataset,

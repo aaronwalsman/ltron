@@ -6,7 +6,7 @@ import gym
 from gym.vector.async_vector_env import AsyncVectorEnv
 from gym import spaces
 
-from brick_gym.bricks.brick_scene import BrickScene
+from ltron.bricks.brick_scene import BrickScene
 
 class BrickEnv(gym.Env):
     def __init__(self, components, print_traceback=False):
