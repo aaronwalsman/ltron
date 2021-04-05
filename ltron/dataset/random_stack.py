@@ -6,7 +6,7 @@ import tqdm
 
 import numpy
 
-import brick_gym.config as config
+import ltron.config as config
 
 # brick shape (w, d)
 # brick location (x, z, y, o)

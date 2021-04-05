@@ -4,7 +4,7 @@ import os
 
 import tqdm
 
-from brick_gym.bricks.brick_scene import BrickScene
+from ltron.bricks.brick_scene import BrickScene
 
 random.seed(141414)
 

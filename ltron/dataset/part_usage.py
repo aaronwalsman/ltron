@@ -6,8 +6,8 @@ import numpy
 
 import tqdm
 
-import brick_gym.config as config
-from brick_gym.bricks.brick_scene import BrickScene
+import ltron.config as config
+from ltron.bricks.brick_scene import BrickScene
 
 omr_ldraw_directory = os.path.join(config.paths['omr'], 'ldraw')
 

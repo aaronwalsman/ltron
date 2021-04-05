@@ -5,8 +5,8 @@ import json
 
 import tqdm
 
-import brick_gym.config as config
-from brick_gym.bricks.brick_scene import BrickScene
+import ltron.config as config
+from ltron.bricks.brick_scene import BrickScene
 
 breakout = {
     '8123' : ['8123 - 1.ldr',

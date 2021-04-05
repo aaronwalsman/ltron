@@ -8,9 +8,9 @@ import tqdm
 
 from PIL import Image
 
-import brick_gym.config as config
-from brick_gym.dataset.paths import get_dataset_paths, get_dataset_info
-from brick_gym.bricks.brick_scene import BrickScene
+import ltron.config as config
+from ltron.dataset.paths import get_dataset_paths, get_dataset_info
+from ltron.bricks.brick_scene import BrickScene
 
 dataset = 'tiny_turbos2'
 subset = 64

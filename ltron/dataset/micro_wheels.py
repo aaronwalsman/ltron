@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import brick_gym.config as config
-from brick_gym.dataset.build_dataset import build_dataset
+import ltron.config as config
+from ltron.dataset.build_dataset import build_dataset
 
 dataset_paths = [
     "4096 - Micro Wheels - AB Forklift.mpd",
@@ -18,7 +18,7 @@ dataset_paths = [
     "4096 - Micro Wheels - QB Truck.mpd"
 ]
 
-from brick_gym.bricks.brick_scene import BrickScene
+from ltron.bricks.brick_scene import BrickScene
 import os
 import random
 part_types = {}

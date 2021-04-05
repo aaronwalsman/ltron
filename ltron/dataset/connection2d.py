@@ -12,7 +12,7 @@ import tqdm
 
 import renderpy.masks as masks
 
-import brick_gym.config as config
+import ltron.config as config
 
 shapes = [
     (1,1),

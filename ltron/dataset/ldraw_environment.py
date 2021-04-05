@@ -12,8 +12,8 @@ import renderpy.core as core
 import renderpy.masks as masks
 import renderpy.examples as renderpy_examples
 
-import brick_gym.spaces as bg_spaces
-import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
+import ltron.spaces as bg_spaces
+import ltron.ldraw.ldraw_renderpy as ldraw_renderpy
 
 default_image_light = renderpy_examples.image_lights['grey_cube']
 

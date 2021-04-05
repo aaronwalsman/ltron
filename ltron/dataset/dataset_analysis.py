@@ -10,10 +10,10 @@ import tqdm
 
 from torch_scatter import scatter_add
 
-from brick_gym.gym.standard_envs import graph_supervision_env
-from brick_gym.torch.gym_tensor import (
+from ltron.gym.standard_envs import graph_supervision_env
+from ltron.torch.gym_tensor import (
         gym_space_to_tensors, gym_space_list_to_tensors, graph_to_gym_space)
-from brick_gym.gym.brick_env import async_brick_env
+from ltron.gym.brick_env import async_brick_env
 
 if __name__ == '__main__':
     num_processes = 8

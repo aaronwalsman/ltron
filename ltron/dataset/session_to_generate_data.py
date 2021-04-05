@@ -3,8 +3,8 @@ import os
 
 import tqdm
 
-from brick_gym.bricks.brick_scene import BrickScene
-import brick_gym.config as config
+from ltron.bricks.brick_scene import BrickScene
+import ltron.config as config
 
 #files = list(Path('./data/OMR/ldraw/').resolve().glob('*.mpd'))
 omr_ldraw_path = os.path.join(config.paths['omr'], 'ldraw')

@@ -3,10 +3,10 @@ import json
 
 import tqdm
 
-import brick_gym.config as config
-from brick_gym.dataset.paths import (
+import ltron.config as config
+from ltron.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata_path)
-import brick_gym.ldraw.documents as documents
+import ltron.ldraw.documents as documents
 
 def make_dataset_metadata(dataset, split):
     directory = config.datasets[dataset]

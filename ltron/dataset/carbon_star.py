@@ -5,8 +5,8 @@ import json
 
 import tqdm
 
-import brick_gym.config as config
-from brick_gym.bricks.brick_scene import BrickScene
+import ltron.config as config
+from ltron.bricks.brick_scene import BrickScene
 
 dataset_scenes = ['8661-1 - Carbon Star.mpd']
 carbon_star_path = config.datasets['carbon_star']

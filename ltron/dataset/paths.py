@@ -3,7 +3,7 @@ import os
 import glob
 import json
 
-import brick_gym.config as config
+import ltron.config as config
 
 def resolve_subdocument(file_path):
     if ':' in file_path:

@@ -5,7 +5,7 @@ import json
 
 import tqdm
 
-import brick_gym.config as config
+import ltron.config as config
 
 # this is a list of tiny turbos sets according to bricklink
 # check and see which ones exist in the OMR
@@ -106,7 +106,7 @@ for set_number in set_numbers:
 
 print('%i sets found'%len(existing_sets))
 
-from brick_gym.bricks.brick_scene import BrickScene
+from ltron.bricks.brick_scene import BrickScene
 scene = BrickScene()
 instance_counts = {}
 instances_per_scene = []

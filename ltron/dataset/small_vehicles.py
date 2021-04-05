@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import brick_gym.config as config
-from brick_gym.dataset.build_dataset import build_dataset
+import ltron.config as config
+from ltron.dataset.build_dataset import build_dataset
 
 investigate = ''' 
 10036-1 - Pizza To Go.mpd

@@ -3,11 +3,11 @@ import os
 
 import tqdm
 
-import brick_gym.config as config
-from brick_gym.bricks.brick_scene import BrickScene
-from brick_gym.ldraw.documents import LDrawDocument, LDrawMPDMainFile
-from brick_gym.ldraw.commands import LDrawImportCommand
-from brick_gym.ldraw.paths import LDRAW_FILES
+import ltron.config as config
+from ltron.bricks.brick_scene import BrickScene
+from ltron.ldraw.documents import LDrawDocument, LDrawMPDMainFile
+from ltron.ldraw.commands import LDrawImportCommand
+from ltron.ldraw.paths import LDRAW_FILES
 
 omr_directory = os.path.join(config.paths['omr'], 'ldraw')
 model_files = os.listdir(omr_directory)

@@ -5,10 +5,10 @@ import os
 
 import tqdm
 
-import brick_gym.config as config
-from brick_gym.dataset.paths import get_dataset_info
-from brick_gym.bricks.brick_scene import BrickScene
-from brick_gym.geometry.scene_sampler import (
+import ltron.config as config
+from ltron.dataset.paths import get_dataset_info
+from ltron.bricks.brick_scene import BrickScene
+from ltron.geometry.scene_sampler import (
         sample_scene,
         SingleSubAssemblySampler,
         AntennaSampler,
