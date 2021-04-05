@@ -1,6 +1,6 @@
 import torch
 
-from brick_gym.torch.models.utils import AddSpatialEmbedding
+from ltron.torch.models.utils import AddSpatialEmbedding
 
 class GraphModel(torch.nn.Module):
     def __init__(self,

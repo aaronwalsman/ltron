@@ -1,7 +1,7 @@
 import torch
 from torchvision.models import resnet18
 
-import brick_gym.torch.models.resnet as bg_resnet
+import ltron.torch.models.resnet as bg_resnet
 
 class ActionModel(torch.nn.Module):
     def __init__(self):
