@@ -1,7 +1,7 @@
 import torch
 import torchvision.models as tv_models
 
-import brick_gym.torch.models.resnet as resnet
+import ltron.torch.models.resnet as resnet
 
 class SimpleBlock(torch.nn.Module):
     def __init__(self, decoder_channels, skip_channels):

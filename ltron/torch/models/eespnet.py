@@ -1,6 +1,6 @@
 from torch.nn import init
 import torch.nn.functional as F
-from brick_gym.torch.models.eespnet_cnn_utils import *
+from ltron.torch.models.eespnet_cnn_utils import *
 import math
 import torch
 

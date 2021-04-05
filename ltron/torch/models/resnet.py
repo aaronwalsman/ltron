@@ -1,6 +1,6 @@
 import torch
 
-import brick_gym.torch.models.spatial as spatial
+import ltron.torch.models.spatial as spatial
 
 class ResnetBackbone(torch.nn.Module):
     def __init__(self, resnet, fcn=False, pool=False):

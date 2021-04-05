@@ -6,7 +6,7 @@ import torch
 from torch_geometric.data import Data as GraphData
 from torch_geometric.nn import GCNConv
 
-from brick_gym.torch.models.edge import EdgeModel
+from ltron.torch.models.edge import EdgeModel
 
 graph_conv = GCNConv(32, 1)
 edge_model = EdgeModel(32, graph_conv).cuda()

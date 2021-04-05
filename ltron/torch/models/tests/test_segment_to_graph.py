@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import torch
-from brick_gym.torch.models.segmentation_to_graph import segmentation_to_graph
+from ltron.torch.models.segmentation_to_graph import segmentation_to_graph
 
 scores = torch.rand(2,6,8)
 

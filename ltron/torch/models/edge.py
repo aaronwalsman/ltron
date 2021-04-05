@@ -2,8 +2,8 @@ import torch
 
 import torch_geometric.utils as tg_utils
 
-from brick_gym.torch.brick_geometric import BrickGraph
-import brick_gym.torch.models.mlp as mlp
+from ltron.torch.brick_geometric import BrickGraph
+import ltron.torch.models.mlp as mlp
 
 class DenseEdgeModel(torch.nn.Module):
     def __init__(self,
@@ -161,9 +161,9 @@ class EdgeModel(torch.nn.Module):
                     2)
     
     def compare_square_batch(self, a):
-        bs, a_num, channels = a.shape
-        bs_a_one_x = a.view(bs, a_num, 1, channels)
-        bs_one_a_x = a.view(bs, 1, a_num, channels)
+        seq, bs, channels = a.shape
+        bs_a_one_x = a.view(seq, 1, bs, channels)
+        bs_one_a_x = a.view(1, seq, bs, channels)
         if self.compare_mode == 'add':
             bs_a_a_x = bs_a_one_x + bs_a_one_x
         elif self.compare_mode == 'subtract':
@@ -175,22 +175,20 @@ class EdgeModel(torch.nn.Module):
         
         if self.split_heads:
             a_match_a_logits = self.matching_head(
-                    bs_a_a_x.view(bs * a_num * a_num, channels))
-            a_match_a_logits = a_match_a_logits.view(
-                    bs, a_num, a_num)
+                    bs_a_a_x.view(seq * seq * bs, channels))
+            a_match_a_logits = a_match_a_logits.view(seq, seq, bs)
             
             a_edge_a_logits = self.edge_head(
-                    bs_a_a_x.view(bs, a_num * a_num, channels))
-            a_edge_a_logits = a_edge_a_logits.view(
-                    bs, a_num, a_num)
+                    bs_a_a_x.view(seq * seq * bs, channels))
+            a_edge_a_logits = a_edge_a_logits.view(seq, seq, bs)
             
             bs_a_a_x = torch.stack(
                     (a_match_a_logits, a_edge_a_logits), dim=-1)
         
         else:
             bs_a_a_x = self.post_compare(
-                    bs_a_a_x.view(bs * a_num * a_num, channels))
-            bs_a_a_x = bs_a_a_x.view(bs, a_num, a_num, 2)
+                    bs_a_a_x.view(seq * seq * bs, channels))
+            bs_a_a_x = bs_a_a_x.view(seq, seq, bs, 2)
             a_match_a_logits = bs_a_a_x[..., 0]
             a_edge_a_logits = bs_a_a_x[..., 1]
         

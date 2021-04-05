@@ -4,15 +4,15 @@ import torchvision.models as torch_models
 
 import segmentation_models_pytorch
 
-import brick_gym.torch.models.resnet as bg_resnet
-import brick_gym.torch.models.edge as edge
-#import brick_gym.torch.models.graph as graph
-import brick_gym.torch.models.unet as unet
-from brick_gym.torch.models.graph_step import SlimGraphStepModel, GraphStepModel
-from brick_gym.torch.models.mlp import LinearStack, Conv2dStack
-from brick_gym.torch.models.espnet import ESPNet
-from brick_gym.torch.models.eespnet_seg import EESPNet_Seg
-from brick_gym.torch.models.simple_fcn import SimpleFCN
+import ltron.torch.models.resnet as bg_resnet
+import ltron.torch.models.edge as edge
+#import ltron.torch.models.graph as graph
+import ltron.torch.models.unet as unet
+from ltron.torch.models.graph_step import SlimGraphStepModel, GraphStepModel
+from ltron.torch.models.mlp import LinearStack, Conv2dStack
+from ltron.torch.models.espnet import ESPNet
+from ltron.torch.models.eespnet_seg import EESPNet_Seg
+from ltron.torch.models.simple_fcn import SimpleFCN
 
 class UnknownModelError(Exception):
     pass
@@ -96,7 +96,7 @@ def named_fcn_backbone(name, output_channels):
     
     elif name == 'eespnet':
         return EESPNet_Seg(classes=output_channels,
-                pretrained='/media/awalsman/data_drive/brick-gym/brick_gym/torch/models/espnetv2_s_1.0.pth')
+                pretrained='/media/awalsman/data_drive/brick-gym/ltron/torch/models/espnetv2_s_1.0.pth')
     elif name == 'simple':
         return SimpleFCN(decoder_channels=output_channels)
     

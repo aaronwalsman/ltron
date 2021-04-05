@@ -2,8 +2,8 @@ import time
 
 import torch
 
-from brick_gym.torch.brick_geometric import BrickList, BrickGraph
-from brick_gym.torch.models.spatial import AddSpatialEmbedding
+from ltron.torch.brick_geometric import BrickList, BrickGraph
+from ltron.torch.models.spatial import AddSpatialEmbedding
 
 class SlimGraphStepModel(torch.nn.Module):
     def __init__(self,

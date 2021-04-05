@@ -16,8 +16,8 @@ import segmentation_models_pytorch
 
 import renderpy.masks as masks
 
-import brick_gym.config as config
-import brick_gym.random_stack.dataset as random_stack_dataset
+import ltron.config as config
+import ltron.random_stack.dataset as random_stack_dataset
 
 from HarDNet import hardnet
 

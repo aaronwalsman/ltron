@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import torch
-import brick_gym.model.offset2d as offset2d
+import ltron.model.offset2d as offset2d
 
 layer = offset2d.Offset2D(4, 0.5)
 

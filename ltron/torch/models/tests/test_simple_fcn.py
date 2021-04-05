@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import torch
-import brick_gym.torch.models.simple_fcn as simple_fcn
+import ltron.torch.models.simple_fcn as simple_fcn
 
 fcn = simple_fcn.SimpleFCN()
 
