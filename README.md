@@ -1,4 +1,4 @@
-# LTRON: Lego Interactive Learning Environment
+# LTRON: Lego Interactive Machine Learning Environment
 
 ## Installation:
 - Install [python 3](http://www.python.org) We recommend using [anaconda](http://www.anaconda.com))
