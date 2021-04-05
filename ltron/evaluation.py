@@ -4,7 +4,7 @@ import PIL.Image as Image
 
 import tqdm
 
-import brick_gym.utils as utils
+import ltron.utils as utils
 
 def tp_fp_fn(prediction, ground_truth, axis = -1):
     count_difference = ground_truth - prediction
