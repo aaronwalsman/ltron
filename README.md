@@ -1,4 +1,4 @@
-# LDraw Gym Environment
+# LTRON: Lego Interactive Learning Environment
 
 ## Installation:
 - Install [python 3](http://www.python.org) We recommend using [anaconda](http://www.anaconda.com))
