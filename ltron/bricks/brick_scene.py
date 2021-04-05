@@ -15,15 +15,15 @@ try:
 except ImportError:
     renderpy_available = False
 
-import brick_gym.config as config
-from brick_gym.dataset.paths import resolve_subdocument
-from brick_gym.ldraw.documents import LDrawDocument
-#from brick_gym.bricks.snap_manager import SnapManager
-from brick_gym.bricks.brick_type import BrickLibrary
-from brick_gym.bricks.brick_instance import BrickInstanceTable
-from brick_gym.bricks.brick_color import BrickColorLibrary
-from brick_gym.bricks.snap import *
-from brick_gym.geometry.grid_bucket import GridBucket
+import ltron.config as config
+from ltron.dataset.paths import resolve_subdocument
+from ltron.ldraw.documents import LDrawDocument
+#from ltron.bricks.snap_manager import SnapManager
+from ltron.bricks.brick_type import BrickLibrary
+from ltron.bricks.brick_instance import BrickInstanceTable
+from ltron.bricks.brick_color import BrickColorLibrary
+from ltron.bricks.snap import *
+from ltron.geometry.grid_bucket import GridBucket
 
 class BrickScene:
     
@@ -443,7 +443,9 @@ class BrickScene:
     def load_default_image_light(self):
         self.renderer.load_image_light(
                 'default',
-                texture_directory = self.default_image_light)
+                diffuse_texture = self.default_image_light + '_dif.png',
+                reflect_texture = self.default_image_light + '_ref.png')
+                #texture_directory = self.default_image_light)
         self.renderer.set_active_image_light('default')
     
     def removable_render(self, *args, **kwargs):

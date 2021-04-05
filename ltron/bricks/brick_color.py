@@ -2,7 +2,7 @@ import collections
 
 import numpy
 
-import brick_gym.ldraw.colors as ldraw_colors
+import ltron.ldraw.colors as ldraw_colors
 
 class BrickColorLibrary(collections.abc.MutableMapping):
     def __init__(self, colors = None):

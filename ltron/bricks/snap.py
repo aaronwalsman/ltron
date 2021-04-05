@@ -6,9 +6,9 @@ try:
 except ImportError:
     renderpy_available = False
 
-from brick_gym.ldraw.commands import *
-from brick_gym.ldraw.exceptions import LDrawException
-from brick_gym.geometry.utils import close_enough
+from ltron.ldraw.commands import *
+from ltron.ldraw.exceptions import LDrawException
+from ltron.geometry.utils import close_enough
 
 class BadGridException(LDrawException):
     pass

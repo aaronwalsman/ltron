@@ -1,8 +1,8 @@
 import collections
 
-from brick_gym.ldraw.commands import *
-from brick_gym.ldraw.documents import *
-from brick_gym.bricks.snap import Snap, SnapStyle, SnapClear
+from ltron.ldraw.commands import *
+from ltron.ldraw.documents import *
+from ltron.bricks.snap import Snap, SnapStyle, SnapClear
 
 class BrickLibrary(collections.abc.MutableMapping):
     def __init__(self, brick_types=None):
