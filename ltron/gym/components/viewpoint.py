@@ -7,7 +7,7 @@ import gym.spaces as spaces
 
 import renderpy.camera as camera
 
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
     def __init__(self,

@@ -1,8 +1,8 @@
 import numpy
 
-import brick_gym.utils as utils
-import brick_gym.gym.spaces as bg_spaces
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
+import ltron.utils as utils
+import ltron.gym.spaces as bg_spaces
+from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class InstanceListComponent(BrickEnvComponent):
     def __init__(self,

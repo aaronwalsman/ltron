@@ -1,5 +1,5 @@
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
-from brick_gym.bricks.brick_scene import BrickScene
+from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.bricks.brick_scene import BrickScene
 from gym.spaces import Dict, Discrete
 
 class SceneComponent(BrickEnvComponent):

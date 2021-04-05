@@ -2,10 +2,10 @@ import random
 
 from gym.spaces import Discrete, Dict
 
-from brick_gym.dataset.paths import (
+from ltron.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata)
-import brick_gym.gym.spaces as bg_spaces
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
+import ltron.gym.spaces as bg_spaces
+from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class DatasetPathComponent(BrickEnvComponent):
     def __init__(self,

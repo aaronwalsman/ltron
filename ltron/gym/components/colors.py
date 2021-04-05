@@ -1,6 +1,6 @@
 import random
 
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class RandomizeColorsComponent(BrickEnvComponent):
     def __init__(self,

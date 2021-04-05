@@ -4,8 +4,8 @@ import numpy
 
 from pyquaternion import Quaternion
 
-from brick_gym.geometry.utils import squared_distance
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
+from ltron.geometry.utils import squared_distance
+from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class RandomFloatingBricks(BrickEnvComponent):
     def __init__(self,

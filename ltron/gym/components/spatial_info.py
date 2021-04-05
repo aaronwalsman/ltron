@@ -2,8 +2,8 @@ import numpy
 
 import gym.spaces as gym_spaces
 
-import brick_gym.gym.spaces as bg_spaces
-from brick_gym.gym.components.brick_env_component import BrickEnvComponent
+import ltron.gym.spaces as bg_spaces
+from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class BrickPosition(BrickEnvComponent):
     def __init__(self,
