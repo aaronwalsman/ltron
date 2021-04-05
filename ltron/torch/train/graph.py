@@ -436,12 +436,15 @@ def train_label_confidence_epoch(
                 
                 do_hide = True
                 if 'viewpoint' in head_features:
+                    '''
                     viewpoint_distribution = Categorical(
                             logits=head_features['viewpoint'][i])
                     viewpoint_action = viewpoint_distribution.sample()
                     action['viewpoint'] = viewpoint_action.cpu().numpy()
                     if viewpoint_action != 0:
                         do_hide = False
+                    '''
+                    action['viewpoint'] = random.randint(0,6)
                     
                 if multi_hide:
                     visibility_sample = numpy.zeros(
@@ -665,19 +668,19 @@ def train_label_confidence_epoch(
                 #=================#
                 # POLICY GRADIENT #
                 #=================#
+                '''
                 if 'viewpoint' in head_features:
                     y_returns = seq_norm_returns[step_indices].cuda()
                     batch_actions = seq_viewpoint_actions[step_indices].cuda()
-                    '''
-                    pg_loss = torch.nn.functional.cross_entropy(
-                            head_features['viewpoint'],
-                            torch.ones(head_features['viewpoint'].shape[:-1],
-                                    dtype=torch.long).cuda()*2)
-                    step_loss = step_loss + pg_loss
-                    log.add_scalar(
-                            'loss/policy_gradient',
-                            pg_loss, step_clock[0])
-                    '''
+                    
+                    #pg_loss = torch.nn.functional.cross_entropy(
+                    #        head_features['viewpoint'],
+                    #        torch.ones(head_features['viewpoint'].shape[:-1],
+                    #                dtype=torch.long).cuda()*2)
+                    #step_loss = step_loss + pg_loss
+                    #log.add_scalar(
+                    #        'loss/policy_gradient',
+                    #        pg_loss, step_clock[0])
                     
                     action_dist = Categorical(
                             logits = head_features['viewpoint'])
@@ -688,7 +691,7 @@ def train_label_confidence_epoch(
                     log.add_scalar(
                             'loss/policy_gradient',
                             pg_loss, step_clock[0])
-                    
+                ''' 
                 
                 # sample a little bit extra for edge training
                 num_extra = None

@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 import tqdm
 
-from brick_gym.dataset.paths import data_paths
+from ltron.dataset.paths import data_paths
 
 def bricks_edges_from_model_path(model_path, max_bricks_per_model, class_ids):
 

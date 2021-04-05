@@ -11,7 +11,7 @@ import PIL.Image as Image
 
 import renderpy.masks as masks
 
-from brick_gym.dataset.paths import data_paths
+from ltron.dataset.paths import data_paths
 
 class SegmentationDataset(Dataset):
     def __init__(self,

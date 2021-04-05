@@ -5,7 +5,7 @@ import numpy
 
 import gym.spaces
 
-from brick_gym.gym.spaces import (
+from ltron.gym.spaces import (
         ImageSpace, SegmentationSpace, StepSpace, SingleInstanceIndexSpace,
         PixelSelectionSpace, InstanceListSpace, EdgeSpace)
         #, EdgeScoreSpace,

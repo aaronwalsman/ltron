@@ -5,10 +5,10 @@ import numpy
 
 import gym.spaces as spaces
 
-from brick_gym.gym.spaces import (
+from ltron.gym.spaces import (
         ImageSpace, SegmentationSpace, StepSpace, InstanceListSpace,
         EdgeSpace, InstanceGraphSpace)
-from brick_gym.torch.brick_geometric import (
+from ltron.torch.brick_geometric import (
         BrickList, BrickGraph, BrickListBatch, BrickGraphBatch)
 
 default_image_transform = transforms.Compose([
@@ -72,7 +72,7 @@ def gym_space_to_tensors(
                 return BrickGraphBatch.from_brick_list_batch(
                         brick_list, edge_index)
         
-        # keep the default spaces last because brick_gym's custom spaces
+        # keep the default spaces last because ltron's custom spaces
         # inherit from them so those cases should be caught first
         elif isinstance(space, spaces.Discrete):
             return torch.LongTensor(data).to(device)

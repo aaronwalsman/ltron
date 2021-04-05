@@ -7,7 +7,7 @@ import PIL.Image as Image
 
 import renderpy.masks as masks
 
-from brick_gym.dataset.paths import (
+from ltron.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata)
 
 class FixedGraphDataset(torch.utils.data.Dataset):
