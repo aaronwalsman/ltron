@@ -15,11 +15,11 @@ from renderpy.interactive_camera import InteractiveCamera
 import renderpy.masks as masks
 import renderpy.assets as drpy_assets
 
-import brick_gym.config as config
-from brick_gym.dataset.paths import resolve_subdocument
-import brick_gym.ldraw.paths as ldraw_paths
-#import brick_gym.ldraw.ldraw_renderpy as ldraw_renderpy
-from brick_gym.bricks.brick_scene import BrickScene
+import ltron.config as config
+from ltron.dataset.paths import resolve_subdocument
+import ltron.ldraw.paths as ldraw_paths
+#import ltron.ldraw.ldraw_renderpy as ldraw_renderpy
+from ltron.bricks.brick_scene import BrickScene
 
 def start_viewer(
         file_path,
@@ -27,6 +27,7 @@ def start_viewer(
         height = 512,
         image_light = 'grey_cube',
         poll_frequency = 1024,
+        white_background = True,
         print_fps = False):
     
     '''
@@ -51,7 +52,22 @@ def start_viewer(
     
     scene = BrickScene(renderable=True, track_snaps=True)
     scene.load_image_light(
-            image_light, texture_directory=image_light, set_active=True)
+            image_light,
+            diffuse_texture=image_light + '_dif',
+            reflect_texture=image_light + '_ref',
+            set_active=True)
+    
+    scene.renderer.scene_description['image_lights'][image_light][
+            'offset_matrix'] = numpy.array([
+            [0.8660254037844387, 0.49999999999999994, 0, 0],
+            [-0.49999999999999994, 0.8660254037844387, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]])
+    
+    if white_background:
+        scene.renderer.scene_description['image_lights'][image_light]['render_background'] = False
+        scene.renderer.set_background_color((1,1,1))
+        scene.renderer.set_ambient_color((0.1, 0.1, 0.1))
     
     window.set_active()
     window.enable_window()
@@ -75,6 +91,7 @@ def start_viewer(
                 change_time = os.stat(resolved_file_path).st_mtime
                 if change_time != state['recent_file_change_time']:
                     camera_pose = scene.get_camera_pose()
+                    scene.instances.clear()
                     scene.import_ldraw(file_path)
                     
                     #renderer.load_scene(scene, clear_scene=True)
@@ -178,6 +195,21 @@ def start_viewer(
             print('----')
             print('Writing Image To: %s'%image_path)
             Image.fromarray(numpy.flip(pixels, axis=0)).save(image_path)
+        
+        elif key == b'd':
+            depth_map = part_mask_frame.read_pixels(
+                    read_depth=True, projection=scene.renderer.get_projection())
+            min_depth = numpy.min(depth_map)
+            max_depth = numpy.max(depth_map)
+            depth_map = 1.0 - (depth_map - min_depth) / (500 - min_depth)
+            depth_map = numpy.clip(depth_map, 0, 1)
+            depth_map = (depth_map * 255).astype(numpy.uint8)
+            print(depth_map.shape)
+            
+            image_path = './brick_viewer_depth_%06i.png'%state['steps']
+            print('----')
+            print('Writing Depth Image To: %s'%image_path)
+            Image.fromarray(depth_map[...,0]).save(image_path)
         
         elif key == b's':
             if state['snap_mode'] == 'none':
