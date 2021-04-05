@@ -9,11 +9,11 @@ from pyquaternion import Quaternion
 import renderpy.buffer_manager_egl as buffer_manager_egl
 from renderpy.frame_buffer import FrameBufferWrapper
 
-from brick_gym.dataset.paths import get_dataset_info
-from brick_gym.bricks.brick_scene import BrickScene
-from brick_gym.bricks.snap import SnapCylinder
-from brick_gym.geometry.collision_sampler import get_all_transformed_snap_pairs
-from brick_gym.geometry.collision import check_collision
+from ltron.dataset.paths import get_dataset_info
+from ltron.bricks.brick_scene import BrickScene
+from ltron.bricks.snap import SnapCylinder
+from ltron.geometry.collision_sampler import get_all_transformed_snap_pairs
+from ltron.geometry.collision import check_collision
 
 class SubAssemblySampler:
     pass

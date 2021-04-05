@@ -1,7 +1,7 @@
 import math
 import itertools
 
-from brick_gym.geometry.utils import close_enough, immutable_vector
+from ltron.geometry.utils import close_enough, immutable_vector
 
 class GridBucket:
     def __init__(self, cell_size):
