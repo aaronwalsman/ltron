@@ -4,20 +4,17 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="brick-gym",
-    version="0.0.1",
+    name="ltron",
+    version="0.0.2",
     install_requires = ['gym', 'tqdm', 'numpy', 'pyquaternion'],
     author="Aaron Walsman",
     author_email="aaronwalsman@gmail.com",
-    description="Machine learning environment for LDraw bricks.",
+    description="Lego interactive machine learning environment.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/aaronwalsman/brick-gym",
+    url="https://github.com/aaronwalsman/ltron",
     packages=setuptools.find_packages(),
     scripts=[
             "bin/brick_viewer",
-            "bin/make_dataset_metadata",
-            "bin/train_semantic_segmentation",
-            "bin/train_graph",
-            "bin/train_graph_b"]
+    ],
 )

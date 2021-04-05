@@ -5,10 +5,10 @@ import bpy
 
 import io_scene_importldraw.loadldraw.loadldraw as loadldraw
 
-import brick_gym.config as config
-import brick_gym.dataset.paths as dataset_paths
-#from brick_gym.ldraw.documents import LDrawDocument
-from brick_gym.bricks.brick_scene import BrickScene
+import ltron.config as config
+import ltron.dataset.paths as dataset_paths
+#from ltron.ldraw.documents import LDrawDocument
+from ltron.bricks.brick_scene import BrickScene
 
 '''
 WARNING: export_all is presently incredibly slow.  An earlier version of this

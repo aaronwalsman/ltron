@@ -7,8 +7,8 @@ import numpy
 
 from renderpy.obj_mesh import load_mesh
 
-import brick_gym.config as config
-from brick_gym.ldraw.documents import LDrawDocument
+import ltron.config as config
+from ltron.ldraw.documents import LDrawDocument
 
 def bbox(vertices):
     vertex_min = numpy.min(vertices, axis=0)
