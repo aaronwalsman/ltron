@@ -1,7 +1,7 @@
 import copy
 import numpy
 
-import brick_gym.ldraw.colors as colors
+import ltron.ldraw.colors as colors
 
 def parts_from_mpd(mpd_data, external_parts):
     

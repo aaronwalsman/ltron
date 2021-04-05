@@ -1,7 +1,7 @@
 import os
-import brick_gym.config as config
+import ltron.config as config
 
-from brick_gym.ldraw.exceptions import *
+from ltron.ldraw.exceptions import *
 
 ldraw_subdirectories = ('models', 'parts', 'p')
 
@@ -29,12 +29,6 @@ def get_reference_name(path):
                 return reference_name
     
     return reference_name
-
-'''
-def get_reference_type(file_path, root_path):
-    relative_path = os.path.relpath(file_path, root_path)
-    return relative_path.split(os.sep)[0]
-'''
 
 def get_reference_paths(root_directory):
     reference_paths = {}

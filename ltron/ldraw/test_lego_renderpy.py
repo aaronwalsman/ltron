@@ -4,7 +4,7 @@ import json
 
 import ldraw_renderpy as lr
 
-import brick_gym.config as config
+import ltron.config as config
 
 carbon_star_path = os.path.join(
         config.paths['omd'], '8661-1 - Carbon Star.mpd')

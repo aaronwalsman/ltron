@@ -1,8 +1,8 @@
 import re
 
 import numpy
-from brick_gym.ldraw.exceptions import *
-import brick_gym.ldraw.paths as ldraw_paths
+from ltron.ldraw.exceptions import *
+import ltron.ldraw.paths as ldraw_paths
 
 class InvalidLDrawCommand(LDrawException):
     pass
@@ -130,6 +130,8 @@ class LDrawComment(LDrawCommand):
             comment_type, comment_arguments = argument_contents
             if comment_type == 'FILE':
                 return LDrawFileComment(comment_arguments)
+            elif 'author' in comment_type.lower():
+                return LDrawAuthorComment(comment_arguments)
             elif comment_type == '!LDCAD':
                 return LDCadCommand.parse_ldcad(comment_arguments)
         return LDrawComment(arguments)
@@ -145,6 +147,11 @@ class LDrawFileComment(LDrawComment):
         self.comment = 'FILE ' + file_name
         self.file_name = file_name
         self.reference_name = ldraw_paths.get_reference_name(file_name)
+
+class LDrawAuthorComment(LDrawComment):
+    def __init__(self, author):
+        self.comment = 'Author: ' + author
+        self.author = author
 
 class LDCadCommand(LDrawComment):
     @staticmethod

@@ -1,7 +1,7 @@
 import re
 
-import brick_gym.config as config
-import brick_gym.ldraw.paths as ldraw_paths
+import ltron.config as config
+import ltron.ldraw.paths as ldraw_paths
 
 SHADOW_FILES = ldraw_paths.get_ldraw_part_paths(config.paths['shadow_ldraw'])
 

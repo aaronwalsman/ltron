@@ -2,9 +2,9 @@ import os
 
 import numpy
 
-import brick_gym.config as config
-import brick_gym.ldraw.paths as ldraw_paths
-import brick_gym.ldraw.ldcad as ldcad
+import ltron.config as config
+import ltron.ldraw.paths as ldraw_paths
+import ltron.ldraw.ldcad as ldcad
 
 ALL_COMMANDS = ('0', '1', '2', '3', '4', '5')
 LDRAW_FILES = ldraw_paths.get_ldraw_part_paths(config.paths['ldraw'])

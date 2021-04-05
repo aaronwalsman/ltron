@@ -2,7 +2,7 @@ import os
 
 import numpy
 
-import brick_gym.config as config
+import ltron.config as config
 
 # faster that PIL.ImageColor.getrgb
 def hex_to_rgb(rgb):

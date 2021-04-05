@@ -6,10 +6,10 @@ import numpy
 import renderpy.camera as camera
 import renderpy.masks as masks
 
-import brick_gym.ldraw.mpd as mpd
-import brick_gym.ldraw.colors as colors
+import ltron.ldraw.mpd as mpd
+import ltron.ldraw.colors as colors
 
-import brick_gym.config as config
+import ltron.config as config
 
 upright = numpy.array([
     [-1, 0, 0, 0],

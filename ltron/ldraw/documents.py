@@ -1,9 +1,9 @@
 import os
 
-import brick_gym.config as config
-import brick_gym.ldraw.paths as ldraw_paths
-from brick_gym.ldraw.commands import *
-from brick_gym.ldraw.exceptions import *
+import ltron.config as config
+import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.commands import *
+from ltron.ldraw.exceptions import *
 
 class LDrawMissingFileComment(LDrawException):
     pass
@@ -12,7 +12,7 @@ class LDrawDocument:
     @staticmethod
     def parse_document(file_path, reference_table = None, shadow = False):
         file_name, ext = os.path.splitext(file_path)
-        if ext == '.mpd' or ext == '.ldr':
+        if ext == '.mpd' or ext == '.ldr' or ext == '.l3b':
             try:
                 return LDrawMPDMainFile(file_path, reference_table, shadow)
             except LDrawMissingFileComment:
