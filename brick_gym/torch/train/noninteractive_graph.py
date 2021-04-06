@@ -57,6 +57,7 @@ def train_label_confidence(
         train_subset = None,
         test_split = 'test',
         test_subset = None,
+        augment_dataset = None,
         image_resolution = (256,256),
         randomize_viewpoint = True,
         randomize_colors = True,
@@ -91,6 +92,7 @@ def train_label_confidence(
         step_model_backbone = 'smp_fpn_r18',
         decoder_channels = 512,
         edge_model_name = 'subtract',
+        brick_vector_mode = 'average',
         
         # checkpoint settings
         checkpoint_frequency = 1,
@@ -167,6 +169,7 @@ def train_label_confidence(
             num_processes,
             graph_supervision_env,
             dataset=dataset,
+            augment_dataset=augment_dataset,
             split=train_split,
             subset=train_subset,
             load_scenes=load_scenes,
@@ -229,6 +232,7 @@ def train_label_confidence(
                 center_separation_distance,
                 #-----------------
                 max_instances_per_scene,
+                brick_vector_mode,
                 dataset_info,
                 log_train)
         
@@ -283,6 +287,7 @@ def train_label_confidence_epoch(
         center_separation_distance,
         #------------------
         max_instances_per_scene,
+        brick_vector_mode,
         dataset_info,
         log_train):
     
@@ -328,7 +333,8 @@ def train_label_confidence_epoch(
             step_brick_lists, _, dense_score_logits, head_features = step_model(
                     step_tensors['color_render'],
                     step_tensors['segmentation_render'],
-                    max_instances = 1000)
+                    max_instances = 1000,
+                    brick_vector_mode = brick_vector_mode)
             # MURU: We should change this part as well to not take in ground
             # truth segmentation, but instead use the segmentation model.
             # Basically, we should set the second argument to None.
@@ -509,7 +515,10 @@ def train_label_confidence_epoch(
              predicted_segmentation,
              dense_score_logits,
              head_features) = step_model(
-                    x_im, x_seg, max_instances=1000)
+                    x_im,
+                    x_seg,
+                    max_instances=1000,
+                    brick_vector_mode = brick_vector_mode)
             # MURU: 'fcos_features' should exist as a key in head_features
             # here.  This is what should get losses applied.
             

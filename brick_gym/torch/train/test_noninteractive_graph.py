@@ -558,7 +558,7 @@ def test_graph(
                     total_all_ap += 1
             '''
             # done yet?
-            all_finished = numpy.all(
+            all_finished = torch.all(
                     step_tensors['scene']['valid_scene_loaded'] == 0)
     
     assert target_graphs.keys() == predicted_graphs.keys()
