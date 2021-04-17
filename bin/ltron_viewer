@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 
-import brick_gym.visualization.brick_viewer as brick_viewer
+import ltron.visualization.ltron_viewer as ltron_viewer
 
 parser = argparse.ArgumentParser()
 
@@ -17,7 +17,7 @@ args = parser.parse_args()
 width, height = args.resolution.lower().split('x')
 width = int(width)
 height = int(height)
-brick_viewer.start_viewer(
+ltron_viewer.start_viewer(
         args.file_path,
         #args.subdocument,
         width,
