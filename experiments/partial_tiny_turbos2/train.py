@@ -32,21 +32,22 @@ if __name__ == '__main__':
             # dataset settings
             dataset = 'tiny_turbos2',
             train_split = 'train',
-            train_subset = None,
-            num_processes = 8,
+            train_subset = 4,
+            num_processes = 4,
             randomize_viewpoint=True,
             random_floating_bricks=False,
             random_floating_pairs=False,
             random_bricks_rotation_mode='local_identity',
             
             # rollout settings
-            train_steps_per_epoch = 1024, 
+            train_steps_per_epoch = 16, #1024,
+            
             # train settings
             learning_rate = 1e-4,
             weight_decay = 1e-6,
-            mini_epoch_sequences = 2048//4,
-            mini_epoch_sequence_length = 4,
-            batch_size = 8,
+            mini_epoch_sequences = 2048, #2048//4,
+            mini_epoch_sequence_length = 1, #4,
+            batch_size = 26, #8,
             #edge_loss_weight = 10.,
             #matching_loss_weight = 0.,
             #--------------
@@ -60,18 +61,19 @@ if __name__ == '__main__':
             
             # model settings
             #step_model_backbone = 'smp_fpn_rnxt50',
-            step_model_name = 'nth_try', #'center_voting',
+            #step_model_name = 'nth_try', #'center_voting',
             step_model_backbone = 'simple',
             edge_model_name = 'squared_difference',
             segment_id_matching = False,
-            decoder_channels = 512,
+            #decoder_channels = 512,
+            brick_vector_mode = 'single',
             
             # test settings
             test_frequency = None,
             test_steps_per_epoch = 8, #512,
             
             # logging settings
-            log_train=0,
+            log_train=8,
             
             # checkpoint settings
             checkpoint_frequency=25)
