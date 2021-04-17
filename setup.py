@@ -15,6 +15,6 @@ setuptools.setup(
     url="https://github.com/aaronwalsman/ltron",
     packages=setuptools.find_packages(),
     scripts=[
-            "bin/brick_viewer",
+            "bin/ltron_viewer",
     ],
 )
