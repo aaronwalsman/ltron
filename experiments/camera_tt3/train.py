@@ -6,8 +6,8 @@ import brick_gym.torch.train.graph as train_graph
 #epoch = 380
 #run = 'Feb24_19-26-26_mechagodzilla' #None #'Feb23_00-57-59_mechagodzilla'
 #epoch = 35
-run = None #'Mar07_23-27-29_mechagodzilla'
-epoch = 0 # 20
+run = None#'Mar15_00-21-42_mechagodzilla'
+epoch = 30 # 20
 
 if run is not None:
     step_checkpoint = './checkpoint/%s/step_model_%04i.pt'%(run, epoch)
