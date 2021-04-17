@@ -32,7 +32,7 @@ if __name__ == '__main__':
             # dataset settings
             dataset = 'tiny_turbos3',
             train_split = 'train',
-            train_subset = None,
+            train_subset = 16,
             num_processes = 8,
             randomize_viewpoint=False,
             random_floating_bricks=False,
@@ -56,7 +56,7 @@ if __name__ == '__main__':
             center_separation_loss_weight = 1.0,
             center_separation_distance = 5,
             #--------------
-            viewpoint_loss_weight = 0.05,
+            viewpoint_loss_weight = 0.15,
             #--------------
             multi_hide = True,
             max_instances_per_step=8,

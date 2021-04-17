@@ -26,14 +26,14 @@ if __name__ == '__main__':
             optimizer_checkpoint = optimizer_checkpoint,
             
             # general settings
-            num_epochs = 500,
+            num_epochs = 1000,
             mini_epochs_per_epoch = 2,
             
             # dataset settings
             dataset = 'tiny_turbos3',
             train_split = 'train',
-            train_subset = 4,
-            num_processes = 4,
+            train_subset = None,
+            num_processes = 8,
             randomize_viewpoint=True,
             random_floating_bricks=False,
             random_floating_pairs=False,
@@ -44,7 +44,7 @@ if __name__ == '__main__':
             # train settings
             learning_rate = 1e-4,
             weight_decay = 1e-6,
-            batch_size = 8,
+            batch_size = 32,
             #edge_loss_weight = 10.,
             #matching_loss_weight = 0.,
             #--------------
@@ -65,4 +65,4 @@ if __name__ == '__main__':
             log_train=8,
             
             # checkpoint settings
-            checkpoint_frequency=5)
+            checkpoint_frequency=25)
