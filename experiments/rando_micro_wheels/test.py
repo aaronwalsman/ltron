@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 #import brick_gym.torch.train.graph_d as graph_d
-import brick_gym.torch.train.test_graph as test_graph
+import brick_gym.torch.train.test_graph_b as test_graph_b
 
 #run = 'Jan24_01-28-20_mechagodzilla'
 #epoch = 200
 #run = 'Feb10_11-50-54_gpu3'
 #run = 'Feb23_00-57-59_mechagodzilla' #'Feb17_22-57-19_gpu3'
 run = 'Mar02_00-27-59_mechagodzilla'
-epoch = 290
+epoch = 500
 
 if __name__ == '__main__':
-    test_graph.test_checkpoint(
+    test_graph_b.test_checkpoint(
             # load checkpoints
             step_checkpoint = './checkpoint/%s/step_model_%04i.pt'%(run, epoch),
             edge_checkpoint = './checkpoint/%s/edge_model_%04i.pt'%(run, epoch),
