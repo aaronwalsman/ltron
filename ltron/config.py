@@ -2,7 +2,7 @@ import os
 import configparser
 
 root_path = os.path.join(os.path.dirname(__file__), '..')
-setup_cfg_path = os.path.join(root_path, 'setup.cfg')
+setup_cfg_path = os.path.join(root_path, 'settings.cfg')
 
 parser = configparser.ConfigParser()
 parser.read(setup_cfg_path)
