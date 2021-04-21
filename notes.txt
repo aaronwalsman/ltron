@@ -1,0 +1,21 @@
+How do action and observation spaces work?
+
+One option:
+Three classes: action component, observation component, task component
+
+An action component has an action space, an observation component has an observation space, and a task component produces a reward.  Maybe add a fourth class for a terminal component?  Then you can basically mix and match these things however you want to make different tasks in the Lego environment?  Kind of nice.
+
+Ok, so each class has:
+A "space" which defines the interface.  Some internal information.  The most important part though is that it defines a function that interacts with the scene somehow.
+
+So here's the tricky bit though.  All these things need to interact.  So there should be some internal state that they all interact with?  Or they all have their own state and pass it around somehow?  I think having one shared state seems nice.  Then each thing can have a function that takes in the state and either modifies it (an action component) or computes an observation (an observation component) or computes a reward (a reward component) or computes whether or not the episode should terminate (a terminal component).
+
+Ok, that's kind of nice.  So what's next then?  Do we also have a reset component to initialize the state space?  Makes sense.  But then again... maybe that should be handled by something else?  Oh maybe we have a state component that defines what kinds of data we keep track of, and it has reset and step functionality?  Can I have one large meta-class that handles everything from taking actions/observations on a discrete graph to color/segmentation observations from the renderer?
+
+One other thing I would like is to set up the observations so that we have a different mode for train time and test time.  I think this is how I want to handle extra supervision information.  Like I think I want all of this to be dictionary lookups, so maybe we have a "supervision" entry that only shows up during training.  Or maybe we do even better and just call it "train"... we'll see.  This can probably just be done by making a separate train env and test env.
+
+Ok, so how do these things interact?  We need a shared state space.  Each one has part of that state space that it's responsible for either updating or observing or resetting or whatever.
+
+Wait, we don't need separate types for each component, these can all be the same thing, so that we don't have to differentiate between them.  Some can have observation hooks, others reward hooks, others both.  Sounds good to me.
+
+Ok, so currently this is coming together pretty well.  One question seems to be how much to put into the state space of the environment, vs. leave as data members of the invidual components.  For now I think I'm going to err on the side of including as little in the state as possible in order to avoid cluttering it.  Basically only add the stuff that's going to change over the course of training.  Anything else can be gathered and applied at the beginning before anything else happens.  Ok, yeah I like that too.
