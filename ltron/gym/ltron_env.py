@@ -8,7 +8,7 @@ from gym import spaces
 
 from ltron.bricks.brick_scene import BrickScene
 
-class BrickEnv(gym.Env):
+class LtronEnv(gym.Env):
     def __init__(self, components, print_traceback=False):
         self.print_traceback = print_traceback
         try:
@@ -123,7 +123,7 @@ class BrickEnv(gym.Env):
                 print(''.join(traceback.format_tb(exc_traceback)))
             raise
 
-def async_brick_env(
+def async_ltron(
         num_processes, env_constructor, *args, **kwargs):
     def constructor_wrapper(i):
         def constructor():
