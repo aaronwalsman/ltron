@@ -126,9 +126,10 @@ class PixelVisibilityComponent(VisibilityComponent):
                 self.width, self.height)
     
     def step(self, action):
-        x, y = action[self.pixel_key]
-        instance_map = self.mask_render_component.segmentation
-        instance_index = instance_map[y,x]
-        self.hide_instance(instance_index)
+        y, x = numpy.nonzero(action)
+        instance_map = self.segmentation_component.observation
+        instance_indices = instance_map[y,x]
+        for instance_index in instance_indices:
+            self.hide_instance(instance_index)
         
         return None, 0., self.check_terminal(), None
