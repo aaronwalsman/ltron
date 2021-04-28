@@ -84,9 +84,9 @@ class RenderEnvironment:
                 base_reflect = 0.0)
     
     def load_color_material(self, color):
-        if not self.renderer.material_exists(color.material_name):
+        if not self.renderer.material_exists(color.color_name):
             self.renderer.load_material(
-                color.material_name,
+                color.color_name,
                 **color.renderpy_material_args(),
             )
     
@@ -158,7 +158,7 @@ class RenderEnvironment:
         )
         self.renderer.set_instance_material(
             str(brick_instance.instance_id),
-            brick_instance.color.material_name,
+            brick_instance.color.color_name,
         )
         self.renderer.set_instance_mesh(
             str(brick_instance.instance_id),
