@@ -13,11 +13,25 @@ def resolve_path(path):
     else:
         return os.path.abspath(os.path.join(root_path, path))
 
-paths = {key : resolve_path(value)
-        for key, value in dict(parser['paths']).items()}
-paths['data'] = resolve_path(parser['DEFAULT']['data'])
+paths = {
+    key : resolve_path(value)
+    for key, value in dict(parser['paths']).items()
+}
 
-datasets = {key : resolve_path(value)
-        for key, value in dict(parser['datasets']).items()}
+datasets = {
+    key : resolve_path(value)
+    for key, value in dict(parser['datasets']).items()
+    if key not in parser['DEFAULT']
+}
 
-urls = dict(parser['urls'])
+collections = {
+    key : resolve_path(value)
+    for key, value in dict(parser['collections']).items()
+    if key not in parser['DEFAULT']
+}
+
+urls = {
+    key : url
+    for key, url in dict(parser['urls']).items()
+    if key not in parser['DEFAULT']
+}
