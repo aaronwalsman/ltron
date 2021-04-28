@@ -1,8 +1,15 @@
 import os
 
 import ltron.ldraw.paths as ldraw_paths
-from ltron.ldraw.commands import *
-from ltron.ldraw.exceptions import *
+from ltron.ldraw.commands import (
+    LDrawCommand,
+    LDrawFileComment,
+    LDCadSnapInclCommand,
+    LDrawImportCommand,
+    LDrawTriangleCommand,
+    LDrawQuadCommand,
+)
+from ltron.ldraw.exceptions import LDrawException
 
 class LDrawMissingFileComment(LDrawException):
     pass
@@ -44,7 +51,6 @@ class LDrawDocument:
         for command in self.commands:
             # ldraw import commands
             if isinstance(command, (LDrawImportCommand, LDCadSnapInclCommand)):
-            #if isinstance(command, LDrawImportCommand):
                 reference_name = command.reference_name
                 if reference_name not in self.reference_table['ldraw']:
                     try:
@@ -53,33 +59,6 @@ class LDrawDocument:
                     except:
                         print('Error when importing: %s'%reference_name)
                         raise
-            '''
-            # ldcad SNAP_INCL commands
-            if isinstance(command, LDCadSnapInclCommand):
-                reference_name = command.reference_name
-                if reference_name not in self.reference_table['shadow']:
-                    try:
-                        LDrawDocument.parse_document(
-                                reference_name,
-                                self.reference_table,
-                                shadow=True)
-                    except:
-                        print('Error when importing: %s'%reference_name)
-                        raise
-            '''
-            '''
-            # ldcad SNAP_INCL commands
-            if isinstance(command, LDCadSnapInclCommand):
-                reference_name = command.reference_name
-                if reference_name not in self.reference_table['shadow']:
-                    try:
-                        LDrawDocument.parse_document(
-                                reference_name,
-                                self.reference_table)
-                    except:
-                        print('Error when importing: %s'%reference_name)
-                        raise
-            '''
         
         # shadow
         if not self.shadow:
@@ -94,36 +73,6 @@ class LDrawDocument:
                         print('Error when importing shadow: %s'%
                                 self.reference_name)
                         raise
-    '''
-    def brick_instances(self,
-            reference_transform=None,
-            reference_color=None):
-        if reference_transform is None:
-            reference_transform = numpy.eye(4)
-        parts = []
-        for command in self.commands:
-            if isinstance(command, LDrawImportCommand):
-                reference_name = command.reference_name
-                reference_document = (
-                        self.reference_table['ldraw'][reference_name])
-                reference_transform = numpy.dot(
-                        reference_transform, command.transform)
-                reference_color = command.color
-                if isinstance(reference_document, LDrawDAT):
-                    if reference_name in ldraw_paths.LDRAW_PARTS:
-                        parts.append(BrickInstance(
-                                reference_document,
-                                reference_transform,
-                                reference_color))
-                elif isinstance(reference_document, (
-                        LDrawMPDMainFile,
-                        LDrawMPDInternalFile,
-                        LDrawLDR)):
-                    parts.extend(reference_document.get_bricks(
-                            reference_transform, reference_color))
-                
-        return parts
-    '''
     
     def get_all_vertices(self):
         vertices = []
