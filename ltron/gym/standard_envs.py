@@ -1,8 +1,8 @@
 import math
 import collections
 
-import ltron.config as config
-from ltron.gym.brick_env import BrickEnv
+import ltron.settings as settings
+from ltron.gym.ltron_env import LtronEnv
 from ltron.gym.components.scene import SceneComponent
 from ltron.gym.components.episode import MaxEpisodeLengthComponent
 from ltron.gym.components.dataset import DatasetPathComponent
@@ -108,7 +108,7 @@ def segmentation_supervision_env(
             components['scene'])
     
     # build the env
-    env = BrickEnv(components, print_traceback = print_traceback)
+    env = LtronEnv(components, print_traceback = print_traceback)
     
     print(env.action_space)
     print(env.observation_space)
@@ -266,7 +266,7 @@ def graph_supervision_env(
     
     # random floating pairs
     if random_floating_pairs:
-        augmentations = config.datasets[dataset].replace(
+        augmentations = settings.datasets[dataset].replace(
                 '.json', '_edge_augmentations.json')
         components['random_floating_pairs'] = RandomFloatingPairs(
                 components['scene'],
@@ -316,7 +316,7 @@ def graph_supervision_env(
             components['dataset'])
     
     # build the env
-    env = BrickEnv(components, print_traceback = print_traceback)
+    env = LtronEnv(components, print_traceback = print_traceback)
     
     return env
 
