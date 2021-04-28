@@ -101,16 +101,15 @@ class ColorRenderComponent(BrickEnvComponent):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
         scene.color_render()
-        image = self.frame_buffer.read_pixels()
-        return image
+        self.observation = self.frame_buffer.read_pixels()
     
     def reset(self):
-        self.image = self.compute_observation()
-        return self.image
+        self.compute_observation()
+        return self.observation
     
     def step(self, action):
-        self.image = self.compute_observation()
-        return self.image, 0., False, None
+        self.compute_observation()
+        return self.observation, 0., False, None
     
     def set_state(self, state):
         self.compute_observation()
@@ -138,19 +137,18 @@ class SegmentationRenderComponent(BrickEnvComponent):
         self.frame_buffer.enable()
         scene.mask_render()
         mask = self.frame_buffer.read_pixels()
-        segmentation = masks.color_byte_to_index(mask)
-        return segmentation
+        self.observation = masks.color_byte_to_index(mask)
     
     def reset(self):
-        self.segmentation = self.compute_observation()
-        return self.segmentation
+        self.compute_observation()
+        return self.observation
     
     def step(self, action):
-        self.segmentation = self.compute_observation()
+        self.compute_observation()
         terminal = False
         if self.terminate_on_empty:
-            terminal = numpy.all(self.segmentation == 0)
-        return self.segmentation, 0., terminal, None
+            terminal = numpy.all(self.observation == 0)
+        return self.observation, 0., terminal, None
     
     def set_state(self, state):
         self.compute_observation()
