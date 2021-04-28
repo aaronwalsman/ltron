@@ -5,7 +5,7 @@ import os
 
 import tqdm
 
-import ltron.config as config
+import ltron.settings as settings
 from ltron.dataset.paths import get_dataset_info
 from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.scene_sampler import (
@@ -99,7 +99,7 @@ samplers = [
 ]
 
 ldraw_path = os.path.join(
-        config.paths['data'], 'rando_micro_wheels', 'ldraw_new')
+        settings.paths['data'], 'rando_micro_wheels', 'ldraw_new')
 if not os.path.isdir(ldraw_path):
     os.makedirs(ldraw_path)
 

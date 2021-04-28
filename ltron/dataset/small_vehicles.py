@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import ltron.config as config
+import ltron.settings as settings
 from ltron.dataset.build_dataset import build_dataset
 
 investigate = ''' 
@@ -380,4 +380,4 @@ dataset_paths = [
 
 print(len(dataset_paths))
 
-#build_dataset('small_vehicles', config.paths['omr'], dataset_paths, 24)
+#build_dataset('small_vehicles', settings.paths['omr'], dataset_paths, 24)

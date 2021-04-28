@@ -12,7 +12,7 @@ import tqdm
 
 import renderpy.masks as masks
 
-import ltron.config as config
+import ltron.settings as settings
 
 shapes = [
     (1,1),
@@ -90,7 +90,7 @@ def make_connection2d_dataset(
     step_y = image_height // height
     step_x = image_width // width
     
-    dataset_path = config.datasets['connection2d']
+    dataset_path = settings.datasets['connection2d']
     train_path = os.path.join(dataset_path, 'train')
     test_path = os.path.join(dataset_path, 'test')
     for path in dataset_path, train_path, test_path:

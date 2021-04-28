@@ -48,7 +48,7 @@ import tqdm
 
 import numpy
 
-import ltron.config as config
+import ltron.settings as settings
 from ltron.dataset.paths import get_dataset_info
 from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.scene_sampler import (
@@ -79,7 +79,7 @@ if __name__ == '__main__':
             for class_name in info['class_ids']]
     
     ldraw_path = os.path.join(
-            config.paths['data'], 'rando_tt3', 'ldraw')
+            settings.paths['data'], 'rando_tt3', 'ldraw')
     if not os.path.isdir(ldraw_path):
         os.makedirs(ldraw_path)
     

@@ -3,13 +3,13 @@ import json
 
 import tqdm
 
-import ltron.config as config
+import ltron.settings as settings
 from ltron.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata_path)
 import ltron.ldraw.documents as documents
 
 def make_dataset_metadata(dataset, split):
-    directory = config.datasets[dataset]
+    directory = settings.datasets[dataset]
     dataset_info = get_dataset_info(dataset)
     class_ids = dataset_info['class_ids']
     file_paths = get_dataset_paths(dataset, split)

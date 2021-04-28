@@ -8,7 +8,7 @@ import tqdm
 
 from PIL import Image
 
-import ltron.config as config
+import ltron.settings as settings
 from ltron.dataset.paths import get_dataset_paths, get_dataset_info
 from ltron.bricks.brick_scene import BrickScene
 
@@ -21,7 +21,7 @@ info = get_dataset_info(dataset)
 
 max_class_id = max(info['class_ids'].values())
 
-omr_path = config.paths['omr']
+omr_path = settings.paths['omr']
 with open(os.path.join(omr_path, 'scene_data.json')) as f:
     scene_data = json.load(f)
 

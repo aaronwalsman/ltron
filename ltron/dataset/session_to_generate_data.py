@@ -4,10 +4,10 @@ import os
 import tqdm
 
 from ltron.bricks.brick_scene import BrickScene
-import ltron.config as config
+import ltron.settings as settings
 
 #files = list(Path('./data/OMR/ldraw/').resolve().glob('*.mpd'))
-omr_ldraw_path = os.path.join(config.paths['omr'], 'ldraw')
+omr_ldraw_path = os.path.join(settings.paths['omr'], 'ldraw')
 files = list(os.listdir(omr_ldraw_path))
 cleaned_files = []
 for f in tqdm.tqdm(files):

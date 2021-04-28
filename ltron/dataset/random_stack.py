@@ -6,7 +6,7 @@ import tqdm
 
 import numpy
 
-import ltron.config as config
+import ltron.settings as settings
 
 # brick shape (w, d)
 # brick location (x, z, y, o)
@@ -333,4 +333,4 @@ def sample_dataset(
 
 if __name__ == '__main__':
     random.seed(1234)
-    sample_dataset(config.paths['random_stack'])
+    sample_dataset(settings.paths['random_stack'])

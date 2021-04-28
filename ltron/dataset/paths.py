@@ -3,7 +3,7 @@ import os
 import glob
 import json
 
-import ltron.config as config
+import ltron.settings as settings
 
 def resolve_subdocument(file_path):
     if ':' in file_path:
@@ -28,13 +28,13 @@ def get_metadata(file_path):
     return metadata
 
 def get_dataset_info(dataset):
-    #dataset_directory = os.path.expanduser(config.datasets[dataset])
+    #dataset_directory = os.path.expanduser(settings.datasets[dataset])
     #dataset_path = os.path.join(dataset_directory, 'dataset.json')
-    dataset_path = os.path.expanduser(config.datasets[dataset])
+    dataset_path = os.path.expanduser(settings.datasets[dataset])
     return json.load(open(dataset_path))
 
 def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
-    dataset_path = os.path.expanduser(config.datasets[dataset])
+    dataset_path = os.path.expanduser(settings.datasets[dataset])
     dataset_directory = os.path.dirname(dataset_path)
     splits = get_dataset_info(dataset)['splits']
     split_globs = splits[split_name]
@@ -45,6 +45,7 @@ def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
         else:
             sub_model = None
         
+        split_glob = split_glob.format(**settings.collections)
         file_paths = glob.glob(os.path.join(
                 dataset_directory, split_glob))
         if sub_model is not None:
@@ -56,7 +57,5 @@ def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
             subset = (subset,)
         all_file_paths = all_file_paths[slice(*subset)]
     
-    #stride = math.ceil(len(all_file_paths) / size)
-    #paths = all_file_paths[rank*stride:(rank+1)*stride]
     paths = all_file_paths[rank::size]
     return paths

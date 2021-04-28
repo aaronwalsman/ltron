@@ -5,7 +5,7 @@ import json
 
 import tqdm
 
-import ltron.config as config
+import ltron.settings as settings
 
 # this is a list of tiny turbos sets according to bricklink
 # check and see which ones exist in the OMR
@@ -95,7 +95,7 @@ set_numbers = [
 '30036']
 
 existing_sets = set()
-tiny_turbos_path = config.datasets['tiny_turbos']
+tiny_turbos_path = settings.datasets['tiny_turbos']
 omr_ldraw = os.path.join(os.path.dirname(tiny_turbos_path), 'ldraw')
 all_sets = sorted(os.listdir(omr_ldraw))
 for set_number in set_numbers:

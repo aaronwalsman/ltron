@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import ltron.config as config
+import ltron.settings as settings
 from ltron.dataset.build_dataset import build_dataset
 
 dataset_paths = [
@@ -24,7 +24,7 @@ import random
 part_types = {}
 for path in dataset_paths:
     scene = BrickScene()
-    scene.import_ldraw(os.path.join(config.paths['omr'], 'ldraw', path))
+    scene.import_ldraw(os.path.join(settings.paths['omr'], 'ldraw', path))
     part_types[path] = set()
     for instance_id, instance in scene.instances.items():
         brick_type = str(instance.brick_type)
@@ -49,4 +49,4 @@ while True:
         break
 
 test_set = [os.path.join('ldraw', path) for path in test_set]
-build_dataset('micro_wheels', config.paths['omr'], dataset_paths, test_set)
+build_dataset('micro_wheels', settings.paths['omr'], dataset_paths, test_set)
