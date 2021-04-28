@@ -11,8 +11,9 @@ from ltron.ldraw.documents import *
 from ltron.bricks.snap import Snap, SnapStyle, SnapClear
 
 class BrickInstanceTable(collections.abc.MutableMapping):
-    def __init__(self, library, instances = None):
-        self.library = library
+    def __init__(self, brick_library, color_library, instances = None):
+        self.brick_library = brick_library
+        self.color_library = color_library
         if instances is None:
             instances = {}
         self.instances = instances
@@ -21,8 +22,8 @@ class BrickInstanceTable(collections.abc.MutableMapping):
     def add_instance(self, brick_name, brick_color, brick_transform):
         new_instance = BrickInstance(
                 self.next_instance_id,
-                self.library[brick_name],
-                brick_color,
+                self.brick_library[brick_name],
+                self.color_library[brick_color],
                 brick_transform)
         self[self.next_instance_id] = new_instance
         self.next_instance_id += 1
@@ -44,15 +45,6 @@ class BrickInstanceTable(collections.abc.MutableMapping):
                     reference_color = command.color
                     if isinstance(reference_document, LDrawDAT):
                         if reference_name in ldraw_paths.LDRAW_PARTS:
-                            '''
-                            new_instance = BrickInstance(
-                                    self.next_instance_id,
-                                    self.library[reference_name],
-                                    reference_color,
-                                    reference_transform)
-                            self[self.next_instance_id] = new_instance
-                            self.next_instance_id += 1
-                            '''
                             new_instance = self.add_instance(
                                     reference_name,
                                     reference_color,
@@ -123,7 +115,7 @@ class BrickInstance:
     def renderpy_instance_args(self):
         instance_args = {
             'mesh_name' : self.brick_type.mesh_name,
-            'material_name' : str(self.color),
+            'material_name' : self.color.material_name,
             'transform' : self.transform,
         }
         if renderpy_available:

@@ -10,6 +10,16 @@ from ltron.ldraw.commands import *
 from ltron.ldraw.exceptions import LDrawException
 from ltron.geometry.utils import close_enough
 
+gender_to_polarity = {
+    'M':'+',
+    'm':'+',
+    'F':'-',
+    'f':'-',
+}
+
+def str_to_bool(s):
+    return s.lower() == 'true'
+
 class BadGridException(LDrawException):
     pass
 
@@ -145,14 +155,20 @@ class SnapStyle(Snap):
     
     def __init__(self, command, transform):
         super(SnapStyle, self).__init__(command)
-        self.gender = command.gender
         self.center = command.flags.get('center', 'false').lower() == 'true'
         self.mirror = command.flags.get('mirror', 'none')
         self.scale = command.flags.get('scale', 'none')
+        self.group = command.flags.get('group', None)
         
         # do checks here on center/mirror/scale to change the transform
         
         self.transform = transform
+    
+    def groups_match(self, other):
+        if self.group is None and other.group is None:
+            return True
+        else:
+            return self.group == other.group
     
     def transformed_copy(self, transform):
         copied_snap = copy.copy(self)
@@ -163,34 +179,44 @@ class SnapCylinder(SnapStyle):
     
     def __init__(self, command, transform):
         super(SnapCylinder, self).__init__(command, transform)
+        self.polarity = gender_to_polarity[command.flags['gender']]
         self.secs = command.flags['secs']
         self.caps = command.flags.get('caps', 'one')
-        self.slide = command.flags.get('slide', 'false')
-        self.subtype_id = 'cyl|%s|%s|%s'%(self.secs, self.caps, self.gender)
+        self.slide = str_to_bool(command.flags.get('slide', 'false'))
+        #self.subtype_id = 'cyl|%s|%s|%s'%(self.secs, self.caps, self.polarity)
+        self.subtype_id = 'cylinder(%s)'%self.secs
     
-    def connected(self, other, tolerance=0.5):
+    def connected(
+        self,
+        other,
+        alignment_tolerance=0.95,
+        distance_tolerance=0.5,
+    ):
+        if not self.groups_match(other):
+            return False
+        
         if not isinstance(other, (SnapCylinder, SnapClip)):
             return False
         
-        if self.gender == other.gender:
+        if self.polarity == other.polarity:
             return False
         
+        alignment = numpy.dot(self.transform[:3,1], other.transform[:3,1])
+        if abs(alignment) < alignment_tolerance:
+            return False
+        
+        # TODO: replace this with more appropriate cylinder matching ASAP
         self_center = self.transform[:3,3]
         other_center = self.transform[:3,3]
-        if close_enough(self.center, other.center, tolerance):
-            return True
+        if not close_enough(self_center, other_center, distance_tolerance):
+            return False
+        
+        return True
     
     def get_sec_parts(self):
         sec_parts = self.secs.split()
         sec_parts = zip(sec_parts[::3], sec_parts[1::3], sec_parts[2::3])
         return list(sec_parts)
-    
-    def contains_stud_radius(self):
-        sec_parts = self.get_sec_parts()
-        for c, r, l in sec_parts:
-            if (c.upper() == 'R' or c.upper() == 'S') and float(r) == 6:
-                return True
-        return False
     
     def get_snap_mesh(self):
         assert renderpy_available
@@ -202,95 +228,226 @@ class SnapCylinder(SnapStyle):
                     float(sec_part[-1]) for sec_part in sec_parts)/2.
         for cross_section, radius, length in sec_parts:
             radius = float(radius)
-            if self.gender == 'F':
-                radius *= 1.01
             length = -float(length)
             sections.append((radius, length + previous_length))
             previous_length += length
-        return primitives.multi_cylinder(sections = sections)
+        
+        return primitives.multi_cylinder(
+                sections=sections,
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
 
 class SnapClip(SnapStyle):
-    pass
+    def __init__(self, command, transform):
+        super(SnapClip, self).__init__(command, transform)
+        self.polarity = '-'
+        self.radius = float(command.flags.get('radius', 4.0))
+        self.length = float(command.flags.get('length', 8.0))
+        self.slide = str_to_bool(command.flags.get('slide', 'false'))
+        self.subtype_id = 'clip(%s,%s)'%(self.radius, self.length)
+    
+    def connected(
+        self,
+        other,
+        alignment_tolerance=0.95,
+        distance_tolerance=0.5,
+    ):
+        if not self.groups_match(other):
+            return False
+        
+        if not isinstance(other, (SnapCylinder)):
+            return False
+        
+        if self.polarity == other.polarity:
+            return False
+        
+        alignment = numpy.dot(self.transform[:3,1], other.transform[:3,1])
+        if abs(alignment) < alignment_tolerance:
+            return False
+        
+        # TODO: replace with proper cylinder matching
+        self_center = self.transform[:3,3]
+        other_center = self.transform[:3,3]
+        if not close_enough(self_center, other_center, distance_tolerance):
+            return False
+        
+        return True
+    
+    def get_snap_mesh(self):
+        assert renderpy_available
+        
+        start_height = 0
+        end_height = -self.length
+        if self.center:
+            start_height = self.length/2.
+            end_height = -self.length/2.
+        
+        return primitives.multi_cylinder(
+                start_height=start_height,
+                sections=[[self.radius, end_height]],
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
 
 class SnapFinger(SnapStyle):
-    pass
+    def __init__(self, command, transform):
+        super(SnapFinger, self).__init__(command, transform)
+        self.polarity = gender_to_polarity[command.flags.get('genderofs', 'm')]
+        self.seq = [float(s) for s in command.flags['seq'].split()]
+        self.radius = float(command.flags.get('radius', 4.0))
+        # center defaulting to true is not documented, but seems to be correct
+        self.center = str_to_bool(command.flags.get('center', 'true'))
+        self.subtype_id = 'finger(%s,%i)'%(self.radius, sum(self.seq))
+    
+    def connected(
+        self,
+        other,
+        alignment_tolerance=0.95,
+        distance_tolerance=0.5
+    ):
+        if not self.groups_match(other):
+            return False
+        
+        if not isinstance(other, SnapFinger):
+            return False
+        
+        #if self.polarity == other.polarity:
+        #    return False
+        
+        if self.radius != other.radius:
+            return False
+        
+        alignment = numpy.dot(self.transform[:3,1], other.transform[:3,1])
+        if abs(alignment) < alignment_tolerance:
+            return False
+        
+        self_center = self.transform[:3,3]
+        other_center = self.transform[:3,3]
+        if not close_enough(self_center, other_center, distance_tolerance):
+            return False
+        
+        return True
+    
+    def get_snap_mesh(self):
+        assert renderpy_available
+        
+        length = sum(self.seq)
+        start_height = 0
+        end_height = -length
+        if self.center:
+            start_height = length/2.
+            end_height = -length/2.
+        
+        return primitives.multi_cylinder(
+            start_height = start_height,
+            sections=[(self.radius, end_height)],
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
 
 class SnapGeneric(SnapStyle):
-    pass
+    def __init__(self, command, transform):
+        super(SnapGeneric, self).__init__(command, transform)
+        self.polarity = gender_to_polarity[command.flags.get('genderofs', 'm')]
+        bounding = command.flags['bounding'].split()
+        self.bounding = (bounding[0],) + tuple(float(b) for b in bounding[1:])
+        self.subtype_id = 'generic(%s)'%command.flags['bounding']
+    
+    def connected(
+        self,
+        other,
+        alignment_tolerance=0.95,
+        distance_tolerance=0.5
+    ):
+        if not self.groups_match(other):
+            return False
+        
+        if not isinstance(other, SnapFinger):
+            return False
+        
+        if self.polarity == other.polarity:
+            return False
+        
+        self_center = self.transform[:3,3]
+        other_center = self.transform[:3,3]
+        if not close_enough(self_center, other_center, distance_tolerance):
+            return False
+        
+        return True
+    
+    def get_snap_mesh(self):
+        assert renderpy_available
+        
+        bounding_type, *bounding_args = self.bounding
+        if bounding_type == 'pnt':
+            return primitives.sphere(radius=1)
+        
+        elif bounding_type == 'box':
+            x, y, z = bounding_args
+            return primitives.cube(
+                x_extents = [-x, x],
+                y_extents = [-y, y],
+                z_extents = [-z, z])
+        
+        elif bounding_type == 'cube':
+            xyz, = bounding_args
+            return primitives.cube(
+                x_extents=[-xyz, xyz],
+                y_extents=[-xyz, xyz],
+                z_extents=[-xyz, xyz])
+        
+        elif bounding_type == 'cyl':
+            radius, length = bounding_args
+            return primitives.cylinder(
+                start_height=length/2,
+                end_height=-length/2,
+                radius=radius,
+                start_cap=True,
+                end_cap=True)
+        
+        elif bounding_type == 'sph':
+            radius, = bounding_args
+            return primitives.sphere(radius=radius)
+        
+        else:
+            raise NotImplementedError
 
 class SnapSphere(SnapStyle):
     def __init__(self, command, transform):
         super(SnapSphere, self).__init__(command, transform)
+        self.polarity = gender_to_polarity[command.flags['gender']]
         self.radius = command.flags['radius']
+        self.subtype_id = 'sphere(%s)'%self.radius
         assert self.scale in ('none', 'ROnly')
-
-'''
-def snap_points_from_command(command, reference_transform):
-    # TODO:
-    # center flag
-    # scale flag
-    # mirror flag
-    # gender
-    # secs flag (maybe don't care?)
-    # caps flag (probably don't care)
-    # slide flag (probably don't care)
-    base_transform = numpy.dot(reference_transform, command.transform)
-    if 'grid' in command.flags:
-        snap_transforms = griderate(command.flags['grid'], base_transform)
-    else:
-        snap_transforms = [base_transform]
     
-    snap_points = [SnapPoint(
-                        command.id,
-                        transform)
-                for transform in snap_transforms]
-    return snap_points
-
-def snap_points_from_part_document(document):
-    def snap_points_from_nested_document(document, transform):
-        snap_points = []
-        for command in document.commands:
-            if isinstance(command, LDrawImportCommand):
-                reference_name = command.clean_reference_name
-                reference_document = (
-                        document.reference_table['ldraw'][reference_name])
-                reference_transform = numpy.dot(transform, command.transform)
-                snap_points.extend(snap_points_from_nested_document(
-                        reference_document, reference_transform))
-            elif isinstance(command, LDCadSnapInclCommand):
-                reference_name = command.clean_reference_name
-                reference_document = (
-                        document.reference_table['shadow'][reference_name])
-                reference_transform = numpy.dot(transform, command.transform)
-                snap_points.extend(snap_points_from_nested_document(
-                        reference_document, reference_transform))
-            elif isinstance(command, LDCadSnapStyleCommand):
-                snap_points.extend(snap_points_from_command(command, transform))
-            elif isinstance(command, LDCadSnapClearCommand):
-                snap_points.append(SnapClear(command.id))
+    def connected(
+        self,
+        other,
+        alignment_tolerance=0.95,
+        distance_tolerance=0.5,
+    ):
+        if not self.groups_match(other):
+            return False
         
-        if not document.shadow:
-            if document.clean_name in document.reference_table['shadow']:
-                shadow_document = (
-                        document.reference_table['shadow'][document.clean_name])
-                snap_points.extend(snap_points_from_nested_document(
-                        shadow_document, transform))
+        if not isinstance(other, SnapSphere):
+            return False
         
-        return snap_points
+        if self.polarity == other.polarity:
+            return False
+        
+        if self.radius != other.radius:
+            return False
+        
+        self_center = self.transform[:3,3]
+        other_center = self.transform[:3,3]
+        if not close_enough(self_center, other_center, distance_tolerance):
+            return False
+        
+        return True
     
-    snap_points = snap_points_from_nested_document(document, numpy.eye(4))
-    
-    resolved_snap_points = []
-    for snap_point in snap_points:
-        if isinstance(snap_point, SnapPoint):
-            resolved_snap_points.append(snap_point)
-        elif isinstance(snap_point, SnapClear):
-            if snap_point.id == '':
-                resolved_snap_points.clear()
-            else:
-                resolved_snap_points = [
-                        p for p in resolved_snap_points
-                        if p.id != snap_point.id]
-    
-    return resolved_snap_points
-'''
+    def get_snap_mesh(self):
+        assert renderpy_avaialable
+        
+        return primitives.sphere(radius=self.radius)

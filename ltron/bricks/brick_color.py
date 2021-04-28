@@ -3,6 +3,14 @@ import collections
 import numpy
 
 import ltron.ldraw.colors as ldraw_colors
+import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.commands import LDrawImportCommand
+from ltron.ldraw.documents import (
+    LDrawMPDMainFile,
+    LDrawMPDInternalFile,
+    LDrawLDR,
+    LDrawDAT,
+)
 
 class BrickColorLibrary(collections.abc.MutableMapping):
     def __init__(self, colors = None):
@@ -10,24 +18,28 @@ class BrickColorLibrary(collections.abc.MutableMapping):
             colors = {}
         self.colors = colors
     
-    def load_from_instances(self, instances):
-        '''
+    def import_document(self, document):
         new_colors = []
-        for brick_instance in instances:
-            color = brick_instance.color
-            if color not in self:
-                brick_color = BrickColor(color)
-                self.colors[color] = BrickColor(color)
-                new_colors.append(brick_color)
+        for command in document.commands:
+            if isinstance(command, LDrawImportCommand):
+                reference_name = command.reference_name
+                reference_document = (
+                        document.reference_table['ldraw'][reference_name])
+                if isinstance(reference_document, LDrawDAT):
+                    if reference_name in ldraw_paths.LDRAW_PARTS:
+                        new_colors.extend(self.load_colors([command.color]))
+                elif isinstance(
+                    reference_document,
+                    (LDrawMPDMainFile, LDrawMPDInternalFile, LDrawLDR),
+                ):
+                    new_colors.extend(self.import_document(reference_document))
         
         return new_colors
-        '''
-        colors = [instance.color for instance in instances]
-        return self.load_colors(colors)
     
     def load_colors(self, colors):
         new_colors = []
         for color in colors:
+            color = str(color)
             if color not in self:
                 brick_color = BrickColor(color)
                 self.colors[color] = brick_color
@@ -61,13 +73,13 @@ class BrickColor:
     def renderpy_material_args(self):
         material_args = {
             'flat_color' : numpy.array(self.color_byte)/255.,
-            'ka' : 1.0,
-            'kd' : 0.0,
-            'ks' : 0.0,
-            'shine' : 1.0,
-            'image_light_kd' : 0.90,
-            'image_light_ks' : 0.10,
-            'image_light_blur_reflection' : 4.0
+            'ambient' : 1.0,
+            'metal' : 0.0,
+            'rough' : 0.5,
+            'base_reflect' : 0.04,
         }
         
         return material_args
+    
+    def __str__(self):
+        return self.material_name

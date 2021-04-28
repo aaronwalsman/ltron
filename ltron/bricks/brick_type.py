@@ -20,15 +20,6 @@ class BrickLibrary(collections.abc.MutableMapping):
     
     def import_document(self, document):
         new_types = []
-        '''
-        for reference_name, reference_document in (
-                    document.reference_table['ldraw'].items()):
-            if reference_name not in self:
-                if reference_name in ldraw_paths.LDRAW_PARTS:
-                    new_type = BrickType(reference_document)
-                    self[reference_name] = new_type
-                    new_types.append(new_type)
-        '''
         for command in document.commands:
             if isinstance(command, LDrawImportCommand):
                 reference_name = command.reference_name
@@ -36,18 +27,12 @@ class BrickLibrary(collections.abc.MutableMapping):
                         document.reference_table['ldraw'][reference_name])
                 if isinstance(reference_document, LDrawDAT):
                     if reference_name in ldraw_paths.LDRAW_PARTS:
-                        '''
-                        new_type = BrickType(reference_document)
-                        self[reference_name] = new_type
-                        new_types.append(new_type)
-                        '''
                         new_types.append(self.add_type(reference_document))
-                elif isinstance(reference_document, (
-                        LDrawMPDMainFile,
-                        LDrawMPDInternalFile,
-                        LDrawLDR)):
-                    new_types.extend(self.import_document(
-                            reference_document))
+                elif isinstance(
+                    reference_document, 
+                    (LDrawMPDMainFile, LDrawMPDInternalFile, LDrawLDR),
+                ):
+                    new_types.extend(self.import_document(reference_document))
                     
         return new_types
     
@@ -83,7 +68,6 @@ class BrickType:
         mesh_entry = {
             'mesh_asset' : self.mesh_name,
             'scale' : 1.0,
-            'create_uvs' : False,
             'color_mode' : 'flat_color'
         }
         return mesh_entry
