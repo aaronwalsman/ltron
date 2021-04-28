@@ -2,7 +2,7 @@ import os
 
 import numpy
 
-import ltron.config as config
+import ltron.settings as settings
 
 # faster that PIL.ImageColor.getrgb
 def hex_to_rgb(rgb):
@@ -25,14 +25,14 @@ def ldraw_color_to_rgb(color, mapping='ldraw'):
             return color_index_to_rgb[index]
 '''
 
-ldconfig_path = os.path.join(config.paths['ldraw'], 'LDConfig.ldr')
+ldsettings_path = os.path.join(settings.paths['ldraw'], 'LDConfig.ldr')
 color_name_to_index = {}
 color_index_to_name = {}
 color_index_to_rgb = {}
 color_index_to_edge_rgb = {}
 color_index_to_hex = {}
 color_index_to_edge_hex = {}
-with open(ldconfig_path, 'r') as f:
+with open(ldsettings_path, 'r') as f:
     for line in f.readlines():
         line_parts = line.split()
         if len(line_parts) < 2:
