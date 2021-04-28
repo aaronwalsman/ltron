@@ -1,6 +1,5 @@
 import os
 
-import ltron.config as config
 import ltron.ldraw.paths as ldraw_paths
 from ltron.ldraw.commands import *
 from ltron.ldraw.exceptions import *

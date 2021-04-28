@@ -191,27 +191,35 @@ class LDCadSnapClearCommand(LDCadCommand):
         self.id = flags.get('id', '')
 
 class LDCadSnapStyleCommand(LDCadCommand):
-    def __init__(self, ldcad_command, flags, gender=None):
+    def __init__(self, ldcad_command, flags):
         super(LDCadSnapStyleCommand, self).__init__(ldcad_command, flags)
         self.id = flags.get('id', '')
         self.transform = matrix_ldcad_to_numpy(flags)
+        '''
         if gender is not None:
             self.gender = gender
         else:
             self.gender = flags['gender']
+        '''
 
 class LDCadSnapCylCommand(LDCadSnapStyleCommand):
     pass
 
 class LDCadSnapClpCommand(LDCadSnapStyleCommand):
+    pass
+    '''
     def __init__(self, ldcad_command, flags):
         super(LDCadSnapClpCommand, self).__init__(
                 ldcad_command, flags, 'F')
+    '''
 
 class LDCadSnapFgrCommand(LDCadSnapStyleCommand):
+    pass
+    '''
     def __init__(self, ldcad_command, flags):
         super(LDCadSnapFgrCommand, self).__init__(
                 ldcad_command, flags, flags['genderofs'])
+    '''
 
 class LDCadSnapGenCommand(LDCadSnapStyleCommand):
     pass
