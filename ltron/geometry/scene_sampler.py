@@ -6,7 +6,7 @@ import numpy
 
 from pyquaternion import Quaternion
 
-import renderpy.buffer_manager_egl as buffer_manager_egl
+import renderpy.contexts.egl as drpy_egl
 from renderpy.frame_buffer import FrameBufferWrapper
 
 from ltron.dataset.paths import get_dataset_info
@@ -167,7 +167,9 @@ def sample_scene(
     
     t_start = time.time()
     
-    manager = buffer_manager_egl.initialize_shared_buffer_manager()
+    #manager = buffer_manager_egl.initialize_shared_buffer_manager()
+    drpy_egl.initialize_plugin()
+    drpy_egl.initialize_device()
     frame_buffer = FrameBufferWrapper(
             collision_resolution[0], collision_resolution[1], anti_alias=False)
     
@@ -179,7 +181,7 @@ def sample_scene(
     num_parts = random.randint(*parts_per_scene)
     
     scene = BrickScene(renderable=True, track_snaps=True)
-    scene.add_colors(colors)
+    scene.load_colors(colors)
     
     for i in range(num_parts):
         if timeout is not None:
@@ -213,9 +215,9 @@ def sample_scene(
                     scene.instances[instance_id].get_snap(snap_id)
                     for instance_id, snap_id in unoccupied_snaps]
             unoccupied_snaps = [
-                    snap for snap in unoccupied_snaps
-                    if (isinstance(snap, SnapCylinder) and
-                            snap.contains_stud_radius())]
+                    snap for snap in unoccupied_snaps]
+                    #if (isinstance(snap, SnapCylinder) and
+                    #        snap.contains_stud_radius())]
             
             if not len(unoccupied_snaps):
                 print('no unoccupied snaps!')
@@ -239,9 +241,9 @@ def sample_scene(
                     new_instances.append(new_instance)
                     new_snaps = new_instance.get_snaps()
                     new_good_snaps = [
-                            snap for snap in new_snaps
-                            if (isinstance(snap, SnapCylinder) and
-                                    snap.contains_stud_radius())]
+                            snap for snap in new_snaps]
+                            #if (isinstance(snap, SnapCylinder) and
+                            #        snap.contains_stud_radius())]
                     sub_assembly_snaps.extend(new_good_snaps)
                 
                 # TMP to handle bad sub-assemblies
@@ -288,7 +290,7 @@ def sample_scene(
                             scene,
                             new_instances,
                             scene_snap.transform,
-                            sub_assembly_snap.gender,
+                            sub_assembly_snap.polarity,
                             frame_buffer=frame_buffer,
                             dump_images=dump_images,
                     )
@@ -299,7 +301,10 @@ def sample_scene(
                     else:
                         for instance, (_, transform) in zip(
                                 new_instances, sub_assembly):
-                            scene.set_instance_transform(instance, transform)
+                            scene.set_instance_transform(
+                                str(instance),
+                                transform,
+                            )
                 #---------------------------------------------------------------
                 # if we tried many times and didn't find a good connection,
                 # loop back and try a new sub-assembly
@@ -327,9 +332,9 @@ def sample_scene(
                     new_instances.append(new_instance)
                     new_snaps = new_instance.get_snaps()
                     new_good_snaps = [
-                            snap for snap in new_snaps
-                            if (isinstance(snap, SnapCylinder) and
-                                snap.contains_stud_radius())]
+                            snap for snap in new_snaps]
+                            #if (isinstance(snap, SnapCylinder) and
+                            #    snap.contains_stud_radius())]
                     sub_assembly_snaps.extend(new_good_snaps)
                 
                 if len(sub_assembly_snaps):
