@@ -4,12 +4,12 @@ import json
 
 import ldraw_renderpy as lr
 
-import ltron.config as config
+import ltron.settings as settings
 
 carbon_star_path = os.path.join(
-        config.paths['omd'], '8661-1 - Carbon Star.mpd')
+        settings.paths['omd'], '8661-1 - Carbon Star.mpd')
 slave_one_path = os.path.join(
-        config.paths['omd'], '75060 - Slave I.mpd')
+        settings.paths['omd'], '75060 - Slave I.mpd')
 
 renderpy_data = lr.mpd_to_renderpy(
         open(slave_one_path),
