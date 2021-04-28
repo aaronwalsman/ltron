@@ -24,11 +24,11 @@ def get_all_transformed_snaps(snaps):
     and return a list of female snaps (no rotations applied) because
     only one piece needs to rotate
     """
-    male = [s for s in snaps if s.gender.lower() == 'm']
+    male = [s for s in snaps if s.polarity == '+']
     all_male = []
     for snap in male:
         all_male.extend(get_all_snap_rotations(snap))
-    female = [s for s in snaps if s.gender.lower() == 'f']
+    female = [s for s in snaps if s.polarity == '-']
     return {
         'male': all_male,
         'female': female,
@@ -48,13 +48,13 @@ def closest_transform(snap_cands1, snap_cands2):
     min_dist = None
     snap_pair = None
     snap_cands1f = [snap for snap in snap_cands1
-            if snap.gender.upper() == 'F']
+            if snap.polarity == '-']
     snap_cands1m = [snap for snap in snap_cands1
-            if snap.gender.upper() == 'M']
+            if snap.polarity == '+']
     snap_cands2f = [snap for snap in snap_cands2
-            if snap.gender.upper() == 'F']
+            if snap.polarity == '-']
     snap_cands2m = [snap for snap in snap_cands2
-            if snap.gender.upper() == 'M']
+            if snap.polarity == '+']
     for snap1, snap2 in product(snap_cands1f, snap_cands2m):
         v = snap1.transform[:3, -1] - snap2.transform[:3, -1]
         dist = np.linalg.norm(v)

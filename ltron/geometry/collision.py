@@ -8,7 +8,7 @@ def check_collision(
         scene,
         target_instances,
         snap_transform,
-        target_snap_gender,
+        target_snap_polarity,
         resolution=(64,64),
         frame_buffer=None,
         max_intersection=4,
@@ -41,14 +41,14 @@ def check_collision(
     far_clip = 2000 # TMP
     
     #scene.set_ambient_color((1,1,1))
-    scene.load_image_light('default', texture_directory='grey_cube')
-    scene.set_active_image_light('default')
+    #scene.load_image_light('default', texture_directory='grey_cube')
+    #scene.set_active_image_light('default')
     
     #===========================================================================
     # render the scene depth map
     #---------------------------------------------------------------------------
     # show everything except for the target instances
-    scene.show_all_instances()
+    scene.show_all_brick_instances()
     for instance in target_instances:
         scene.hide_instance(instance)
     #---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ def check_collision(
             [0, 1, 0, 0],
             [0, 0, 0, 1]])
 
-    if target_snap_gender.upper() == 'M':
+    if target_snap_polarity == '+':
         scene_axis = render_axis * f_direction
         scene_rotate = f_rotate
         target_axis = render_axis * m_direction
