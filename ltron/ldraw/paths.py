@@ -1,5 +1,5 @@
 import os
-import ltron.config as config
+import ltron.settings as settings
 
 from ltron.ldraw.exceptions import *
 
@@ -20,7 +20,7 @@ def get_reference_name(path):
     # check if the path exists under the ldraw or shadow directories,
     # if so, convert it to the name that another file would use to import it
     abs_path = os.path.abspath(reference_name)
-    for root_path in config.paths['ldraw'], config.paths['shadow']:
+    for root_path in settings.paths['ldraw'], settings.paths['shadow']:
         root_path = root_path.lower()
         for reference_subdirectory in ldraw_subdirectories:
             reference_path = os.path.join(root_path, reference_subdirectory)
@@ -55,11 +55,11 @@ def get_ldraw_reference_paths(
     return reference_paths
 
 # each of these maps a reference_name to an absolute file path on disk
-LDRAW_FILES = get_ldraw_reference_paths(config.paths['ldraw'])
-SHADOW_FILES = get_ldraw_reference_paths(config.paths['shadow_ldraw'])
+LDRAW_FILES = get_ldraw_reference_paths(settings.paths['ldraw'])
+SHADOW_FILES = get_ldraw_reference_paths(settings.paths['shadow_ldraw'])
 
 # a set containing all ldraw parts
-ldraw_parts_directory = os.path.join(config.paths['ldraw'], 'parts')
+ldraw_parts_directory = os.path.join(settings.paths['ldraw'], 'parts')
 LDRAW_PARTS = set(
         get_reference_name(os.path.join(ldraw_parts_directory, file_name))
         for file_name in os.listdir(ldraw_parts_directory)
