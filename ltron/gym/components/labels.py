@@ -24,23 +24,23 @@ class InstanceListComponent(BrickEnvComponent):
         brick_scene = self.scene_component.brick_scene
         instance_labels = numpy.zeros(
                 (self.max_instances+1, 1), dtype=numpy.long)
-        observation = {}
+        self.observation = {}
         for instance_id, instance in brick_scene.instances.items():
             if self.filter_hidden and brick_scene.instance_hidden(instance):
                 continue
             brick_type_name = str(instance.brick_type)
             class_id = self.dataset_component.get_class_id(brick_type_name)
             instance_labels[instance_id, 0] = class_id
-        observation['label'] = instance_labels
-        observation['num_instances'] = len(brick_scene.instances)
-        
-        return observation
+        self.observation['label'] = instance_labels
+        self.observation['num_instances'] = len(brick_scene.instances)
     
     def reset(self):
-        return self.compute_observation()
+        self.compute_observation()
+        return self.observation
     
     def step(self, action):
-        return self.compute_observation(), 0., False, None
+        self.compute_observation()
+        return self.observation, 0., False, None
 
 class InstanceGraphComponent(BrickEnvComponent):
     def __init__(self,
