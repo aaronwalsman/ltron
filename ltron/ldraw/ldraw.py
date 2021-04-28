@@ -2,12 +2,12 @@ import os
 
 import numpy
 
-import ltron.config as config
+import ltron.settings as settings
 import ltron.ldraw.paths as ldraw_paths
 import ltron.ldraw.ldcad as ldcad
 
 ALL_COMMANDS = ('0', '1', '2', '3', '4', '5')
-LDRAW_FILES = ldraw_paths.get_ldraw_part_paths(config.paths['ldraw'])
+LDRAW_FILES = ldraw_paths.get_ldraw_part_paths(settings.paths['ldraw'])
 
 def matrix_ldraw_to_list(elements):
     assert len(elements) == 12
@@ -117,7 +117,7 @@ def parse_ldraw(
                         clean_name, None)
                 if file_path is not None:
                     reference_type = ldraw_paths.get_reference_type(
-                            file_path, config.paths['ldraw'])
+                            file_path, settings.paths['ldraw'])
                     reference_contents = open(file_path)
                 else:
                     raise LDrawReferenceNotFoundError(reference_name)
