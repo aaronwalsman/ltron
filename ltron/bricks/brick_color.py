@@ -39,10 +39,10 @@ class BrickColorLibrary(collections.abc.MutableMapping):
     def load_colors(self, colors):
         new_colors = []
         for color in colors:
-            color = str(color)
+            #color = str(color)
             if color not in self:
                 brick_color = BrickColor(color)
-                self.colors[color] = brick_color
+                self.colors[brick_color.color_name] = brick_color
                 new_colors.append(brick_color)
         
         return new_colors
@@ -65,10 +65,10 @@ class BrickColorLibrary(collections.abc.MutableMapping):
     
 class BrickColor:
     def __init__(self, color):
-        self.color = color
-        self.material_name = str(color)
+        self.color_index = int(color)
+        self.color_name = str(color)
         self.color_byte = ldraw_colors.color_index_to_alt_rgb.get(
-                int(self.color), (128,128,128))
+                self.color_index, (128,128,128))
     
     def renderpy_material_args(self):
         material_args = {
@@ -82,4 +82,4 @@ class BrickColor:
         return material_args
     
     def __str__(self):
-        return self.material_name
+        return self.color_name

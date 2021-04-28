@@ -115,7 +115,7 @@ class BrickInstance:
     def renderpy_instance_args(self):
         instance_args = {
             'mesh_name' : self.brick_type.mesh_name,
-            'material_name' : self.color.material_name,
+            'material_name' : self.color.color_name,
             'transform' : self.transform,
         }
         if renderpy_available:
