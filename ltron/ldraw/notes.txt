@@ -1,0 +1,30 @@
+LDCAD SNAPPING
+
+Sph (Sphere) connections can be detected using position alone.
+
+Gen (Generic) I'm not going to support for now.
+
+Fgr (Finger), Cyl (Cylinder) and Clp (Clip) are best represented as 3D line segments.  The best representation for this is two endpoints, buuuuut that might be hard to check using the fast bucket hashing technique that I was thinking about.  It's also worth noting that a lot of the cylinders only really match a single position and direction in space (studs, technic pins, etc.).  Although the technic pins might be represented in some screwy way if they are double sided and that is represented as a single cylinder.  Need to investigate.
+
+Anyway, matching using positions with a small tolerance is really easy.  Just use fine-grained bins in a big dictionary.  This should be linear x dictionary lookup x small constant neighborhood, which is great!
+
+To expand on bucket-matching for positions: we can store everything in a big dictionary keyed by binned 3D position.  To find if a connection point is touching another one within some tolerance you simply bin your search position, check and see if that bin is full, then if your tolerance allows, you search neighboring bins as well.  Since almost all of the connection points are cylindrical, we could get fancier by binning 3D directions into another single axis and doing a 4D lookup instead.  Honestly I think just doing positions is better though because you can always prune the returned connection points after the fact.  The other advantage is it lets us use one format for everything (we can use it for not just cylinders but also spheres).
+
+Ok, so now how do we deal with long cylinders?  The simplest option would be to "rasterize" the line segment in 3D to find which bins it passes through and stamp the cylinder onto each bin.  This means that if our positions are very fine-grained, we may add a lot of memory/bins to the data structure.  I don't think this will be too much of an issue though.  There aren't that many long cylinders in each model right?  Hopefully there's a granularity that makes this not totally explode.  I guess what I want in a bin size is the largest distance so that each full bin usually only contains a single item.  A good candidate would be the normal spacing between two studs in x-z or the thickness of a plate in y.
+
+Ok, real quick is there anything else I want to consider here?  Matching 3D lines in 6D for example and then checking endpoints.  No, that's death.  Let's do this the simple way first and only get fancy if things blow up on us.
+
+Ok, so now we have another thought.  Should we make our own format to keep track of a scene as we manipulate it?  Here's the thought: we kind to keep something around that represents the scene as we interact with it.  We have two formats that represent a scene at the moment: ldraw and renderpy.  Ldraw is our storage format.  Renderpy is our render format.  Currently, we load from ldraw, then convert to renderpy, where we leave it from then on out.  Every further manipulation happens in renderpy.  We could leave it this way, and add a second class for dealing with the connection/snapping consequences.  The other option would be to make a separate format that we can use to generate renderpy data for rendering, and load from ldraw.  This kind of sucks though because then we would have to regenerate renderpy data for each new frame which is probably slow.  Here's the thing though: we want SOMETHING to negotiate what happens when bricks get moved, added, removed, etc, and update the connection information and the renderpy data accordingly.
+
+Right now, we have BrickEnv components which modify the renderpy data directly.  What I want to avoid is each BrickEnv component having to update both renderpy and snap information and having each component do this in different ways and potentially get out of sync with each other.  So I guess what I'm saying is I want a single scene modification API that updates both renderpy data and connection point data and keeps everything in sync.  What does that look like?  Also, do we have options to turn off snapping and stuff when we don't need it?  How often do we compute what is connected to what?  Always?  On-demand?  We do it when something moves.  Same for rendering.  We update the renderpy info when something needs to be updated.  Ok, so with that said, what modifications do we support?
+
+Load LDraw        (rpy + snap)
+Adding Bricks     (rpy + snap)
+Removing Bricks   (rpy + snap)
+Moving Bricks     (rpy + snap)
+Hiding Bricks     (rpy)
+Moving the Camera (rpy)
+
+Ok, so next how do we refer to individual bricks in the API?  In renderpy they are basically an integer 1-N.  That doesn't seem like a bad way to go?  I almost wonder if we should make one monolith class that has methods like "move brick i from A to B", or a class that represents individual bricks and that has hooks to renderpy and the snap data.  Doesn't really seem necessary does it?  All of this is really about getting stuff to work in BrickEnv, where everything is going to be an action space.  Also, if I want that kind of interface, I could always make that class and just give it a single hook to the API.  But yeah, just doesn't seem necessary.
+
+Ok, so let's do this.  Have a single API which is responsible for managing the renderpy scene and the SnapManager.  
