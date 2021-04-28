@@ -19,7 +19,7 @@ class RandomizeColorsComponent(BrickEnvComponent):
         random.shuffle(randomized_colors)
         color_mapping = dict(zip(self.all_colors, randomized_colors))
         for instance in self.scene_component.brick_scene.instances.values():
-            new_color = color_mapping[instance.color]
+            new_color = color_mapping[instance.color.material_name]
             self.scene_component.brick_scene.set_instance_color(
                     instance, new_color)
     
