@@ -2,7 +2,7 @@ import numpy
 
 import gym.spaces as gym_spaces
 
-import ltron.gym.spaces as bg_spaces
+import ltron.gym.spaces as ltron_spaces
 from ltron.gym.components.brick_env_component import BrickEnvComponent
 
 class BrickPosition(BrickEnvComponent):
@@ -41,3 +41,42 @@ class BrickPosition(BrickEnvComponent):
     
     def step(self, action):
         return self.compute_observation(), 0., False, None
+
+class InstancePoseComponent(BrickEnvComponent):
+    def __init__(self,
+            max_instances_per_scene,
+            scene_component,
+            space='camera',
+            scene_min=-1000,
+            scene_max=1000):
+        
+        self.max_instances_per_scene = max_instances_per_scene
+        self.scene_component = scene_component
+        self.space = space
+        
+        self.observation_space = ltron_spaces.MultiSE3Space(
+            self.max_instances_per_scene,
+            scene_min,
+            scene_max,
+        )
+    
+    def compute_observation(self):
+        scene = self.scene_component.brick_scene
+        self.observation = numpy.zeros((self.max_instances_per_scene+1, 3, 4))
+        for instance_id, instance in scene.instances.items():
+            if self.space == 'world':
+                transform_offset = numpy.eye(4)
+            elif self.space == 'camera':
+                transform_offset = scene.get_camera_pose()
+            else:
+                raise NotImplementedError
+            self.observation[instance_id] = (
+                transform_offset @ instance.transform)[:3]
+    
+    def reset(self):
+        self.compute_observation()
+        return self.observation
+    
+    def step(self, action):
+        self.compute_observation()
+        return self.observation, 0., False, None
