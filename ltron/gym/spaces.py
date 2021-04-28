@@ -8,6 +8,38 @@ import renderpy.masks as masks
 #    def __init__(self):
 #        super(ValidFrameSpace, 2)
 
+'''
+class NamedDiscreteSpace(spaces.Discrete):
+    def __init__(self, names):
+        self.names = names
+        super(NamedDiscrete, self).__init__(len(self.names))
+    
+    def contains(self, x):
+        if isinstance(x, str):
+            return x in self.names
+        else:
+            super(NamedDiscrete, self).contains(x)
+    
+    def name(self, i):
+        return self.names[i]
+    
+    def index(self, name):
+        return self.names.index(name)
+
+class OptionSpace(spaces.Tuple):
+    def __init__(self, spaces, defaults, *args, **kwargs):
+        self.defaults = defaults
+        selector_space = NamedDiscreteSpace(list(sorted(spaces.keys)))
+        dict_space = spaces.Dict(spaces, *args, **kwargs)
+        super(OptionSpace, self).__init__((selector_space, dict_space))
+    
+    def pack(self, key, x):
+        selector_space = self[0]
+        result = {key:x}
+        result.setdefault(self.defaults)
+        return (selector_space.index(key), result)
+'''
+
 class ImageSpace(spaces.Box):
     '''
     A height x width x 3 uint8 image.
@@ -79,6 +111,18 @@ class MultiInstanceDirectionSpace(spaces.Box):
                 low=-1.0,
                 high=1.0,
                 shape=(self.max_num_instances+1,3))
+
+class MultiSE3Space(spaces.Box):
+    def __init__(self, max_num_instances, scene_min=-1000, scene_max=1000):
+        self.max_num_instances = max_num_instances
+        shape = (max_num_instances+1,3,4)
+        low = numpy.zeros(shape, dtype=numpy.float32)
+        low[:,:,:3] = -1
+        low[:,:,3] = scene_min
+        high = numpy.zeros(shape, dtype=numpy.float32)
+        high[:,:,:3] = 1
+        high[:,:,3] = scene_max
+        super(MultiSE3Space, self).__init__(low=low, high=high, shape=shape)
 
 #class InstanceListSpace(spaces.Box):
 #    '''
