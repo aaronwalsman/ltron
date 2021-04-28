@@ -1,9 +1,9 @@
 import re
 
-import ltron.config as config
+import ltron.settings as settings
 import ltron.ldraw.paths as ldraw_paths
 
-SHADOW_FILES = ldraw_paths.get_ldraw_part_paths(config.paths['shadow_ldraw'])
+SHADOW_FILES = ldraw_paths.get_ldraw_part_paths(settings.paths['shadow_ldraw'])
 
 def get_ldcad_flags(arguments):
     ldcad_command, arguments = arguments.split(None, 1)
