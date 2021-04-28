@@ -9,7 +9,7 @@ import renderpy.masks as masks
 import ltron.ldraw.mpd as mpd
 import ltron.ldraw.colors as colors
 
-import ltron.config as config
+import ltron.settings as settings
 
 upright = numpy.array([
     [-1, 0, 0, 0],
@@ -35,7 +35,7 @@ def document_to_renderpy(
     }
     
     # add meshes
-    obj_directory = config.paths['obj']
+    obj_directory = settings.paths['obj']
     
     parts = document.get_all_parts()
     unique_bricks = set(part[0] for part in parts)
@@ -56,8 +56,8 @@ def mpd_to_renderpy(mpd_data,
         image_light_directory = None,
         ambient_color = (0,0,0)):
     
-    obj_directory = config.paths['obj']
-    external_parts = os.listdir(os.path.join(config.paths['ldraw'], 'parts'))
+    obj_directory = settings.paths['obj']
+    external_parts = os.listdir(os.path.join(settings.paths['ldraw'], 'parts'))
     
     parts, complete = mpd.parts_from_mpd(mpd_data, external_parts)
     unique_dats = set(part['file_name'] for part in parts)
