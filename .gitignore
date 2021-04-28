@@ -2,8 +2,6 @@ __pycache__
 data/download
 data_analysis/.ipynb_checkpoints/
 demo
-runs
-checkpoint
 *.swp
 *.swo
 *.egg-info
