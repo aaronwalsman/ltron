@@ -7,7 +7,7 @@ import numpy
 
 from renderpy.obj_mesh import load_mesh
 
-import ltron.config as config
+import ltron.settings as settings
 from ltron.ldraw.documents import LDrawDocument
 
 def bbox(vertices):
@@ -19,8 +19,8 @@ def bbox(vertices):
 def doc_bbox(doc):
     pass
 
-ldraw_part_directory = os.path.join(config.paths['ldraw'], 'parts')
-obj_directory = os.path.join(config.paths['renderpy'], 'meshes')
+ldraw_part_directory = os.path.join(settings.paths['ldraw'], 'parts')
+obj_directory = os.path.join(settings.paths['renderpy'], 'meshes')
 obj_files = [f for f in os.listdir(obj_directory) if f.endswith('.obj')]
 
 for obj_file in tqdm.tqdm(obj_files):

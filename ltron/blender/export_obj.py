@@ -5,7 +5,7 @@ import bpy
 
 import io_scene_importldraw.loadldraw.loadldraw as loadldraw
 
-import ltron.config as config
+import ltron.settings as settings
 import ltron.dataset.paths as dataset_paths
 #from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_scene import BrickScene
@@ -69,8 +69,8 @@ Produce!  Stop throwing good time after bad.
 # to fix a light/lamp naming issue
 loadldraw.globalLightBricks = {}
 
-part_directory = os.path.join(config.paths['ldraw'], 'parts')
-obj_directory = os.path.join(config.paths['renderpy'], 'meshes')
+part_directory = os.path.join(settings.paths['ldraw'], 'parts')
+obj_directory = os.path.join(settings.paths['renderpy'], 'meshes')
 
 if not os.path.exists(obj_directory):
     os.makedirs(obj_directory)
@@ -162,7 +162,7 @@ def export_brick(brick,
         import_brick_path = os.path.join(part_directory, brick)
         bpy.ops.import_scene.importldraw(
                 filepath = import_brick_path,
-                ldrawPath = config.paths['ldraw'],
+                ldrawPath = settings.paths['ldraw'],
                 importScale = import_scale,
                 resPrims = primitive_resolution,
                 smoothParts = smooth_parts,
