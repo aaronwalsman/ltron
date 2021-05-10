@@ -1,6 +1,15 @@
 import collections
 
-from ltron.ldraw.commands import *
+import numpy
+
+from ltron.ldraw.commands import (
+    LDrawImportCommand,
+    LDCadSnapInclCommand,
+    LDCadSnapStyleCommand,
+    LDCadSnapClearCommand,
+    LDrawContentCommand,
+)
+    
 from ltron.ldraw.documents import *
 from ltron.bricks.snap import Snap, SnapStyle, SnapClear
 
@@ -38,7 +47,7 @@ class BrickLibrary(collections.abc.MutableMapping):
     
     def __getitem__(self, key):
         return self.brick_types[str(key)]
-    
+   
     def __setitem__(self, key, value):
         assert isinstance(value, BrickType)
         self.brick_types[str(key)] = value
@@ -59,7 +68,7 @@ class BrickType:
         self.reference_name = document.reference_name
         self.mesh_name = self.reference_name.replace('.dat', '')
         self.document = document
-        self.construct_snaps()
+        self.construct_snaps_and_vertices()
     
     def __str__(self):
         return self.reference_name
@@ -72,8 +81,8 @@ class BrickType:
         }
         return mesh_entry
     
-    def construct_snaps(self):
-        def snaps_from_nested_document(document, transform=None):
+    def construct_snaps_and_vertices(self):
+        def snaps_and_vertices_from_nested_document(document, transform=None):
             # Due to how snap clearing works, everything in this function
             # must be computed from scratch for each part.  Do not attempt
             # cache intermediate results for sub-files.
@@ -81,9 +90,8 @@ class BrickType:
                 transform = numpy.eye(4)
             reference_table = document.reference_table
             snaps = []
+            vertices = [numpy.zeros((4,0))]
             for command in document.commands:
-                #if isinstance(
-                #        command, (LDrawImportCommand, LDCadSnapInclCommand)):
                 if isinstance(command, LDrawImportCommand):
                     reference_name = command.reference_name
                     reference_document = (
@@ -91,8 +99,10 @@ class BrickType:
                     reference_transform = numpy.dot(
                             transform, command.transform)
                     try:
-                        snaps.extend(snaps_from_nested_document(
-                                reference_document, reference_transform))
+                        s, v = snaps_and_vertices_from_nested_document(
+                                reference_document, reference_transform)
+                        snaps.extend(s)
+                        vertices.append(v)
                     except:
                         print('Error while importing: %s'%reference_name)
                         raise
@@ -103,8 +113,10 @@ class BrickType:
                     reference_transform = numpy.dot(
                             transform, command.transform)
                     try:
-                        snaps.extend(snaps_from_nested_document(
-                                reference_document, reference_transform))
+                        s, v = snaps_and_vertices_from_nested_document(
+                                reference_document, reference_transform)
+                        snaps.extend(s)
+                        vertices.append(v)
                     except:
                         print('Error while importing: %s'%reference_name)
                         raise
@@ -113,22 +125,28 @@ class BrickType:
                         (LDCadSnapStyleCommand, LDCadSnapClearCommand)):
                     new_snaps = Snap.construct_snaps(command, transform)
                     snaps.extend(new_snaps)
+                elif isinstance(command, LDrawContentCommand):
+                    vertices.append(command.vertices)
             
             if not document.shadow:
                 reference_name = document.reference_name
                 if reference_name in reference_table['shadow']:
                     shadow_document = reference_table['shadow'][reference_name]
                     try:
-                        snaps.extend(snaps_from_nested_document(
-                                shadow_document, transform))
+                        s,v = snaps_and_vertices_from_nested_document(
+                                shadow_document, transform)
+                        snaps.extend(s)
+                        vertices.append(v)
                     except:
                         print('Error while importing shadow: %s'%reference_name)
                         raise
             
-            return snaps
+            vertices = numpy.concatenate(vertices, axis=1)
+            return snaps, vertices
         
         try:
-            snaps = snaps_from_nested_document(self.document)
+            snaps, self.vertices = snaps_and_vertices_from_nested_document(
+                self.document)
         except:
             print('Error while importing: %s'%self.document.reference_name)
             raise
@@ -146,3 +164,8 @@ class BrickType:
                             if p.type_id != snap.type_id]
         
         self.snaps = resolved_snaps
+        #self.vertices = numpy.concatenate(vertices, axis=1)
+        self.bbox = (
+            numpy.min(self.vertices[:3], axis=1),
+            numpy.max(self.vertices[:3], axis=1),
+        )

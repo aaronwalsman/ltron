@@ -64,9 +64,10 @@ def vertices_ldraw_to_numpy(elements):
     if len(elements)%3 != 0:
         raise BadVerticesException(
                 'LDraw vertex elements must be divisible by 3')
-    elements = [float(element) for element in elements]
+    #elements = [float(element) for element in elements]
     vertices = [elements[i::3] for i in range(3)]
     vertices.append([1] * (len(elements)//3))
+    
     return numpy.array(vertices)
 
 def parse_ldcad_flags(arguments):
@@ -232,8 +233,12 @@ class LDrawImportCommand(LDrawCommand):
 
 class LDrawContentCommand(LDrawCommand):
     def __init__(self, arguments):
+        self.arguments = arguments
         self.color, *vertex_elements = arguments.split()
         self.vertices = vertices_ldraw_to_numpy(vertex_elements)
+    
+    def __str__(self):
+        return '%i %s'%(self.command, self.argments)
 
 class LDrawLineCommand(LDrawContentCommand):
     command = '2'

@@ -112,16 +112,27 @@ class MultiInstanceDirectionSpace(spaces.Box):
                 high=1.0,
                 shape=(self.max_num_instances+1,3))
 
+class SingleSE3Space(spaces.Box):
+    def __init__(self, scene_min=-1000, scene_max=1000):
+        shape = (4,4)
+        low = numpy.zeros(shape, dtype=numpy.float32)
+        low[:] = -1
+        low[:3,3] = scene_min
+        high = numpy.zeros(shape, dtype=numpy.float32)
+        high[:] = 1
+        high[:3,3] = scene_max
+        super(SingleSE3Space, self).__init__(low=low, high=high, shape=shape)
+
 class MultiSE3Space(spaces.Box):
     def __init__(self, max_num_instances, scene_min=-1000, scene_max=1000):
         self.max_num_instances = max_num_instances
-        shape = (max_num_instances+1,3,4)
+        shape = (max_num_instances+1,4,4)
         low = numpy.zeros(shape, dtype=numpy.float32)
-        low[:,:,:3] = -1
-        low[:,:,3] = scene_min
+        low[:] = -1
+        low[:,:3,3] = scene_min
         high = numpy.zeros(shape, dtype=numpy.float32)
-        high[:,:,:3] = 1
-        high[:,:,3] = scene_max
+        high[:] = 1
+        high[:,:3,3] = scene_max
         super(MultiSE3Space, self).__init__(low=low, high=high, shape=shape)
 
 #class InstanceListSpace(spaces.Box):

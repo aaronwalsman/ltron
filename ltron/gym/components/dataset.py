@@ -42,7 +42,8 @@ class DatasetPathComponent(BrickEnvComponent):
         if self.observe_episode_id:
             self.all_dataset_paths = get_dataset_paths(
                     self.dataset, self.split)
-            self.observation_space = Discrete(len(self.all_dataset_paths)+1)
+            self.observation_space = Dict({
+                'episode_id':Discrete(len(self.all_dataset_paths)+1)})
         
         if self.reset_mode == 'multi_pass':
             start_episode = rank * len(self.dataset_paths) // size
@@ -51,16 +52,15 @@ class DatasetPathComponent(BrickEnvComponent):
             self.set_state({'episode' : 0, 'scene_path' : None})
     
     def observe(self):
+        self.observation = None
         if self.observe_episode_id:
-            if self.scene_path is None:
-                return 0
-            else:
+            self.observation = {'episode_id':0}
+            if self.scene_path is not None:
                 try:
-                    return self.all_dataset_paths.index(self.scene_path)
+                    self.observation['episode_id'] = (
+                        self.all_dataset_paths.index(self.scene_path))
                 except ValueError:
-                    return 0
-        else:
-            return None
+                    pass
     
     def reset(self):
         if (self.augment_dataset is not None and
@@ -83,10 +83,12 @@ class DatasetPathComponent(BrickEnvComponent):
             if self.scene_path is not None:
                 self.episode += 1
         
-        return self.observe()
+        self.observe()
+        return self.observation
     
     def step(self, action):
-        return self.observe(), 0., False, None
+        self.observe()
+        return self.observation, 0., False, None
     
     def get_state(self):
         state = {'episode' : self.episode, 'scene_path' : self.scene_path}
