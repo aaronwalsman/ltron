@@ -17,22 +17,20 @@ class InstanceListComponent(BrickEnvComponent):
         self.scene_component = scene_component
         self.filter_hidden = filter_hidden
         
-        self.observation_space = bg_spaces.InstanceListSpace(
+        self.observation_space = bg_spaces.ClassLabelSpace(
                 self.num_classes, self.max_instances)
         
     def compute_observation(self):
         brick_scene = self.scene_component.brick_scene
         instance_labels = numpy.zeros(
                 (self.max_instances+1, 1), dtype=numpy.long)
-        self.observation = {}
         for instance_id, instance in brick_scene.instances.items():
             if self.filter_hidden and brick_scene.instance_hidden(instance):
                 continue
             brick_type_name = str(instance.brick_type)
             class_id = self.dataset_component.get_class_id(brick_type_name)
             instance_labels[instance_id, 0] = class_id
-        self.observation['label'] = instance_labels
-        self.observation['num_instances'] = len(brick_scene.instances)
+        self.observation = instance_labels
     
     def reset(self):
         self.compute_observation()

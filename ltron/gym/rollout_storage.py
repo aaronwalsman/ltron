@@ -72,11 +72,8 @@ class RolloutStorage:
     def __init__(self, batch_size):
         self.batch_size = batch_size
         self.gym_data = None
-        #self.terminal = numpy.zeros(0, numpy.bool)
         
         self.seq_locations = {}
-        #self.batch_seq_ids = list(range(self.batch_size))
-        #self.next_seq_index = batch_size
         self.batch_seq_ids = [None for _ in range(self.batch_size)]
         self.next_seq_index = 0
         self.total_steps = 0
@@ -98,42 +95,19 @@ class RolloutStorage:
         return new_storage
     
     def append_batch(self,
-            #terminal,
             valid=None,
             **kwargs):
         
-        #if self.batch_seq_ids is None:
-        #    self.batch_seq_ids = [None for _ in terminal]
         if valid is None:
             valid = [True for _ in range(self.batch_size)]
         
-        '''
-        for key in kwargs:
-            if key not in self.gym_data:
-                self.gym_data[key] = kwargs[key]
-            else:
-                self.gym_data[key] = concatenate_gym_data(
-                    self.gym_data[key],
-                    kwargs[key],
-                )
-        '''
         if self.gym_data is None:
             self.gym_data = kwargs
         else:
             self.gym_data = concatenate_gym_data(self.gym_data, kwargs)
         
-        #self.terminal = concatenate_gym_data(self.terminal, terminal)
-        
-        #for i, (t,v) in enumerate(zip(terminal, valid)):
         for i, v in enumerate(valid):
             if v:
-                '''
-                if t:
-                    new_seq_index = self.next_seq_index
-                    self.next_seq_index += 1
-                    self.seq_locations[new_seq_index] = []
-                    self.batch_seq_ids[i] = new_seq_index
-                '''
                 step_index = self.total_steps + i
                 if self.batch_seq_ids[i] not in self.seq_locations:
                     self.seq_locations[self.batch_seq_ids[i]] = []
@@ -164,7 +138,6 @@ class RolloutStorage:
         gym_data = {}
         for key, value in self.gym_data.items():
             gym_data[key] = extract_indices(value, storage_ids)
-        #gym_data['terminal'] = self.terminal[storage_ids]
         
         return gym_data
     
@@ -175,8 +148,8 @@ class RolloutStorage:
         ]
         return self.get_batch_from_storage_ids(storage_ids)
     
-    def get_seq(self, seq):
-        storage_ids = self.seq_locations[seq]
+    def get_seq(self, seq, start=None, stop=None):
+        storage_ids = self.seq_locations[seq][start:stop]
         return self.get_batch_from_storage_ids(storage_ids)
     
     def batch_sequence_iterator(
@@ -193,7 +166,13 @@ class RolloutStorage:
         )
     
     def pad_stack_seqs(self, seq_ids, axis=1):
-        gym_data = [self.get_seq(i) for i in seq_ids]
+        if isinstance(seq_ids[0], int):
+            gym_data = [self.get_seq(seq) for seq in seq_ids]
+        else:
+            gym_data = [
+                self.get_seq(seq, start, stop)
+                for seq, start, stop in seq_ids
+            ]
         seq_lens = [get_gym_data_len(d) for d in gym_data]
         max_seq_len = max(seq_lens)
         gym_data = [pad_gym_data(d, max_seq_len) for d in gym_data]
@@ -221,20 +200,32 @@ class BatchSequenceIterator:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_seq_len = max_seq_len
-        self.seq_ids = list(range(rollout_storage.num_seqs()))
+        
+        seq_ids = list(range(rollout_storage.num_seqs()))
+        self.seq_id_start_stops = []
+        for seq_id in seq_ids:
+            seq_len = rollout_storage.seq_len(seq_id)
+            if max_seq_len is None or seq_len < max_seq_len:
+                seq_id_start_stops.append((seq_id, None, None))
+            else:
+                start = 0
+                while start < seq_len:
+                    stop = start + max_seq_len
+                    self.seq_id_start_stops.append((seq_id, start, stop))
+                    start = stop
     
     def __iter__(self):
         if self.shuffle:
-            random.shuffle(self.seq_ids)
+            random.shuffle(self.seq_id_start_stops)
         self.batch_start = 0
         return self
     
     def __next__(self):
-        if self.batch_start >= len(self.seq_ids):
+        if self.batch_start >= len(self.seq_id_start_stops):
             raise StopIteration
         
         batch_end = self.batch_start + self.batch_size
-        batch_seq_ids = self.seq_ids[self.batch_start:batch_end]
+        batch_seq_ids = self.seq_id_start_stops[self.batch_start:batch_end]
         
         gym_data, seq_mask = self.rollout_storage.pad_stack_seqs(batch_seq_ids)
         
@@ -243,4 +234,4 @@ class BatchSequenceIterator:
         return gym_data, seq_mask
     
     def __len__(self):
-        return math.ceil(len(self.seq_ids) / self.batch_size)
+        return math.ceil(len(self.seq_id_start_stops) / self.batch_size)

@@ -4,42 +4,6 @@ from gym import spaces
 
 import renderpy.masks as masks
 
-#class ValidFrameSpace(spaces.Discrete):
-#    def __init__(self):
-#        super(ValidFrameSpace, 2)
-
-'''
-class NamedDiscreteSpace(spaces.Discrete):
-    def __init__(self, names):
-        self.names = names
-        super(NamedDiscrete, self).__init__(len(self.names))
-    
-    def contains(self, x):
-        if isinstance(x, str):
-            return x in self.names
-        else:
-            super(NamedDiscrete, self).contains(x)
-    
-    def name(self, i):
-        return self.names[i]
-    
-    def index(self, name):
-        return self.names.index(name)
-
-class OptionSpace(spaces.Tuple):
-    def __init__(self, spaces, defaults, *args, **kwargs):
-        self.defaults = defaults
-        selector_space = NamedDiscreteSpace(list(sorted(spaces.keys)))
-        dict_space = spaces.Dict(spaces, *args, **kwargs)
-        super(OptionSpace, self).__init__((selector_space, dict_space))
-    
-    def pack(self, key, x):
-        selector_space = self[0]
-        result = {key:x}
-        result.setdefault(self.defaults)
-        return (selector_space.index(key), result)
-'''
-
 class ImageSpace(spaces.Box):
     '''
     A height x width x 3 uint8 image.
@@ -135,25 +99,30 @@ class MultiSE3Space(spaces.Box):
         high[:,:3,3] = scene_max
         super(MultiSE3Space, self).__init__(low=low, high=high, shape=shape)
 
-#class InstanceListSpace(spaces.Box):
-#    '''
-#    A variable length discrete vector of instance class ids represented as
-#    a fixed length (larger than necessary) long array.
-#    Class 0 always represents the null class in order to allow
-#    variable length vectors.
-#    Also, element zero represents the null instance and should always be zero.
-#    This is so that edge lists which are also one-indexed point to the right
-#    location.
-#    '''
-#    def __init__(self, num_classes, max_instances):
-#        self.num_classes = num_classes
-#        self.max_instances = max_instances
-#        super(InstanceListSpace, self).__init__(
-#                low=0,
-#                high=num_classes,
-#                shape=(max_instances+1, 1),
-#                dtype=numpy.long)
+class ClassLabelSpace(spaces.Box):
+    def __init__(self, num_classes, max_instances):
+        self.num_classes = num_classes
+        self.max_instances = max_instances
+        
+        super(ClassLabelSpace, self).__init__(
+            low=0.,
+            high=num_classes,
+            shape=(max_instances+1, 1),
+            dtype=numpy.long,
+        )
 
+class ClassDistributionSpace(spaces.Box):
+    def __init__(self, num_classes, max_instances):
+        self.num_classes = num_classes
+        self.max_instances = max_instances
+        
+        super(ClassDistributionSpace, self).__init__(
+            low=0.,
+            high=1.,
+            shape=(max_instances+1, num_classes),
+        )
+
+"""
 class InstanceListSpace(spaces.Dict):
     '''
     A variable length vector of instances
@@ -179,32 +148,7 @@ class InstanceListSpace(spaces.Dict):
                     shape=(max_instances+1, 1))
         
         super(InstanceListSpace, self).__init__(space_dict)
-
-#class EdgeSpace(spaces.Box):
-#    '''
-#    A variable length discrete matrix of instance-id pairs (shape 2xN) where
-#    N is the maximum number of edges.
-#    Instance 0 always represents the null instance in order to allow
-#    variable length lists of edges.
-#    '''
-#    def __init__(self, max_instances, max_edges):
-#        self.max_instances = max_instances
-#        self.max_edges = max_edges
-#        super(EdgeSpace, self).__init__(
-#                low=0,
-#                high=max_instances,
-#                shape=(2, max_edges),
-#                dtype=numpy.long)
-#
-#class EdgeScoreSpace(spaces.Box):
-#    '''
-#    Scores for edges
-#    '''
-#    def __init__(self, max_edges):
-#        self.max_edges = max_edges
-#        super(EdgeScoreSpace, self).__init__(
-#                low=0, high=1, shape=(max_edges,), dtype=numpy.float32)
-
+"""
 class EdgeSpace(spaces.Dict):
     def __init__(self, max_instances, max_edges, include_score=False):
         self.max_instances = max_instances
@@ -253,22 +197,3 @@ class InstanceGraphSpace(spaces.Dict):
         }
         
         super(InstanceGraphSpace, self).__init__(dict_space)
-        '''
-        instance_list_space = InstanceListSpace(num_classes, max_instances)
-        edge_space = EdgeSpace(max_instances, max_edges)
-        num_instances_space = SingleInstanceSelectionSpace(max_instances)
-        dict_space = {
-                'instances':instance_list_space,
-                'edges':edge_space,
-                'num_instances':num_instances_space}
-        
-        if include_edge_score:
-            edge_score_space = EdgeScoreSpace(max_edges)
-            dict_space['edge_scores'] = edge_score_space
-        
-        if include_instnace_score:
-            instance_score_space = InstanceScoreSpace(max_instances)
-            dict_space['instance_scores'] = instance_score_space
-        
-        super(InstanceGraphSpace, self).__init__(dict_space)
-        '''

@@ -26,12 +26,12 @@ class DatasetPathComponent(BrickEnvComponent):
         self.split = split
         self.subset = subset
         self.dataset_info = get_dataset_info(self.dataset)
-        if reset_mode == 'multi_pass':
-            self.dataset_paths = get_dataset_paths(
-                    self.dataset, self.split, self.subset)
-        else:
+        if reset_mode == 'single_pass':
             self.dataset_paths = get_dataset_paths(
                     self.dataset, self.split, self.subset, rank, size)
+        else:
+            self.dataset_paths = get_dataset_paths(
+                    self.dataset, self.split, self.subset)
         
         if self.augment_dataset is not None:
             self.augment_info = get_dataset_info(self.augment_dataset)

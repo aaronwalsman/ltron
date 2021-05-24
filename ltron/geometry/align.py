@@ -6,7 +6,11 @@ import numpy
 def best_first_total_alignment(scene):
     
     # build a list of initial islands
-    islands = [set([instance_id]) for instance_id in scene.instances]
+    islands = [
+        set([instance_id])
+        for instance_id, instance in scene.instances.items()
+        #if len(instance.get_snaps())
+    ]
     #existing_connections = scene.get_all_snap_connections()
     #consumed_instances = set()
     #for instance_id in scene.instances:
