@@ -206,7 +206,7 @@ class BatchSequenceIterator:
         for seq_id in seq_ids:
             seq_len = rollout_storage.seq_len(seq_id)
             if max_seq_len is None or seq_len < max_seq_len:
-                seq_id_start_stops.append((seq_id, None, None))
+                self.seq_id_start_stops.append((seq_id, None, None))
             else:
                 start = 0
                 while start < seq_len:

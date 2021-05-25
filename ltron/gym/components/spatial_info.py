@@ -63,6 +63,7 @@ class InstancePoseComponent(BrickEnvComponent):
     def compute_observation(self):
         scene = self.scene_component.brick_scene
         self.observation = numpy.zeros((self.max_instances_per_scene+1, 4, 4))
+        self.observation[0] = numpy.eye(4)
         for instance_id, instance in scene.instances.items():
             if self.space == 'world':
                 transform_offset = numpy.eye(4)
