@@ -3,7 +3,7 @@ import os
 
 import numpy
 
-import renderpy.buffer_manager_egl as buffer_manager_egl
+import splendor.buffer_manager_egl as buffer_manager_egl
 
 import brick_gym.config as config
 from brick_gym.bricks.brick_scene import BrickScene
