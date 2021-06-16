@@ -1,0 +1,91 @@
+================================================================================LICENSING INFORMATION:
+This document contains information about the various licenses used by different
+components of LTRON but is not a license itself.  Please see the sections below
+for more details.
+================================================================================LTRON
+Source: https://github.com/aaronwalsman/ltron
+--------------------------------------------------------------------------------
+The ltron software package is provided under the MIT license.
+https://opensource.org/licenses/MIT
+================================================================================LDraw
+Source: http://www.ldraw.org/library/updates/complete.zip
+--------------------------------------------------------------------------------
+The LDraw parts library is used by LTron to describe the 3D structure of
+individual bricks.  It is provided by the LDraw contributors under a
+Creative Commons license.  For more information on the license see:
+
+https://ldraw.org/legal-info
+https://creativecommons.org/licenses/by/2.0/
+================================================================================Open Model Repository
+Source: https://omr.ldraw.org
+Modified: https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
+--------------------------------------------------------------------------------
+The OMR files have been provided by various authors in the LDraw community
+under Creative Commons Licensing.  The LTRON authors have bundled these files
+into a single package for convenience.  For information on individual file
+authorship, please consult the header of the file.  For information on the
+Creative Commons licensing see:
+
+https://creativecommons.org/licenses/by/2.0/
+--------------------------------------------------------------------------------
+MODIFICATIONS:
+--------------------------------------------------------------------------------
+The following files have been modified by the LTRON authors with small fixes:
+
+42043-1 - Mercedes Benz Arocs 3245 - Flatbed Trailer.mpd
+6526-1 - Red Line Racer.mpd
+
+The file headers have been updated to reflect the fact that these changes have
+been made.
+================================================================================Shadow Parts Library
+Source: http://melkert.net/LDCad
+Modified: https://drive.google.com/uc?id=1pB5vUYzOOyTU9Vji5v5_kNxzbKbJqc25
+--------------------------------------------------------------------------------
+The Shadow Parts Library is a component of the LDCad software package by
+Roland Melkert which can be found at:
+http://melkert.net/LDCad
+
+The LTRON authors have extracted these components and are redistributing them
+under the repackaging and redistribution clauses of the LDCad license below.
+
+--------------------------------------------------------------------------------
+LDCad License:
+--------------------------------------------------------------------------------
+LDCad license agreement (V3)
+
+LDCad and its configuration files, the software from here on, are free for      personal (non commercial) and educational use. The software might be used in    this manner, free of charge, by anyone as far local law permits.
+
+The author (Roland Melkert) does not guarantee perfect operation of the         software, nor can he be held responsible for any damage and / or loss resulting from the use of the software in anyway.
+
+Using the software to (help) create digital material (including but not limited to instruction booklets) to be sold later on is permitted as long a single copy of the material is donated to the author free of charge.
+
+It is permitted to customize and repackage the software as long this is done    without modifying the main executable or adding third party software (including but not limited to 'adware' and 'spyware').
+
+(re)Distribution of the software in any form is only allowed when done so free  of charge and a reference to the original software's website (www.melkert.net/  LDCad) is included. If it concerns a customized version this must be clearly    stated and in such cases the package must (also) be made available through a    public accessible website.
+
+Permission is granted to post, display and/or distribute screenshots (including videoclips) of the software for use on social media and or promotional material.
+
+
+By using the software you agree with the contents of this document and          therefore agree with the license.
+
+For questions, contact- or additional information visit: www.melkert.net/LDCad
+
+================================================================================Splendor Meshes
+Sources:
+https://drive.google.com/uc?id=1bNQiOkUbjd1aoKVniRZQavtg8v7_3Fen
+https://drive.google.com/uc?id=1kq8boQhMIaKqPrjnCM2296aQ3g4-N6WX
+--------------------------------------------------------------------------------
+The LDraw components have been converted into mesh obj files for compatibility
+with LTRON.  This conversion was done using the import-ldraw plugin for blender:
+
+https://github.com/TobyLobster/ImportLDraw
+https://blender.org
+
+These meshes are derivative works of the original LDraw files which are
+distributed under a Creative Commons license.  LTRON provides these
+derivative meshes under the same Creative Commons license.  For more
+information on LDraw licensing and the Creative Commons license see:
+
+https://ldraw.org/legal-info
+https://creativecommons.org/licenses/by/2.0/
+================================================================================
