@@ -9,20 +9,17 @@ import PIL.Image as Image
 
 from pyquaternion import Quaternion
 
-#import renderpy.buffer_manager_glut as buffer_manager
-import renderpy.contexts.glut as drpy_glut
-from renderpy.frame_buffer import FrameBufferWrapper
-import renderpy.core as core
-import renderpy.camera as camera
-from renderpy.interactive_camera import InteractiveCamera
-import renderpy.masks as masks
-import renderpy.assets as drpy_assets
-from renderpy.image import save_image
+import splendor.contexts.glut as glut
+from splendor.frame_buffer import FrameBufferWrapper
+import splendor.core as core
+import splendor.camera as camera
+from splendor.interactive_camera import InteractiveCamera
+import splendor.masks as masks
+from splendor.image import save_image
 
 import ltron.settings as settings
 from ltron.dataset.paths import resolve_subdocument
 import ltron.ldraw.paths as ldraw_paths
-#import ltron.ldraw.ldraw_renderpy as ldraw_renderpy
 from ltron.bricks.brick_scene import BrickScene
 
 def start_viewer(
@@ -30,7 +27,7 @@ def start_viewer(
         width = 512,
         height = 512,
         image_light = 'grey_cube',
-        poll_frequency = 1024,
+        poll_frequency = 8,
         print_fps = False):
     
     resolved_file_path, subdocument = resolve_subdocument(file_path)
@@ -45,14 +42,6 @@ def start_viewer(
     
     window = scene.render_environment.window
     renderer = scene.render_environment.renderer
-    
-    '''
-    scene.load_image_light(
-            image_light,
-            diffuse_texture=image_light + '_dif',
-            reflect_texture=image_light + '_ref',
-            set_active=True)
-    '''
     
     scene.add_direction_light(
             'front',
@@ -74,7 +63,8 @@ def start_viewer(
     
     scene.set_ambient_color((0.3,0.3,0.3))
     
-    scene.set_background_color((0.65,0.65,0.65))
+    #scene.set_background_color((0.65,0.65,0.65))
+    scene.set_background_color((1.0, 1.0, 1.0))
     
     window.set_active()
     window.enable_window()
@@ -98,7 +88,8 @@ def start_viewer(
             try:
                 change_time = os.stat(resolved_file_path).st_mtime
                 if change_time != state['recent_file_change_time'] or force:
-                    camera_pose = scene.get_camera_pose()
+                    t_start_load = time.time()
+                    view_matrix = scene.get_view_matrix()
                     scene.instances.clear()
                     scene.import_ldraw(file_path)
                     
@@ -106,9 +97,11 @@ def start_viewer(
                     if state['recent_file_change_time'] == -1:
                         scene.camera_frame_scene(azimuth=-2.5, elevation=-0.3)
                     else:
-                        scene.set_camera_pose(camera_pose)
+                        scene.set_view_matrix(view_matrix)
                     state['recent_file_change_time'] = change_time
+                    t_end_load = time.time()
                     print('Loaded: %s'%file_path)
+                    print('Elapsed: %f'%(t_end_load-t_start_load))
                     print('Brick Types: %i'%len(scene.brick_library))
                     print('Brick Instances: %i'%len(scene.instances))
                     print('Colors: %i'%len(scene.color_library))
@@ -130,29 +123,42 @@ def start_viewer(
             state['batch_time'] = t_now
         state['steps'] += 1
         
-        '''
-        part_mask_frame.enable()
-        scene.mask_render(flip_y=True)
-        state['part_mask'] = part_mask_frame.read_pixels()
-        '''
+        brick_instances = list(scene.instances.keys())
+        brick_instances = [str(b) for b in brick_instances]
         
         window.enable_window()
         if state['render_mode'] == 'color':
-            scene.color_render(flip_y=False)
-        if state['render_mode'] == 'removable':
+            scene.color_render(flip_y=False, instances=brick_instances)
+        elif state['render_mode'] == 'removable':
             scene.removable_render(flip_y=False)
         elif state['render_mode'] == 'mask':
-            scene.mask_render(flip_y=False)
+            scene.mask_render(flip_y=False, instances=brick_instances)
+        elif state['render_mode'] == 'snap+':
+            snap_instances = scene.get_snaps(polarity='+')
+            snap_names = scene.get_snap_names(snap_instances)
+            scene.snap_render_instance_id(snap_names, flip_y=False)
+        elif state['render_mode'] == 'snap-':
+            snap_instances = scene.get_snaps(polarity='-')
+            snap_names = scene.get_snap_names(snap_instances)
+            scene.snap_render_instance_id(snap_names, flip_y=False)
     
     def get_instance_at_location(x, y):
+        brick_instances = list(scene.instances.keys())
+        brick_instances = [str(b) for b in brick_instances]
         part_mask_frame.enable()
-        scene.mask_render(flip_y=True)
+        background_color = scene.get_background_color()
+        scene.set_background_color((0,0,0))
+        scene.mask_render(flip_y=True, instances=brick_instances)
         state['part_mask'] = part_mask_frame.read_pixels()
         
         color = tuple(state['part_mask'][y,x])
         if color == (0,0,0):
+            scene.set_background_color(background_color)
             return None
         instance_id = masks.color_byte_to_index(color)
+        
+        scene.set_background_color(background_color)
+        
         return instance_id
     
     def key_press(key, x, y):
@@ -169,7 +175,14 @@ def start_viewer(
                 state['render_mode'] = 'color'
         
         elif key == b'i':
-            instance_id = get_instance_at_location(x, y)
+            if state['render_mode'] == 'snap+':
+                instance_id, snap_id = get_snap_under_mouse(x, y, '+')
+            elif state['render_mode'] == 'snap-':
+                instance_id, snap_id = get_snap_under_mouse(x, y, '-')
+            else:
+                instance_id = get_instance_at_location(x, y)
+                snap_id = None
+            
             print('----')
             if instance_id is None:
                 print('No Part Selected')
@@ -179,10 +192,19 @@ def start_viewer(
                 transform = instance.transform
                 type_name = instance.brick_type.reference_name
                 print('Part Name: %s'%type_name)
-                print('Translation: %f, %f, %f'%(
-                        transform[0,3],
-                        transform[1,3],
-                        transform[2,3]))
+                #print('Translation: %f, %f, %f'%(
+                #        transform[0,3],
+                #        transform[1,3],
+                #        transform[2,3]))
+                print('Instance Transform:')
+                print(transform)
+                
+                if snap_id is not None:
+                    print('Snap ID: %i'%snap_id)
+                    snap = instance.get_snap(snap_id)
+                    transform = snap.transform
+                    print('Snap Transform:')
+                    print(transform)
         
         elif key == b'h':
             instance_id = get_instance_at_location(x, y)
@@ -229,18 +251,32 @@ def start_viewer(
             Image.fromarray(depth_map[...,0]).save(image_path)
         
         elif key == b's':
-            if state['snap_mode'] == 'none':
-                state['snap_mode'] = 'all'
-                scene.show_all_snap_instances()
+            if state['render_mode'] == 'snap-':
+                state['render_mode'] = 'color'
             else:
-                state['snap_mode'] = 'none'
-                scene.hide_all_snap_instances()
+                state['render_mode'] = 'snap-'
+            #if state['snap_mode'] == 'none':
+                #state['snap_mode'] = 'all'
+                #scene.show_all_snap_instances()
+            #else:
+                #state['snap_mode'] = 'none'
+                #scene.hide_all_snap_instances()
+        
+        elif key == b'S':
+            if state['render_mode'] == 'snap+':
+                state['render_mode'] = 'color'
+            else:
+                state['render_mode'] = 'snap+'
         
         elif key == b'c':
             instance_id = get_instance_at_location(x, y)
+            print('----')
+            if instance_id is None:
+                print('No Part Selected')
+                return
+            
             connected_snaps = scene.get_instance_snap_connections(
                     str(instance_id))
-            print('----')
             print('Instance: %i'%instance_id)
             print('All Snaps:')
             print(connected_snaps)
@@ -319,44 +355,96 @@ def start_viewer(
         
         elif key == b'[':
             instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+                return
             transform = scene.instances[instance_id].transform
-            transform[1,3] -= 8
+            #transform[1,3] -= 8
+            transform = transform @ numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, -8],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
         
         elif key == b']':
             instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+                return
             transform = scene.instances[instance_id].transform
-            transform[1,3] += 8
+            #transform[1,3] += 8
+            transform = transform @ numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 8],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
     
     def special_key(key, x, y):
-        if key == drpy_glut.GLUT.GLUT_KEY_DOWN:
+        if key == glut.GLUT.GLUT_KEY_DOWN:
             instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+                return
             transform = scene.instances[instance_id].transform
-            transform[2,3] -= 10
+            #transform[2,3] -= 10
+            transform = transform @ numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 1, -20],
+                [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
-        elif key == drpy_glut.GLUT.GLUT_KEY_UP:
+        elif key == glut.GLUT.GLUT_KEY_UP:
             instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+                return
             transform = scene.instances[instance_id].transform
-            transform[2,3] += 10
+            #transform[2,3] += 10
+            transform = transform @ numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 1, 20],
+                [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
-        elif key == drpy_glut.GLUT.GLUT_KEY_LEFT:
+        elif key == glut.GLUT.GLUT_KEY_LEFT:
             instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+                return
             transform = scene.instances[instance_id].transform
-            transform[0,3] -= 10
+            #transform[0,3] -= 10
+            transform = transform @ numpy.array([
+                [1, 0, 0, -20],
+                [0, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
-        elif key == drpy_glut.GLUT.GLUT_KEY_RIGHT:
+        elif key == glut.GLUT.GLUT_KEY_RIGHT:
             instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+                return
             transform = scene.instances[instance_id].transform
-            transform[0,3] += 10
+            #transform[0,3] += 10
+            transform = transform @ numpy.array([
+                [1, 0, 0, 20],
+                [0, 1, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
     
     def key_release(key, x, y):
         if key == b'p' or key == b'n':
             if key == b'p':
                 # render negative snaps in mask mode
-                dst_instance_id, dst_snap_id = get_snap_under_mouse(x, y, '-')
-                print('placing to: %s, %s'%(dst_instance_id, dst_snap_id))
+                place_snap = get_snap_under_mouse(x, y, '-')
+                if place_snap[0] is not None and state['pick_snap'] is not None:
+                    print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
+                    scene.pick_and_place_snap(state['pick_snap'], place_snap)
+                
+                '''
                 if dst_instance_id and state['pick_snap'] is not None:
                     src_instance_id, src_snap_id = state['pick_snap']
                     src_instance = scene.instances[src_instance_id]
@@ -392,16 +480,18 @@ def start_viewer(
                     scene.move_instance(
                             src_instance, best_transform)
                     
-                    '''
-                    offset = dst_transform @ numpy.linalg.inv(src_transform)
-                    scene.move_instance(
-                            src_instance, offset @ src_instance.transform)
-                    '''
+                    #offset = dst_transform @ numpy.linalg.inv(src_transform)
+                    #scene.move_instance(
+                    #        src_instance, offset @ src_instance.transform)
+                '''
             
             elif key == b'n':
                 # render positive snaps in mask mode
-                dst_instance_id, dst_snap_id = get_snap_under_mouse(x, y, '+')
-                print('placing to: %s, %s'%(dst_instance_id, dst_snap_id))
+                place_snap = get_snap_under_mouse(x, y, '+')
+                if place_snap[0] is not None and state['pick_snap'] is not None:
+                    print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
+                    scene.pick_and_place_snap(state['pick_snap'], place_snap)
+                '''
                 if dst_instance_id and state['pick_snap'] is not None:
                     src_instance_id, src_snap_id = state['pick_snap']
                     src_instance = scene.instances[src_instance_id]
@@ -439,12 +529,10 @@ def start_viewer(
                     scene.move_instance(
                             src_instance, best_transform)
                     
-                    '''
-                    offset = dst_transform @ numpy.linalg.inv(src_transform)
-                    scene.move_instance(
-                            src_instance, offset @ src_instance.transform)
-                    '''
-                    
+                    #offset = dst_transform @ numpy.linalg.inv(src_transform)
+                    #scene.move_instance(
+                    #        src_instance, offset @ src_instance.transform)
+                '''
             
             state['pick_snap'] = None
     
@@ -510,10 +598,10 @@ def start_viewer(
             glutMouseFunc = camera_control.mouse_button,
             glutMotionFunc = camera_control.mouse_move)
     
-    drpy_glut.start_main_loop()
+    glut.start_main_loop()
     
     '''
-    drpy_glut.glut_state['initializer'].start_main_loop(
+    glut.glut_state['initializer'].start_main_loop(
             glutDisplayFunc = render,
             glutIdleFunc = render,
             glutKeyboardFunc = keypress,

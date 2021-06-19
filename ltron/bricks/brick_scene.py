@@ -4,7 +4,9 @@ import os
 
 import numpy
 
-import renderpy.masks as masks
+from pyquaternion import Quaternion
+
+import splendor.masks as masks
 
 from ltron.dataset.paths import resolve_subdocument
 from ltron.ldraw.documents import LDrawDocument
@@ -192,7 +194,7 @@ class BrickScene:
             if snap.polarity == '+':
                 snap_axis = -snap_axis
             if direction_space == 'camera':
-                snap_axis = numpy.dot(self.get_camera_pose(), snap_axis)
+                snap_axis = numpy.dot(self.get_view_matrix(), snap_axis)
             snap_axis = snap_axis / numpy.linalg.norm(snap_axis)
             snap_axes.append(snap_axis[:3])
         
@@ -250,18 +252,20 @@ class BrickScene:
         self,
         instances=None,
         polarity=None,
-        #renderable=False,
+        style=None,
         visible=True
     ):
         if instances is None:
             instances = self.instances
         matching_snaps = []
         for instance in instances:
-            if self.instance_hidden(str(instance)):
+            if self.renderable and self.instance_hidden(str(instance)):
                 continue
             instance = self.instances[instance]
             for i, snap in enumerate(instance.get_snaps()):
                 if polarity is not None and snap.polarity != polarity:
+                    continue
+                if style is not None and snap.style not in style:
                     continue
                 #if renderable and not self.renderable_snap(snap):
                 #    continue
@@ -315,8 +319,10 @@ class BrickScene:
             for instance_b_name, snap_id_b, snap_id_a in connections:
                 instance_b_id = int(instance_b_name)
                 if instance_a_id < instance_b_id or not unidirectional:
-                    all_edges.add((instance_a_id, instance_b_id))
-        all_edges = numpy.array(list(all_edges)).T
+                    all_edges.add(
+                        (instance_a_id, instance_b_id, snap_id_a, snap_id_b))
+        num_edges = len(all_edges)
+        all_edges = numpy.array(list(all_edges)).T.reshape(4, num_edges)
         return all_edges
     
     def get_all_snaps(self):
@@ -366,6 +372,41 @@ class BrickScene:
         '''
         
         return unoccupied_snaps
+    
+    def pick_and_place_snap_transform(self, pick, place):
+        pick_instance_id, pick_snap_id = pick
+        pick_instance = self.instances[pick_instance_id]
+        pick_snap = pick_instance.get_snap(pick_snap_id)
+        place_instance_id, place_snap_id = place
+        place_instance = self.instances[place_instance_id]
+        place_snap = self.instances[place_instance_id].get_snap(place_snap_id)
+        
+        best_transform = None
+        best_pseudo_angle = -float('inf')
+        for i in range(4):
+            angle = i * math.pi/2.
+            rotation = Quaternion(axis=(0,1,0), angle=angle)
+            candidate_transform = (
+                place_snap.transform @
+                rotation.transformation_matrix @
+                numpy.linalg.inv(pick_snap.transform) @
+                pick_instance.transform
+            )
+            offset = (
+                candidate_transform @
+                numpy.linalg.inv(pick_instance.transform)
+            )
+            pseudo_angle = numpy.trace(offset[:3,:3])
+            if pseudo_angle > best_pseudo_angle:
+                best_transform = candidate_transform
+                best_pseudo_angle = pseudo_angle
+        
+        return best_transform
+    
+    def pick_and_place_snap(self, pick, place):
+        pick_instance = self.instances[pick[0]]
+        transform = self.pick_and_place_snap_transform(pick, place)
+        self.move_instance(pick_instance, transform)
     
     # materials ----------------------------------------------------------------
     
