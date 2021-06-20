@@ -3,9 +3,9 @@ import numpy
 import gym.spaces as gym_spaces
 
 import ltron.gym.spaces as ltron_spaces
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class BrickPosition(BrickEnvComponent):
+class BrickPosition(LtronGymComponent):
     def __init__(self,
             max_instances_per_scene,
             scene_component):
@@ -23,13 +23,13 @@ class BrickPosition(BrickEnvComponent):
         scene = self.scene_component.brick_scene
         world_observation = numpy.zeros((self.max_instances_per_scene+1, 3))
         camera_observation = numpy.zeros((self.max_instances_per_scene+1, 3))
-        camera_inv_pose = scene.get_camera_pose()
+        view_matrix = scene.get_view_matrix()
         for instance_id, instance in scene.instances.items():
             if not scene.instance_hidden(instance_id):
                 world_observation[instance_id, 0] = instance.transform[0,3]
                 world_observation[instance_id, 1] = instance.transform[1,3]
                 world_observation[instance_id, 2] = instance.transform[2,3]
-                relative_transform = camera_inv_pose @ instance.transform
+                relative_transform = view_matrix @ instance.transform
                 camera_observation[instance_id, 0] = relative_transform[0,3]
                 camera_observation[instance_id, 1] = relative_transform[1,3]
                 camera_observation[instance_id, 2] = relative_transform[2,3]
@@ -42,13 +42,14 @@ class BrickPosition(BrickEnvComponent):
     def step(self, action):
         return self.compute_observation(), 0., False, None
 
-class InstancePoseComponent(BrickEnvComponent):
+class InstancePoseComponent(LtronGymComponent):
     def __init__(self,
-            max_instances_per_scene,
-            scene_component,
-            space='camera',
-            scene_min=-1000,
-            scene_max=1000):
+        max_instances_per_scene,
+        scene_component,
+        space='camera',
+        scene_min=-1000,
+        scene_max=1000,
+    ):
         
         self.max_instances_per_scene = max_instances_per_scene
         self.scene_component = scene_component
@@ -68,7 +69,7 @@ class InstancePoseComponent(BrickEnvComponent):
             if self.space == 'world':
                 transform_offset = numpy.eye(4)
             elif self.space == 'camera':
-                transform_offset = scene.get_camera_pose()
+                transform_offset = scene.get_view_matrix()
             else:
                 raise NotImplementedError
             self.observation[instance_id] = (

@@ -6,11 +6,11 @@ import numpy
 from gym.spaces import Dict, Discrete
 from ltron.gym.spaces import SingleSE3Space
 
-import renderpy.camera as camera
+import splendor.camera as camera
 
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
+class ControlledAzimuthalViewpointComponent(LtronGymComponent):
     def __init__(self,
         scene_component,
         azimuth_steps,
@@ -24,7 +24,7 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         far_clip=5000.,
         start_position='uniform',
         observe_camera_parameters=True,
-        observe_camera_matrix=False,
+        observe_view_matrix=False,
         scene_min=-1000,
         scene_max=1000,
     ):
@@ -41,15 +41,15 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         self.far_clip = far_clip
         self.start_position = start_position
         self.observe_camera_parameters = observe_camera_parameters
-        self.observe_camera_matrix = observe_camera_matrix
+        self.observe_view_matrix = observe_view_matrix
         
         observation_space = {}
         if self.observe_camera_parameters:
             observation_space['azimuth'] = Discrete(azimuth_steps)
             observation_space['elevation'] = Discrete(elevation_steps)
             observation_space['distance'] = Discrete(distance_steps)
-        if self.observe_camera_matrix:
-            observation_space['camera_matrix'] = SingleSE3Space(
+        if self.observe_view_matrix:
+            observation_space['view_matrix'] = SingleSE3Space(
                 scene_min, scene_max)
         if len(observation_space):
             self.observation_space = Dict(observation_space)
@@ -70,8 +70,8 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
             self.observation['azimuth'] = self.position[0]
             self.observation['elevation'] = self.position[1]
             self.observation['distance'] = self.position[2]
-        if self.observe_camera_matrix:
-            self.observation['camera_matrix'] = self.camera_matrix
+        if self.observe_view_matrix:
+            self.observation['view_matrix'] = self.view_matrix
         
         if not len(self.observation):
             self.observation = None
@@ -139,12 +139,13 @@ class ControlledAzimuthalViewpointComponent(BrickEnvComponent):
         bbox_min, bbox_max = bbox
         bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
         center = bbox_min + bbox_range * 0.5
-        self.camera_matrix = camera.azimuthal_pose_to_matrix(
-                [azimuth, elevation, 0, distance, 0.0, 0.0],
-                center = center)
-        scene.set_camera_pose(self.camera_matrix)
+        self.view_matrix = numpy.linalg.inv(
+            camera.azimuthal_parameters_to_matrix(
+                azimuth, elevation, 0, distance, 0.0, 0.0, *center)
+        )
+        scene.set_view_matrix(self.view_matrix)
 
-class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
+class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
     def __init__(self,
         scene_component,
         azimuth = (0, math.pi*2),
@@ -157,7 +158,7 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         far_clip = 5000.,
         bbox_distance_scale = 3.,
         randomize_frequency = 'reset',
-        observe_camera_matrix=False,
+        observe_view_matrix=False,
         scene_min=-1000,
         scene_max=1000,
     ):
@@ -174,11 +175,11 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         self.far_clip = far_clip
         self.bbox_distance_scale = bbox_distance_scale
         self.randomize_frequency = randomize_frequency
-        self.observe_camera_matrix = observe_camera_matrix
+        self.observe_view_matrix = observe_view_matrix
         
         observation_space = {}
-        if self.observe_camera_matrix:
-            observation_space['camera_matrix'] = SingleSE3Space(
+        if self.observe_view_matrix:
+            observation_space['view_matrix'] = SingleSE3Space(
                 scene_min, scene_max)
         if len(observation_space):
             self.observation_space = Dict(observation_space)
@@ -208,14 +209,15 @@ class RandomizedAzimuthalViewpointComponent(BrickEnvComponent):
         center = bbox_min + bbox_range * 0.5
         distance = distance_scale * camera.framing_distance_for_bbox(
                 bbox, self.projection, self.bbox_distance_scale)
-        self.camera_matrix = camera.azimuthal_pose_to_matrix(
-                [azimuth, elevation, tilt, distance, 0.0, 0.0],
-                center = center)
-        scene.set_camera_pose(self.camera_matrix)
+        self.view_matrix = numpy.linalg.inv(
+            camera.azimuthal_parameters_to_matrix(
+                azimuth, elevation, tilt, distance, 0.0, 0.0, *center)
+        )
+        scene.set_view_matrix(self.view_matrix)
     
     def compute_observation(self):
-        if self.observe_camera_matrix:
-            self.observation = {'camera_matrix':self.camera_matrix}
+        if self.observe_view_matrix:
+            self.observation = {'view_matrix':self.view_matrix}
         else:
             self.observation = None
     
@@ -249,3 +251,22 @@ class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
                 (tilt, tilt),
                 (field_of_view, field_of_view),
                 *args, **kwargs)
+
+class CopyViewpointComponent(LtronGymComponent):
+    def __init__(self, from_scene_component, to_scene_component):
+        self.from_scene_component = from_scene_component
+        self.to_scene_component = to_scene_component
+    
+    def copy_camera(self):
+        view_matrix = self.from_scene_component.brick_scene.get_view_matrix()
+        projection = self.from_scene_component.brick_scene.get_projection()
+        self.to_scene_component.brick_scene.set_view_matrix(view_matrix)
+        self.to_scene_component.brick_scene.set_projection(projection)
+    
+    def reset(self):
+        self.copy_camera()
+        return None
+    
+    def step(self, action):
+        self.copy_camera()
+        return None, 0, False, None

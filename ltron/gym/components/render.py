@@ -1,85 +1,12 @@
 import numpy
 
-from renderpy.frame_buffer import FrameBufferWrapper
-import renderpy.masks as masks
+from splendor.frame_buffer import FrameBufferWrapper
+import splendor.masks as masks
 
-import ltron.gym.spaces as bg_spaces
-from ltron.gym.components.brick_env_component import BrickEnvComponent
-'''
-class RendererComponent(BrickEnvComponent):
-    def __init__(self,
-            buffer_manager_mode='egl',
-            load_path=None,
-            scene_path_key='scene_path',
-            renderer_key='renderer'):
-        
-        # store keys
-        self.scene_path_key = scene_path_key
-        self.renderer_key = renderer_key
-        
-        # initialize manager
-        if buffer_manager_mode == 'egl':
-            buffer_manager = buffer_manager_egl
-        elif buffer_manager_mode == 'glut':
-            buffer_manager = buffer_manager_glut
-        self.manager = buffer_manager.initialize_shared_buffer_manager()
-        
-        # initialize renderer
-        self.renderer = core.Renderpy()
+import ltron.gym.spaces as ltron_spaces
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-        # load initial path
-        self.loaded_path = None
-        if load_path is not None:
-            self.load_path(load_path)
-        
-    def initialize_state(self, state):
-        state[self.renderer_key] = self.renderer
-    
-    def load_path(self, scene_path, force=False):
-        if scene_path != self.loaded_path or force:
-            # convert the mpd file to a renderpy scene
-            with open(scene_path, 'r') as scene_file:
-                scene_data = ldraw_renderpy.mpd_to_renderpy(
-                        scene_file,
-                        default_image_light)
-            
-            self.renderer.clear_instances()
-            self.renderer.load_scene(
-                    scene_data, clear_scene=False, reload_assets=False)
-            
-            self.loaded_path = scene_path
-    
-    def reset_state(self, state):
-        if self.scene_path_key is not None:
-            scene_path = state[self.scene_path_key]
-            self.load_path(scene_path)
-
-class FrameRenderComponent(BrickEnvComponent):
-    def __init__(self,
-            width,
-            height,
-            scene_component = 'brick_scene',
-            anti_alias = True):
-        
-        self.height = height
-        self.width = width
-        self.anti_alias = anti_alias
-        self.frame_buffer = FrameBufferWrapper(
-                self.width, self.height, self.anti_aliasing)
-        self.scene_component = scene_component
-    
-    def compute_observation(self):
-        raise NotImplementedError
-    
-    def reset(self):
-        self.image = self.compute_observation()
-        return self.image
-    
-    def step(self, action):
-        self.image = self.compute_observation()
-        return self.image, 0., False, None
-'''
-class ColorRenderComponent(BrickEnvComponent):
+class ColorRenderComponent(LtronGymComponent):
     def __init__(self,
             width,
             height,
@@ -94,7 +21,7 @@ class ColorRenderComponent(BrickEnvComponent):
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, self.anti_alias)
         
-        self.observation_space = bg_spaces.ImageSpace(
+        self.observation_space = ltron_spaces.ImageSpace(
                 self.width, self.height)
     
     def compute_observation(self):
@@ -114,12 +41,13 @@ class ColorRenderComponent(BrickEnvComponent):
     def set_state(self, state):
         self.compute_observation()
 
-class SegmentationRenderComponent(BrickEnvComponent):
+class SegmentationRenderComponent(LtronGymComponent):
     def __init__(self,
-            height,
-            width,
-            scene_component,
-            terminate_on_empty=True):
+        height,
+        width,
+        scene_component,
+        terminate_on_empty=True
+    ):
         
         self.width = width
         self.height = height
@@ -129,15 +57,73 @@ class SegmentationRenderComponent(BrickEnvComponent):
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, anti_alias=False)
         
-        self.observation_space = bg_spaces.SegmentationSpace(
-                self.height, self.width)
+        self.observation_space = ltron_spaces.SegmentationSpace(
+                self.width, self.height)
     
     def compute_observation(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
-        scene.mask_render()
+        #scene.mask_render()
+        scene.render_brick_instance_ids()
         mask = self.frame_buffer.read_pixels()
         self.observation = masks.color_byte_to_index(mask)
+    
+    def reset(self):
+        self.compute_observation()
+        return self.observation
+    
+    def step(self, action):
+        self.compute_observation()
+        terminal = False
+        if self.terminate_on_empty:
+            terminal = numpy.all(self.observation == 0)
+        return self.observation, 0., terminal, None
+    
+    def set_state(self, state):
+        self.compute_observation()
+
+class SnapRenderComponent(LtronGymComponent):
+    def __init__(self,
+        height,
+        width,
+        scene_component,
+        polarity=None,
+        style=None,
+        terminate_on_empty=True,
+    ):
+        
+        self.width = width
+        self.height = height
+        self.scene_component = scene_component
+        self.polarity=polarity
+        self.style=style
+        self.terminate_on_empty = terminate_on_empty
+        self.scene_component.brick_scene.make_renderable()
+        self.frame_buffer = FrameBufferWrapper(
+            self.width, self.height, anti_alias=False)
+        
+        self.observation_space = ltron_spaces.SnapSegmentationSpace(
+            self.width, self.height)
+    
+    def compute_observation(self):
+        scene = self.scene_component.brick_scene
+        self.frame_buffer.enable()
+        
+        # get the snap names
+        snaps = scene.get_snaps(polarity=self.polarity, style=self.style)
+        snap_names = scene.get_snap_names(snaps)
+        
+        # render instance ids
+        scene.snap_render_instance_id(snap_names)
+        instance_id_mask = self.frame_buffer.read_pixels()
+        instance_ids = masks.color_byte_to_index(instance_id_mask)
+        
+        # render snap ids
+        scene.snap_render_snap_id(snap_names)
+        snap_id_mask = self.frame_buffer.read_pixels()
+        snap_ids = masks.color_byte_to_index(snap_id_mask)
+        
+        self.observation = numpy.stack((instance_ids, snap_ids), axis=-1)
     
     def reset(self):
         self.compute_observation()

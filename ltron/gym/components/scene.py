@@ -1,15 +1,19 @@
-from ltron.gym.components.brick_env_component import BrickEnvComponent
-from ltron.bricks.brick_scene import BrickScene
 from gym.spaces import Dict, Discrete
 
-class SceneComponent(BrickEnvComponent):
+from ltron.hierarchy import hierarchy_branch
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
+from ltron.bricks.brick_scene import BrickScene
+
+class SceneComponent(LtronGymComponent):
     def __init__(self,
-            path_component=None,
+            dataset_component=None,
+            path_location=None,
             initial_scene_path=None,
             renderable=True,
             default_image_light='grey_cube'):
         
-        self.path_component = path_component
+        self.dataset_component = dataset_component
+        self.path_location = path_location
         self.initial_scene_path = initial_scene_path
         self.current_scene_path = None
         
@@ -31,11 +35,19 @@ class SceneComponent(BrickEnvComponent):
     
     def reset(self):
         self.brick_scene.clear_instances()
+        if self.dataset_component is not None:
+            #self.current_scene_path = magic_lookup(
+            #    self.dataset_component, self.path_location)
+            self.current_scene_path = hierarchy_branch(
+                self.dataset_component.dataset_item, self.path_location)
+        elif self.initial_scene_path is not None:
+            self.current_scene_path = self.initial_scene_path
+        '''
         if self.path_component is not None:
             self.current_scene_path = self.path_component.scene_path
         elif self.initial_scene_path is not None:
             self.current_scene_path = self.initial_scene_path
-        
+        '''
         if self.current_scene_path is not None:
             self.brick_scene.import_ldraw(self.current_scene_path)
         
@@ -47,7 +59,7 @@ class SceneComponent(BrickEnvComponent):
     def set_state(self, state):
         self.brick_scene.clear_assets()
         self.brick_scene.clear_instances()
-        if self.path_component is not None:
-            self.brick_scene.import_ldraw(self.path_component.scene_path)
+        if self.dataset_component is not None:
+            self.brick_scene.import_ldraw(self.dataset_component.scene_path)
         elif self.initial_scene_path is not None:
             self.brick_scene.import_ldraw(self.initial_scene_path)

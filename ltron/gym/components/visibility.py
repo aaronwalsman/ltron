@@ -3,9 +3,9 @@ import numpy
 import gym.spaces as gym_spaces
 
 import ltron.gym.spaces as bg_spaces
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class VisibilityComponent(BrickEnvComponent):
+class VisibilityComponent(LtronGymComponent):
     def __init__(self,
                 scene_component,
                 terminate_when_all_hidden=False):
@@ -70,7 +70,7 @@ class InstanceVisibilityComponent(VisibilityComponent):
         
         return None, 0., self.check_terminal(), None
 
-class InstanceRemovabilityComponent(BrickEnvComponent):
+class InstanceRemovabilityComponent(LtronGymComponent):
     def __init__(self,
             max_instances,
             scene_component):

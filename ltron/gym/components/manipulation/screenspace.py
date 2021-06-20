@@ -8,24 +8,6 @@ from ltron.gym.spaces import (
 )
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class PickAndPlaceSymbolic(LtronGymComponent):
-    def __init__(self, scene_component, max_instances, max_snaps):
-        self.scene_component = scene_component
-        self.max_instances = max_instances
-        self.max_snaps = max_snaps
-        
-        pick_space = SingleSnapIndexSpace(max_instances, max_snaps)
-        place_space = SingleSnapIndexSpace(max_instances, max_snaps)
-        self.action_space = Tuple((pick_space, place_space))
-    
-    def step(self, action):
-        pick = action[0]
-        place = action[1]
-        print('schnapink')
-        self.scene_component.brick_scene.pick_and_place_snap(pick, place)
-        
-        return None, 0., False, {}
-
 class PickAndPlace2D(LtronGymComponent):
     def __init__(self,
         scene_component,
