@@ -1,11 +1,10 @@
 import math
 
-import renderpy.contexts.egl as drpy_egl
-import renderpy.contexts.glut as drpy_glut
-from renderpy.core import Renderpy
-import renderpy.camera as camera
-import renderpy.masks as masks
-import renderpy.assets as drpy_assets
+import splendor.contexts.egl as egl
+import splendor.contexts.glut as glut
+from splendor.core import SplendorRender
+import splendor.camera as camera
+import splendor.masks as masks
 
 import ltron.settings as settings
 
@@ -16,10 +15,7 @@ default_projection = camera.projection_matrix(
     far_clip=50000,
 )
 
-default_asset_paths = '%s:%s'%(
-    settings.paths['renderpy_assets_cfg'],
-    drpy_assets.default_assets_path,
-)
+default_asset_paths = 'ltron_assets,default_assets'
 
 class RenderEnvironment:
     
@@ -37,12 +33,12 @@ class RenderEnvironment:
         load_scene=None,
     ):
         if opengl_mode == 'egl':
-            drpy_egl.initialize_plugin()
-            drpy_egl.initialize_device(device=egl_device)
+            egl.initialize_plugin()
+            egl.initialize_device(device=egl_device)
         
         elif opengl_mode == 'glut':
-            drpy_glut.initialize()
-            self.window = drpy_glut.GlutWindowWrapper(
+            glut.initialize()
+            self.window = glut.GlutWindowWrapper(
                     'LTRON',
                     width = window_width,
                     height = window_height,
@@ -56,7 +52,7 @@ class RenderEnvironment:
             raise Exception(
                     'Unknown opengl_mode: %s (expected "egl" or "glut")')
         
-        self.renderer = Renderpy(
+        self.renderer = SplendorRender(
                 asset_paths,
                 default_camera_projection=default_projection,
         )
@@ -87,7 +83,7 @@ class RenderEnvironment:
         if not self.renderer.material_exists(color.color_name):
             self.renderer.load_material(
                 color.color_name,
-                **color.renderpy_material_args(),
+                **color.splendor_material_args(),
             )
     
     def clear_materials(self):
@@ -100,7 +96,7 @@ class RenderEnvironment:
         if not self.renderer.mesh_exists(brick_type.mesh_name):
             self.renderer.load_mesh(
                 brick_type.mesh_name,
-                **brick_type.renderpy_mesh_args(),
+                **brick_type.splendor_mesh_args(),
             )    
     
     # instances ================================================================
@@ -112,10 +108,10 @@ class RenderEnvironment:
         # load the color material if necessary
         self.load_color_material(brick_instance.color)
         
-        # add the renderpy instance
+        # add the splendor instance
         self.renderer.add_instance(
             brick_instance.instance_name,
-            **brick_instance.renderpy_instance_args(),
+            **brick_instance.splendor_instance_args(),
         )
         
         # add the snap instances
@@ -131,7 +127,7 @@ class RenderEnvironment:
                 color_mode='flat_color',
             )
         
-        # add the renderpy instance
+        # add the splendor instance
         snap_name = '%s_%i'%(instance_id, snap_id)
         self.renderer.add_instance(
             snap_name,
@@ -139,7 +135,7 @@ class RenderEnvironment:
             material_name='snap%s'%snap.polarity,
             transform=snap.transform,
             mask_color=(0,0,0),
-            hidden=True,
+            hidden=False,
         )
     
     def remove_instance(self, brick_instance):
@@ -211,6 +207,45 @@ class RenderEnvironment:
     
     def show_snap_instance(self, instance_id, snap_id):
         snap_name = '%s_%i'%(instance_id, snap_id)
+    
+    def color_render(self, instances=None, **kwargs):
+        if instances is None:
+            instances = self.get_all_brick_instances()
+        self.renderer.color_render(instances=instances, **kwargs)
+    
+    def get_snap_names(self, snaps):
+        return [
+            snap if isinstance(snap, str) else '%s_%i'%snap
+            for snap in snaps
+        ]
+    
+    def snap_render_instance_id(self, snaps=None, **kwargs):
+        if snaps is None:
+            snaps = self.get_all_snap_instances()
+            
+        self.set_snap_masks_to_instance_id(snaps)
+        self.renderer.mask_render(instances=snaps, **kwargs)
+    
+    def snap_render_snap_id(self, snaps=None, **kwargs):
+        if snaps is None:
+            snaps = self.get_all_snap_instances()
+        
+        self.set_snap_masks_to_snap_id(snaps)
+        self.renderer.mask_render(instances=snaps, **kwargs)
+    
+    def set_snap_masks_to_instance_id(self, snaps):
+        if snaps is None:
+            snaps = self.get_all_snap_instances()
+        mask_lookup = {
+            snap:int(snap.split('_')[0]) for snap in snaps}
+        self.renderer.set_instance_masks_to_instance_indices(mask_lookup)
+    
+    def set_snap_masks_to_snap_id(self, snaps):
+        if snaps is None:
+            snaps = self.get_all_snap_instances()
+        mask_lookup = {
+            snap:int(snap.split('_')[1]) for snap in snaps}
+        self.renderer.set_instance_masks_to_instance_indices(mask_lookup)
     
     def __getattr__(self, attr):
         try:
