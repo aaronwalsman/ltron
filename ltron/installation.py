@@ -127,7 +127,7 @@ def install_splendor_meshes(resolution, overwrite=False):
     splendor_home = get_splendor_home()
     resolution_path = os.path.join(splendor_home, asset_name)
     resolution_cfg_path = resolution_path + '.cfg'
-    generic_cfg_path = generic_path + '.cfg'
+    generic_cfg_path = os.path.join(splendor_home, 'ltron_assets.cfg')
     if os.path.exists(generic_cfg_path):
         os.unlink(generic_cfg_path)
     os.symlink(resolution_cfg_path, generic_cfg_path)
