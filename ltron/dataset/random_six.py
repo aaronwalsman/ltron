@@ -16,11 +16,11 @@ samplers = [
 ]
 
 ldraw_path = os.path.join(
-    settings.paths['data'], 'random_stack_redux', 'ldraw')
+    settings.paths['data'], 'random_six', 'ldraw')
 if not os.path.isdir(ldraw_path):
     os.makedirs(ldraw_path)
 
 for i in tqdm.tqdm(range(10000)):
     scene = sample_scene(samplers, (4,8), ['1','4','14'], timeout=10)
-    scene_path = os.path.join(ldraw_path, 'random_stack_redux_%06i.mpd'%i)
+    scene_path = os.path.join(ldraw_path, 'random_six_%06i.mpd'%i)
     scene.export_ldraw(scene_path)

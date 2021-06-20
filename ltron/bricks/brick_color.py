@@ -70,7 +70,7 @@ class BrickColor:
         self.color_byte = ldraw_colors.color_index_to_alt_rgb.get(
                 self.color_index, (128,128,128))
     
-    def renderpy_material_args(self):
+    def splendor_material_args(self):
         material_args = {
             'flat_color' : numpy.array(self.color_byte)/255.,
             'ambient' : 1.0,

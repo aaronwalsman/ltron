@@ -1,10 +1,10 @@
 import collections
 
 try:
-    import renderpy.masks as masks
-    renderpy_available = True
+    import splendor.masks as masks
+    splendor_available = True
 except:
-    renderpy_available = False
+    splendor_available = False
 
 from ltron.ldraw.commands import *
 from ltron.ldraw.documents import *
@@ -112,13 +112,13 @@ class BrickInstance:
         #    snaps.append(snap.transformed_copy(self.transform))
         #return snaps
     
-    def renderpy_instance_args(self):
+    def splendor_instance_args(self):
         instance_args = {
             'mesh_name' : self.brick_type.mesh_name,
             'material_name' : self.color.color_name,
             'transform' : self.transform,
         }
-        if renderpy_available:
+        if splendor_available:
             if self.mask_color is None:
                 instance_args['mask_color'] = masks.color_index_to_byte(
                         self.instance_id)/255.

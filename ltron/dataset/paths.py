@@ -3,11 +3,15 @@ import os
 import glob
 import json
 
+import numpy
+
 import ltron.settings as settings
+from ltron.hierarchy import map_hierarchies
 
 def resolve_subdocument(file_path):
-    if ':' in file_path:
-        file_path, subdocument = file_path.split(':')
+    if '#' in file_path:
+        file_path, subdocument = file_path.split('#')
+        subdocument = subdocument.lower()
     else:
         subdocument = None
     
@@ -33,7 +37,45 @@ def get_dataset_info(dataset):
     dataset_path = os.path.expanduser(settings.datasets[dataset])
     return json.load(open(dataset_path))
 
+def process_file_paths(file_paths, subset=None, rank=0, size=1):
+    file_paths = file_paths.split(',')
+    all_file_paths = []
+    for file_path in file_paths:
+        file_path = file_path.format(**settings.collections)
+        file_path, subdocument = resolve_subdocument(file_path)
+        if '[' in file_path:
+            file_path, path_slice = file_path.split('[')
+            path_slice = path_slice.replace(']', '').split(':')
+            path_slice = [None if s is '' else int(s) for s in path_slice]
+            path_slice = slice(*path_slice)
+        else:
+            path_slice = slice(None)
+        
+        file_paths = sorted(glob.glob(file_path))[path_slice]
+        if subdocument is not None:
+            file_paths = ['%s#%s'%(fp, subdocument) for fp in file_paths]
+        all_file_paths.extend(file_paths)
+    
+    if subset is not None:
+        if isinstance(subset, int):
+            path_subset = (subset,)
+        else:
+            path_subset = subset
+        all_file_paths = all_file_paths[slice(*path_subset)]
+    
+    paths = all_file_paths[rank::size]
+    return numpy.array(paths, dtype=object)
+
 def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
+    split = get_dataset_info(dataset)['splits'][split_name]
+    
+    def process_fn(file_paths):
+        return process_file_paths(
+            file_paths, subset=subset, rank=rank, size=size)
+    
+    return map_hierarchies(process_fn, split)
+
+def get_dataset_paths_old(dataset, split_name, subset=None, rank=0, size=1):
     dataset_path = os.path.expanduser(settings.datasets[dataset])
     dataset_directory = os.path.dirname(dataset_path)
     splits = get_dataset_info(dataset)['splits']

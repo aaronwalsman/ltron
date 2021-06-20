@@ -1,10 +1,10 @@
 import copy
 
 try:
-    import renderpy.primitives as primitives
-    renderpy_available = True
+    import splendor.primitives as primitives
+    splendor_available = True
 except ImportError:
-    renderpy_available = False
+    splendor_available = False
 
 from ltron.ldraw.commands import *
 from ltron.ldraw.exceptions import LDrawException
@@ -63,23 +63,6 @@ def griderate(grid, transform):
     else:
         raise BadGridException('LDCad grid info must be either 2d or 3d')
     
-    '''
-    grid_parts = grid.split()
-    if grid_parts[0] == 'C':
-        center_x = True
-        grid_parts = grid_parts[1:]
-    else:
-        center_x = False
-    grid_x = int(grid_parts[0])
-    if grid_parts[1] == 'C':
-        center_z = True
-        grid_parts = [grid_parts[0]] + grid_parts[2:]
-    else:
-        center_z = False
-    grid_z = int(grid_parts[1])
-    grid_spacing_x = float(grid_parts[2])
-    grid_spacing_z = float(grid_parts[3])
-    '''
     if center_x:
         x_width = grid_spacing_x * (grid_x-1)
         x_offset = -x_width/2.
@@ -176,7 +159,7 @@ class SnapStyle(Snap):
         return copied_snap
     
 class SnapCylinder(SnapStyle):
-    
+    style='cylinder'
     def __init__(self, command, transform):
         super(SnapCylinder, self).__init__(command, transform)
         self.polarity = gender_to_polarity[command.flags['gender']]
@@ -219,7 +202,7 @@ class SnapCylinder(SnapStyle):
         return list(sec_parts)
     
     def get_snap_mesh(self):
-        assert renderpy_available
+        assert splendor_available
         sec_parts = self.get_sec_parts()
         sections = []
         previous_length = 0
@@ -239,6 +222,7 @@ class SnapCylinder(SnapStyle):
                 end_cap=True)
 
 class SnapClip(SnapStyle):
+    style='clip'
     def __init__(self, command, transform):
         super(SnapClip, self).__init__(command, transform)
         self.polarity = '-'
@@ -275,7 +259,7 @@ class SnapClip(SnapStyle):
         return True
     
     def get_snap_mesh(self):
-        assert renderpy_available
+        assert splendor_available
         
         start_height = 0
         end_height = -self.length
@@ -291,6 +275,7 @@ class SnapClip(SnapStyle):
                 end_cap=True)
 
 class SnapFinger(SnapStyle):
+    style='finger'
     def __init__(self, command, transform):
         super(SnapFinger, self).__init__(command, transform)
         self.polarity = gender_to_polarity[command.flags.get('genderofs', 'm')]
@@ -330,7 +315,7 @@ class SnapFinger(SnapStyle):
         return True
     
     def get_snap_mesh(self):
-        assert renderpy_available
+        assert splendor_available
         
         length = sum(self.seq)
         start_height = 0
@@ -348,6 +333,7 @@ class SnapFinger(SnapStyle):
         )
 
 class SnapGeneric(SnapStyle):
+    style='generic'
     def __init__(self, command, transform):
         super(SnapGeneric, self).__init__(command, transform)
         self.polarity = gender_to_polarity[command.flags.get('genderofs', 'm')]
@@ -378,7 +364,7 @@ class SnapGeneric(SnapStyle):
         return True
     
     def get_snap_mesh(self):
-        assert renderpy_available
+        assert splendor_available
         
         bounding_type, *bounding_args = self.bounding
         if bounding_type == 'pnt':
@@ -415,6 +401,7 @@ class SnapGeneric(SnapStyle):
             raise NotImplementedError
 
 class SnapSphere(SnapStyle):
+    style='sphere'
     def __init__(self, command, transform):
         super(SnapSphere, self).__init__(command, transform)
         self.polarity = gender_to_polarity[command.flags['gender']]
@@ -448,6 +435,20 @@ class SnapSphere(SnapStyle):
         return True
     
     def get_snap_mesh(self):
-        assert renderpy_avaialable
+        assert splendor_avaialable
         
         return primitives.sphere(radius=self.radius)
+
+def filter_snaps(snaps, polarity=None, style=None):
+    def f(snap):
+        if polarity is not None and hasattr(snap, 'polarity'):
+            if snap.polarity != polarity:
+                return False
+        if style is not None:
+            if isinstance(style, str):
+                style = (style,)
+            if snap.style not in style:
+                return False
+        return True
+    
+    return filter(f, snaps)

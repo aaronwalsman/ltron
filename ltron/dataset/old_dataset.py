@@ -10,7 +10,7 @@ import tqdm
 
 import PIL.Image as Image
 
-import renderpy.masks as masks
+import splendor.masks as masks
 
 brick_ids = {
     '3005.dat' : 1,

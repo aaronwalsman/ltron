@@ -10,7 +10,7 @@ import PIL.Image as Image
 
 import tqdm
 
-import renderpy.masks as masks
+import splendor.masks as masks
 
 import ltron.settings as settings
 

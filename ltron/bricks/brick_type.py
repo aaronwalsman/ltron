@@ -73,7 +73,7 @@ class BrickType:
     def __str__(self):
         return self.reference_name
     
-    def renderpy_mesh_args(self):
+    def splendor_mesh_args(self):
         mesh_entry = {
             'mesh_asset' : self.mesh_name,
             'scale' : 1.0,
