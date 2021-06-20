@@ -1,21 +1,35 @@
 ================================================================================LICENSING INFORMATION:
+--------------------------------------------------------------------------------
 This document contains information about the various licenses used by different
-components of LTRON but is not a license itself.  Please see the sections below
-for more details.
+components of LTRON.  Please see the sections below for more details.
+
+
 ================================================================================LTRON
 Source: https://github.com/aaronwalsman/ltron
 --------------------------------------------------------------------------------
 The ltron software package is provided under the MIT license.
 https://opensource.org/licenses/MIT
+--------------------------------------------------------------------------------
+Copyright 2021 Aaron Walsman
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 ================================================================================LDraw
 Source: http://www.ldraw.org/library/updates/complete.zip
 --------------------------------------------------------------------------------
 The LDraw parts library is used by LTron to describe the 3D structure of
 individual bricks.  It is provided by the LDraw contributors under a
-Creative Commons license.  For more information on the license see:
+Creative Commons license.  For more information on this license see:
 
 https://ldraw.org/legal-info
 https://creativecommons.org/licenses/by/2.0/
+
+
 ================================================================================Open Model Repository
 Source: https://omr.ldraw.org
 Modified: https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
@@ -37,16 +51,13 @@ The following files have been modified by the LTRON authors with small fixes:
 
 The file headers have been updated to reflect the fact that these changes have
 been made.
-================================================================================Shadow Parts Library
-Source: http://melkert.net/LDCad
-Modified: https://drive.google.com/uc?id=1pB5vUYzOOyTU9Vji5v5_kNxzbKbJqc25
---------------------------------------------------------------------------------
-The Shadow Parts Library is a component of the LDCad software package by
-Roland Melkert which can be found at:
-http://melkert.net/LDCad
 
-The LTRON authors have extracted these components and are redistributing them
-under the repackaging and redistribution clauses of the LDCad license below.
+
+================================================================================LDCad
+Source: http://www.melkert.net/action/download/LDCad-1-6d-Linux.tar.bz2
+--------------------------------------------------------------------------------
+LDCad is a Lego CAD modelling software by Roland Melkert which can be found at:
+http://www.melkert.net/LDCad.  It comes bundled with data files that LTRON uses for part snapping.
 
 --------------------------------------------------------------------------------
 LDCad License:
@@ -70,10 +81,12 @@ By using the software you agree with the contents of this document and          
 
 For questions, contact- or additional information visit: www.melkert.net/LDCad
 
+
+
 ================================================================================Splendor Meshes
 Sources:
-https://drive.google.com/uc?id=1bNQiOkUbjd1aoKVniRZQavtg8v7_3Fen
-https://drive.google.com/uc?id=1kq8boQhMIaKqPrjnCM2296aQ3g4-N6WX
+https://drive.google.com/uc?id=11p_vyeL_B_BK7gupI8_JvGGbffJ2kXiG
+https://drive.google.com/uc?id=1wIw-0YXx9QkQ9Kjpcvv5XsZFqdZrGj6U
 --------------------------------------------------------------------------------
 The LDraw components have been converted into mesh obj files for compatibility
 with LTRON.  This conversion was done using the import-ldraw plugin for blender:
@@ -88,4 +101,6 @@ information on LDraw licensing and the Creative Commons license see:
 
 https://ldraw.org/legal-info
 https://creativecommons.org/licenses/by/2.0/
+
+
 ================================================================================
