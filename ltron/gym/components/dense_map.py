@@ -2,9 +2,9 @@ import numpy
 
 import gym.spaces as gym_spaces
 
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class DenseMapComponent(BrickEnvComponent):
+class DenseMapComponent(LtronGymComponent):
     def __init__(self,
         instance_data_component,
         segmentation_component,

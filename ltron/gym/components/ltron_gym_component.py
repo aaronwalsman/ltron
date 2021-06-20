@@ -1,4 +1,4 @@
-class BrickEnvComponent:
+class LtronGymComponent:
     '''
     def update_observation_space(self, observation_space):
         pass

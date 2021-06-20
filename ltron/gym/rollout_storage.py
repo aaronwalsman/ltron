@@ -6,67 +6,14 @@ import numpy
 
 import gym.spaces as spaces
 
-def parallel_deepmap(fn, *a):
-    if isinstance(a[0], dict):
-        assert all(isinstance(aa, dict) for aa in a[1:])
-        assert all(aa.keys() == a[0].keys() for aa in a[1:])
-        return {
-            key : parallel_deepmap(fn, *[aa[key] for aa in a])
-            for key in a[0].keys()
-        }
-    
-    elif isinstance(a[0], (tuple, list)):
-        assert all(isinstance(aa, (tuple, list)) for aa in a[1:])
-        assert all(len(aa) == len(a[0]) for aa in a[1:])
-        return [
-            parallel_deepmap(fn, *[aa[i] for aa in a])
-            for i in range(len(a[0]))
-        ]
-    
-    else:
-        return fn(*a)
-
-def concatenate_gym_data(*a, axis=0):
-    def fn(*a):
-        return numpy.concatenate(a, axis=axis)
-    return parallel_deepmap(fn, *a)
-
-def stack_gym_data(*a, axis=0):
-    def fn(*a):
-        return numpy.stack(a, axis=axis)
-    return parallel_deepmap(fn, *a)
-
-def extract_indices(a, ids):
-    def fn(a):
-        return a[ids]
-    return parallel_deepmap(fn, a)
-
-def pad_gym_data(a, pad, axis=0):
-    def fn(*a):
-        if a[0].shape[axis] < pad:
-            pad_shape = list(a[0].shape)
-            pad_shape[axis] = pad - a[0].shape[axis]
-            z = numpy.zeros(pad_shape, dtype=a[0].dtype)
-            return numpy.concatenate((a[0], z), axis=axis)
-        
-        else:
-            return a[0]
-    
-    return parallel_deepmap(fn, a)
-
-def get_gym_data_len(a, axis=0):
-    class GymLenException(Exception):
-        def __init__(self, gym_len):
-            self.gym_len = gym_len
-    def fn(*a):
-        raise GymLenException(a[0].shape[axis])
-    
-    try:
-        parallel_deepmap(fn, a)
-    except GymLenException as e:
-        return e.gym_len
-    
-    return 0
+from ltron.hierarchy import (
+    map_hierarchies,
+    index_hierarchy,
+    len_hierarchy,
+    concatenate_numpy_hierarchies,
+    stack_numpy_hierarchies,
+    pad_numpy_hierarchy,
+)
 
 class RolloutStorage:
     def __init__(self, batch_size):
@@ -104,7 +51,7 @@ class RolloutStorage:
         if self.gym_data is None:
             self.gym_data = kwargs
         else:
-            self.gym_data = concatenate_gym_data(self.gym_data, kwargs)
+            self.gym_data = concatenate_numpy_hierarchies(self.gym_data, kwargs)
         
         for i, v in enumerate(valid):
             if v:
@@ -137,7 +84,7 @@ class RolloutStorage:
     def get_batch_from_storage_ids(self, storage_ids):
         gym_data = {}
         for key, value in self.gym_data.items():
-            gym_data[key] = extract_indices(value, storage_ids)
+            gym_data[key] = index_hierarchy(value, storage_ids)
         
         return gym_data
     
@@ -173,10 +120,10 @@ class RolloutStorage:
                 self.get_seq(seq, start, stop)
                 for seq, start, stop in seq_ids
             ]
-        seq_lens = [get_gym_data_len(d) for d in gym_data]
+        seq_lens = [len_hierarchy(d) for d in gym_data]
         max_seq_len = max(seq_lens)
-        gym_data = [pad_gym_data(d, max_seq_len) for d in gym_data]
-        gym_data = stack_gym_data(*gym_data, axis=axis)
+        gym_data = [pad_numpy_hierarchy(d, max_seq_len) for d in gym_data]
+        gym_data = stack_numpy_hierarchies(*gym_data, axis=axis)
         seq_mask = numpy.ones(
             (len(seq_ids), max_seq_len),
             dtype=numpy.bool,

@@ -4,9 +4,9 @@ import numpy
 import ltron.utils as utils
 import ltron.evaluation as evaluation
 import ltron.gym.spaces as bg_spaces
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class InstanceGraphConstructionTask(BrickEnvComponent):
+class InstanceGraphConstructionTask(LtronGymComponent):
     def __init__(self,
             num_classes,
             max_instances,
@@ -140,7 +140,7 @@ class InstanceGraphConstructionTask(BrickEnvComponent):
         return None, edge_ap * instance_ap, terminal, info
 
 '''
-class GraphConstructionTask(BrickEnvComponent):
+class GraphConstructionTask(LtronGymComponent):
     def __init__(self,
             num_classes,
             max_nodes,

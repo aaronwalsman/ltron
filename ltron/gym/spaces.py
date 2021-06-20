@@ -2,7 +2,7 @@ import numpy
 
 from gym import spaces
 
-import renderpy.masks as masks
+import splendor.masks as masks
 
 class ImageSpace(spaces.Box):
     '''
@@ -27,6 +27,20 @@ class SegmentationSpace(spaces.Box):
                 low=0, high=max_instances, shape=(height, width),
                 dtype=numpy.long)
 
+class SnapSegmentationSpace(spaces.Box):
+    '''
+    A height x width x 2 array, where each pixel contains a long refering to
+    a brick instance index, and another long referring to a connection point
+    index.
+    '''
+    def __init__(self, width, height, max_id=masks.NUM_MASKS-1):
+        self.width = width
+        self.height = height
+        self.max_id = max_id
+        super(SnapSegmentationSpace, self).__init__(
+                low=0, high=max_id, shape=(height, width, 2),
+                dtype=numpy.long)
+
 class StepSpace(spaces.Discrete):
     '''
     A discrete value to represent the current step index in an episode
@@ -45,6 +59,13 @@ class SingleInstanceIndexSpace(spaces.Discrete):
         super(SingleInstanceIndexSpace, self).__init__(
                 self.max_num_instances+1)
 
+class SingleSnapIndexSpace(spaces.MultiDiscrete):
+    def __init__(self, max_num_instances, max_num_snaps):
+        self.max_num_instances = max_num_instances
+        self.max_num_snaps = max_num_snaps
+        super(SingleSnapIndexSpace, self).__init__(
+            [self.max_num_instances+1, max_num_snaps])
+
 class MultiInstanceSelectionSpace(spaces.Box):
     '''
     A list of binary values to represent selecting multiple isntances in a scene
@@ -57,14 +78,24 @@ class MultiInstanceSelectionSpace(spaces.Box):
                 shape=(self.max_num_instances+1,),
                 dtype=numpy.bool)
 
-class PixelSelectionSpace(spaces.Box):
+class SinglePixelSelectionSpace(spaces.MultiDiscrete):
+    '''
+    A single pixel loection for drag-and-drop operations
+    '''
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        super(SinglePixelSelectionSpace, self).__init__(
+            [self.height, self.width])
+
+class MultiPixelSelectionSpace(spaces.Box):
     '''
     A binary pixel mask for selecting multiple screen pixels simultaneously
     '''
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        super(PixelSelectionSpace, self).__init__(
+        super(MultiPixelSelectionSpace, self).__init__(
                 low=False, high=True, shape=(height, width),
                 dtype=numpy.bool)
 
@@ -122,7 +153,6 @@ class ClassDistributionSpace(spaces.Box):
             shape=(max_instances+1, num_classes),
         )
 
-"""
 class InstanceListSpace(spaces.Dict):
     '''
     A variable length vector of instances
@@ -137,7 +167,7 @@ class InstanceListSpace(spaces.Dict):
             'label' : spaces.Box(
                 low=0,
                 high=num_classes,
-                shape=(max_instances+1, 1),
+                shape=(max_instances+1,),
                 dtype=numpy.long),
         }
         
@@ -148,9 +178,31 @@ class InstanceListSpace(spaces.Dict):
                     shape=(max_instances+1, 1))
         
         super(InstanceListSpace, self).__init__(space_dict)
-"""
+    
+    def from_scene(self, scene, class_lookup, score=None):
+        result = {}
+        result['num_instances'] = len(scene.instances)
+        result['label'] = numpy.zeros(
+            (self.max_instances+1,), dtype=numpy.long)
+        for instance_id, instance in scene.instances.items():
+            brick_type_name = str(instance.brick_type)
+            class_id = class_lookup[brick_type_name]
+            result['label'][instance_id] = class_id
+        
+        if score is not None:
+            assert self.include_score
+            result['score'] = score
+        
+        return result
+
 class EdgeSpace(spaces.Dict):
-    def __init__(self, max_instances, max_edges, include_score=False):
+    def __init__(
+        self,
+        max_instances,
+        max_snaps,
+        max_edges,
+        include_score=False
+    ):
         self.max_instances = max_instances
         self.max_edges = max_edges
         self.include_score = include_score
@@ -159,8 +211,8 @@ class EdgeSpace(spaces.Dict):
             'num_edges' : spaces.Discrete(max_edges+1),
             'edge_index' : spaces.Box(
                 low=0,
-                high=max_instances,
-                shape=(2, max_edges),
+                high=max(max_instances, max_snaps-1),
+                shape=(4, max_edges),
                 dtype=numpy.long),
         }
         
@@ -170,7 +222,24 @@ class EdgeSpace(spaces.Dict):
                     high=1.,
                     shape=(max_edges, 1))
         
-        super(EdgeSpace, self).__init__(space_dict) 
+        super(EdgeSpace, self).__init__(space_dict)
+    
+    def from_scene(self, scene, score=None):
+        result = {}
+        edges = scene.get_all_edges(unidirectional=True)
+        num_edges = edges.shape[-1]
+        if num_edges < self.max_edges:
+            edges = numpy.concatenate(
+                (edges,
+                 numpy.zeros((4, self.max_edges-num_edges), dtype=numpy.long)),
+                axis=1)
+        result['num_edges'] = num_edges
+        result['edge_index'] = edges
+        if score is not None:
+            assert self.include_score
+            result['score'] = score
+        
+        return result
 
 class InstanceGraphSpace(spaces.Dict):
     '''
@@ -179,21 +248,45 @@ class InstanceGraphSpace(spaces.Dict):
     def __init__(self,
             num_classes,
             max_instances,
+            max_snaps,
             max_edges,
             include_edge_score=False,
             include_instance_score=False):
         
         self.num_classes = num_classes
         self.max_instances = max_instances
+        self.max_snaps = max_snaps
         self.max_edges = max_edges
         self.include_instance_score = include_instance_score
         self.include_edge_score = include_edge_score
         
         dict_space = {
-                'instances' : InstanceListSpace(
-                    num_classes, max_instances, self.include_instance_score),
-                'edges' : EdgeSpace(
-                    max_instances, max_edges, self.include_edge_score),
+            'instances' : InstanceListSpace(
+                num_classes,
+                max_instances,
+                self.include_instance_score
+            ),
+            'edges' : EdgeSpace(
+                max_instances,
+                max_snaps,
+                max_edges,
+                self.include_edge_score,
+            ),
         }
         
         super(InstanceGraphSpace, self).__init__(dict_space)
+    
+    def from_scene(
+        self,
+        scene,
+        class_lookup,
+        instance_score=None,
+        edge_score=None,
+    ):
+        result = {}
+        result['instances'] = self['instances'].from_scene(
+            scene, class_lookup, score=instance_score)
+        result['edges'] = self['edges'].from_scene(
+            scene, score=edge_score)
+        
+        return result

@@ -1,7 +1,7 @@
 from ltron.gym.spaces import StepSpace
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class MaxEpisodeLengthComponent(BrickEnvComponent):
+class MaxEpisodeLengthComponent(LtronGymComponent):
     def __init__(self, max_episode_length, observe_step=True):
         self.max_episode_length = max_episode_length
         self.episode_step = None
