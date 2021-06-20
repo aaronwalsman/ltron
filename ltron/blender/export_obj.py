@@ -70,7 +70,7 @@ Produce!  Stop throwing good time after bad.
 loadldraw.globalLightBricks = {}
 
 part_directory = os.path.join(settings.paths['ldraw'], 'parts')
-obj_directory = os.path.join(settings.paths['renderpy'], 'meshes')
+obj_directory = os.path.join(settings.paths['splendor'], 'meshes')
 
 if not os.path.exists(obj_directory):
     os.makedirs(obj_directory)

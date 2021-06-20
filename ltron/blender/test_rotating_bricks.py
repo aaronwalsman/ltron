@@ -2,8 +2,8 @@
 import re
 import os
 
-src_dir = '/media/awalsman/data_drive/brick-gym/data/renderpy/meshes'
-check_dir = '/media/awalsman/data_drive/brick-gym/data/renderpy/meshes_new_all'
+src_dir = '/media/awalsman/data_drive/brick-gym/data/splendor/meshes'
+check_dir = '/media/awalsman/data_drive/brick-gym/data/splendor/meshes_new_all'
 
 src_files = sorted([f for f in os.listdir(src_dir) if f[-4:] == '.obj'])
 

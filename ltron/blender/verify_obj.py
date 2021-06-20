@@ -5,7 +5,7 @@ import tqdm
 
 import numpy
 
-from renderpy.obj_mesh import load_mesh
+from splendor.obj_mesh import load_mesh
 
 import ltron.settings as settings
 from ltron.ldraw.documents import LDrawDocument
@@ -20,7 +20,7 @@ def doc_bbox(doc):
     pass
 
 ldraw_part_directory = os.path.join(settings.paths['ldraw'], 'parts')
-obj_directory = os.path.join(settings.paths['renderpy'], 'meshes')
+obj_directory = os.path.join(settings.paths['splendor'], 'meshes')
 obj_files = [f for f in os.listdir(obj_directory) if f.endswith('.obj')]
 
 for obj_file in tqdm.tqdm(obj_files):
