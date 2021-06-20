@@ -11,6 +11,7 @@ from splendor.download import download, agree_to_zip_licenses
 
 import ltron.settings as settings
 from ltron.home import get_ltron_home, make_ltron_home
+from ltron.license import ldcad_license
 
 ltron_home = get_ltron_home()
 
@@ -37,28 +38,9 @@ def install_ldraw(overwrite=False):
             print('Must agree to all licensing.  Aborting LDraw install.')
 
 def ldcad_license_agreement():
-    ldcad_license_text = '''LDCad license agreement (V3)
-
-LDCad and its configuration files, the software from here on, are free for personal (non commercial) and educational use. The software might be used in this manner, free of charge, by anyone as far local law permits.
-
-The author (Roland Melkert) does not guarantee perfect operation of the software, nor can he be held responsible for any damage and / or loss resulting from the use of the software in anyway.
-
-Using the software to (help) create digital material (including but not limited to instruction booklets) to be sold later on is permitted as long a single copy of the material is donated to the author free of charge.
-
-It is permitted to customize and repackage the software as long this is done without modifying the main executable or adding third party software (including but not limited to 'adware' and 'spyware').
-
-(re)Distribution of the software in any form is only allowed when done so free of charge and a reference to the original software's website (www.melkert.net/LDCad) is included. If it concerns a customized version this must be clearly stated and in such cases the package must (also) be made available through a public accessible website.
-
-Permission is granted to post, display and/or distribute screenshots (including videoclips) of the software for use on social media and or promotional material.
-
-
-By using the software you agree with the contents of this document and therefore agree with the license.
-
-For questions, contact- or additional information visit: www.melkert.net/LDCad
-'''
     print('LDCad is a necessary component of LTRON '
         'and is provided under the following license:')
-    print(ldcad_license_text)
+    print(ldcad_license)
     print('Agree? (y/n)')
     yn = input()
     return yn in 'yY'
@@ -185,6 +167,7 @@ random_six = %(collections)s/random_six
 ltron = https://github.com/aaronwalsman/ltron
 ldraw = http://www.ldraw.org/library/updates/complete.zip
 ldcad = http://www.melkert.net/action/download/LDCad-1-6d-Linux.tar.bz2
+ldcad_home = http://www.melkert.net/LDCad
 omr_ldraw = https://omr.ldraw.org
 omr = https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
 random_six = https://drive.google.com/uc?id=11K6Zu59aU7EXRcsY_ALcOJG1S2aXcVXz
