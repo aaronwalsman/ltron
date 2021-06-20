@@ -22,6 +22,68 @@ from ltron.dataset.paths import resolve_subdocument
 import ltron.ldraw.paths as ldraw_paths
 from ltron.bricks.brick_scene import BrickScene
 
+instructions = '''
+LTron Viewer Hotkeys
+
+reload -------------------------------------------------------------------------
+l:                      reload scene
+
+camera -------------------------------------------------------------------------
+Left-Click and drag :   orbit camera
+Right-Click and drag :  pan camera
+scroll :                dolly camera in-and-out
+
+rendering ----------------------------------------------------------------------
+m :                     toggle mask render
+s :                     toggle negative snap render
+S :                     toggle positive snap render
+
+info ---------------------------------------------------------------------------
+i :                     print brick instance id, part name and transform
+                        of the brick under the cursor as well as snap id
+                        and transform if rendering snaps
+c :                     print connections to brick under the cursor
+
+visibility ---------------------------------------------------------------------
+h :                     hide the brick under the cursor
+H :                     hide all bricks
+v :                     show all bricks
+
+output -------------------------------------------------------------------------
+w :                     write out a color image to the current directory
+d :                     write out a depth image to the current directory
+e :                     export current scene
+E :                     export the current scene by OVERWRITING THE LOADED SCENE
+
+manipulation -------------------------------------------------------------------
+hold p :                hover over a positive snap, then hold p,
+                        then hover over a negative snap and release
+                        to snap the positive snap to the negative one
+hold n :                hover over a negative snap, then hold n,
+                        then hover over a positive snap and release
+                        to snap the negative snap to the positive one
+. :                     rotate the brick belonging to the positive snap
+                        under the cursor by 90 degrees
+, :                     rotate the brick belonging to the positive snap
+                        under the cursor by -90 degrees
+> :                     rotate the brick belonging to the negative snap
+                        under the cursor by 90 degrees
+< :                     rotate the brick belonging to the negative snap
+                        under the cursor by -90 degrees
+[ :                     move the brick under the cursor one step in the
+                        local -y direction
+] :                     move the brick under the cursor one step in the
+                        local y direction
+left-arrow :            move the brick under the cursor one step in the
+                        local -x direction
+right-arrow :           move the brick under the cursor one step in the
+                        local x direction
+down-arrow :            move the brick under the cursor one step in the
+                        local -z direction
+up-arrow :              move the brick under the cursor one step in the
+                        local z direction
+'''
+
 def start_viewer(
         file_path,
         width = 512,
@@ -82,6 +144,8 @@ def start_viewer(
         'batch_time' : time.time(),
         'pick_snap' : None,
     }
+    
+    print(instructions)
     
     def reload_scene(force=False):
         while True:
@@ -168,11 +232,11 @@ def start_viewer(
             else:
                 state['render_mode'] = 'color'
         
-        if key == b'r':
-            if state['render_mode'] != 'removable':
-                state['render_mode'] = 'removable'
-            else:
-                state['render_mode'] = 'color'
+        #if key == b'r':
+        #    if state['render_mode'] != 'removable':
+        #        state['render_mode'] = 'removable'
+        #    else:
+        #        state['render_mode'] = 'color'
         
         elif key == b'i':
             if state['render_mode'] == 'snap+':

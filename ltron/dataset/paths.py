@@ -15,6 +15,8 @@ def resolve_subdocument(file_path):
     else:
         subdocument = None
     
+    file_path = os.path.expanduser(file_path)
+    
     return file_path, subdocument
 
 def get_metadata_path(file_path):
