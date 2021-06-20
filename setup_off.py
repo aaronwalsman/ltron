@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="ltron",
     version="0.0.2",
-    install_requires = ['gym', 'tqdm', 'numpy', 'pyquaternion'],
+    install_requires = ['gym', 'tqdm', 'numpy', 'pyquaternion', 'gdown'],
     author="Aaron Walsman",
     author_email="aaronwalsman@gmail.com",
     description="Lego interactive machine learning environment.",
@@ -15,6 +15,8 @@ setuptools.setup(
     url="https://github.com/aaronwalsman/ltron",
     packages=setuptools.find_packages(),
     scripts=[
-            "bin/ltron_viewer",
+        "bin/ltron_viewer",
+        "bin/ltron_install_data",
+        "bin/ltron_license",
     ],
 )
