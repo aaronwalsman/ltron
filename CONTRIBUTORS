@@ -1,1 +1,278 @@
-TODO: FILL IN HERE
+The following is a list of contributors to the LDraw project, the Open Model Repository and the LDCad metadata.  These online resources have been created and are maintained by a large group of volunteers.  These contributors are not affiliated with, and have not directly contributed to the LTRON software library, however they have provided valuable open resources which have been of enormous value.  We include their names here in order to acknowledge their efforts and contribution.
+
+
+The following authors have contributed parts or parts of parts to the primary LDraw database.  This database contains the geometric shape of over 13,000 individual brick types, and is used in LTRON as the primary source of renderable geometry.  The authors are listed here in the order of the number of authored files:
+
+Philippe Hurbain [Philo]
+Magnus Forsberg [MagFors]
+James Jessiman
+Steffen [Steffen]
+Chris Dee [cwdee]
+Michael Heidemann [mikeheide]
+J.C. Tchang [tchang]
+Gerald Lasser [GeraldLasser]
+Alex Taylor [anathema]
+Guy Vivan [guyvivan]
+Tore Eriksson [Tore_Eriksson]
+Willy Tschager [Holly-Wood]
+Max Martin Richter [MMR1988]
+Damien Roux [Darats]
+Andy Westrate [westrate]
+Christian Neumann [Wesley]
+Ulrich R der [UR]
+Steve Bliss [sbliss]
+Franklin W. Cain [fwcain]
+Rolf Osterthun [Rolf]
+Massimo Maso [Sirio]
+Santeri Piippo [arezey]
+Marc Klein [marckl]
+Niels Karsdorp [nielsk]
+Evert-Jan Boer [ejboer]
+Johann Eisner [technicbasics]
+Donald Sutter [technog]
+Vincent Messenet [Cheenzo]
+Joerg Sommerer [Brickaneer]
+Paul Easter [pneaster]
+Daniel Goerner [TK-949]
+Bernd Broich [bbroich]
+Nils Schmidt [BlackBrick89]
+Stan Isachenko [angmarec]
+William Howard [WilliamH]
+John Van Zwieten [jvan]
+Howard Lande [HowardLande]
+Thomas Burger [grapeape]
+Owen Burgoyne [C3POwen]
+Orion Pobursky [OrionP]
+Takeshi Takahashi [RainbowDolphin]
+Mikkel Bech Jensen [gaia]
+Arne Hackstein
+John Riley [jriley]
+Tim Gould [timgould]
+Mark Kennedy [mkennedy]
+Tony Hafner [hafhead]
+Kevin Roach [KROACH]
+Tim Lampmann [L4mpi]
+Greg Teft [gregteft]
+Christophe Mitillo [Christophe_Mitillo]
+Leonardo Zide
+Sylvain Sauvage [SLS]
+Merlijn Wissink [legolijntje]
+Mark Chittenden [mdublade]
+Carsten Schmitz [Deckard]
+Jaco van der Molen [Jaco]
+Luis E. Fernandez [lfernand]
+Miklos Hosszu [hmick]
+Sascha Broich
+Lutz Uhlmann [El-Lutzo]
+Ronald Vallenduuk [Duq]
+Matt Schild [mschild]
+Thomas Woelk [t.woelk]
+Manfred Moolhuysen
+Ross Crawford [rosco]
+Bertrand Lequy [Berth]
+Imre Papp [ampi]
+Remco Braak [remco1974]
+George Barnes [glbarnes]
+Jude Parrill [theJudeAbides]
+Marc Giraudet [Mad_Marc]
+Ludo Soete [ludo]
+El'dar Ismagilov [Eldar]
+Bjoern Sigve Storesund [Storesund]
+Tomas Kralicek [RabbiT_CZ]
+John Troxler [Gargan]
+Jonathan Wilson [jonwil]
+Jeff Boen [onyx]
+Lutz Uhlmann
+Peter Watts [FrozenPea]
+Niels Bugge [SirBugge]
+Marc Schickele [samrotule]
+Alexandre Bourdais [x-or]
+Jeff Boen
+Ingolf Weisheit [stahlwollschaf]
+Andrew Ananjev [woozle]
+Damien Guichard [BrickCaster]
+Heiko Jelnikar [KlotzKiste]
+Yann Bouzon [Zaghor]
+Stephan Meisinger [smr]
+Lee Gaiteri [LummoxJR]
+Marek Idec [Maras]
+Lars C. Hassing [larschassing]
+Nathan Wright
+Remco Braak
+Kevin Clague [kclague]
+Larry Pieniazek [lar]
+Matthew J. Chiles [mchiles]
+Guus-Jan Wijnhoven [guus]
+Victor Di Rienzo [tatubias]
+Shimpei Ohsumi [Shimpei-Ohsumi]
+Christian M. Angele [cma_1971]
+Sven Moritz Hein [smhltec]
+Ildefonso Zanette [izanette]
+Ronald Scott Moody [rmoody]
+Paul Izquierdo Rojas [pir]
+Joseph H. Cardana
+Taylor Bangs [DoomTay]
+Peter Lind [peterlinddk]
+Adriano Aicardi
+Jonathan P. Brown
+Karim Nassar
+Dee Earley [DeannaEarley]
+Brent Jackson [bjackson]
+Lance Hopenwasser [cavehop]
+Bram Lambrecht
+Ishino Keiichiro
+Joachim Probst
+Yu Zhang [ishkafel]
+David Manley [djm]
+Joshua Delahunty [dulcaoin]
+Ignacio Fernandez Galvan [Jellby]
+Heather Patey
+Adam Howard [Whist]
+N. W. Perry [Plastikean]
+Matthew Morrison [cuddlyogre]
+Dennis Osborn
+Robert Sexton [rhsexton]
+Sybrand Bonsma [Sybrand]
+Remco Canten [rempie]
+R. M. Rodinsky [dublar]
+Paul Schelleman [schellie]
+Bob LeVan [kyphurious]
+Dave Schuler
+Jens Bauer [rockford]
+Jan Folkersma [Stinky]
+Graham Wilkes [remorse]
+Damien Duquennoy
+Svend Eisenhardt [eisenhardt]
+Enzo Silvestri [ienzisolves]
+Bert Van Raemdonck [BEAVeR]
+Andreas Weissenburg [grubaluk]
+Amnon Silverstein [Amnon]
+Frits Blankenzee
+Zoltan Keri [kzoltan82]
+Alex Forencich [aforencich]
+Daniele Benedettelli [benedettelli]
+Rafael Skibicki [Rola]
+Carlos Arbesu [NXTbesu]
+Philip Peickert [mr51flip]
+Sam Roberts [sroberts]
+Gene Welborn [dtaax]
+Allister Mclaren [amclaren]
+Joao Almeida [TullariS]
+Derrick Chiu [LordAdmiral]
+Niklas Buchmann [NiklasB]
+Alex Seeley [alex]
+Paolo Campagnaro [pcampagn]
+Ryan Dennett
+Maciej Kowalik [Madmaks]
+Ian Reid [Ian_Reid]
+Jeff Stembel
+C.L.Rasmussen [johnny-thunder]
+Don Heyse
+Chris Moseley
+Steve Chisnall [StevieC]
+Edwin Pilobello [gypsy_fly]
+John Boozer [jediknight219]
+Ben Lyttle [legotrek]
+Reinhard "Ben" Beneke [Ben_aus_BS]
+Jim DeVona [anoved]
+Jason Mantor [Xanthra47]
+James Mastros [theorbtwo]
+Jeffery MacEachern [legonerd]
+Axel Poque
+John Jensen
+Douglas Taylor, Jr. [djcool905]
+Stig-Erik Blomqvist [stigge72]
+Jeroen Ottens
+Bernd Munding
+Steve Demlow [demlow]
+Bert J. Giesen
+Reuben Pearse [ReubenPearse]
+Robert Paciorek [bercik]
+Richard Baxter [rbaxter]
+Dan Boger [dan]
+Duane Hess
+Earnest J. Banbury [Banbury]
+Martin G Cormier
+Jack Hawk [jhawk]
+Arthur Sigg [Pendulum]
+James Shields [lostcarpark]
+Richard Finegold
+Martyn Boogaarts
+Antony Caparica [antonyc]
+Christopher Bulliner [CMB27]
+Christopher Pedersen [pedersen]
+Troy [peloquin]
+Travis Cobbs [tcobbs]
+
+
+The following authors have contributed models to the LDraw Open Model Repository.  This repository contains 1,499 high quality models assembled from the bricks in the LDraw parts library.  Again the authors are listed in the order of the number of files contributed:
+
+Robert Paciorek [bercik]
+Philippe Hurbain [Philo]
+Marc Giraudet [Mad_Marc]
+Massimo Maso [Sirio]
+Damien Roux [Darats]
+Merlijn Wissink [Legolijntje]
+Willy Tschager [Holly-Wood]
+Orion Pobursky [OrionP]
+Max Martin Richter [MMR1998]
+Stefan Frenz [smf]
+Tomas Kralicek [RabbiT_CZ]
+Victor Di Rienzo [tatubias]
+Ken Drew [Ken]
+Johann Eisner [technicbasics]
+Bert Van Raemdonck [BEAVeR]
+Evert-Jan Boer [ejboer]
+Charles Farmer [farmer]
+Marc Belanger [MonsieurPoulet]
+Roland Dahl [RolandD]
+Oh-Seong KWON
+Jude Parill [theJudeAbides]
+Ignacio Fernandez Galvan [jellby]
+Faramond Florent [Makou]
+Daniel Goerner [TK-949]
+Zoltán Kéri [Zoltank82]
+Takeshi Takahashi [RainbowDolphin]
+Stan Isachenko [angmarec]
+Jaco van der Molen [Jaco]
+Rijk van Voorst [Rijkjavik]
+Christian Maglekær
+Christian Neumann [Wesley]
+Steffen [Steffen]
+N. W. Perry [Plastikean]
+Michael Heidemann [mikeheide]
+Michal Oravec [Bloodybeast]
+Magnus Forsberg [MagFors]
+Lasse Deleuran [Lasse Deleuran]
+[juraj3579]
+Allard van Efferen [aefferen]
+Rafael Skibicki [Rola]
+Adrien Pennamen [AdrienPennamen]
+Greg Teft [gregteft]
+Christophe Mitillo [Christophe_Mitillo]
+René Frijhoff
+Sean Burke [Leftmost]
+Antony Lodge
+Mirjan Lipovcan [LegoZG]
+Florian Schüller [schuellerf]
+Tim Singer [tsinger]
+[EdmanZA]
+Guido Mauro
+Casey Puyleart
+Peter Bartfai
+Oliver Damman [Nautilus]
+Steffen Altenburg [SteffenA]
+Ulrich Röder [UR]
+Alexey [folkoluck]
+Kevin Hendirckx [Gebruiker]
+
+
+LTRON uses LDraw shadow metadata bundled with the free LDCAD software to find connection points between bricks.  Roland Melkert is the primary author of LDCAD, but others have contributed to this metadata.  They are listed here, again in order of the number of files contributed:
+
+Roland Melkert [roland]
+Philippe Hurbain [Philo]
+Milan Vancura [MilanV]
+Alex Taylor [anathema]
+Jason McReynolds [Jason McReynolds]
+
+We also wish to acknowledge Toby Nelson, the author of the open-source ImportLDraw plugin for Blender.  We used this to convert the LDraw parts library to wavefront OBJ files for use in our rendering pipeline.
