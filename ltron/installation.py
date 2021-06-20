@@ -11,7 +11,7 @@ from splendor.download import download, agree_to_zip_licenses
 
 import ltron.settings as settings
 from ltron.home import get_ltron_home, make_ltron_home
-from ltron.license import ldcad_license
+from ltron.license import ldcad_license_text
 
 ltron_home = get_ltron_home()
 
@@ -40,7 +40,7 @@ def install_ldraw(overwrite=False):
 def ldcad_license_agreement():
     print('LDCad is a necessary component of LTRON '
         'and is provided under the following license:')
-    print(ldcad_license)
+    print(ldcad_license_text)
     print('Agree? (y/n)')
     yn = input()
     return yn in 'yY'
@@ -127,14 +127,14 @@ def install_splendor_meshes(resolution, overwrite=False):
     splendor_home = get_splendor_home()
     resolution_path = os.path.join(splendor_home, asset_name)
     resolution_cfg_path = resolution_path + '.cfg'
-    generic_path = os.path.join(splendor_home, 'ltron_assets')
     generic_cfg_path = generic_path + '.cfg'
-    if os.path.exists(generic_path):
-        os.unlink(generic_path)
     if os.path.exists(generic_cfg_path):
         os.unlink(generic_cfg_path)
-    #os.symlink(resolution_path, generic_path)
     os.symlink(resolution_cfg_path, generic_cfg_path)
+    #generic_path = os.path.join(splendor_home, 'ltron_assets')
+    #if os.path.exists(generic_path):
+    #    os.unlink(generic_path)
+    #os.symlink(resolution_path, generic_path)
 
 default_settings_cfg = '''
 [DEFAULT]
