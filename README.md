@@ -10,8 +10,8 @@
   - [numpy](https://numpy.org/)
   - [gym](https://github.com/openai/gym)
   - [tqdm](https://github.com/tqdm/tqdm)
-- Install [renderpy](https://gitlab.cs.washington.edu/awalsman/renderpy) by cloning it from gitlab.  TODO: This should be moved to github and pip-ified.
-  - Run `pip install -e .` inside the top renderpy directory to install it with python.
+- Install [splendor-render](https://gitlab.cs.washington.edu/awalsman/splendor-render) by cloning it from gitlab.  TODO: This should be moved to github and pip-ified.
+  - Run `pip install -e .` inside the top splendor-render directory to install it with python.
 - Install [LDraw](https://www.ldraw.org/) using our script to download this and put it in the right place.  Just run `bin/install_ldraw`
 - Install the [LDCad](http://www.melkert.net/LDCad) shadow library.  TODO: Incorporate this into the `install_ldraw` script.
   - Get `shadow.zip` from Aaron.
@@ -20,8 +20,8 @@
   - Get `OMR.zip` from Aaron.
   - Unzip it in the `brick-gym/data` directory so that you have `brick-gym/data/OMR/ldraw/...`
 - Renderpy obj files
-  - Get `renderpy_assets.zip` from Aaron.
-  - Unzip it in the `brick-gym/data` directory so that you have `brick-gym/data/renderpy/meshes...`
+  - Get `splendor_assets.zip` from Aaron.
+  - Unzip it in the `brick-gym/data` directory so that you have `brick-gym/data/splendor/meshes...`
 
 ### Instructions for building objs from scratch
 If you'd rather First open blender and make sure the [Import LDraw Addon](https://github.com/TobyLobster/ImportLDraw) is installed.  Then go into the script console and run:
@@ -50,7 +50,7 @@ You can interact with the model by clicking on it and dragging the mouse around 
 ## Project Structure
 brick-gym
 - setup.cfg: A configuration file that lets you change the locations of datasets and other directories.  The paths in this file can be accessed using the `brick_gym.config` module.
-- assets.cfg: A configuration file that points to the renderpy assets (meshes) necessary for rendering these scenes.
+- splendor_assets.cfg: A configuration file that points to the splendor-render assets (meshes) necessary for rendering these scenes.
 - bin: All stand-alone python scripts that can be run from the command line should be here.
 - brick_gym: Package directory containing all the libraries that can be imported by these scripts.  There shouldn't be any stand-alone scripts in here, although there are some at the moment that need to be cleaned up.
   - blender: modules used by blender for converting ldraw files to objs
