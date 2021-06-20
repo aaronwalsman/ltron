@@ -19,7 +19,6 @@ def install_ldraw(overwrite=False):
     print('Installing LDraw')
     make_ltron_home()
     print('-'*80)
-    #complete_zip_path = os.path.join(settings.paths['data'], 'complete.zip')
     complete_zip_path = os.path.join(ltron_home, 'complete.zip')
     downloaded_path = download(
         settings.urls['ldraw'],
@@ -126,58 +125,23 @@ def install_collection(name, overwrite=False):
     
     print('-'*80)
     zip_path = os.path.join(settings.paths['collections'], '%s.zip'%name)
-    download(name, zip_path, settings.urls[name], overwrite, mode='gdown')
-    '''
-    if os.path.exists(zip_path):
-        if overwrite:
-            print('Removing existing zip file: %s'%zip_path)
-            os.remove(zip_path)
-        else:
-            print('Zip file already downloaded: %s'%zip_path)
-    if not os.path.exists(zip_path):
-        print('Downloading %s.zip to: %s'%(name, zip_path))
-        url = settings.urls[name]
-        gdown.cached_download(url, zip_path, quiet=False)
-    '''
-    print('-'*80)
-    extract(
-        name,
-        zip_path,
-        name,
-        settings.collections[name],
-        overwrite=overwrite,
-    )
+    download(settings.urls[name], zip_path, overwrite=overwrite)
     
-    '''
-    if os.path.exists(settings.collections[name]):
-        if overwrite:
-            print('Removing existing collection directory: %s'%
-                settings.collections[name])
-            shutil.rmtree(settings.collections[name])
-        else:
-            print('%s.zip already extracted: %s'%(
-                name, settings.collections[name]))
-    if not os.path.exists(settings.collections[name]):
-        default_path = os.path.join(settings.paths['collections'], name)
-        print('Extracting %s.zip contents to: %s'%(name, default_path))
+    print('-'*80)
+    print('Extracting collection %s'%name)
+    extract_path = os.path.join(settings.paths['collections'], name)
+    if not os.path.exists(extract_path) or overwrite:
         with zipfile.ZipFile(zip_path, 'r') as z:
             z.extractall(settings.paths['collections'])
-        if settings.collections[name] != default_path:
-            directory = os.path.dirname(settings.collections[name])
-            if not os.path.exists(directory):
-                print('Making directory necessary for %s location: %s'%(
-                    name, directory))
-                os.makedirs(directory)
-            print('Moving %s to: %s'%(name, settings.collections[name]))
-            os.rename(default_path, settings.collections[name])
-    '''
+    else:
+        print('Already extracted.')
 
-def install_splendor_meshes(resolution):
+def install_splendor_meshes(resolution, overwrite=False):
     print('='*80)
     print('Installing Splendor Meshes (%s)'%resolution)
     print('-'*80)
     asset_name = 'ltron_assets_%s'%resolution
-    install_assets(settings.urls[asset_name])
+    install_assets(settings.urls[asset_name], asset_name, overwrite=overwrite)
     splendor_home = get_splendor_home()
     resolution_path = os.path.join(splendor_home, asset_name)
     resolution_cfg_path = resolution_path + '.cfg'
@@ -187,40 +151,52 @@ def install_splendor_meshes(resolution):
         os.unlink(generic_path)
     if os.path.exists(generic_cfg_path):
         os.unlink(generic_cfg_path)
-    os.symlink(resolution_path, generic_path)
+    #os.symlink(resolution_path, generic_path)
     os.symlink(resolution_cfg_path, generic_cfg_path)
-    '''
-    zip_path = os.path.join(
-        settings.paths['data'], 'splendor_%s.zip'%resolution)
-    if os.path.exists(zip_path):
-        if overwrite:
-            print('Removing existing zip file: %s'%zip_path)
-            os.remove(zip_path)
-        else:
-            print('Zip file already downloaded: %s'%zip_path)
-    if not os.path.exists(zip_path):
-        print('Downloading splendor_%s.zip to: %s'%(resolution, zip_path))
-        url = settings.urls['splendor_%s'%resolution]
-        gdown.cached_download(url, zip_path, quiet=False)
-    
-    print('-'*80)
-    resolution_path = os.path.join(
-        settings.paths['data'], 'splendor_%s'%resolution)
-    if os.path.exists(resolution_path):
-        if overwrite:
-            print('Removing existing splendor directory: %s'%resolution_path)
-            shutil.rmtree(resolution_path)
-        else:
-            print('splendor_%s.zip already extracted to: %s'%(
-                resolution, resolution_path))
-    if not os.path.exists(resolution_path):
-        print('Extracting splendor_%s.zip contents to: %s'%(
-            resolution, resolution_path))
-        with zipfile.ZipFile(zip_path, 'r') as z:
-            z.extractall(settings.paths['data'])
-    print('-'*80)
-    print('Linking %s to %s'%(settings.splendor['assets'], resolution_path))
-    if os.path.exists(settings.splendor['assets']):
-        os.unlink(settings.splendor['assets'])
-    os.symlink(resolution_path, settings.splendor['assets'])
-    '''
+
+default_settings_cfg = '''
+[DEFAULT]
+datasets = {HOME}/datasets
+collections = {HOME}/collections
+
+[paths]
+ldraw = {HOME}/ldraw
+ldcad = {HOME}/LDCad-1-6d-Linux
+shadow = %(ldcad)s/shadow
+shadow_ldraw = %(shadow)s/offLib/offLibShadow
+
+[datasets]
+random_six = %(collections)s/random_six/random_six.json
+#snap_one = %(collections)s/snap_one/snap_one.json
+#snap_one_frames = %(collections)s/snap_one/snap_one_frames.json
+#snap_four = %(collections)s/snap_four/snap_four.json
+#snap_four_frames = %(collections)s/snap_four/snap_four_frames.json
+#conditional_snap_two = %(collections)s/conditional_snap_two/conditional_snap_two.json
+#conditional_snap_two_frames = %(collections)s/conditional_snap_two/conditional_snap_two_frames.json
+
+[collections]
+omr = %(collections)s/omr
+random_six = %(collections)s/random_six
+#snap_one = %(collections)s/snap_one
+#snap_four = %(collections)s/snap_four
+#conditional_snap_two = %(collections)s/conditional_snap_two
+
+[urls]
+ltron = https://github.com/aaronwalsman/ltron
+ldraw = http://www.ldraw.org/library/updates/complete.zip
+ldcad = http://www.melkert.net/action/download/LDCad-1-6d-Linux.tar.bz2
+omr_ldraw = https://omr.ldraw.org
+omr = https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
+random_six = https://drive.google.com/uc?id=11K6Zu59aU7EXRcsY_ALcOJG1S2aXcVXz
+ltron_assets_low = https://drive.google.com/uc?id=11p_vyeL_B_BK7gupI8_JvGGbffJ2kXiG
+ltron_assets_high = https://drive.google.com/uc?id=1wIw-0YXx9QkQ9Kjpcvv5XsZFqdZrGj6U
+'''
+
+def make_settings_cfg(overwrite=False):
+    settings_path = os.path.join(ltron_home, 'settings.cfg')
+    if not os.path.exists(settings_path) or overwrite:
+        print('Writing default settings file to: %s'%settings_path)
+        with open(settings_path, 'w') as f:
+            f.write(default_settings_cfg)
+    else:
+        print('Settings file already exists: %s'%settings_path)
