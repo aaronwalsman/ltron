@@ -3,25 +3,32 @@ import os
 
 import numpy
 
-import splendor.buffer_manager_egl as buffer_manager_egl
+import splendor.contexts.egl as egl
 
-import brick_gym.config as config
-from brick_gym.bricks.brick_scene import BrickScene
-from brick_gym.geometry.collision import check_collision
+import ltron.settings as settings
+from ltron.bricks.brick_scene import BrickScene
+from ltron.geometry.collision import check_collision
 
-manager = buffer_manager_egl.initialize_shared_buffer_manager()
-scene = BrickScene(renderable=True)
+egl.initialize_plugin()
+egl.initialize_device()
+
+scene = BrickScene(
+    renderable=True,
+    render_args={
+        'load_scene':'grey_cube',
+    }
+)
 scene.import_ldraw(os.path.join(
-        config.paths['omr'], 'ldraw', '8661-1 - Carbon Star.mpd'))
+        settings.collections['omr'], 'ldraw', '8661-1 - Carbon Star.mpd'))
 
-instance = scene.instances['29']
-#instance.transform[2,3] -= 10
-scene.renderer.set_instance_transform(str(instance), instance.transform)
-snap = instance.get_snaps()[1]
+instances = [scene.instances['29'], scene.instances['30']]
+#instances[0].transform[2,3] -= 10
+#scene.renderer.set_instance_transform(str(instances[0]), instances[0].transform)
+snap = instances[0].get_snaps()[1]
 
 collision = check_collision(
         scene,
-        [instance],
+        instances,
         snap.transform,
         'F',
         resolution=(512,512),

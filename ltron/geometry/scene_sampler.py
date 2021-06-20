@@ -6,8 +6,8 @@ import numpy
 
 from pyquaternion import Quaternion
 
-import renderpy.contexts.egl as drpy_egl
-from renderpy.frame_buffer import FrameBufferWrapper
+import splendor.contexts.egl as egl
+from splendor.frame_buffer import FrameBufferWrapper
 
 from ltron.dataset.paths import get_dataset_info
 from ltron.bricks.brick_scene import BrickScene
@@ -168,8 +168,8 @@ def sample_scene(
     t_start = time.time()
     
     #manager = buffer_manager_egl.initialize_shared_buffer_manager()
-    drpy_egl.initialize_plugin()
-    drpy_egl.initialize_device()
+    egl.initialize_plugin()
+    egl.initialize_device()
     frame_buffer = FrameBufferWrapper(
             collision_resolution[0], collision_resolution[1], anti_alias=False)
     
