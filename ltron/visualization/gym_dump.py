@@ -11,7 +11,7 @@ from ltron.gym.spaces import (
 
 import PIL.Image as Image
 
-import renderpy.masks as masks
+import splendor.masks as masks
 
 def gym_dump(data, space, path, dump_json=True):
     if isinstance(space, ImageSpace):

@@ -443,47 +443,6 @@ def start_viewer(
                 if place_snap[0] is not None and state['pick_snap'] is not None:
                     print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
                     scene.pick_and_place_snap(state['pick_snap'], place_snap)
-                
-                '''
-                if dst_instance_id and state['pick_snap'] is not None:
-                    src_instance_id, src_snap_id = state['pick_snap']
-                    src_instance = scene.instances[src_instance_id]
-                    src_transform = src_instance.get_snap(
-                            src_snap_id).transform
-                    dst_transform = scene.instances[dst_instance_id].get_snap(
-                            dst_snap_id).transform
-                    
-                    best_transform = None
-                    best_distance = -float('inf')
-                    for i in range(4):
-                        theta = i * math.pi/2
-                        c = math.cos(theta)
-                        s = math.sin(theta)
-                        r = numpy.array([
-                                [ c, 0, s, 0],
-                                [ 0, 1, 0, 0],
-                                [-s, 0, c, 0],
-                                [ 0, 0, 0, 1]])
-                        new_transform = (
-                                dst_transform @
-                                r @
-                                numpy.linalg.inv(src_transform) @
-                                src_instance.transform)
-                        offset = (
-                                new_transform @
-                                numpy.linalg.inv(src_instance.transform))
-                        pseudo_angle = numpy.trace(offset[:3,:3])
-                        if pseudo_angle > best_distance:
-                            best_transform = new_transform
-                            best_distance = pseudo_angle
-                    
-                    scene.move_instance(
-                            src_instance, best_transform)
-                    
-                    #offset = dst_transform @ numpy.linalg.inv(src_transform)
-                    #scene.move_instance(
-                    #        src_instance, offset @ src_instance.transform)
-                '''
             
             elif key == b'n':
                 # render positive snaps in mask mode
@@ -491,48 +450,6 @@ def start_viewer(
                 if place_snap[0] is not None and state['pick_snap'] is not None:
                     print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
                     scene.pick_and_place_snap(state['pick_snap'], place_snap)
-                '''
-                if dst_instance_id and state['pick_snap'] is not None:
-                    src_instance_id, src_snap_id = state['pick_snap']
-                    src_instance = scene.instances[src_instance_id]
-                    src_transform = src_instance.get_snap(
-                            src_snap_id).transform
-                    dst_transform = scene.instances[dst_instance_id].get_snap(
-                            dst_snap_id).transform
-                    if numpy.linalg.det(dst_transform[:3,:3]) < 0.:
-                        dst_transform[0:3,0] *= -1
-                    
-                    best_transform = None
-                    best_distance = -float('inf')
-                    for i in range(4):
-                        theta = i * math.pi/2
-                        c = math.cos(theta)
-                        s = math.sin(theta)
-                        r = numpy.array([
-                                [ c, 0, s, 0],
-                                [ 0, 1, 0, 0],
-                                [-s, 0, c, 0],
-                                [ 0, 0, 0, 1]])
-                        new_transform = (
-                                dst_transform @
-                                r @
-                                numpy.linalg.inv(src_transform) @
-                                src_instance.transform)
-                        offset = (
-                                new_transform @
-                                numpy.linalg.inv(src_instance.transform))
-                        pseudo_angle = numpy.trace(offset[:3,:3])
-                        if pseudo_angle > best_distance:
-                            best_transform = new_transform
-                            best_distance = pseudo_angle
-                    
-                    scene.move_instance(
-                            src_instance, best_transform)
-                    
-                    #offset = dst_transform @ numpy.linalg.inv(src_transform)
-                    #scene.move_instance(
-                    #        src_instance, offset @ src_instance.transform)
-                '''
             
             state['pick_snap'] = None
     
