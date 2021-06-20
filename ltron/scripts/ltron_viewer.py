@@ -12,16 +12,17 @@ parser.add_argument('--image-light', type=str, default='grey_cube')
 parser.add_argument('--poll-frequency', type=int, default=1024)
 parser.add_argument('--fps', action='store_true')
 
-args = parser.parse_args()
+def main():
+    args = parser.parse_args()
 
-width, height = args.resolution.lower().split('x')
-width = int(width)
-height = int(height)
-ltron_viewer.start_viewer(
-        args.file_path,
-        #args.subdocument,
-        width,
-        height,
-        args.image_light,
-        args.poll_frequency,
-        print_fps = args.fps)
+    width, height = args.resolution.lower().split('x')
+    width = int(width)
+    height = int(height)
+    ltron_viewer.start_viewer(
+            args.file_path,
+            #args.subdocument,
+            width,
+            height,
+            args.image_light,
+            args.poll_frequency,
+            print_fps = args.fps)
