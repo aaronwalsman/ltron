@@ -6,9 +6,9 @@ import numpy
 from pyquaternion import Quaternion
 
 from ltron.geometry.utils import squared_distance
-from ltron.gym.components.brick_env_component import BrickEnvComponent
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class RandomFloatingPairs(BrickEnvComponent):
+class RandomFloatingPairs(LtronGymComponent):
     def __init__(self,
             scene_component,
             augmentations,
