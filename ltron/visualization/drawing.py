@@ -43,3 +43,10 @@ def draw_vector_field(image, vector_field, weight, color):
             
             yy, xx = line(start_y, start_x, dest_y, dest_x)
             image[yy, xx] = color * weight[y,x] + image[yy,xx] * (1-weight[y,x])
+
+def block_upscale_image(image, target_width, target_height):
+    scale_y = target_height // image.shape[0]
+    scale_x = target_width // image.shape[1]
+    image = numpy.repeat(image, scale_y, axis=0)
+    image = numpy.repeat(image, scale_x, axis=1)
+    return image

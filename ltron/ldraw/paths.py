@@ -69,8 +69,9 @@ class LDrawMissingPath(LDrawException):
     pass
 
 def resolve_path(file_path, FILES, allow_existing = True):
-    if allow_existing and os.path.exists(file_path):
-        return file_path
+    expanded_path = os.path.expanduser(file_path)
+    if allow_existing and os.path.exists(expanded_path):
+        return expanded_path
     
     reference_name = get_reference_name(file_path)
     try:

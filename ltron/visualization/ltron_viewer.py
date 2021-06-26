@@ -507,6 +507,7 @@ def start_viewer(
                 if place_snap[0] is not None and state['pick_snap'] is not None:
                     print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
                     scene.pick_and_place_snap(state['pick_snap'], place_snap)
+                    state['pick_snap'] = None
             
             elif key == b'n':
                 # render positive snaps in mask mode
@@ -514,6 +515,7 @@ def start_viewer(
                 if place_snap[0] is not None and state['pick_snap'] is not None:
                     print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
                     scene.pick_and_place_snap(state['pick_snap'], place_snap)
+                    state['pick_snap'] = None
             
             state['pick_snap'] = None
     

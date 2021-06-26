@@ -27,15 +27,14 @@ def install_ldraw(overwrite=False):
         overwrite=overwrite,
     )
     
-    if downloaded_path is not None:
-        print('-'*80)
-        print('Checking for Licenses')
-        if agree_to_zip_licenses(downloaded_path):
-            print('Extracting Contents To: %s'%ltron_home)
-            with zipfile.ZipFile(downloaded_path, 'r') as z:
-                z.extractall(ltron_home)
-        else:
-            print('Must agree to all licensing.  Aborting LDraw install.')
+    print('-'*80)
+    print('Checking for Licenses')
+    if agree_to_zip_licenses(downloaded_path):
+        print('Extracting Contents To: %s'%ltron_home)
+        with zipfile.ZipFile(downloaded_path, 'r') as z:
+            z.extractall(ltron_home)
+    else:
+        print('Must agree to all licensing.  Aborting LDraw install.')
 
 def ldcad_license_agreement():
     print('LDCad is a necessary component of LTRON '
