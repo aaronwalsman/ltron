@@ -29,7 +29,7 @@ def install_ldraw(overwrite=False):
     
     print('-'*80)
     print('Checking for Licenses')
-    if agree_to_zip_licenses(downloaded_path):
+    if agree_to_zip_licenses(complete_zip_path):
         print('Extracting Contents To: %s'%ltron_home)
         with zipfile.ZipFile(downloaded_path, 'r') as z:
             z.extractall(ltron_home)
