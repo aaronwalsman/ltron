@@ -50,3 +50,24 @@ def block_upscale_image(image, target_width, target_height):
     image = numpy.repeat(image, scale_y, axis=0)
     image = numpy.repeat(image, scale_x, axis=1)
     return image
+
+def clamp(x, min_x, max_x):
+    if x < min_x:
+        return min_x
+    elif x > max_x:
+        return max_x
+    else:
+        return x
+
+def draw_crosshairs(image, x, y, size, color):
+    
+    start_x = clamp(round(x-size), 0, image.shape[1]-1)
+    center_x = clamp(round(x), 0, image.shape[1]-1)
+    end_x = clamp(round(x+size+1), 0, image.shape[1]-1)
+    
+    start_y = clamp(round(y-size), 0, image.shape[0]-1)
+    center_y = clamp(round(y), 0, image.shape[0]-1)
+    end_y = clamp(round(y+size+1), 0, image.shape[0]-1)
+    
+    image[center_y, start_x:end_x] = color
+    image[start_y:end_y, center_x] = color
