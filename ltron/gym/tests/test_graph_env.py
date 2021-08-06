@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import numpy
-import brick_gym.envs.standard_envs as standard_envs
+import ltron.gym.standard_envs as standard_envs
 
 train_graph_env = standard_envs.graph_env(
-        'random_stack',
-        'train_mpd',
+        'random_six',
+        'train',
         train=True)
 
 observations = []

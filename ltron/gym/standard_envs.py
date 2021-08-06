@@ -1,5 +1,4 @@
 import math
-import collections
 
 import ltron.settings as settings
 from ltron.gym.ltron_env import LtronEnv
@@ -49,7 +48,7 @@ def segmentation_supervision_env(
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
     # scene
-    components['scene'] = SceneComponent(path_component = components['dataset'])
+    components['scene'] = SceneComponent(dataset_component = components['dataset'])
     
     # viewpoint
     if randomize_viewpoint:
@@ -342,7 +341,7 @@ def graph_env(
     num_classes = max(dataset_info['class_ids'].values()) + 1
     
     # scene
-    components['scene'] = SceneComponent(path_component = components['dataset'])
+    components['scene'] = SceneComponent(dataset_component = components['dataset'])
     
     # training labels
     if train:

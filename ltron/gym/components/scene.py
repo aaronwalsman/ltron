@@ -10,6 +10,7 @@ class SceneComponent(LtronGymComponent):
             path_location=None,
             initial_scene_path=None,
             renderable=True,
+            track_snaps = False,
             default_image_light='grey_cube'):
         
         self.dataset_component = dataset_component
@@ -22,7 +23,8 @@ class SceneComponent(LtronGymComponent):
             render_args={
                 'opengl_mode':'egl',
                 'load_scene':'grey_cube',
-            })
+            },
+            track_snaps = track_snaps)
             #default_image_light = default_image_light)
         
         if self.initial_scene_path is not None:
