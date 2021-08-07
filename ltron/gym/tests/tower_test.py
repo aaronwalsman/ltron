@@ -15,6 +15,7 @@ from ltron.gym.tower_env import TowerEnv
 import math
 import collections
 import numpy
+from ltron.gym.components.rotation import RotationAroundSnap
 
 bricklist = '/home/nanami/.cache/ltron/collections/omr/ldraw/bricklist.mpd'
 components = collections.OrderedDict()
@@ -31,6 +32,7 @@ components['camera'] = FixedAzimuthalViewpointComponent(
 components['neg_snap'] = SnapRenderComponent(256, 256, components['scene'], polarity = "-")
 components['pos_snap'] = SnapRenderComponent(256, 256, components['scene'], polarity = '+')
 components['pick'] = PickandPlace(components['scene'], components['pos_snap'], components['neg_snap'])
+components['rotation'] = RotationAroundSnap(components['scene'], components['pos_snap'], components['neg_snap'])
 components['tower'] = TallestTower(components['scene'])
 components['render'] = ColorRenderComponent(256, 256, components['scene'])
 
@@ -41,7 +43,7 @@ obs = env.reset()
 imshow(obs['render'])
 plt.show()
 
-obs, reward, term, info = env.step({'pick' : None})
+obs, reward, term, info = env.step({'pick' : None, 'rotation' : None})
 # obs, reward, term, info = env.step(None)
 print(reward)
 
@@ -58,9 +60,19 @@ pos_map = components['pos_snap'].observation
 
 # print(numpy.where(numpy.any(pos_map, axis = 2)))
 # print(numpy.where(numpy.any(neg_map, axis = 2)))
-obs, reward, term, info = env.step({'pick' : [1, 109, 112, 153, 151]})
+obs, reward, term, info = env.step({'pick' : [1, 109, 112, 153, 151], 'rotation' : None})
 # obs, reward, term, info = env.step([1, 109, 112, 153, 151])
 # imshow(obs['render'])
+imshow(obs['render'])
+plt.show()
+print(reward)
+
+obs, reward, term, info = env.step({'pick' : None, 'rotation' : [1, 153, 151, 80]})
+imshow(obs['render'])
+plt.show()
+print(reward)
+
+obs, reward, term, info = env.step({'pick' : None, 'rotation' : [1, 153, 151, 20]})
 imshow(obs['render'])
 plt.show()
 print(reward)

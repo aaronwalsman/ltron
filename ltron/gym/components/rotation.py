@@ -16,6 +16,13 @@ class RotationAroundSnap(LtronGymComponent):
         self.scene_component = sceneComp
         self.pos_snap_render = pos_snap_render
         self.neg_snap_render = neg_snap_render
+        width = self.pos_snap_render.width
+        height = self.pos_snap_render.height
+        assert self.neg_snap_render.width == width
+        assert self.neg_snap_render.height == height
+        self.action_space = MultiDiscrete([2, width, height, 180])
+
+        self.observation_space = Dict({'rotation_succeed': Discrete(2)})
 
     def reset(self):
         return None, 0, False, None
@@ -32,25 +39,27 @@ class RotationAroundSnap(LtronGymComponent):
 
     def step(self, action):
 
+        if action is None: return {'rotation_suceed' : 0}, 0, False, None
+
         polarity, x_cord, y_cord, degree = action[0], action[1], action[2], action[3]
         trans = numpy.eye(4)
-        rotate_x = trans.clone()
+        rotate_x = numpy.copy(trans)
         rotate_x[1,1] = math.cos(degree)
         rotate_x[1,2] = -math.sin(degree)
         rotate_x[2:1] = math.sin(degree)
         rotate_x[2:2] = math.cos(degree)
 
-        rotate_y = trans.clone()
+        rotate_y = numpy.copy(trans)
         rotate_y[0,0] = math.cos(degree)
         rotate_y[0,2] = math.sin(degree)
         rotate_y[2,0] = -math.sin(degree)
         rotate_y[2,2] = math.cos(degree)
 
-        rotate_z = trans.clonse()
-        rotate_z[0,0] = math.cos(action)
-        rotate_z[0,1] = -math.sin(action)
-        rotate_z[1,0] = math.sin(action)
-        rotate_z[1,1] = math.cos(action)
+        rotate_z = numpy.copy(trans)
+        rotate_z[0,0] = math.cos(degree)
+        rotate_z[0,1] = -math.sin(degree)
+        rotate_z[1,0] = math.sin(degree)
+        rotate_z[1,1] = math.cos(degree)
 
         if polarity == 1:
             rotate_map = self.pos_snap_render.observation
@@ -58,6 +67,8 @@ class RotationAroundSnap(LtronGymComponent):
             rotate_map = self.neg_snap_render.observation
 
         instance, snap_id = rotate_map[x_cord, y_cord]
+        if instance == 0 or snap_id == 0:
+            return {'pick_place_succeed' : 0}, 0, False, None
         self.transform_about_snap(instance, snap_id, rotate_y, self.scene_component.brick_scene)
 
-        return None, 0, False, None
+        return {'rotation_suceed' : 1}, 0, False, None
