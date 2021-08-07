@@ -105,35 +105,3 @@ class PickandPlace(LtronGymComponent):
         self.scene_component.brick_scene.pick_and_place_snap((pick_instance, pick_id), (place_instance, place_id))
 
         return {'pick_place_suceed' : 1}, 0, False, None  # the observation is whether the action succeeds or not
-
-class RotationAroundSnap(LtronGymComponent):
-    def __init__(self, scene):
-        self.scene_component = scene
-
-    def reset(self):
-        return None, 0, False, None
-
-    def step(self, action):
-        x_cord, y_cord, degree = action[0], action[1], action[2]
-        trans = numpy.eye(4)
-        rotate_x = trans.clone()
-        rotate_x[1,1] = math.cos(degree)
-        rotate_x[1,2] = -math.sin(degree)
-        rotate_x[2:1] = math.sin(degree)
-        rotate_x[2:2] = math.cos(degree)
-
-        rotate_y = trans.clone()
-        rotate_y[0,0] = math.cos(degree)
-        rotate_y[0,2] = math.sin(degree)
-        rotate_y[2,0] = -math.sin(degree)
-        rotate_y[2,2] = math.cos(degree)
-
-        rotate_z = trans.clonse()
-        rotate_z[0,0] = math.cos(action)
-        rotate_z[0,1] = -math.sin(action)
-        rotate_z[1,0] = math.sin(action)
-        rotate_z[1,1] = math.cos(action)
-
-        prev = self.scene_component.brick_scene.get_all_snap_connections
-
-        return None, 0, False, None
