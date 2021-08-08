@@ -73,7 +73,12 @@ imshow(obs['render'])
 plt.show()
 print(reward)
 
-obs, reward, term, info = env.step({'pick' : None, 'rotation' : [0, 153, 151, 60]})
+obs, reward, term, info = env.step({'pick' : None, 'rotation' : [1, 153, 151, -80]})
+imshow(obs['render'])
+plt.show()
+print(reward)
+
+obs, reward, term, info = env.step({'pick' : None, 'rotation' : [0, 125, 125, -80]})
 imshow(obs['render'])
 plt.show()
 print(reward)

@@ -9,7 +9,8 @@ from gym.spaces import (
 from ltron.gym.spaces import (
     SinglePixelSelectionSpace,
 )
-import math
+
+from ltron.geometry.collision import check_collision
 
 class PickandPlace(LtronGymComponent):
     def __init__(self, scene, pos_snap_render, neg_snap_render):
@@ -18,17 +19,17 @@ class PickandPlace(LtronGymComponent):
         self.pos_snap_render = pos_snap_render
         self.neg_snap_render = neg_snap_render
         self.instance_pos = {}
-        width = self.pos_snap_render.width
-        height = self.pos_snap_render.height
-        assert self.neg_snap_render.width == width
-        assert self.neg_snap_render.height == height
+        self.width = self.pos_snap_render.width
+        self.height = self.pos_snap_render.height
+        assert self.neg_snap_render.width == self.width
+        assert self.neg_snap_render.height == self.height
 
         pick_polarity_space = Discrete(2)
-        pick_space = SinglePixelSelectionSpace(width, height)
-        place_space = SinglePixelSelectionSpace(width, height)
+        pick_space = SinglePixelSelectionSpace(self.width, self.height)
+        place_space = SinglePixelSelectionSpace(self.width, self.height)
         # self.action_space = Tuple(
         #     (pick_polarity_space, pick_space, place_space))
-        self.action_space = MultiDiscrete([2, width, height, width, height])
+        self.action_space = MultiDiscrete([2, self.width, self.height, self.width, self.height])
         # self.action_space = MultiDiscrete([2, 20, 20, 20, 20])
 
         self.observation_space = Dict({'pick_place_succeed': Discrete(2)})
@@ -53,6 +54,8 @@ class PickandPlace(LtronGymComponent):
 
         pick_instance, pick_id = pick_map[pick_x, pick_y]
         place_instance, place_id = place_map[place_x, place_y]
+        # if check_collision(self.scene_component.brick_scene, pick_instance, abs(polarity - 1), (self.width, self.height)):
+        #     return {'pick_place_succeed': 0}, 0, False, None
 
         if pick_instance == 0 or pick_id == 0 or place_instance == 0 or place_id == 0:
             return {'pick_place_succeed' : 0}, 0, False, None

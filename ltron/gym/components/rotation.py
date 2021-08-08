@@ -6,9 +6,7 @@ from gym.spaces import (
     Dict,
     MultiDiscrete
 )
-from ltron.gym.spaces import (
-    SinglePixelSelectionSpace,
-)
+from ltron.geometry.collision import check_collision
 import math
 
 class RotationAroundSnap(LtronGymComponent):
@@ -27,7 +25,7 @@ class RotationAroundSnap(LtronGymComponent):
     def reset(self):
         return None, 0, False, None
 
-    def transform_about_snap(self, instance_id, snap_id, transform, scene):
+    def transform_about_snap(self, polarity, instance_id, snap_id, transform, scene):
         instance = scene.instances[instance_id]
         snap_transform = instance.get_snap(snap_id).transform
         prototype_transform = instance.brick_type.snaps[snap_id].transform
@@ -35,6 +33,10 @@ class RotationAroundSnap(LtronGymComponent):
                 snap_transform @
                 transform @
                 numpy.linalg.inv(prototype_transform))
+
+        table = scene.instances.instances
+        print(check_collision(scene, [table[instance_id]], snap_transform, polarity))
+
         scene.move_instance(instance, instance_transform)
 
     def step(self, action):
@@ -69,6 +71,6 @@ class RotationAroundSnap(LtronGymComponent):
         instance, snap_id = rotate_map[x_cord, y_cord]
         if instance == 0 or snap_id == 0:
             return {'pick_place_succeed' : 0}, 0, False, None
-        self.transform_about_snap(instance, snap_id, rotate_y, self.scene_component.brick_scene)
+        self.transform_about_snap(polarity, instance, snap_id, rotate_y, self.scene_component.brick_scene)
 
         return {'rotation_suceed' : 1}, 0, False, None
