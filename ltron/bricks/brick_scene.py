@@ -56,7 +56,36 @@ class BrickScene:
                 self.brick_library,
                 self.color_library,
         )
+    
+    '''
+    def clone(self, renderable=None, render_args=None, track_snaps=None):
+        import time
+        t0 = time.time()
+        if renderable is None:
+            renderable = self.renderable
+        if track_snaps is None:
+            track_snaps = self.track_snaps
+        if render_args is None:
+            render_args = {}
+        new_scene = BrickScene(
+            renderable=renderable,
+            render_args=render_args,
+            track_snaps=track_snaps,
+        )
         
+        t1 = time.time()
+        new_scene.brick_library = self.brick_library
+        for instance in self.instances.values():
+            new_scene.add_instance(
+                instance.brick_type,
+                str(instance.color),
+                instance.transform,
+            )
+        t2 = time.time()
+        print(t1-t0, t2-t1)
+        return new_scene
+    '''
+    
     def make_renderable(self, **render_args):
         if not self.renderable:
             self.render_environment = RenderEnvironment(**render_args)
@@ -299,19 +328,21 @@ class BrickScene:
             '''
         return other_snaps
     
-    def get_all_snap_connections(self):
+    def get_all_snap_connections(self, instances=None):
         assert self.track_snaps
+        if instances is None:
+            instances = self.instances
         
         snap_connections = {}
-        for instance in self.instances:
+        for instance in instances:
             connections = self.get_instance_snap_connections(instance)
             snap_connections[str(instance)] = connections
         
         return snap_connections
     
-    def get_all_edges(self, unidirectional=False):
+    def get_all_edges(self, instances=None, unidirectional=False):
         assert self.track_snaps
-        snap_connections = self.get_all_snap_connections()
+        snap_connections = self.get_all_snap_connections(instances=instances)
         all_edges = set()
         for instance_a_name in snap_connections:
             instance_a_id = int(instance_a_name)
@@ -324,6 +355,27 @@ class BrickScene:
         num_edges = len(all_edges)
         all_edges = numpy.array(list(all_edges)).T.reshape(4, num_edges)
         return all_edges
+    
+    def get_brick_neighbors(self, instances=None):
+        edges = self.get_all_edges(instances=instances, unidirectional=True)
+        neighbor_ids = {}
+        for i in range(edges.shape[1]):
+            instance_a, instance_b, snap_a, snap_b = edges[:,i]
+            if instance_a not in neighbor_ids:
+                neighbor_ids[instance_a] = set()
+            if instance_b not in neighbor_ids:
+                neighbor_ids[instance_b] = set()
+            neighbor_ids[instance_a].add(instance_b)
+            neighbor_ids[instance_b].add(instance_a)
+        
+        brick_order = list(sorted(neighbor_ids.keys()))
+        bricks = [scene.instances[brick_id] for brick_id in brick_order]
+        neighbors = [
+            [scene.instances[n_id] for n_id in neighbor_ids[brick_id]]
+            for brick_id in brick_order
+        ]
+        
+        return bricks, neighbors
     
     def get_all_snaps(self):
         assert self.track_snaps

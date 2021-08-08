@@ -43,8 +43,8 @@ class ColorRenderComponent(LtronGymComponent):
 
 class SegmentationRenderComponent(LtronGymComponent):
     def __init__(self,
-        height,
         width,
+        height,
         scene_component,
         terminate_on_empty=True
     ):
@@ -84,12 +84,12 @@ class SegmentationRenderComponent(LtronGymComponent):
 
 class SnapRenderComponent(LtronGymComponent):
     def __init__(self,
-        height,
         width,
+        height,
         scene_component,
         polarity=None,
         style=None,
-        terminate_on_empty=True,
+        terminate_on_empty=False,
     ):
         
         self.width = width

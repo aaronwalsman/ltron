@@ -76,8 +76,6 @@ def score_configurations(x_bricks, x_neighbors, y_bricks, y_neighbors):
     xy_scores = numpy.zeros((len(x_bricks), len(y_bricks)))
     for x, (x_brick, x_neighbor) in enumerate(zip(x_bricks, x_neighbors)):
         for y, (y_brick, y_neighbor) in enumerate(zip(y_bricks, y_neighbors)):
-            print('================================')
-            print(x_brick.instance_id, y_brick.instance_id)
             xy_scores[x, y] = score_brick(
                 x_brick, x_neighbor, y_brick, y_neighbor)
     

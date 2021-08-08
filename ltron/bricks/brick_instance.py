@@ -1,5 +1,7 @@
 import collections
 
+import numpy
+
 try:
     import splendor.masks as masks
     splendor_available = True
@@ -19,12 +21,15 @@ class BrickInstanceTable(collections.abc.MutableMapping):
         self.instances = instances
         self.next_instance_id = 1
     
-    def add_instance(self, brick_name, brick_color, brick_transform):
+    def add_instance(
+        self, brick_name, brick_color, brick_transform, mask_color=None
+    ):
         new_instance = BrickInstance(
                 self.next_instance_id,
                 self.brick_library[brick_name],
                 self.color_library[brick_color],
-                brick_transform)
+                brick_transform,
+                mask_color=mask_color)
         self[self.next_instance_id] = new_instance
         self.next_instance_id += 1
         return new_instance
@@ -95,6 +100,15 @@ class BrickInstance:
         self.color = color
         self.transform = transform
         self.mask_color = mask_color
+    
+    def clone(self):
+        return BrickInstance(
+            self.instance_id,
+            self.brick_type,
+            self.color,
+            numpy.copy(self.transform),
+            self.mask_color,
+        )
     
     def __int__(self):
         return self.instance_id

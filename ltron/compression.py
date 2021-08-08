@@ -28,7 +28,6 @@ def deduplicate_tiled_seq(frames, tile_height, tile_width, background=0):
         match = frame == previous_frame
         match = match.reshape(n, -1)
         modified_tiles = ~numpy.all(match, axis=-1)
-        modified_tiles = 
         modified_coords = numpy.where(modified_tiles)[0]
         nn = modified_coords.shape[0]
         modified_coords = numpy.stack(
