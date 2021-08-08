@@ -10,7 +10,8 @@ from ltron.gym.components.viewpoint import (
         RandomizedAzimuthalViewpointComponent,
         FixedAzimuthalViewpointComponent)
 from ltron.gym.components.render import SnapRenderComponent
-from ltron.gym.components.build_tower import (PickandPlace, TallestTower)
+from ltron.gym.components.build_tower import TallestTower
+from ltron.gym.components.pick_and_place import PickandPlace
 from ltron.gym.tower_env import TowerEnv
 import math
 import collections
@@ -72,7 +73,7 @@ imshow(obs['render'])
 plt.show()
 print(reward)
 
-obs, reward, term, info = env.step({'pick' : None, 'rotation' : [1, 153, 151, 20]})
+obs, reward, term, info = env.step({'pick' : None, 'rotation' : [0, 153, 151, 60]})
 imshow(obs['render'])
 plt.show()
 print(reward)
