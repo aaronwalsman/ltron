@@ -20,7 +20,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         distance_steps,
         field_of_view=math.radians(60.),
         aspect_ratio=1.,
-        near_clip=1.,
+        near_clip=10.,
         far_clip=5000.,
         start_position='uniform',
         observe_camera_parameters=True,
@@ -45,9 +45,12 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         
         observation_space = {}
         if self.observe_camera_parameters:
-            observation_space['azimuth'] = Discrete(azimuth_steps)
-            observation_space['elevation'] = Discrete(elevation_steps)
-            observation_space['distance'] = Discrete(distance_steps)
+            if azimuth_steps >= 2:
+                observation_space['azimuth'] = Discrete(azimuth_steps)
+            if elevation_steps >= 2:
+                observation_space['elevation'] = Discrete(elevation_steps)
+            if distance_steps >= 2:
+                observation_space['distance'] = Discrete(distance_steps)
         if self.observe_view_matrix:
             observation_space['view_matrix'] = SingleSE3Space(
                 scene_min, scene_max)
@@ -59,10 +62,14 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.location = None
         
         self.azimuth_spacing = math.pi * 2 / azimuth_steps
-        self.elevation_spacing = (
+        if elevation_steps >= 2:
+            self.elevation_spacing = (
                 elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
-        self.distance_spacing = (
+        if distance_steps >= 2:
+            self.distance_spacing = (
                 distance_range[1] - distance_range[0]) / (distance_steps-1)
+        else:
+            self.distance_spacing = 0
     
     def compute_observation(self):
         self.observation = {}
