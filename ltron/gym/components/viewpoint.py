@@ -21,7 +21,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         field_of_view=math.radians(60.),
         aspect_ratio=1.,
         near_clip=10.,
-        far_clip=5000.,
+        far_clip=50000.,
         start_position='uniform',
         observe_camera_parameters=True,
         observe_view_matrix=False,
