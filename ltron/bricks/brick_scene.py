@@ -16,6 +16,7 @@ from ltron.bricks.brick_color import BrickColorLibrary
 from ltron.bricks.snap import SnapCylinder
 from ltron.render.environment import RenderEnvironment
 from ltron.geometry.grid_bucket import GridBucket
+from ltron.geometry.utils import unscale_transform
 
 class BrickScene:
     
@@ -369,9 +370,9 @@ class BrickScene:
             neighbor_ids[instance_b].add(instance_a)
         
         brick_order = list(sorted(neighbor_ids.keys()))
-        bricks = [scene.instances[brick_id] for brick_id in brick_order]
+        bricks = [self.instances[brick_id] for brick_id in brick_order]
         neighbors = [
-            [scene.instances[n_id] for n_id in neighbor_ids[brick_id]]
+            [self.instances[n_id] for n_id in neighbor_ids[brick_id]]
             for brick_id in brick_order
         ]
         
@@ -429,9 +430,11 @@ class BrickScene:
         pick_instance_id, pick_snap_id = pick
         pick_instance = self.instances[pick_instance_id]
         pick_snap = pick_instance.get_snap(pick_snap_id)
+        pick_transform = unscale_transform(pick_snap.transform.copy())
         place_instance_id, place_snap_id = place
         place_instance = self.instances[place_instance_id]
         place_snap = self.instances[place_instance_id].get_snap(place_snap_id)
+        place_transform = unscale_transform(place_snap.transform.copy())
         
         best_transform = None
         best_pseudo_angle = -float('inf')
@@ -439,9 +442,9 @@ class BrickScene:
             angle = i * math.pi/2.
             rotation = Quaternion(axis=(0,1,0), angle=angle)
             candidate_transform = (
-                place_snap.transform @
+                place_transform @
                 rotation.transformation_matrix @
-                numpy.linalg.inv(pick_snap.transform) @
+                numpy.linalg.inv(pick_transform) @
                 pick_instance.transform
             )
             offset = (
