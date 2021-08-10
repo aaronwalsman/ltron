@@ -18,3 +18,10 @@ def uniform_unit_quaternion():
         q = [random.rand() for _ in range(4)]
         l22 = squared_distance(q, [0,0,0,0])
     return q / (l22**0.5)
+
+def unscale_transform(transform):
+    transform = transform.copy()
+    transform[:3,0] /= numpy.linalg.norm(transform[:3,0])
+    transform[:3,1] /= numpy.linalg.norm(transform[:3,1])
+    transform[:3,2] /= numpy.linalg.norm(transform[:3,2])
+    return transform
