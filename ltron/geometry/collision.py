@@ -46,11 +46,6 @@ def check_collision(
     # render the scene depth map ===============================================
     # show everything except for the target instances --------------------------
     
-    #scene.show_all_brick_instances()
-    #scene.hide_all_snap_instances()
-    #for instance in target_instances:
-    #    scene.hide_instance(instance)
-    
     # setup the camera ---------------------------------------------------------
     camera_transform = snap_transform.copy()
     render_axis = snap_transform[:3,1]
@@ -73,15 +68,19 @@ def check_collision(
         scene_rotate = n_rotate
         target_axis = render_axis * p_direction
         target_rotate = p_rotate
-    else:
+    elif target_snap_polarity == '-':
         scene_axis = render_axis * p_direction
         scene_rotate = p_rotate
         target_axis = render_axis * n_direction
         target_rotate = n_rotate
+    else:
+        raise NotImplementedError
     
     # compute the relevant extents ---------------------------------------------
     local_vertices = []
     inv_snap_transform = numpy.linalg.inv(snap_transform)
+    # this could be done by transforming the bounding box corners
+    # (bbox of transformed bbox)
     for target_instance in target_instances:
         vertices = target_instance.brick_type.vertices
         transform = inv_snap_transform @ target_instance.transform
@@ -106,8 +105,6 @@ def check_collision(
             r = box_min[0],
             b = -box_max[2],
             t = -box_min[2],
-            #n = near_clip,
-            #f = far_clip)
             n = near_clip,
             f = far_clip)
     scene.set_projection(orthographic_projection)

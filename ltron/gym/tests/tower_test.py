@@ -18,6 +18,9 @@ import collections
 import numpy
 from ltron.gym.components.rotation import RotationAroundSnap
 
+import PIL.Image as Image
+
+#bricklist = '/home/awalsman/.cache/ltron/collections/omr/bricklist.mpd'
 bricklist = '/home/nanami/.cache/ltron/collections/omr/ldraw/bricklist.mpd'
 components = collections.OrderedDict()
 components['scene'] = SceneComponent(dataset_component = None,
@@ -35,7 +38,7 @@ components['pos_snap'] = SnapRenderComponent(256, 256, components['scene'], pola
 components['pick'] = PickandPlace(components['scene'], components['pos_snap'], components['neg_snap'])
 components['rotation'] = RotationAroundSnap(components['scene'], components['pos_snap'], components['neg_snap'])
 components['tower'] = TallestTower(components['scene'])
-components['render'] = ColorRenderComponent(256, 256, components['scene'])
+components['render'] = ColorRenderComponent(512, 512, components['scene'])
 
 env = LtronEnv(components)
 # env = TowerEnv(components)
@@ -43,6 +46,7 @@ obs = env.reset()
 # imshow(obs['render'])
 imshow(obs['render'])
 plt.show()
+#Image.fromarray(obs['render']).save('image_0001.png')
 
 obs, reward, term, info = env.step({'pick' : None, 'rotation' : None})
 # obs, reward, term, info = env.step(None)
@@ -67,19 +71,23 @@ obs, reward, term, info = env.step({'pick' : [1, 109, 112, 153, 151], 'rotation'
 imshow(obs['render'])
 plt.show()
 print(reward)
+#Image.fromarray(obs['render']).save('image_0002.png')
 
 obs, reward, term, info = env.step({'pick' : None, 'rotation' : [1, 153, 151, 80]})
 imshow(obs['render'])
 plt.show()
 print(reward)
+#Image.fromarray(obs['render']).save('image_0003.png')
 
 obs, reward, term, info = env.step({'pick' : None, 'rotation' : [1, 153, 151, -80]})
 imshow(obs['render'])
 plt.show()
 print(reward)
+#Image.fromarray(obs['render']).save('image_0004.png')
 
 obs, reward, term, info = env.step({'pick' : None, 'rotation' : [0, 125, 125, -80]})
 imshow(obs['render'])
 plt.show()
 print(reward)
+#Image.fromarray(obs['render']).save('image_0005.png')
 # print(obs['pick'])
