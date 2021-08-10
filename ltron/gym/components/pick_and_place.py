@@ -57,7 +57,7 @@ class PickandPlace(LtronGymComponent):
         # if check_collision(self.scene_component.brick_scene, pick_instance, abs(polarity - 1), (self.width, self.height)):
         #     return {'pick_place_succeed': 0}, 0, False, None
 
-        if (pick_instance == 0 and pick_id == 0) or (place_instance == 0 and place_id == 0):
+        if (pick_instance == 0 and pick_id == 0) or (place_instance == 0 and place_id == 0) or pick_instance == place_instance:
             return {'pick_place_succeed' : 0}, 0, False, None
 
         self.scene_component.brick_scene.pick_and_place_snap((pick_instance, pick_id), (place_instance, place_id))
