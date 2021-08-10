@@ -36,6 +36,7 @@ class RotationAroundSnap(LtronGymComponent):
 
         table = scene.instances.instances
         c_polarity = '+-'[polarity]
+        print(c_polarity)
         print('pre:', check_collision(scene, [table[instance_id]], snap_transform, c_polarity))
 
         scene.move_instance(instance, instance_transform)
