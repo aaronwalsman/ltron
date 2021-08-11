@@ -15,6 +15,7 @@ from ltron.gym.components.viewpoint import (
 import copy
 import collections
 import math
+import os
 
 def add_brick(limit, cur_mod, comp_list, instance_id, scene):
     instance = scene.instances.instances[instance_id]
@@ -38,6 +39,10 @@ def subcomponent_extraction(limit, num_comp):
 
     global_count = 0
     folder_name = "subcomponents" + str(limit) + "/"
+    try:
+        os.stat(folder_name)
+    except:
+        os.mkdir(folder_name)
     path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
     mpdlist = path.rglob('*mpd') # 1432
     ldrlist = path.rglob('*ldr') # 62
@@ -107,7 +112,7 @@ def render(filepath):
     plt.show()
 
 def main():
-    subcomponent_extraction(5, 200)
+    subcomponent_extraction(8, 50)
 
 if __name__ == '__main__' :
     main()
