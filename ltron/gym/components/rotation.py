@@ -35,7 +35,7 @@ class RotationAroundSnap(LtronGymComponent):
                 numpy.linalg.inv(prototype_transform))
 
         table = scene.instances.instances
-        c_polarity = '+-'[polarity]
+        c_polarity = '-+'[polarity]
         print(c_polarity)
         print('pre:', check_collision(scene, [table[instance_id]], snap_transform, c_polarity))
 

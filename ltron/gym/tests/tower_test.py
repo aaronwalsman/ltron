@@ -44,7 +44,6 @@ env = LtronEnv(components)
 # env = TowerEnv(components)
 obs = env.reset()
 # imshow(obs['render'])
-# imshow(obs['render'])
 plt.show()
 #Image.fromarray(obs['render']).save('image_0001.png')
 
@@ -67,13 +66,7 @@ pos_map = components['pos_snap'].observation
 # print(numpy.where(numpy.any(neg_map, axis = 2)))
 # print(numpy.where(pos_map == [3,1]))
 # print(numpy.where(neg_map == [2,11]))
-# print(components['scene'].brick_scene.get_all_snaps())
-# print(components['scene'].brick_scene.get_instance_snap_connections(1))
 # print(neg_map[113,125])
-
-brick_scene = components['scene'].brick_scene
-inst = brick_scene.instances.instances[2]
-print(components['scene'].brick_scene.get_all_edges([inst]))
 
 obs, reward, term, info = env.step({'pick' : [0, 118, 132, 123, 129], 'rotation' : None})
 # obs, reward, term, info = env.step([1, 109, 112, 153, 151])
@@ -82,33 +75,11 @@ obs, reward, term, info = env.step({'pick' : [0, 118, 132, 123, 129], 'rotation'
 print(reward)
 #Image.fromarray(obs['render']).save('image_0002.png')
 
-inst = brick_scene.instances.instances[2]
-print(components['scene'].brick_scene.get_all_edges([inst]))
-print(brick_scene.get_all_snap_connections([inst]))
-
-subcompo = []
-# for k, v in brick_scene.instances.instances.items():
-#     connections = brick_scene.get_all_snap_connections([v])[str(k)]
-#     print(connections)
-#     if len(connections) == 0: break
-#     while len(connections) != 0 and bricks <= 2:
-#         connected_set = []
-#         bricks = 1
-#         cur_combo = []
-#         for conn in connections:
-#             if conn[0] not in connected_set:
-#                 cur_combo.append(conn[0])
-
-import copy
-instances = copy.deepcopy(brick_scene.instances.instances.items())
-for k, v in instances:
-    if k != 2 and k != 3:
-        brick_scene.remove_instance(v)
-
 obs, reward, term, info = env.step({'pick' : None, 'rotation' : [0, 123, 129, 80]})
 imshow(obs['render'])
 plt.show()
 print(reward)
+brick_scene.export_ldraw("random.mpd")
 #Image.fromarray(obs['render']).save('image_0003.png')
 exit(0)
 
