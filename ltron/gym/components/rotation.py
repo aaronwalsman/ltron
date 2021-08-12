@@ -23,9 +23,11 @@ class RotationAroundSnap(LtronGymComponent):
         self.observation_space = Dict({'rotation_succeed': Discrete(2)})
 
     def reset(self):
-        return None, 0, False, None
+        return {'rotation_succeed':0}
 
-    def transform_about_snap(self, polarity, instance_id, snap_id, transform, scene):
+    def transform_about_snap(
+        self, polarity, instance_id, snap_id, transform, scene
+    ):
         instance = scene.instances[instance_id]
         snap_transform = instance.get_snap(snap_id).transform
         prototype_transform = instance.brick_type.snaps[snap_id].transform
