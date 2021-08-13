@@ -4,7 +4,229 @@ from splendor.frame_buffer import FrameBufferWrapper
 from splendor.camera import orthographic_matrix
 from splendor.image import save_image, save_depth
 
+from ltron.geometry.utils import unscale_transform
+
+class CollisionChecker:
+    def __init__(
+        self,
+        scene,
+        resolution=(64,64),
+        max_intersection=4,
+    ):
+        self.scene = scene
+        self.frame_buffer = FrameBufferWrapper(
+            resolution[0], resolution[1], anti_alias=False)
+    
+    def check_collision(
+        self,
+        target_instances,
+        render_transform,
+        scene_instances=None
+    ):
+        return check_collision(
+            self.scene,
+            target_instances,
+            render_transform,
+            frame_buffer=self.frame_buffer,
+            max_intersection=self.max_intersection,
+        )
+    
+    def check_snap_collision(
+        self, target_instances,
+        snap,
+        direction,
+        *args,
+        **kwargs,
+    ):
+        return check_snap_collision(
+            self.scene,
+            target_instances,
+            snap,
+            direction,
+            *args,
+            frame_buffer=self.frame_buffer,
+            **kwargs,
+        )
+
+def check_snap_collision(
+    scene,
+    target_instances,
+    snap,
+    direction,
+    *args,
+    **kwargs,
+):
+    
+    assert direction in ('attach', 'detach')
+    
+    if snap.polarity == '+':
+        if direction == 'attach':
+            direction = '+'
+        else:
+            direction = '-'
+    elif snap.polarity == '-':
+        if direction == 'attach':
+            direction = '-'
+        else:
+            direction = '+'
+    
+    if direction == '+':
+        rotate = numpy.array([
+            [1, 0, 0, 0],
+            [0, 0, 1, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 1],
+        ])
+    
+    elif direction == '-':
+        rotate = numpy.array([
+            [1, 0, 0, 0],
+            [0, 0,-1, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 1],
+        ])
+    else:
+        raise NotImplementedError
+        
+    render_transform = snap.transform @ rotate
+    
+    return check_collision(
+        scene,
+        target_instances,
+        render_transform,
+        *args,
+        **kwargs,
+    )
+
 def check_collision(
+    scene,
+    target_instances,
+    render_transform,
+    scene_instances=None,
+    resolution=(64,64),
+    frame_buffer=None,
+    max_intersection=4,
+    required_clearance=24,
+    tolerance_spacing=8,
+    dump_images=None,
+):
+    
+    # setup ====================================================================
+    # make sure the scene is renderable
+    assert scene.renderable
+    
+    # get a list of the names of the target and scene instances
+    target_instance_names = set(
+        str(target_instance) for target_instance in target_instances)
+    if scene_instances is None:
+        scene_instance_names = set(
+            scene.get_all_brick_instances()) - target_instance_names
+    else:
+        scene_instance_names = set(
+            str(scene_instance) for scene_instance in scene_instances)
+    
+    # build a splendor frame buffer if a shared one was not specified ----------
+    if frame_buffer is None:
+        frame_buffer = FrameBufferWrapper(
+                resolution[0],
+                resolution[1],
+                anti_alias=False)
+    
+    # store the camera info and which bricks are hidden ------------------------
+    original_view_matrix = scene.get_view_matrix()
+    original_projection = scene.get_projection()
+    hidden_instances = {i : scene.instance_hidden(i) for i in scene.instances}
+    
+    # render the scene depth map ===============================================
+    # setup the camera ---------------------------------------------------------
+    camera_transform = unscale_transform(render_transform)
+    render_axis = camera_transform[:3,2]
+    
+    # compute the extents of the tarrget instance in camera space --------------
+    local_target_vertices = []
+    inv_camera_transform = numpy.linalg.inv(camera_transform)
+    for target_instance in target_instances:
+        vertices = target_instance.brick_type.bbox_vertices
+        transform = inv_camera_transform @ target_instance.transform
+        local_target_vertices.append(transform @ vertices)
+    local_target_vertices = numpy.concatenate(local_target_vertices, axis=1)
+    box_min = numpy.min(local_target_vertices, axis=1)
+    box_max = numpy.max(local_target_vertices, axis=1)
+    thickness = box_max[1] - box_min[1]
+    camera_distance = thickness + required_clearance + 2 * tolerance_spacing
+    near_clip = 1 * tolerance_spacing
+    far_clip = thickness * 2 + required_clearance + 3 * tolerance_spacing
+    
+    camera_transform[:3,3] += render_axis * camera_distance
+    scene.set_view_matrix(numpy.linalg.inv(camera_transform))
+    orthographic_projection = orthographic_matrix(
+            l = box_max[0],
+            r = box_min[0],
+            b = -box_max[1],
+            t = -box_min[1],
+            n = near_clip,
+            f = far_clip)
+    scene.set_projection(orthographic_projection)
+    
+    # render -------------------------------------------------------------------
+    frame_buffer.enable()
+    scene.mask_render(instances=scene_instance_names, ignore_hidden=True)
+    if dump_images:
+        scene_mask = frame_buffer.read_pixels()
+    scene_depth_map = frame_buffer.read_pixels(
+            read_depth=True, projection=orthographic_projection)
+    
+    # render the target depth map ==============================================
+    # setup the camera ---------------------------------------------------------
+    camera_transform = unscale_transform(render_transform)
+    camera_transform[:3,3] -= render_axis * camera_distance
+    axis_flip = numpy.array([
+        [ 1, 0, 0, 0],
+        [ 0, 1, 0, 0],
+        [ 0, 0,-1, 0],
+        [ 0, 0, 0, 1]
+    ])
+    camera_transform = numpy.dot(camera_transform, axis_flip)
+    scene.set_view_matrix(numpy.linalg.inv(camera_transform))
+    scene.set_projection(orthographic_projection)
+    
+    # render -------------------------------------------------------------------
+    frame_buffer.enable()
+    scene.mask_render(instances=target_instance_names, ignore_hidden=True)
+    target_mask = frame_buffer.read_pixels()
+    target_depth_map = frame_buffer.read_pixels(
+            read_depth=True, projection=orthographic_projection)
+    
+    # restore the previous camera ==============================================
+    scene.set_view_matrix(original_view_matrix)
+    scene.set_projection(original_projection)
+    
+    # check collision ==========================================================
+    valid_pixels = numpy.sum(target_mask != 0, axis=-1) != 0
+    
+    scene_depth_map -= camera_distance
+    scene_depth_map *= -1.
+    target_depth_map -= camera_distance
+    offset = (scene_depth_map - target_depth_map).reshape(valid_pixels.shape)
+    offset *= valid_pixels
+    
+    collision = numpy.max(offset) > max_intersection
+    
+    # dump images ==============================================================
+    if dump_images is not None:
+        save_image(scene_mask, './%s_scene_mask.png'%dump_images)
+        save_image(target_mask, './%s_target_mask.png'%dump_images)
+        save_depth(scene_depth_map, './%s_scene_depth.npy'%dump_images)
+        save_depth(target_depth_map, './%s_target_depth.npy'%dump_images)
+        
+        collision_pixels = (offset > max_intersection).astype(numpy.uint8)
+        collision_pixels = collision_pixels * 255
+        save_image(collision_pixels, './%s_collision.png'%dump_images)
+    
+    return collision
+
+
+def check_collision_old(
         scene,
         target_instances,
         snap_transform,

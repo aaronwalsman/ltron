@@ -10,10 +10,13 @@ from ltron.geometry.collision import check_collision
 import math
 
 class RotationAroundSnap(LtronGymComponent):
-    def __init__(self, sceneComp, pos_snap_render, neg_snap_render):
+    def __init__(
+        self, sceneComp, pos_snap_render, neg_snap_render, check_collisions
+    ):
         self.scene_component = sceneComp
         self.pos_snap_render = pos_snap_render
         self.neg_snap_render = neg_snap_render
+        self.check_collisions = check_collisions
         width = self.pos_snap_render.width
         height = self.pos_snap_render.height
         assert self.neg_snap_render.width == width
@@ -37,7 +40,8 @@ class RotationAroundSnap(LtronGymComponent):
                 numpy.linalg.inv(prototype_transform))
 
         table = scene.instances.instances
-        c_polarity = '+-'[polarity]
+        c_polarity = '-+'[polarity]
+        print(c_polarity)
         print('pre:', check_collision(scene, [table[instance_id]], snap_transform, c_polarity))
 
         scene.move_instance(instance, instance_transform)

@@ -46,13 +46,11 @@ class SegmentationRenderComponent(LtronGymComponent):
         width,
         height,
         scene_component,
-        terminate_on_empty=True
     ):
         
         self.width = width
         self.height = height
         self.scene_component = scene_component
-        self.terminate_on_empty = terminate_on_empty
         self.scene_component.brick_scene.make_renderable()
         self.frame_buffer = FrameBufferWrapper(
                 self.width, self.height, anti_alias=False)
@@ -74,10 +72,7 @@ class SegmentationRenderComponent(LtronGymComponent):
     
     def step(self, action):
         self.compute_observation()
-        terminal = False
-        if self.terminate_on_empty:
-            terminal = numpy.all(self.observation == 0)
-        return self.observation, 0., terminal, None
+        return self.observation, 0., False, None
     
     def set_state(self, state):
         self.compute_observation()
@@ -89,7 +84,6 @@ class SnapRenderComponent(LtronGymComponent):
         scene_component,
         polarity=None,
         style=None,
-        terminate_on_empty=False,
     ):
         
         self.width = width
@@ -97,7 +91,6 @@ class SnapRenderComponent(LtronGymComponent):
         self.scene_component = scene_component
         self.polarity=polarity
         self.style=style
-        self.terminate_on_empty = terminate_on_empty
         self.scene_component.brick_scene.make_renderable()
         self.frame_buffer = FrameBufferWrapper(
             self.width, self.height, anti_alias=False)
@@ -131,10 +124,7 @@ class SnapRenderComponent(LtronGymComponent):
     
     def step(self, action):
         self.compute_observation()
-        terminal = False
-        if self.terminate_on_empty:
-            terminal = numpy.all(self.observation == 0)
-        return self.observation, 0., terminal, None
+        return self.observation, 0., False, None
     
     def set_state(self, state):
         self.compute_observation()

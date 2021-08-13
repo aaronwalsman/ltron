@@ -164,8 +164,17 @@ class BrickType:
                             if p.type_id != snap.type_id]
         
         self.snaps = resolved_snaps
-        #self.vertices = numpy.concatenate(vertices, axis=1)
-        self.bbox = (
+        bb = (
             numpy.min(self.vertices[:3], axis=1),
             numpy.max(self.vertices[:3], axis=1),
         )
+        self.bbox = bb
+        self.bbox_vertices = numpy.array([
+            [bb[0][0], bb[0][0], bb[0][0], bb[0][0],
+             bb[1][0], bb[1][0], bb[1][0], bb[1][0]],
+            [bb[0][1], bb[0][1], bb[1][1], bb[1][1],
+             bb[0][1], bb[0][1], bb[1][1], bb[1][1]],
+            [bb[0][2], bb[1][2], bb[0][2], bb[1][2],
+             bb[0][2], bb[1][2], bb[0][2], bb[1][2]],
+            [1, 1, 1, 1, 1, 1, 1, 1]
+        ])

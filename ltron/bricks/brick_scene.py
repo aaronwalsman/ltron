@@ -32,7 +32,9 @@ class BrickScene:
             #default_image_light = None,
             renderable=False,
             render_args=None,
-            track_snaps=False):
+            track_snaps=False,
+            collision_checker=False,
+            collision_checker_args=None):
         
         #self.default_image_light = default_image_light
         
@@ -49,6 +51,14 @@ class BrickScene:
         self.snap_tracker = None
         if track_snaps:
             self.make_track_snaps()
+        
+        # collision_checker
+        if collision_checker:
+            if collision_checker_args is None:
+                collision_checker_args = {}
+            self.make_collision_checker(**collision_checker_args)
+        else:
+            self.collision_checker = None
         
         # bricks
         self.brick_library = BrickLibrary()
@@ -96,6 +106,11 @@ class BrickScene:
         if not self.track_snaps:
             self.snap_tracker = GridBucket(cell_size=8)
             self.track_snaps = True
+    
+    def make_collision_checker(self, **collision_checker_args):
+        if self.collision_checker is None:
+            self.collision_checker = CollisionChecker(
+                self, **collision_checker_args)
     
     # scene manipulation =======================================================
     
@@ -512,3 +527,18 @@ class BrickScene:
                 type(self).__name__, attr
             )
         )
+    
+    # collision checking -------------------------------------------------------
+    def check_collision(
+        target_instances, render_transform, scene_instances=None
+    ):
+        assert self.collision_checker is not None
+        self.collision_checker.check_collision(
+            target_instances, render_transform, scene_intances=scene_instances)
+    
+    def check_snap_collision(
+        target_instances, snap, mode, **args, **kwargs
+    ):
+        assert self.collision_checker is not None
+        self.collision_checker.check_snap_collision(
+            target_instances, snap, mode, *args, **kwargs)

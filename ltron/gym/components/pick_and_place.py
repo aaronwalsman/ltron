@@ -12,24 +12,32 @@ from ltron.gym.spaces import (
 
 from ltron.geometry.collision import check_collision
 
-class PickandPlace(LtronGymComponent):
-    def __init__(self, scene, pos_snap_render, neg_snap_render):
+class PickAndPlace(LtronGymComponent):
+    def __init__(self,
+        scene, pos_snap_render, neg_snap_render, check_collision
+    ):
         self.scene_component = scene
         self.action_executed = 0
         self.pos_snap_render = pos_snap_render
         self.neg_snap_render = neg_snap_render
-        self.instance_pos = {}
         self.width = self.pos_snap_render.width
         self.height = self.pos_snap_render.height
+        self.check_collision = check_collision
         assert self.neg_snap_render.width == self.width
         assert self.neg_snap_render.height == self.height
         
         activate_space = Discrete(2)
         pick_polarity_space = Discrete(2)
+        pick_direction_space = Discrete(2)
         pick_space = SinglePixelSelectionSpace(self.width, self.height)
         place_space = SinglePixelSelectionSpace(self.width, self.height)
-        self.action_space = Tuple(
-            (activate_space, pick_polarity_space, pick_space, place_space))
+        self.action_space = Tuple((
+            activate_space,
+            pick_polarity_space,
+            pick_direction_space,
+            pick_space,
+            place_space,
+        ))
         #self.action_space = MultiDiscrete([2, self.width, self.height, self.width, self.height])
         # self.action_space = MultiDiscrete([2, 20, 20, 20, 20])
 
@@ -46,7 +54,9 @@ class PickandPlace(LtronGymComponent):
         #pick_x, pick_y = action[1], action[2]
         #place_x, place_y = action[3], action[4]
         
-        activate, polarity, (pick_y, pick_x), (place_y, place_x) = action
+        activate, polarity, direction, pick, place = action
+        pick_y, pick_x = pick
+        place_y, place_x = place
         
         if polarity == 1:
             pick_map = self.pos_snap_render.observation
@@ -60,10 +70,34 @@ class PickandPlace(LtronGymComponent):
         # if check_collision(self.scene_component.brick_scene, pick_instance, abs(polarity - 1), (self.width, self.height)):
         #     return {'pick_place_succeed': 0}, 0, False, None
         
-        if pick_instance == 0 or place_instance == 0:
+        if ((pick_instance == 0 and pick_id == 0) or
+            (place_instance == 0 and place_id == 0) or
+            pick_instance == place_instance
+        ):
             return {'success' : 0}, 0, False, None
         
-        self.scene_component.brick_scene.pick_and_place_snap(
-            (pick_instance, pick_id), (place_instance, place_id))
-        
-        return {'success' : 1}, 0, False, None  # the observation is whether the action succeeds or not
+        if self.check_collision:
+            instance = scene.instances[pick_instance]
+            snap = instance.get_snap(pick_id)
+            collision = scene.check_snap_collision(
+                [instance], snap, direction)
+            if collision:
+                return {'success': 0}, 0, False, None
+            
+            initial_transform = instance.transform
+            self.scene_component.brick_scene.pick_and_place_snap(
+                (pick_instance, pick_id), (place_instance, place_id))
+            collision = scene.check_snap_collision(
+                [instance], snap, 'attach')
+            if collision:
+                self.scene_component.brick_scene.move_instance(
+                    instance, initial_transform)
+                return {'success': 0}, 0, False, None
+            else:
+                return {'success': 1}, 0, False, None
+            
+        else:
+            self.scene_component.brick_scene.pick_and_place_snap(
+                (pick_instance, pick_id), (place_instance, place_id))
+
+            return {'success' : 1}, 0, False, None  # the observation is whether the action succeeds or not

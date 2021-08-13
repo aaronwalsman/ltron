@@ -125,11 +125,11 @@ class RolloutStorage:
         gym_data = [pad_numpy_hierarchy(d, max_seq_len) for d in gym_data]
         gym_data = stack_numpy_hierarchies(*gym_data, axis=axis)
         seq_mask = numpy.ones(
-            (len(seq_ids), max_seq_len),
+            (max_seq_len, len(seq_ids)),
             dtype=numpy.bool,
         )
         for i, seq_len in enumerate(seq_lens):
-            seq_mask[i, :seq_len] = False
+            seq_mask[:seq_len, i] = False
         return gym_data, seq_mask
     
     def get_current_seqs(self, stack_axis=1):
