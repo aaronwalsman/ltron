@@ -30,7 +30,7 @@ collision = check_snap_collision(
         scene,
         instances,
         snap,
-        mode='attach',
+        direction='push',
         resolution=(64,64),
         dump_images='test')
 
@@ -40,7 +40,7 @@ collision = check_snap_collision(
         scene,
         instances,
         snap,
-        mode='detach',
+        direction='pull',
         resolution=(64,64),
         dump_images='test')
 
@@ -55,7 +55,7 @@ collision = check_snap_collision(
         scene,
         instances,
         snap,
-        mode='attach',
+        direction='push',
         resolution=(64,64),
         dump_images='test')
 

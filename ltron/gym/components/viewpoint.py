@@ -18,6 +18,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         elevation_steps,
         distance_range,
         distance_steps,
+        azimuth_offset=0.,
         field_of_view=math.radians(60.),
         aspect_ratio=1.,
         near_clip=10.,
@@ -35,6 +36,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.elevation_steps = elevation_steps
         self.distance_range = distance_range
         self.distance_steps = distance_steps
+        self.azimuth_offset = azimuth_offset
         self.field_of_view = field_of_view
         self.aspect_ratio = aspect_ratio
         self.near_clip = near_clip
@@ -126,7 +128,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
     
     def set_camera(self):
         scene = self.scene_component.brick_scene
-        azimuth = self.position[0] * self.azimuth_spacing
+        azimuth = self.position[0] * self.azimuth_spacing + self.azimuth_offset
         elevation = (self.position[1] * self.elevation_spacing +
                 self.elevation_range[0])
         field_of_view = self.field_of_view
@@ -145,7 +147,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         bbox = scene.get_instance_center_bbox()
         bbox_min, bbox_max = bbox
         bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
-        center = bbox_min + bbox_range * 0.5
+        #center = bbox_min + bbox_range * 0.5
+        center = (0,0,0)
         self.view_matrix = numpy.linalg.inv(
             camera.azimuthal_parameters_to_matrix(
                 azimuth, elevation, 0, distance, 0.0, 0.0, *center)

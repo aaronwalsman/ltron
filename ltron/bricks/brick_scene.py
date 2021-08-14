@@ -16,6 +16,7 @@ from ltron.bricks.brick_color import BrickColorLibrary
 from ltron.bricks.snap import SnapCylinder
 from ltron.render.environment import RenderEnvironment
 from ltron.geometry.grid_bucket import GridBucket
+from ltron.geometry.collision import CollisionChecker
 from ltron.geometry.utils import unscale_transform
 
 class BrickScene:
@@ -53,12 +54,11 @@ class BrickScene:
             self.make_track_snaps()
         
         # collision_checker
+        self.collision_checker = None
         if collision_checker:
             if collision_checker_args is None:
                 collision_checker_args = {}
             self.make_collision_checker(**collision_checker_args)
-        else:
-            self.collision_checker = None
         
         # bricks
         self.brick_library = BrickLibrary()
@@ -530,15 +530,15 @@ class BrickScene:
     
     # collision checking -------------------------------------------------------
     def check_collision(
-        target_instances, render_transform, scene_instances=None
+        self, target_instances, render_transform, scene_instances=None
     ):
         assert self.collision_checker is not None
-        self.collision_checker.check_collision(
+        return self.collision_checker.check_collision(
             target_instances, render_transform, scene_intances=scene_instances)
     
     def check_snap_collision(
-        target_instances, snap, mode, **args, **kwargs
+        self, target_instances, snap, direction, *args, **kwargs
     ):
         assert self.collision_checker is not None
-        self.collision_checker.check_snap_collision(
-            target_instances, snap, mode, *args, **kwargs)
+        return self.collision_checker.check_snap_collision(
+            target_instances, snap, direction, *args, **kwargs)

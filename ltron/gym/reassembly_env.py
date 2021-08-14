@@ -4,6 +4,8 @@ from collections import OrderedDict
 import gym
 import gym.spaces as spaces
 
+import splendor.contexts.glut as glut
+
 from ltron.gym.ltron_env import LtronEnv
 from ltron.gym.components.scene import SceneComponent
 from ltron.gym.components.episode import MaxEpisodeLengthComponent
@@ -12,11 +14,43 @@ from ltron.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent, SnapRenderComponent)
 from ltron.gym.components.disassembly import PixelDisassemblyComponent
 from ltron.gym.components.rotation import RotationAroundSnap
-from ltron.gym.components.pick_and_place import PickandPlace
+from ltron.gym.components.pick_and_place import PickAndPlace
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
 from ltron.gym.components.colors import RandomizeColorsComponent
-from ltron.gym.components.reassembly_score import ReassemblyScore
+from ltron.gym.components.reassembly import Reassembly
+
+
+def reassembly_template_action():
+    return {
+        'viewpoint' : 0,
+        
+        'disassembly' : {
+            'activate':False,
+            'polarity':0,
+            'direction':0,
+            'pick':(0,0),
+        },
+        
+        'rotate' : {
+            'activate':False,
+            'polarity':0,
+            'direction':0,
+            'pick':(0,0),
+        },
+        
+        'pick_and_place' : {
+            'activate':False,
+            'polarity':0,
+            'direction':0,
+            'pick':(0,0),
+            'place':(0,0),
+        },
+        
+        'reassembly' : {
+            'start':False,
+        },
+    }
 
 class SimplifiedReassemblyWrapper(gym.Env):
     def __init__(*args, **kwargs):
@@ -31,10 +65,10 @@ class SimplifiedReassemblyWrapper(gym.Env):
             1 + # disassembly
             1 + # rotate
             1 + # pick and place
-            1 + # start disassembly
+            1   # start disassembly
         )
         self.action_space = spaces.MultiDiscrete(
-            num_modes, height, width, height, width)
+            num_modes, 2, 2, height, width, height, width)
         
         self.observation_space = spaces.Box(
             low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
@@ -54,7 +88,7 @@ class SimplifiedReassemblyWrapper(gym.Env):
         return observation['color_render']
     
     def convert_action(self, action):
-        mode, pick_y, pick_x, place_y, place_x = action
+        mode, polarity, direction, pick_y, pick_x, place_y, place_x = action
         dict_action = {}
         
         # viewpoint
@@ -64,8 +98,162 @@ class SimplifiedReassemblyWrapper(gym.Env):
             viewpoint_action = 0
         dict_action['viewpoint'] = viewpoint_action
         
-        # 
+        # disassembly
+        dict_action['disassembly'] = {
+            'activate':(mode == 6),
+            'polarity':polarity,
+            'direction':direction,
+            'pick':numpy.array(pick_y, pick_x),
+        }
         
+        # rotate
+        dict_action['rotate'] = {
+            'activate':(mode == 7),
+            'polarity':polarity,
+            'direction':direction,
+            'pick':(pick_y, pick_x),
+        }
+        
+        # pick and place
+        dict_action['pick_and_place'] = {
+            'activate':(mode == 8),
+            'polarity':polarity,
+            'direction':direction,
+            'pick':(pick_y, pick_x),
+            'place':(place_y, place_x),
+        }
+        
+        # reassembly
+        dict_action['reassembly'] = {
+            'start':(mode == 9),
+        }
+        
+        return dict_action
+
+class InteractiveReassemblyEnv:
+    def __init__(self, **kwargs):
+        width = kwargs.get('width', 256)
+        height = kwargs.get('height', 256)
+        render_args = {
+            'opengl_mode':'glut',
+            'window_width':width,
+            'window_height':height,
+            'load_scene':'grey_cube',
+        }
+        self.env = reassembly_env(render_args=render_args, **kwargs)
+        
+        self.scene = self.env.components['scene'].brick_scene
+        self.window = self.scene.render_environment.window
+        self.height = self.env.components['color_render'].height
+        self.width = self.env.components['color_render'].width
+        self.map_height = self.env.components['pos_snap_render'].height
+        self.map_width = self.env.components['pos_snap_render'].width
+        assert self.height % self.map_height == 0
+        assert self.width % self.map_width == 0
+        self.height_scale = self.height // self.map_height
+        self.width_scale = self.width // self.map_width
+        
+        self.window.register_callbacks(
+            glutDisplayFunc = self.render,
+            glutIdleFunc = self.render,
+            glutKeyboardFunc = self.key_press,
+            glutKeyboardUpFunc = self.key_release,
+            glutSpecialFunc = self.special_key,
+        )
+        
+        self.polarity = '+'
+        self.direction = 'pull'
+        self.render_mode = 'color'
+    
+    def render(self):
+        self.window.enable_window()
+        if self.render_mode == 'color':
+            self.scene.color_render(flip_y=False)
+        elif self.render_mode == 'mask':
+            self.scene.mask_render(flip_y=False)
+        elif self.render_mode == 'snap':
+            snap_instances = self.scene.get_snaps(polarity=self.polarity)
+            snap_names = self.scene.get_snap_names(snap_instances)
+            scene.snap_render_instance_id(snap_names, flip_y=False)
+    
+    def step(self, action):
+        observation, reward, terminal, info = self.env.step(action)
+    
+    def key_press(self, key, x, y):
+        if key == b'r':
+            observation = self.env.reset()
+        
+        elif key == b'd':
+            xx = x // self.width_scale
+            yy = y // self.height_scale
+            action = reassembly_template_action()
+            action['disassembly']['activate'] = True
+            action['disassembly']['polarity'] = '-+'.index(self.polarity)
+            action['disassembly']['direction'] = (
+                ('pull', 'push').index(self.direction))
+            action['disassembly']['pick'] = (yy,xx)
+            self.step(action)
+        
+        elif key == b'm':
+            if self.render_mode == 'mask':
+                self.render_mode = 'color'
+            else:
+                self.render_mode = 'mask'
+        
+        elif key == b's':
+            if self.render_mode == 'snap':
+                self.render_mode = 'color'
+            else:
+                self.render_mode = 'snap'
+        
+        elif key == b'-':
+            print('Polarity: "-"')
+            self.polarity = '-'
+        
+        elif key == b'+':
+            print('Polarity: "+"')
+            self.polarity = '+'
+        
+        elif key == b'<':
+            print('Direction: "pull"')
+            self.direction = 'pull'
+        
+        elif key == b'>':
+            print('Direction: "push"')
+            self.direction = 'push'
+    
+    def key_release(self, key, x, y):
+        pass
+    
+    def special_key(self, key, x, y):
+        if key == glut.GLUT.GLUT_KEY_LEFT:
+            action = reassembly_template_action()
+            action['viewpoint'] = 1
+            self.step(action)
+        elif key == glut.GLUT.GLUT_KEY_RIGHT:
+            action = reassembly_template_action()
+            action['viewpoint'] = 2
+            self.step(action)
+        elif key == glut.GLUT.GLUT_KEY_UP:
+            action = reassembly_template_action()
+            action['viewpoint'] = 3
+            self.step(action)
+        elif key == glut.GLUT.GLUT_KEY_DOWN:
+            action = reassembly_template_action()
+            action['viewpoint'] = 4
+            self.step(action)
+    
+    def get_snap_under_mouse(x, y, polarity):
+        if polarity == '-':
+            render_component = self.env.components['neg_snap_render']
+        elif polarity == '+':
+            render_component = self.env.components['pos_snap_render']
+        instance_id, snap_id = render_component.observation[y, x]
+        return instance_id, snap_id
+    
+    def start(self):
+        glut.start_main_loop()
+    
 
 def reassembly_env(
     dataset,
@@ -78,6 +266,7 @@ def reassembly_env(
     map_width=64,
     map_height=64,
     dataset_reset_mode='uniform',
+    render_args=None,
     randomize_colors=True,
     check_collisions=True,
     print_traceback=True,
@@ -94,6 +283,7 @@ def reassembly_env(
     components['scene'] = SceneComponent(
         dataset_component=components['dataset'],
         path_location=[0],
+        render_args=render_args,
         track_snaps=True,
         collision_checker=check_collisions,
     )
@@ -104,8 +294,9 @@ def reassembly_env(
         azimuth_steps=8,
         elevation_range=[math.radians(-30), math.radians(30)],
         elevation_steps=2,
-        distance_range=[200, 200],
+        distance_range=[250, 250],
         distance_steps=1,
+        azimuth_offset=math.radians(45.),
         aspect_ratio=image_width/image_height,
     )
     
@@ -124,19 +315,19 @@ def reassembly_env(
         map_width, map_height, components['scene'], polarity='-')
     
     # action spaces
-    components['remove'] = PixelDisassemblyComponent(
+    components['disassembly'] = PixelDisassemblyComponent(
         components['scene'],
         pos_snap_render,
         neg_snap_render,
         check_collisions=check_collisions,
     )
-    components['rotation'] = RotationAroundSnap(
+    components['rotate'] = RotationAroundSnap(
         components['scene'],
         pos_snap_render,
         neg_snap_render,
         check_collisions=check_collisions,
     )
-    components['pick_and_place'] = PickandPlace(
+    components['pick_and_place'] = PickAndPlace(
         components['scene'],
         pos_snap_render,
         neg_snap_render,
@@ -144,7 +335,7 @@ def reassembly_env(
     )
     
     # reassembly
-    components['reconstruction_score'] = Reassembly(
+    components['reassembly'] = Reassembly(
         components['scene'])
     
     # color render
@@ -159,3 +350,10 @@ def reassembly_env(
     env = LtronEnv(components, print_traceback=print_traceback)
     
     return env
+
+if __name__ == '__main__':
+    interactive_env = InteractiveReassemblyEnv(
+        dataset='random_six',
+        split='train',
+        subset=1)
+    interactive_env.start()

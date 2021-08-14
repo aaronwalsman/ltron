@@ -6,26 +6,29 @@ from ltron.bricks.brick_scene import BrickScene
 
 class SceneComponent(LtronGymComponent):
     def __init__(self,
-            dataset_component=None,
-            path_location=None,
-            initial_scene_path=None,
-            renderable=True,
-            track_snaps = False,
-            default_image_light='grey_cube'):
+        dataset_component=None,
+        path_location=None,
+        initial_scene_path=None,
+        renderable=True,
+        render_args=None,
+        track_snaps=False,
+        collision_checker=False,
+    ):
         
         self.dataset_component = dataset_component
         self.path_location = path_location
         self.initial_scene_path = initial_scene_path
         self.current_scene_path = None
         
+        if render_args is None:
+            render_args={'opengl_mode':'egl', 'load_scene':'grey_cube'}
+            
         self.brick_scene = BrickScene(
             renderable=renderable,
-            render_args={
-                'opengl_mode':'egl',
-                'load_scene':'grey_cube',
-            },
-            track_snaps = track_snaps)
-            #default_image_light = default_image_light)
+            render_args=render_args,
+            track_snaps = track_snaps,
+            collision_checker = collision_checker,
+        )
         
         if self.initial_scene_path is not None:
             self.brick_scene.import_ldraw(initial_scene_path)

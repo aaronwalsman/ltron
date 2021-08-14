@@ -1,6 +1,8 @@
 import random
 import math
 
+from gym.spaces import Dict, Discrete
+
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class Reassembly(LtronGymComponent):

@@ -32,7 +32,8 @@ class CollisionChecker:
         )
     
     def check_snap_collision(
-        self, target_instances,
+        self,
+        target_instances,
         snap,
         direction,
         *args,
@@ -57,38 +58,27 @@ def check_snap_collision(
     **kwargs,
 ):
     
-    assert direction in ('attach', 'detach')
+    assert direction in ('push', 'pull')
     
     if snap.polarity == '+':
-        if direction == 'attach':
-            direction = '+'
-        else:
-            direction = '-'
+        if direction == 'push':
+            sign = 1
+        elif direction == 'pull':
+            sign = -1
     elif snap.polarity == '-':
-        if direction == 'attach':
-            direction = '-'
-        else:
-            direction = '+'
+        if direction == 'push':
+            sign = -1
+        elif direction == 'pull':
+            sign = 1
     
-    if direction == '+':
-        rotate = numpy.array([
-            [1, 0, 0, 0],
-            [0, 0, 1, 0],
-            [0, 1, 0, 0],
-            [0, 0, 0, 1],
-        ])
+    direction_transform = numpy.array([
+        [ 1, 0,    0, 0],
+        [ 0, 0, sign, 0],
+        [ 0, 1,    0, 0],
+        [ 0, 0,    0, 1]
+    ])
     
-    elif direction == '-':
-        rotate = numpy.array([
-            [1, 0, 0, 0],
-            [0, 0,-1, 0],
-            [0, 1, 0, 0],
-            [0, 0, 0, 1],
-        ])
-    else:
-        raise NotImplementedError
-        
-    render_transform = snap.transform @ rotate
+    render_transform = snap.transform @ direction_transform
     
     return check_collision(
         scene,

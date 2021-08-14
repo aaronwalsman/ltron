@@ -14,7 +14,7 @@ from ltron.geometry.collision import check_collision
 
 class PickAndPlace(LtronGymComponent):
     def __init__(self,
-        scene, pos_snap_render, neg_snap_render, check_collision
+        scene, pos_snap_render, neg_snap_render, check_collisions
     ):
         self.scene_component = scene
         self.action_executed = 0
@@ -22,22 +22,22 @@ class PickAndPlace(LtronGymComponent):
         self.neg_snap_render = neg_snap_render
         self.width = self.pos_snap_render.width
         self.height = self.pos_snap_render.height
-        self.check_collision = check_collision
+        self.check_collisions = check_collisions
         assert self.neg_snap_render.width == self.width
         assert self.neg_snap_render.height == self.height
         
         activate_space = Discrete(2)
-        pick_polarity_space = Discrete(2)
+        polarity_space = Discrete(2)
         pick_direction_space = Discrete(2)
         pick_space = SinglePixelSelectionSpace(self.width, self.height)
         place_space = SinglePixelSelectionSpace(self.width, self.height)
-        self.action_space = Tuple((
-            activate_space,
-            pick_polarity_space,
-            pick_direction_space,
-            pick_space,
-            place_space,
-        ))
+        self.action_space = Dict({
+            'activate':activate_space,
+            'polarity':polarity_space,
+            'direction':pick_direction_space,
+            'pick':pick_space,
+            'place':place_space,
+        })
         #self.action_space = MultiDiscrete([2, self.width, self.height, self.width, self.height])
         # self.action_space = MultiDiscrete([2, 20, 20, 20, 20])
 
@@ -54,9 +54,12 @@ class PickAndPlace(LtronGymComponent):
         #pick_x, pick_y = action[1], action[2]
         #place_x, place_y = action[3], action[4]
         
-        activate, polarity, direction, pick, place = action
-        pick_y, pick_x = pick
-        place_y, place_x = place
+        #activate, polarity, direction, pick, place = action
+        activate = action['activate']
+        polarity = action['polarity']
+        direction = action['direction']
+        pick_y, pick_x = action['pick']
+        place_y, place_x = action['place']
         
         if polarity == 1:
             pick_map = self.pos_snap_render.observation
@@ -76,7 +79,7 @@ class PickAndPlace(LtronGymComponent):
         ):
             return {'success' : 0}, 0, False, None
         
-        if self.check_collision:
+        if self.check_collisions and False:
             instance = scene.instances[pick_instance]
             snap = instance.get_snap(pick_id)
             collision = scene.check_snap_collision(
@@ -88,7 +91,7 @@ class PickAndPlace(LtronGymComponent):
             self.scene_component.brick_scene.pick_and_place_snap(
                 (pick_instance, pick_id), (place_instance, place_id))
             collision = scene.check_snap_collision(
-                [instance], snap, 'attach')
+                [instance], snap, 'push')
             if collision:
                 self.scene_component.brick_scene.move_instance(
                     instance, initial_transform)
