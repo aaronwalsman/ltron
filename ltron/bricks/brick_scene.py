@@ -374,13 +374,9 @@ class BrickScene:
     
     def get_brick_neighbors(self, instances=None):
         edges = self.get_all_edges(instances=instances, unidirectional=True)
-        neighbor_ids = {}
+        neighbor_ids = {int(brick):set() for brick in self.instances}
         for i in range(edges.shape[1]):
             instance_a, instance_b, snap_a, snap_b = edges[:,i]
-            if instance_a not in neighbor_ids:
-                neighbor_ids[instance_a] = set()
-            if instance_b not in neighbor_ids:
-                neighbor_ids[instance_b] = set()
             neighbor_ids[instance_a].add(instance_b)
             neighbor_ids[instance_b].add(instance_a)
         

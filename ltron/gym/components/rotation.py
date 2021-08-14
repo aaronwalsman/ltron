@@ -49,11 +49,11 @@ class RotationAroundSnap(LtronGymComponent):
         table = scene.instances.instances
         c_polarity = '-+'[polarity]
         print(c_polarity)
-        print('pre:', check_collision(scene, [table[instance_id]], snap_transform, c_polarity))
+        #print('pre:', check_collision(scene, [table[instance_id]], snap_transform, c_polarity))
 
         scene.move_instance(instance, instance_transform)
         snap_transform = instance.get_snap(snap_id).transform
-        print('post:', check_collision(scene, [instance], snap_transform, c_polarity))
+        #print('post:', check_collision(scene, [instance], snap_transform, c_polarity))
 
     def step(self, action):
 
@@ -65,6 +65,10 @@ class RotationAroundSnap(LtronGymComponent):
             return {'success':0}, 0, False, None
         polarity = action['polarity']
         direction = action['direction']
+        if direction:
+            degree = math.radians(90)
+        else:
+            degree = math.radians(-90)
         (y_cord, x_cord) = action['pick']
         trans = numpy.eye(4)
         rotate_x = numpy.copy(trans)
@@ -72,7 +76,7 @@ class RotationAroundSnap(LtronGymComponent):
         rotate_x[1,2] = -math.sin(degree)
         rotate_x[2:1] = math.sin(degree)
         rotate_x[2:2] = math.cos(degree)
-
+        
         rotate_y = numpy.copy(trans)
         rotate_y[0,0] = math.cos(degree)
         rotate_y[0,2] = math.sin(degree)
@@ -89,9 +93,9 @@ class RotationAroundSnap(LtronGymComponent):
             rotate_map = self.pos_snap_render.observation
         else:
             rotate_map = self.neg_snap_render.observation
-
-        instance, snap_id = rotate_map[x_cord, y_cord]
-        if instance == 0 or snap_id == 0:
+        
+        instance, snap_id = rotate_map[y_cord, x_cord]
+        if instance == 0:
             return {'success' : 0}, 0, False, None
         self.transform_about_snap(polarity, instance, snap_id, rotate_y, self.scene_component.brick_scene)
 

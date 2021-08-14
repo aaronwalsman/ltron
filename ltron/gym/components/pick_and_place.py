@@ -56,6 +56,8 @@ class PickAndPlace(LtronGymComponent):
         
         #activate, polarity, direction, pick, place = action
         activate = action['activate']
+        if not activate:
+            return {'success': 0}, 0., False, {}
         polarity = action['polarity']
         direction = action['direction']
         pick_y, pick_x = action['pick']
@@ -73,10 +75,18 @@ class PickAndPlace(LtronGymComponent):
         # if check_collision(self.scene_component.brick_scene, pick_instance, abs(polarity - 1), (self.width, self.height)):
         #     return {'pick_place_succeed': 0}, 0, False, None
         
-        if ((pick_instance == 0 and pick_id == 0) or
-            (place_instance == 0 and place_id == 0) or
-            pick_instance == place_instance
-        ):
+        print(pick_instance, pick_id, place_instance, place_id)
+        
+        if pick_instance == 0 and pick_id == 0:
+            print('pick miss')
+            return {'success' : 0}, 0, False, None
+        
+        if place_instance == 0 and place_id == 0:
+            print('place miss')
+            return {'success' : 0}, 0, False, None
+        
+        if pick_instance == place_instance:
+            print('pick/place are the same')
             return {'success' : 0}, 0, False, None
         
         if self.check_collisions and False:

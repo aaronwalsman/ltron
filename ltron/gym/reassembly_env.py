@@ -164,6 +164,7 @@ class InteractiveReassemblyEnv:
         self.polarity = '+'
         self.direction = 'pull'
         self.render_mode = 'color'
+        self.pick = (0,0)
     
     def render(self):
         self.window.enable_window()
@@ -174,7 +175,7 @@ class InteractiveReassemblyEnv:
         elif self.render_mode == 'snap':
             snap_instances = self.scene.get_snaps(polarity=self.polarity)
             snap_names = self.scene.get_snap_names(snap_instances)
-            scene.snap_render_instance_id(snap_names, flip_y=False)
+            self.scene.snap_render_instance_id(snap_names, flip_y=False)
     
     def step(self, action):
         observation, reward, terminal, info = self.env.step(action)
@@ -184,6 +185,7 @@ class InteractiveReassemblyEnv:
             observation = self.env.reset()
         
         elif key == b'd':
+            print('Disassemble: %i, %i'%(x,y))
             xx = x // self.width_scale
             yy = y // self.height_scale
             action = reassembly_template_action()
@@ -192,6 +194,38 @@ class InteractiveReassemblyEnv:
             action['disassembly']['direction'] = (
                 ('pull', 'push').index(self.direction))
             action['disassembly']['pick'] = (yy,xx)
+            self.step(action)
+        
+        elif key == b'p':
+            print('Pick: %i, %i'%(x,y))
+            xx = x // self.width_scale
+            yy = y // self.height_scale
+            self.pick = (yy, xx)
+        
+        elif key == b'[':
+            print('Rotate: %i, %i'%(x,y))
+            xx = x // self.width_scale
+            yy = y // self.height_scale
+            action = reassembly_template_action()
+            action['rotate'] = {
+                'activate':True,
+                'polarity': '-+'.index(self.polarity),
+                'direction':0,
+                'pick':(yy,xx),
+            }
+            self.step(action)
+        
+        elif key == b']':
+            print('Rotate: %i, %i'%(x,y))
+            xx = x // self.width_scale
+            yy = y // self.height_scale
+            action = reassembly_template_action()
+            action['rotate'] = {
+                'activate':True,
+                'polarity': '-+'.index(self.polarity),
+                'direction':1,
+                'pick':(yy,xx),
+            }
             self.step(action)
         
         elif key == b'm':
@@ -221,24 +255,50 @@ class InteractiveReassemblyEnv:
         elif key == b'>':
             print('Direction: "push"')
             self.direction = 'push'
+        
+        elif key == b'|':
+            if not self.env.components['reassembly'].reassembling:
+                print('Switching to Reassembly')
+                action = reassembly_template_action()
+                action['reassembly']['start'] = 1
+                self.step(action)
+            else:
+                print('Already Reassembling')
     
     def key_release(self, key, x, y):
-        pass
+        if key == b'p':
+            print('Place: %i, %i'%(x,y))
+            pick_y, pick_x = self.pick
+            place_x = x // self.width_scale
+            place_y = y // self.height_scale
+            action = reassembly_template_action()
+            action['pick_and_place'] = {
+                'activate':True,
+                'polarity':'-+'.index(self.polarity),
+                'direction':('pull', 'push').index(self.direction),
+                'pick':(pick_y, pick_x),
+                'place':(place_y, place_x),
+            }
+            self.step(action)
     
     def special_key(self, key, x, y):
         if key == glut.GLUT.GLUT_KEY_LEFT:
+            print('Camera Left')
             action = reassembly_template_action()
             action['viewpoint'] = 1
             self.step(action)
         elif key == glut.GLUT.GLUT_KEY_RIGHT:
+            print('Camera Right')
             action = reassembly_template_action()
             action['viewpoint'] = 2
             self.step(action)
         elif key == glut.GLUT.GLUT_KEY_UP:
+            print('Camera Up')
             action = reassembly_template_action()
             action['viewpoint'] = 3
             self.step(action)
         elif key == glut.GLUT.GLUT_KEY_DOWN:
+            print('Camera Down')
             action = reassembly_template_action()
             action['viewpoint'] = 4
             self.step(action)

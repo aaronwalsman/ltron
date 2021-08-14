@@ -7,7 +7,6 @@ from ltron.symmetry import symmetry_table
 def score_offset(x_offset, y_offset):
     x_type, x_color, x_transform = x_offset
     y_type, y_color, y_transform = y_offset
-    print(x_type, y_type, x_transform, y_transform)
     
     if x_type != y_type:
         return 0.
@@ -32,8 +31,6 @@ def type_color_offset(brick, neighbor):
 def compute_matching(scores):
     costs = 1. - scores
     x_best, y_best = linear_sum_assignment(costs)
-    print(x_best)
-    print(y_best)
     
     matching_scores = scores[x_best, y_best]
     x_scores = numpy.zeros(scores.shape[0])
@@ -69,6 +66,9 @@ def score_brick(x_brick, x_neighbors, y_brick, y_neighbors):
         for y, y_offset in enumerate(y_offsets):
             xy_scores[x,y] = score_offset(x_offset, y_offset)
     
+    print(xy_scores)
+    print('-------')
+    
     x_scores, y_scores = compute_matching(xy_scores)
     return pseudo_f1(x_scores, y_scores)
 
@@ -78,6 +78,8 @@ def score_configurations(x_bricks, x_neighbors, y_bricks, y_neighbors):
         for y, (y_brick, y_neighbor) in enumerate(zip(y_bricks, y_neighbors)):
             xy_scores[x, y] = score_brick(
                 x_brick, x_neighbor, y_brick, y_neighbor)
+    
+    print(xy_scores)
     
     x_scores, y_scores = compute_matching(xy_scores)
     
