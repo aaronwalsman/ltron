@@ -415,6 +415,6 @@ def reassembly_env(
 if __name__ == '__main__':
     interactive_env = InteractiveReassemblyEnv(
         dataset='random_six',
-        split='simple_single',
+        split='all',
         subset=1)
     interactive_env.start()
