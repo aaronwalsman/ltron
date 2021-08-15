@@ -15,6 +15,7 @@ class Reassembly(LtronGymComponent):
         self.scene_component = scene_component
         self.action_space = Dict({'start':Discrete(2)})
         self.observation_space = Dict({'reassembling':Discrete(2)})
+        self.reassembling=False
     
     def reset(self):
         scene = self.scene_component.brick_scene
@@ -29,14 +30,16 @@ class Reassembly(LtronGymComponent):
         return {'reassembling':self.reassembling}
     
     def step(self, action):
+        
         if action['start'] and not self.reassembling:
             self.reassembling=True
             scene = self.scene_component.brick_scene
             scene.clear_instances()
             square = math.ceil(len(self.target_bricks)**0.5)
-            random.shuffle(self.target_bricks)
+            brick_order = list(range(len(self.target_bricks)))
             spacing=140
-            for i, target_brick in enumerate(self.target_bricks):
+            for i, brick_id in enumerate(brick_order):
+                target_brick = self.target_bricks[brick_id]
                 x = i % square
                 z = i // square
                 transform = scene.upright.copy()
@@ -51,15 +54,14 @@ class Reassembly(LtronGymComponent):
         if self.reassembling:
             scene = self.scene_component.brick_scene
             current_bricks, current_neighbors = scene.get_brick_neighbors()
-            x_score, y_score = score_configurations(
+            
+            score = score_configurations(
                 self.target_bricks,
                 self.target_neighbors,
                 current_bricks,
                 current_neighbors,
             )
-            print(x_score)
-            print(y_score)
         else:
             score = 0.
         
-        return {'reassembling':self.reassembling}, 0., False, {}
+        return {'reassembling':self.reassembling}, score, False, {}

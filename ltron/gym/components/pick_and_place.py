@@ -75,8 +75,6 @@ class PickAndPlace(LtronGymComponent):
         # if check_collision(self.scene_component.brick_scene, pick_instance, abs(polarity - 1), (self.width, self.height)):
         #     return {'pick_place_succeed': 0}, 0, False, None
         
-        print(pick_instance, pick_id, place_instance, place_id)
-        
         if pick_instance == 0 and pick_id == 0:
             print('pick miss')
             return {'success' : 0}, 0, False, None

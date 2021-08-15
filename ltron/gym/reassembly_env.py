@@ -179,6 +179,7 @@ class InteractiveReassemblyEnv:
     
     def step(self, action):
         observation, reward, terminal, info = self.env.step(action)
+        print('Reward: %f'%reward)
     
     def key_press(self, key, x, y):
         if key == b'r':
@@ -414,6 +415,6 @@ def reassembly_env(
 if __name__ == '__main__':
     interactive_env = InteractiveReassemblyEnv(
         dataset='random_six',
-        split='train',
+        split='simple_single',
         subset=1)
     interactive_env.start()
