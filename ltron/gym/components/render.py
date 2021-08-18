@@ -16,6 +16,7 @@ class ColorRenderComponent(LtronGymComponent):
         self.width = width
         self.height = height
         self.scene_component = scene_component
+        scene = self.scene_component.brick_scene
         self.scene_component.brick_scene.make_renderable()
         self.anti_alias = anti_alias
         self.frame_buffer = FrameBufferWrapper(
@@ -27,6 +28,7 @@ class ColorRenderComponent(LtronGymComponent):
     def compute_observation(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
+        scene.viewport_scissor(0,0,self.width,self.height)
         scene.color_render()
         self.observation = self.frame_buffer.read_pixels()
     
@@ -61,7 +63,7 @@ class SegmentationRenderComponent(LtronGymComponent):
     def compute_observation(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
-        #scene.mask_render()
+        scene.viewport_scissor(0,0,self.width,self.height)
         scene.render_brick_instance_ids()
         mask = self.frame_buffer.read_pixels()
         self.observation = masks.color_byte_to_index(mask)
@@ -101,6 +103,7 @@ class SnapRenderComponent(LtronGymComponent):
     def compute_observation(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
+        scene.viewport_scissor(0,0,self.width,self.height)
         
         # get the snap names
         snaps = scene.get_snaps(polarity=self.polarity, style=self.style)
