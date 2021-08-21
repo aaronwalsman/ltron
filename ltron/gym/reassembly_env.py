@@ -123,7 +123,8 @@ class HandspaceReassemblyWrapper(gym.Env):
             1 + # disassembly
             1 + # rotate
             1 + # pick and place
-            1   # start disassembly
+            1 + # brick insertion
+            1   # start reassembly
         )
 
         insertion = self.env.components['insert_brick']
@@ -198,16 +199,16 @@ class HandspaceReassemblyWrapper(gym.Env):
             'place_at_origin' : place_origin,
         }
 
-        # reassembly
-        dict_action['reassembly'] = {
-            'start': (mode == 15),
+        # brick insertion
+        if mode != 15: classid = -1
+        dict_action['insert_brick'] = {
+            'class_id': classid,
+            'color': color,
         }
 
-        # brick insertion
-        if mode != 16: classid = -1
-        dict_action['insert_brick'] = {
-            'class_id' : classid,
-            'color' : color,
+        # reassembly
+        dict_action['reassembly'] = {
+            'start': (mode == 16),
         }
 
         return dict_action
