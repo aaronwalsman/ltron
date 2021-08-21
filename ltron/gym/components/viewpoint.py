@@ -45,6 +45,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.observe_camera_parameters = observe_camera_parameters
         self.observe_view_matrix = observe_view_matrix
         
+        self.center = (0,0,0)
+        
         observation_space = {}
         if self.observe_camera_parameters:
             if azimuth_steps >= 2:
@@ -60,8 +62,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
             self.observation_space = Dict(observation_space)
         
         self.action_space = Discrete(7)
-        self.num_locations = azimuth_steps * elevation_steps * distance_steps
-        self.location = None
+        
+        self.position = None
         
         self.azimuth_spacing = math.pi * 2 / azimuth_steps
         if elevation_steps >= 2:

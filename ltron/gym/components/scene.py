@@ -41,18 +41,10 @@ class SceneComponent(LtronGymComponent):
     def reset(self):
         self.brick_scene.clear_instances()
         if self.dataset_component is not None:
-            #self.current_scene_path = magic_lookup(
-            #    self.dataset_component, self.path_location)
             self.current_scene_path = hierarchy_branch(
                 self.dataset_component.dataset_item, self.path_location)
         elif self.initial_scene_path is not None:
             self.current_scene_path = self.initial_scene_path
-        '''
-        if self.path_component is not None:
-            self.current_scene_path = self.path_component.scene_path
-        elif self.initial_scene_path is not None:
-            self.current_scene_path = self.initial_scene_path
-        '''
         if self.current_scene_path is not None:
             self.brick_scene.import_ldraw(self.current_scene_path)
         

@@ -68,35 +68,6 @@ class BrickScene:
                 self.color_library,
         )
     
-    '''
-    def clone(self, renderable=None, render_args=None, track_snaps=None):
-        import time
-        t0 = time.time()
-        if renderable is None:
-            renderable = self.renderable
-        if track_snaps is None:
-            track_snaps = self.track_snaps
-        if render_args is None:
-            render_args = {}
-        new_scene = BrickScene(
-            renderable=renderable,
-            render_args=render_args,
-            track_snaps=track_snaps,
-        )
-        
-        t1 = time.time()
-        new_scene.brick_library = self.brick_library
-        for instance in self.instances.values():
-            new_scene.add_instance(
-                instance.brick_type,
-                str(instance.color),
-                instance.transform,
-            )
-        t2 = time.time()
-        print(t1-t0, t2-t1)
-        return new_scene
-    '''
-    
     def make_renderable(self, **render_args):
         if not self.renderable:
             self.render_environment = RenderEnvironment(**render_args)
@@ -186,6 +157,8 @@ class BrickScene:
     # instances ----------------------------------------------------------------
     
     def add_instance(self, brick_type, brick_color, transform):
+        if self.render_environment.window is not None:
+            self.render_environment.window.set_active()
         self.brick_library.add_type(brick_type)
         self.color_library.load_colors([brick_color])
         brick_instance = self.instances.add_instance(
@@ -476,6 +449,15 @@ class BrickScene:
         transform = self.pick_and_place_snap_transform(pick, place)
         self.move_instance(pick_instance, transform)
     
+    def transform_about_snap(self, instances, snap, local_transform):
+        offset = (
+            snap.transform @
+            local_transform @
+            numpy.linalg.inv(snap.transform)
+        )
+        for instance in instances:
+            self.move_instance(instance, offset @ instance.transform)
+    
     # materials ----------------------------------------------------------------
     
     def load_colors(self, colors):
@@ -531,6 +513,8 @@ class BrickScene:
         self, target_instances, render_transform, scene_instances=None
     ):
         assert self.collision_checker is not None
+        if self.render_environment.window is not None:
+            self.render_environment.window.set_active()
         return self.collision_checker.check_collision(
             target_instances, render_transform, scene_intances=scene_instances)
     
@@ -538,5 +522,7 @@ class BrickScene:
         self, target_instances, snap, direction, *args, **kwargs
     ):
         assert self.collision_checker is not None
+        if self.render_environment.window is not None:
+            self.render_environment.window.set_active()
         return self.collision_checker.check_snap_collision(
             target_instances, snap, direction, *args, **kwargs)

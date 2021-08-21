@@ -35,6 +35,7 @@ class RenderEnvironment:
         if opengl_mode == 'egl':
             egl.initialize_plugin()
             egl.initialize_device(device=egl_device)
+            self.window = None
         
         elif opengl_mode == 'glut':
             glut.initialize()
@@ -48,6 +49,8 @@ class RenderEnvironment:
                 self.window.show_window()
             else:
                 self.window.hide_window()
+        elif opengl_mode == 'ignore':
+            self.window = None
         else:
             raise Exception(
                     'Unknown opengl_mode: %s (expected "egl" or "glut")')
@@ -55,6 +58,7 @@ class RenderEnvironment:
         self.renderer = SplendorRender(
                 asset_paths,
                 default_camera_projection=default_projection,
+                window=self.window,
         )
         self.load_scene = load_scene
         if self.load_scene is not None:
@@ -119,6 +123,8 @@ class RenderEnvironment:
             self.add_snap_instance(brick_instance.instance_id, i, snap)
     
     def add_snap_instance(self, instance_id, snap_id, snap):
+        if self.window is not None:
+            self.window.set_active()
         # create the mesh if it doesn't exist
         if not self.renderer.mesh_exists(snap.subtype_id):
             self.renderer.load_mesh(
@@ -212,6 +218,11 @@ class RenderEnvironment:
         if instances is None:
             instances = self.get_all_brick_instances()
         self.renderer.color_render(instances=instances, **kwargs)
+    
+    def mask_render(self, instances=None, **kwargs):
+        if instances is None:
+            instances = self.get_all_brick_instances()
+        self.renderer.mask_render(instances=instances, **kwargs)
     
     def get_snap_names(self, snaps):
         return [

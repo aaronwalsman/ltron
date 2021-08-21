@@ -34,32 +34,29 @@ class RotationAroundSnap(LtronGymComponent):
 
     def reset(self):
         return {'success':0}
+    
+    # I moved this to brick_scene because I needed it other places as well
+    #def transform_about_snap(
+    #    self, polarity, instance_id, snap_id, transform, scene
+    #):
+    #    instance = scene.instances[instance_id]
+    #    snap_transform = instance.get_snap(snap_id).transform
+    #    prototype_transform = instance.brick_type.snaps[snap_id].transform
+    #    instance_transform = (
+    #            snap_transform @
+    #            transform @
+    #            numpy.linalg.inv(prototype_transform))
 
-    def transform_about_snap(
-        self, polarity, instance_id, snap_id, transform, scene
-    ):
-        instance = scene.instances[instance_id]
-        snap_transform = instance.get_snap(snap_id).transform
-        prototype_transform = instance.brick_type.snaps[snap_id].transform
-        instance_transform = (
-                snap_transform @
-                transform @
-                numpy.linalg.inv(prototype_transform))
+    #    table = scene.instances.instances
+    #    c_polarity = '-+'[polarity]
 
-        table = scene.instances.instances
-        c_polarity = '-+'[polarity]
-        print(c_polarity)
-        #print('pre:', check_collision(scene, [table[instance_id]], snap_transform, c_polarity))
-
-        scene.move_instance(instance, instance_transform)
-        snap_transform = instance.get_snap(snap_id).transform
-        #print('post:', check_collision(scene, [instance], snap_transform, c_polarity))
+    #    scene.move_instance(instance, instance_transform)
+    #    snap_transform = instance.get_snap(snap_id).transform
 
     def step(self, action):
 
         if action is None: return {'rotation_suceed' : 0}, 0, False, None
 
-        #polarity, x_cord, y_cord, degree = action[0], action[1], action[2], action[3]
         activate = action['activate']
         if not activate:
             return {'success':0}, 0, False, None
@@ -94,9 +91,14 @@ class RotationAroundSnap(LtronGymComponent):
         else:
             rotate_map = self.neg_snap_render.observation
         
-        instance, snap_id = rotate_map[y_cord, x_cord]
-        if instance == 0:
+        instance_id, snap_id = rotate_map[y_cord, x_cord]
+        if instance_id == 0:
             return {'success' : 0}, 0, False, None
-        self.transform_about_snap(polarity, instance, snap_id, rotate_y, self.scene_component.brick_scene)
+        #self.transform_about_snap(polarity, instance_id, snap_id, rotate_y, self.scene_component.brick_scene)
+        
+        scene = self.scene_component.brick_scene
+        instance = scene.instances[instance_id]
+        snap = instance.get_snap(snap_id)
+        scene.transform_about_snap([instance], snap, rotate_y)
 
         return {'success' : 1}, 0, False, None

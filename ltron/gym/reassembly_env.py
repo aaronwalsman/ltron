@@ -421,27 +421,12 @@ class InteractiveHandspaceReassemblyEnv:
             self.handspace_width // self.handspace_map_width)
         
         self.window.register_callbacks(
-            glutDisplayFunc = self.render_both,
-            glutIdleFunc = self.render_both,
+            glutDisplayFunc = self.render,
+            glutIdleFunc = self.render,
             glutKeyboardFunc = self.key_press,
             glutKeyboardUpFunc = self.key_release,
             glutSpecialFunc = self.special_key,
         )
-        #self.workspace_window.register_callbacks(
-        #    glutDisplayFunc = self.workspace_render,
-        #    glutIdleFunc = self.idle,
-        #    glutKeyboardFunc = self.workspace_key_press,
-        #    glutKeyboardUpFunc = self.workspace_key_release,
-        #    glutSpecialFunc = self.workspace_special_key,
-        #)
-        #
-        #self.handspace_window.register_callbacks(
-        #    glutDisplayFunc = self.handspace_render,
-        #    glutIdleFunc = self.idle,
-        #    glutKeyboardFunc = self.handspace_key_press,
-        #    glutKeyboardUpFunc = self.handspace_key_release,
-        #    glutSpecialFunc = self.handspace_special_key,
-        #)
         
         self.polarity = '+'
         self.direction = 'pull'
@@ -458,7 +443,7 @@ class InteractiveHandspaceReassemblyEnv:
         GL.glViewport(256,0,self.handspace_width, self.handspace_height)
         GL.glScissor(256,0,self.handspace_width, self.handspace_height)
     
-    def render_both(self):
+    def render(self):
         self.window.enable_window()
         if self.render_mode == 'color':
             self.workspace_viewport()
@@ -485,31 +470,9 @@ class InteractiveHandspaceReassemblyEnv:
             self.handspace_scene.snap_render_instance_id(
                 snap_names, flip_y=False)
             
-    '''
-    def render(self, window, scene):
-        window.set_active()
-        window.enable_window()
-        if self.render_mode == 'color':
-            scene.color_render(flip_y=False)
-        elif self.render_mode == 'mask':
-            scene.mask_render(flip_y=False)
-        elif self.render_mode == 'snap':
-            snap_instances = scene.get_snaps(polarity=self.polarity)
-            snap_names = scene.get_snap_names(snap_instances)
-            scene.snap_render_instance_id(snap_names, flip_y=False)
-    '''
-    
     def step(self, action):
         observation, reward, terminal, info = self.env.step(action)
         print('Reward: %f'%reward)
-    
-    '''
-    def workspace_key_press(self, key, x, y):
-        self.key_press('workspace', key, x, y)
-    
-    def handspace_key_press(self, key, x, y):
-        self.key_press('handspace', key, x, y)
-    '''
     
     def key_press(self, key, x, y):
         if x < 256:
@@ -546,7 +509,6 @@ class InteractiveHandspaceReassemblyEnv:
         
         elif key == b'P' and space == 'handspace':
             print('Pick: %s, %i, %i'%(space,x,y))
-            print(self.handspace_width_scale)
             xx = x // self.handspace_width_scale
             yy = y // self.handspace_width_scale
             action = handspace_reassembly_template_action()
@@ -653,13 +615,6 @@ class InteractiveHandspaceReassemblyEnv:
             else:
                 print('Already Reassembling')
     
-    '''
-    def workspace_key_release(self, key, x, y):
-        self.key_release('workspace', key, x, y)
-    
-    def handspace_key_release(self, key, x, y):
-        self.key_release('handspace', key, x, y)
-    '''
     def key_release(self, key, x, y):
         if x < 255:
             space = 'workspace'
@@ -680,14 +635,6 @@ class InteractiveHandspaceReassemblyEnv:
                 'place_at_origin':False
             }
             self.step(action)
-    
-    '''
-    def workspace_special_key(self, key, x, y):
-        return self.special_key('workspace_viewpoint', key, x, y)
-    
-    def handspace_special_key(self, key, x, y):
-        return self.special_key('handspace_viewpoint', key, x, y)
-    '''
     
     def special_key(self, key, x, y):
         if x < 256:
@@ -990,6 +937,6 @@ if __name__ == '__main__':
     #interactive_env = InteractiveReassemblyEnv(
     interactive_env = InteractiveHandspaceReassemblyEnv(
         dataset='random_six',
-        split='all',
+        split='simple_single',
         subset=1)
     interactive_env.start()

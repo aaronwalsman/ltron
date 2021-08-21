@@ -1,4 +1,9 @@
+import math
+
 import numpy
+
+from pyquaternion import Quaternion
+
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from gym.spaces import (
     Discrete,
@@ -11,6 +16,145 @@ from ltron.gym.spaces import (
 )
 
 from ltron.geometry.collision import check_collision
+
+class HandspacePickAndPlace(LtronGymComponent):
+    def __init__(self,
+        workspace_scene_component,
+        workspace_pos_snap_component,
+        workspace_neg_snap_component,
+        handspace_scene_component,
+        handspace_pos_snap_component,
+        handspace_neg_snap_component,
+        check_collisions=False,
+    ):
+        self.workspace_scene_component = workspace_scene_component
+        self.workspace_pos_snap_component = workspace_pos_snap_component
+        self.workspace_neg_snap_component = workspace_neg_snap_component
+        self.handspace_scene_component = handspace_scene_component
+        self.handspace_pos_snap_component = handspace_pos_snap_component
+        self.handspace_neg_snap_component = handspace_neg_snap_component
+        self.check_collisions = check_collisions
+        
+        self.workspace_width = self.workspace_pos_snap_component.width
+        self.workspace_height = self.workspace_pos_snap_component.height
+        self.handspace_width = self.handspace_pos_snap_component.width
+        self.handspace_height = self.handspace_pos_snap_component.height
+        
+        activate_space = Discrete(2)
+        polarity_space = Discrete(2)
+        pick_space = SinglePixelSelectionSpace(
+            self.handspace_width, self.handspace_height)
+        place_space = SinglePixelSelectionSpace(
+            self.workspace_width, self.workspace_height)
+        place_at_origin_space = Discrete(2)
+        self.observation_space = Dict({'success':Discrete(2)})
+        self.action_space = Dict({
+            'activate':activate_space,
+            'polarity':polarity_space,
+            'pick':pick_space,
+            'place':place_space,
+            'place_at_origin':place_space,
+        })
+    
+    def reset(self):
+        return {'success':False}
+    
+    def step(self, action):
+        activate = action['activate']
+        if not activate:
+            return {'success':False}, 0., False, {}
+        polarity = action['polarity']
+        pick_y, pick_x = action['pick']
+        place_y, place_x = action['place']
+        place_at_origin = action['place_at_origin']
+        
+        if polarity == 1:
+            pick_map = self.handspace_pos_snap_component.observation
+            place_map = self.workspace_neg_snap_component.observation
+        else:
+            pick_map = self.handspace_neg_snap_component.observation
+            place_map = self.workspace_pos_snap_component.observation
+        
+        pick_instance_id, pick_snap_id = pick_map[pick_y, pick_x]
+        place_instance_id, place_snap_id = place_map[place_y, place_x]
+        
+        if pick_instance_id == 0:
+            print('pick_miss')
+            return {'success':0}, 0, False, None
+        
+        if place_instance_id == 0 and not place_at_origin:
+            print('place_miss')
+            return {'success':0}, 0, False, None
+        
+        workspace_scene = self.workspace_scene_component.brick_scene
+        handspace_scene = self.handspace_scene_component.brick_scene
+        pick_instance = handspace_scene.instances[pick_instance_id]
+        pick_brick_type = pick_instance.brick_type
+        pick_brick_color = pick_instance.color
+        brick_type_snap = pick_brick_type.snaps[pick_snap_id]
+        
+        
+        workspace_view_matrix = workspace_scene.get_view_matrix()
+        handspace_view_matrix = handspace_scene.get_view_matrix()
+        best_workspace_transform = None
+        best_pseudo_angle = -float('inf')
+        for i in range(4):
+            angle = i * math.pi / 2
+            rotation = Quaternion(axis=(0,1,0), angle=angle)
+            workspace_transform = (
+                workspace_scene.upright @
+                rotation.transformation_matrix @
+                numpy.linalg.inv(brick_type_snap.transform)
+            )
+            handspace_camera_local = (
+                handspace_view_matrix @ pick_instance.transform)
+            workspace_camera_local = (
+                workspace_view_matrix @ workspace_transform)
+            
+            offset = (
+                workspace_camera_local @
+                numpy.linalg.inv(handspace_camera_local)
+            )
+            pseudo_angle = numpy.trace(offset[:3,:3])
+            if pseudo_angle > best_pseudo_angle:
+                best_pseudo_angle = pseudo_angle
+                best_workspace_transform = workspace_transform
+        new_brick = workspace_scene.add_instance(
+            str(pick_brick_type),
+            pick_brick_color,
+            best_workspace_transform,
+        )
+        
+        success = False
+        if place_at_origin:
+            if self.check_collisions:
+                collision = workspace_scene.check_snap_collision(
+                    [new_brick],
+                    new_brick.get_snap(pick_snap_id),
+                    'push',
+                    dump_images='push')
+                if collision:
+                    workspace_scene.remove_instance(new_brick)
+                else:
+                    success = True
+        
+        else:
+            workspace_scene.pick_and_place_snap(
+                (new_brick.instance_id, pick_snap_id),
+                (place_instance_id, place_snap_id),
+            )
+            if self.check_collisions:
+                collision = workspace_scene.check_snap_collision(
+                    [new_brick], new_brick.get_snap(pick_snap_id), 'push')
+                if collision:
+                    workspace_scene.remove_instance(new_brick)
+                else:
+                    success = True
+        
+        if success:
+            handspace_scene.clear_instances() 
+        
+        return {'success':success}, 0., False, {}
 
 class PickAndPlace(LtronGymComponent):
     def __init__(self,

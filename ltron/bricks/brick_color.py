@@ -83,3 +83,6 @@ class BrickColor:
     
     def __str__(self):
         return self.color_name
+    
+    def __int__(self):
+        return self.color_index

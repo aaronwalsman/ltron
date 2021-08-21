@@ -8,9 +8,11 @@ from ltron.gym.components.ltron_gym_component import LtronGymComponent
 class DisassemblyComponent(LtronGymComponent):
     def __init__(self,
         scene_component,
-        check_collisions,
+        handspace_component=None,
+        check_collisions=False,
     ):
         self.scene_component = scene_component
+        self.handspace_component = handspace_component
         self.check_collisions = check_collisions
         if self.check_collisions:
             scene = self.scene_component.brick_scene
@@ -21,7 +23,7 @@ class DisassemblyComponent(LtronGymComponent):
     def reset(self):
         return {'success': False}
     
-    def remove_instance(
+    def disassemble(
         self,
         instance_index,
         snap_index=None,
@@ -36,13 +38,27 @@ class DisassemblyComponent(LtronGymComponent):
                 collision = scene.check_snap_collision(
                     [instance], snap, direction)
                 if not collision:
-                    scene.remove_instance(instance_index)
+                    self.remove_instance(instance_index)
                     success = True
             else:
-                scene.remove_instance(instance_index)
+                self.remove_instance(instance_index)
                 success = True
         
         return success
+    
+    def remove_instance(self, instance_index):
+        scene = self.scene_component.brick_scene
+        
+        if self.handspace_component is not None:
+            instance = scene.instances[instance_index]
+            brick_type = str(instance.brick_type)
+            color = instance.color
+            handspace_scene = self.handspace_component.brick_scene
+            handspace_scene.clear_instances()
+            handspace_scene.add_instance(
+                brick_type, color, handspace_scene.upright)
+        
+        scene.remove_instance(instance_index)
 
 class IndexDisassemblyComponent(DisassemblyComponent):
     def __init__(self,
@@ -61,7 +77,7 @@ class IndexDisassemblyComponent(DisassemblyComponent):
         activate, instance_index = action
         success = False
         if activate:
-            success = self.remove_instance(instance_index)
+            success = self.disassemble(instance_index)
         
         return {'success':success}, 0., False, None
 
@@ -85,7 +101,7 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
         success = False
         if activate and instance_index != 0:
             direction = ('pull', 'push')[direction]
-            success = self.remove_instance(
+            success = self.disassemble(
                 instance_index, snap_index, direction=direction)
 
 class PixelDisassemblyComponent(DisassemblyComponent):
@@ -93,10 +109,14 @@ class PixelDisassemblyComponent(DisassemblyComponent):
         scene_component,
         pos_snap_render_component,
         neg_snap_render_component,
+        handspace_component=None,
         check_collisions=False,
     ):
         super(PixelDisassemblyComponent, self).__init__(
-            scene_component, check_collisions)
+            scene_component,
+            handspace_component=handspace_component,
+            check_collisions=check_collisions,
+        )
         assert (pos_snap_render_component.width ==
             neg_snap_render_component.width)
         assert (pos_snap_render_component.height ==
@@ -134,7 +154,7 @@ class PixelDisassemblyComponent(DisassemblyComponent):
                 pick_map = self.neg_snap_render.observation
             instance_index, snap_index = pick_map[y,x]
             if instance_index != 0:
-                success = self.remove_instance(
+                success = self.disassemble(
                     instance_index, snap_index, direction=direction)
         
         return {'success':success}, 0., False, None

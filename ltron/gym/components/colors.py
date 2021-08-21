@@ -10,6 +10,7 @@ class RandomizeColorsComponent(LtronGymComponent):
         
         self.all_colors = all_colors
         self.scene_component = scene_component
+        assert randomize_frequency in ('step', 'reset')
         self.randomize_frequency = randomize_frequency
         
         scene_component.brick_scene.load_colors(all_colors)

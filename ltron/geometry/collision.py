@@ -160,6 +160,7 @@ def check_collision(
     
     # render -------------------------------------------------------------------
     frame_buffer.enable()
+    scene.viewport_scissor(0,0,frame_buffer.width, frame_buffer.height)
     scene.mask_render(instances=scene_instance_names, ignore_hidden=True)
     if dump_images:
         scene_mask = frame_buffer.read_pixels()
