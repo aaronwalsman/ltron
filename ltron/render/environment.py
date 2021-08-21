@@ -58,7 +58,6 @@ class RenderEnvironment:
         self.renderer = SplendorRender(
                 asset_paths,
                 default_camera_projection=default_projection,
-                window=self.window,
         )
         self.load_scene = load_scene
         if self.load_scene is not None:
