@@ -118,16 +118,21 @@ class HandspaceReassemblyWrapper(gym.Env):
         hand_snap_height = hand_snap.height
 
         num_nodes = (
-            6 + # camera motion
+            6 + # workspace camera motion
+            6 + # handspace camera motion
             1 + # disassembly
             1 + # rotate
             1 + # pick and place
             1   # start disassembly
         )
 
+        insertion = self.env.components['insert_brick']
+        max_id = max(insertion.id_to_brick_type.keys())+1
+        max_color = len(insertion.colors)
+
         self.action_space = spaces.MultiDiscrete(
             [num_nodes, 2, 2, work_snap_height, work_snap_width, hand_snap_height,
-            hand_snap_width, work_snap_height, work_snap_width]
+            hand_snap_width, work_snap_height, work_snap_width, 2, max_id, max_color]
         )
 
         self.observation_space = spaces.Dict({
@@ -151,19 +156,25 @@ class HandspaceReassemblyWrapper(gym.Env):
 
     def convert_action(self, action):
         mode, polarity, direction, pick_work_y, pick_work_x, \
-        pick_hand_y, pick_hand_x, place_y, place_x = action
+        pick_hand_y, pick_hand_x, place_y, place_x, place_origin, classid, color = action
         dict_action = {}
 
         # viewpoint
         if mode < 6:
-            viewpoint_action = mode + 1
+            workspace_viewpoint_action = mode + 1
+            handspace_viewpoint_action = 0
+        elif mode < 12:
+            workspace_viewpoint_action = 0
+            handspace_viewpoint_action = mode-6+1
         else:
-            viewpoint_action = 0
-        dict_action['viewpoint'] = viewpoint_action
+            workspace_viewpoint_action = 0
+            handspace_viewpoint_action = 0
+        dict_action['workspace_viewpoint'] = workspace_viewpoint_action
+        dict_action['handspace_viewpoint'] = handspace_viewpoint_action
 
         # disassembly
         dict_action['disassembly'] = {
-            'activate': (mode == 6),
+            'activate': (mode == 12),
             'polarity': polarity,
             'direction': direction,
             'pick': (pick_work_y, pick_work_x),
@@ -171,7 +182,7 @@ class HandspaceReassemblyWrapper(gym.Env):
 
         # rotate
         dict_action['rotate'] = {
-            'activate': (mode == 7),
+            'activate': (mode == 13),
             'polarity': polarity,
             'direction': direction,
             'pick': (pick_work_y, pick_work_x),
@@ -179,16 +190,24 @@ class HandspaceReassemblyWrapper(gym.Env):
 
         # pick and place
         dict_action['pick_and_place'] = {
-            'activate': (mode == 8),
+            'activate': (mode == 14),
             'polarity': polarity,
             'direction': direction,
             'pick': (pick_hand_y, pick_hand_x),
             'place': (place_y, place_x),
+            'place_at_origin' : place_origin,
         }
 
         # reassembly
         dict_action['reassembly'] = {
-            'start': (mode == 9),
+            'start': (mode == 15),
+        }
+
+        # brick insertion
+        if mode != 16: classid = -1
+        dict_action['insert_brick'] = {
+            'class_id' : classid,
+            'color' : color,
         }
 
         return dict_action
