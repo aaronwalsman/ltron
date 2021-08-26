@@ -95,6 +95,15 @@ class RotationAroundSnap(LtronGymComponent):
         if instance_id == 0:
             return {'success' : 0}, 0, False, None
         #self.transform_about_snap(polarity, instance_id, snap_id, rotate_y, self.scene_component.brick_scene)
+
+        if self.check_collisions:
+            instance = self.scene_component.brick_scene.instances[instance_id]
+            transform = instance.transform
+            collision = self.scene_component.brick_scene.check_collision(target_instances = [instance], render_transform = rotate_y)
+            if collision:
+                # print("Collision!")
+                self.scene_component.brick_scene.move_instance(instance, transform)
+                return {'success' : 0}, 0, False, None
         
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]

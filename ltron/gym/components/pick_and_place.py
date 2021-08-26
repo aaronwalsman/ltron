@@ -135,9 +135,10 @@ class HandspacePickAndPlace(LtronGymComponent):
                     dump_images='push')
                 if collision:
                     workspace_scene.remove_instance(new_brick)
+                    success = False
                 else:
                     success = True
-        
+
         else:
             workspace_scene.pick_and_place_snap(
                 (new_brick.instance_id, pick_snap_id),
@@ -148,6 +149,7 @@ class HandspacePickAndPlace(LtronGymComponent):
                     [new_brick], new_brick.get_snap(pick_snap_id), 'push')
                 if collision:
                     workspace_scene.remove_instance(new_brick)
+                    success = False
                 else:
                     success = True
         
@@ -231,19 +233,24 @@ class PickAndPlace(LtronGymComponent):
             print('pick/place are the same')
             return {'success' : 0}, 0, False, None
         
-        if self.check_collisions and False:
-            instance = scene.instances[pick_instance]
-            snap = instance.get_snap(pick_id)
-            collision = scene.check_snap_collision(
-                [instance], snap, direction)
-            if collision:
-                return {'success': 0}, 0, False, None
-            
+        if self.check_collisions:
+            instance = self.scene_component.brick_scene.instances[pick_instance]
             initial_transform = instance.transform
+            snap = instance.get_snap(pick_id)
+            collision = self.scene_component.brick_scene.check_snap_collision(
+                [instance], snap, direction)
+
+            if collision:
+                self.scene_component.brick_scene.move_instance(
+                    instance, initial_transform)
+                return {'success': 0}, 0, False, None
+
+            place_instance = self.scene_component.brick_scene.instances[place_instance]
             self.scene_component.brick_scene.pick_and_place_snap(
                 (pick_instance, pick_id), (place_instance, place_id))
-            collision = scene.check_snap_collision(
+            collision = self.scene_component.check_snap_collision(
                 [instance], snap, 'push')
+
             if collision:
                 self.scene_component.brick_scene.move_instance(
                     instance, initial_transform)
