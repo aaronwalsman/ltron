@@ -779,6 +779,7 @@ def handspace_reassembly_env(
     handspace_map_width=24,
     handspace_map_height=24,
     dataset_reset_mode='uniform',
+    max_episode_length=32,
     workspace_render_args=None,
     handspace_render_args=None,
     randomize_colors=True,
@@ -809,6 +810,9 @@ def handspace_reassembly_env(
         track_snaps=False,
         collision_checker=False,
     )
+    
+    components['episode'] = MaxEpisodeLengthComponent(
+        max_episode_length, observe_step=False)
     
     # viewpoint
     azimuth_steps = 8

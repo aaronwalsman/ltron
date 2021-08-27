@@ -13,6 +13,7 @@ from ltron.hierarchy import (
     concatenate_numpy_hierarchies,
     stack_numpy_hierarchies,
     pad_numpy_hierarchy,
+    hierarchy_branch,
 )
 
 class RolloutStorage:
@@ -41,6 +42,16 @@ class RolloutStorage:
         new_storage.gym_data.update(other.gym_data)
         return new_storage
     
+    def __getitem__(self, branch_keys):
+        sub_storage = ReadOnlyRolloutStorage(self.batch_size)
+        sub_storage.gym_data = hierarchy_branch(self.gym_data, branch_keys)
+        sub_storage.seq_locations = self.seq_locations
+        sub_storage.batch_seq_ids = self.batch_seq_ids
+        sub_storage.next_seq_index = self.next_seq_index
+        sub_storage.total_steps = self.total_steps
+        
+        return sub_storage
+    
     def append_batch(self,
             valid=None,
             **kwargs):
@@ -62,7 +73,7 @@ class RolloutStorage:
             
         self.total_steps += self.batch_size
     
-    def start_new_sequences(self, terminal, valid=None):
+    def start_new_seqs(self, terminal, valid=None):
         if valid is None:
             valid = [True for _ in range(self.batch_size)]
         for i, (t, v) in enumerate(zip(terminal, valid)):
@@ -78,13 +89,19 @@ class RolloutStorage:
     def seq_len(self, seq):
         return len(self.seq_locations[seq])
     
+    def get_current_seq_lens(self):
+        return [self.seq_len(seq) for seq in self.batch_seq_ids]
+    
     def get_storage_index(self, seq, step):
         return self.seq_locations[seq][step]
     
     def get_batch_from_storage_ids(self, storage_ids):
-        gym_data = {}
-        for key, value in self.gym_data.items():
-            gym_data[key] = index_hierarchy(value, storage_ids)
+        if isinstance(self.gym_data, dict):
+            gym_data = {}
+            for key, value in self.gym_data.items():
+                gym_data[key] = index_hierarchy(value, storage_ids)
+        else:
+            gym_data = index_hierarchy(self.gym_data, storage_ids)
         
         return gym_data
     
@@ -99,43 +116,53 @@ class RolloutStorage:
         storage_ids = self.seq_locations[seq][start:stop]
         return self.get_batch_from_storage_ids(storage_ids)
     
-    def batch_sequence_iterator(
+    def batch_seq_iterator(
         self,
         batch_size,
         max_seq_len=None,
         shuffle=False,
     ):
-        return BatchSequenceIterator(
+        return BatchSeqIterator(
             self,
             batch_size,
             max_seq_len=max_seq_len,
             shuffle=shuffle,
         )
     
-    def pad_stack_seqs(self, seq_ids, axis=1):
+    def pad_stack_seqs(self, seq_ids, axis=1, start=None, stop=None):
         if isinstance(seq_ids[0], int):
-            gym_data = [self.get_seq(seq) for seq in seq_ids]
+            gym_data = [
+                self.get_seq(seq, start=start, stop=stop) for seq in seq_ids]
         else:
             gym_data = [
                 self.get_seq(seq, start, stop)
                 for seq, start, stop in seq_ids
             ]
-        seq_lens = [len_hierarchy(d) for d in gym_data]
+        seq_lens = numpy.array(
+            [len_hierarchy(d) for d in gym_data], dtype=numpy.long)
         max_seq_len = max(seq_lens)
         gym_data = [pad_numpy_hierarchy(d, max_seq_len) for d in gym_data]
         gym_data = stack_numpy_hierarchies(*gym_data, axis=axis)
-        seq_mask = numpy.ones(
-            (max_seq_len, len(seq_ids)),
-            dtype=numpy.bool,
-        )
-        for i, seq_len in enumerate(seq_lens):
-            seq_mask[:seq_len, i] = False
-        return gym_data, seq_mask
+        #seq_mask = numpy.ones(
+        #    (max_seq_len, len(seq_ids)),
+        #    dtype=numpy.bool,
+        #)
+        #for i, seq_len in enumerate(seq_lens):
+        #    seq_mask[:seq_len, i] = False
+        return gym_data, seq_lens #seq_mask
     
-    def get_current_seqs(self, stack_axis=1):
-        return self.pad_stack_seqs(self.batch_seq_ids, axis=stack_axis)
+    def get_current_seqs(self, stack_axis=1, start=None, stop=None):
+        return self.pad_stack_seqs(
+            self.batch_seq_ids, axis=stack_axis, start=start, stop=stop)
 
-class BatchSequenceIterator:
+class ReadOnlyRolloutStorage(RolloutStorage):
+    def append_batch(self, *args, **kwargs):
+        raise Exception('Attempted to append batch to read only storage')
+    
+    def start_new_seqs(self, *args, **kwargs):
+        raise Exception('Attempted to start new seqs on read only storage')
+
+class BatchSeqIterator:
     def __init__(
         self,
         rollout_storage,

@@ -31,7 +31,8 @@ class DatasetPathComponent(LtronGymComponent):
         
         self.dataset_paths = get_dataset_paths(dataset, split, subset)
         self.length = len_hierarchy(self.dataset_paths)
-        self.dataset_ids = range(self.rank, self.length, self.size)
+        #self.dataset_ids = range(self.rank, self.length, self.size)
+        self.dataset_ids = range(self.length)
         self.set_state({
             'initialized':False,
             'finished':False,

@@ -86,7 +86,7 @@ def batch_deduplicate_tiled_seqs_old(seqs, *args, s_start = 0, **kwargs):
 
 def batch_deduplicate_tiled_seqs(
     seqs,
-    pad_lengths,
+    pad,
     tile_width,
     tile_height,
     background=0,
@@ -98,91 +98,67 @@ def batch_deduplicate_tiled_seqs(
     hh = h // tile_height
     ww = w // tile_width
     
-    # TODO: Why did I make this batch first again?  Revist please.
+    # reshape to b x s x hh x ww x (tile_height*tile_width*c)
+    # batch must come first because this makes it possible to map
+    # the extracted tiles onto the compressed batch tensor later
     seq_tiles = seqs.reshape(s, b, hh, tile_height, ww, tile_width, c)
     seq_tiles = seq_tiles.transpose(1, 0, 2, 4, 3, 5, 6)
     seq_tiles = seq_tiles.reshape(b, s, hh, ww, -1)
     
+    # make the background
     try:
-        _ = background.shape
-    except:
+        background = background.reshape(
+            b, 1, hh, tile_height, ww, tile_width, c)
+        background = background.transpose(0, 1, 2, 4, 3, 5, 6)
+        background = background.reshape(b, 1, hh, ww, -1)
+    except AttributeError:
         background = background * numpy.ones(
             (b, 1, hh, ww, tile_height*tile_width*c), dtype=seq_tiles.dtype)
-    prev_tiles = numpy.concatenate((background, seq_tiles[:, :-1]), axis=1)
-    nonstatic_tiles = numpy.all(seq_tiles != prev_tiles, axis=-1)
-    #batch_first_padding_mask = padding_mask.transpose(1, 0)
-    #nonstatic_tiles = nonstatic_tiles & ~padding_mask.reshape(b, s, 1, 1)
+    
+    # compute tiles that change
+    prev_tiles = numpy.concatenate((background, seq_tiles[:,:-1]), axis=1)
+    nonstatic_tiles = numpy.any(seq_tiles != prev_tiles, axis=-1)
+    
+    # get indices of changing tiles
     b_coord, s_coord, h_coord, w_coord = numpy.where(nonstatic_tiles)
-    max_lengths = pad_lengths[b_coord]
+    max_lengths = pad[b_coord]
     nonpadded_indices = s_coord < max_lengths
     b_coord = b_coord[nonpadded_indices]
     s_coord = s_coord[nonpadded_indices]
     h_coord = h_coord[nonpadded_indices]
     w_coord = w_coord[nonpadded_indices]
     
+    # extract the changing tiles
     compressed_len = len(b_coord)
     compressed_tiles = seq_tiles[b_coord, s_coord, h_coord, w_coord]
     compressed_tiles = compressed_tiles.reshape(
         compressed_len, tile_height, tile_width, c)
     
-    counts = numpy.bincount(b_coord, minlength=b)
-    max_len = numpy.max(counts)
-    t_coord = numpy.concatenate([numpy.arange(c) for c in counts])
+    # compute the coordinates for the tiles on the new padded grid
+    # this time the padding is not based on the original frame sequences,
+    # but on the lengths of the newly computed tile sequences
+    # the reason why the batch dimension must come first above, is so that
+    # b_coord will align properly with t_coord below
+    batch_pad = numpy.bincount(b_coord, minlength=b)
+    max_len = numpy.max(batch_pad)
+    t_coord = numpy.concatenate([numpy.arange(cc) for cc in batch_pad])
     
-    batch_compressed_tiles = numpy.zeros(
+    # place the tiles in the padded grid and swap the batch and time axes
+    batch_padded_tiles = numpy.zeros(
         (b, max_len, tile_height, tile_width, c), dtype=compressed_tiles.dtype)
-    batch_compressed_tiles[b_coord, t_coord] = compressed_tiles
-    batch_compressed_tiles = batch_compressed_tiles.transpose(1,0,2,3,4)
+    batch_padded_tiles[b_coord, t_coord] = compressed_tiles
+    batch_padded_tiles = batch_padded_tiles.transpose(1,0,2,3,4)
     
-    batch_compressed_coords = numpy.zeros((b, max_len, 3), dtype=s_coord.dtype)
+    # place the coordinates in a padded grid and swap the batch and time axes
+    batch_padded_coords = numpy.zeros((b, max_len, 3), dtype=s_coord.dtype)
     shw_coord = numpy.stack((s_coord, h_coord, w_coord), axis=-1)
-    batch_compressed_coords[b_coord, t_coord] = shw_coord
-    batch_compressed_coords = batch_compressed_coords.transpose(1,0,2)
-    batch_compressed_coords[:,:,0] += s_start
-    
-    '''
-    batch_compressed_padding_mask = numpy.ones((b, max_len), dtype=numpy.bool)
-    batch_compressed_padding_mask[b_coord, t_coord] = 0
-    batch_compressed_padding_mask = batch_compressed_padding_mask.transpose(1,0)
-    '''
-    
-    batch_pad_lengths = numpy.bincount(b_coord, minlength=b)
+    batch_padded_coords[b_coord, t_coord] = shw_coord
+    if s_start is not None:
+        batch_padded_coords[:,:,0] += s_start.reshape(b, 1)
+    batch_padded_coords = batch_padded_coords.transpose(1,0,2)
     
     return (
-        batch_compressed_tiles,
-        batch_compressed_coords,
-        #batch_compressed_padding_mask,
-        batch_pad_lengths,
+        batch_padded_tiles,
+        batch_padded_coords,
+        batch_pad,
     )
-    
-    #compressed_tiles
-    
-    '''
-    if s_start is not None:
-        for b, s in enumerate(s_start):
-            s_coord[b_coord == b] += s
-    
-    compressed_coords = numpy.stack(
-        (s_coord, h_coord, w_coord, b_coord), axis=-1)
-    return compressed_tiles, compressed_coords
-    '''
-    '''
-    max_tiles = numpy.max(numpy.bincount(b_coord))
-    
-    padded_seqs = numpy.zeros(
-        (max_tiles, b, tile_height, tile_width, c), dtype=seqs.dtype)
-    padded_coords
-    for i in range(b):
-        batch = numpy.where(b_coord == i)
-        batch_len = len(batch)
-        batch_s = s_coord[batch]
-        batch_h = h_coord[batch]
-        batch_w = w_coord[batch]
-        batch_tiles = seq_tiles[batch_s, batch_h, batch_w, [i]*batch_len]
-        batch_tiles = batched_tiles.view(-1, tile_height, tile_width, c)
-        padded_seqs[:batch_len, i] = batch_tiles
-    
-    padded_coords = numpy.stack(paddd_coords, axis=1)
-    
-    return padded_seqs
-    '''
