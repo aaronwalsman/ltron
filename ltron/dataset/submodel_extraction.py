@@ -17,6 +17,7 @@ import collections
 import math
 import os
 import numpy
+import random
 
 
 def compute_boxsize(instances, scene):
@@ -81,30 +82,43 @@ def add_brick(limit, cur_mod, comp_list, instance_id, scene):
             add_brick(limit, cur_mod, comp_list, target, scene)
             return True
 
-def add_brick_box(limit, cur_mod, comp_list, instance_id, scene):
+def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], debug=False):
     instance = scene.instances.instances[instance_id]
     connections = scene.get_all_snap_connections([instance])[str(instance_id)]
-    if len(connections) == 0: return False
+    if len(connections) == 0:
+        if debug:
+            print("no connection")
+        return False
     box_map = {}
     for conn in connections:
         temp = copy.deepcopy(cur_mod)
         target = int(conn[0])
+        if target in blacklist:
+            continue
         if target in cur_mod:
+            if debug:
+                print("current")
+            continue
+        if target in used_brick:
+            if debug:
+                print("used")
             continue
         temp.append(target)
         box_map[target] = compute_boxsize(temp, scene)
 
-    if len(box_map) == 0: return False
+    if len(box_map) == 0:
+        if debug:
+            print("no map")
+        return False
     best_target = min(box_map, key=box_map.get)
     cur_mod.append(best_target)
+    # used_brick.append(best_target)
     if len(cur_mod) >= limit:
         comp_list.append(cur_mod)
         return True
     else:
-        add_brick_box(limit, cur_mod, comp_list, best_target, scene)
-        return True
-
-    return False
+        status = add_brick_box(limit, cur_mod, comp_list, best_target, scene, used_brick)
+        return status
 
 # limit - number of bricks in each subcomponent
 # num_comp - number of subcomponents want to generate(won't run over this number)
@@ -188,11 +202,19 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
             continue
 
         num_instances = len(scene.instances.instances)
+        print(num_instances)
         components = []
         used_brick = []
         for i in range(num_instances):
             cur_list = []
-            add_brick(limit, [], cur_list, i+1, scene)
+            debug = False
+            if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
+                debug = True
+            status = add_brick_box(limit, [], cur_list, i+1, scene, used_brick, debug=debug)
+            # print(status)
+            if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
+                print(i)
+                print(status)
             for subcomp in cur_list:
                 if global_count == num_comp:
                     break
@@ -211,6 +233,8 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
             if global_count == num_comp:
                 break
 
+        print(global_count)
+
         count = 1
         modelname = mpd.split("/")[-1][:-4]
         for comp in components:
@@ -227,6 +251,78 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
 
         if global_count == num_comp:
             break
+
+    with open(folder_name + "stat.json", "w") as f:
+        json.dump(stat, f)
+
+def subcomponent_partition_extractoin(limit, num_comp):
+    global_count = 0
+    global_list = []
+    folder_name = "subcomponents" + str(limit) + "/"
+    try:
+        os.stat(folder_name)
+    except:
+        os.mkdir(folder_name)
+    path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
+    mpdlist = path.rglob('*mpd')  # 1432
+    stat = {"error": []}
+
+    while global_count < num_comp:
+
+        # Iterate through mpd files
+        for mpd in mpdlist:
+            print(mpd)
+            mpd = str(mpd)
+            try:
+                mpdfile = LDrawMPDMainFile(mpd)
+                scene = BrickScene(track_snaps=True)
+                scene.import_ldraw(mpd)
+            except:
+                stat['error'].append(mpd)
+                continue
+
+            num_instances = len(scene.instances.instances)
+            components = []
+            used_brick = []
+
+            ini_brick = random.randint(1, num_instances)
+            cur_list = []
+            add_brick(limit, [], cur_list, ini_brick, scene)
+
+            for subcomp in cur_list:
+                if global_count == num_comp:
+                    break
+                subcomp.sort()
+                if subcomp not in components:
+                    decider = True
+                    for ins in subcomp:
+                        if ins in used_brick:
+                            decider = False
+                            break
+                        used_brick.append(ins)
+                    if decider:
+                        components.append(subcomp)
+                        global_count += 1
+
+                if global_count == num_comp:
+                    break
+
+            count = 1
+            modelname = mpd.split("/")[-1][:-4]
+            for comp in components:
+                temp_scene = BrickScene()
+                temp_scene.import_ldraw(mpd)
+                instances = copy.deepcopy(temp_scene.instances.instances)
+                for k, v in instances.items():
+                    if k not in comp:
+                        temp_scene.remove_instance(v)
+
+                temp_scene.export_ldraw(folder_name + modelname + "_"
+                                        + str(count) + ".mpd")
+                count += 1
+
+            if global_count == num_comp:
+                break
 
 # Render a .mpd file
 def render(filepath):
@@ -250,7 +346,7 @@ def render(filepath):
     # print(compute_boxsize(components['scene'].brick_scene.instances.instances.keys(), components['scene'].brick_scene))
 
 def main():
-    subcomponent_nonoverlap_extraction(8, 4)
+    subcomponent_nonoverlap_extraction(8, 40)
     render("subcomponents8/6954-1 - Renegade_1.mpd")
     render("subcomponents8/6954-1 - Renegade_2.mpd")
 
