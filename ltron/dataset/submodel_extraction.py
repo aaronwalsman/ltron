@@ -178,6 +178,7 @@ def subcomponent_extraction(limit, num_comp):
         if global_count == num_comp:
             break
 
+# The method in use
 def subcomponent_nonoverlap_extraction(limit, num_comp):
     global_count = 0
     folder_name = "subcomponents" + str(limit) + "/"
@@ -187,7 +188,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
         os.mkdir(folder_name)
     path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
     mpdlist = path.rglob('*mpd') # 1432
-    stat = {"error" : []}
+    stat = {"error" : [], "total_count" : 0, "models" : {}}
 
     # Iterate through mpd files
     for mpd in mpdlist:
@@ -202,19 +203,19 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
             continue
 
         num_instances = len(scene.instances.instances)
-        print(num_instances)
+        # print(num_instances)
         components = []
         used_brick = []
         for i in range(num_instances):
             cur_list = []
             debug = False
-            if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
-                debug = True
+            # if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
+            #     debug = True
             status = add_brick_box(limit, [], cur_list, i+1, scene, used_brick, debug=debug)
             # print(status)
-            if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
-                print(i)
-                print(status)
+            # if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
+            #     print(i)
+            #     print(status)
             for subcomp in cur_list:
                 if global_count == num_comp:
                     break
@@ -233,7 +234,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
             if global_count == num_comp:
                 break
 
-        print(global_count)
+        # print(global_count)
 
         count = 1
         modelname = mpd.split("/")[-1][:-4]
@@ -245,12 +246,16 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
                 if k not in comp:
                     temp_scene.remove_instance(v)
 
-            temp_scene.export_ldraw(folder_name + modelname + "_"
-                                                            + str(count) + ".mpd")
+            # temp_scene.export_ldraw(folder_name + modelname + "_"
+            #                                                 + str(count) + ".mpd")
             count += 1
+
+        stat['models'][modelname] = [num_instances, count - 1]
 
         if global_count == num_comp:
             break
+
+    stat['total_count'] = global_count
 
     with open(folder_name + "stat.json", "w") as f:
         json.dump(stat, f)
@@ -346,7 +351,7 @@ def render(filepath):
     # print(compute_boxsize(components['scene'].brick_scene.instances.instances.keys(), components['scene'].brick_scene))
 
 def main():
-    subcomponent_nonoverlap_extraction(8, 40)
+    subcomponent_nonoverlap_extraction(8, 40000000)
     render("subcomponents8/6954-1 - Renegade_1.mpd")
     render("subcomponents8/6954-1 - Renegade_2.mpd")
 
