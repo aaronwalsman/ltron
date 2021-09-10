@@ -8,6 +8,7 @@ import numpy
 
 import gym
 import gym.spaces as spaces
+import numpy
 
 import splendor.contexts.glut as glut
 
@@ -99,8 +100,126 @@ def handspace_reassembly_template_action():
         },
     }
 
+class HandspaceReassemblyWrapper(gym.Env):
+    def __init__(self, env = None, *args, **kwargs):
+        if env is None:
+            self.env = handspace_reassembly_env(*args, **kwargs)
+        else:
+            self.env = env
+
+        # sep action space
+        workspace = self.env.components['workspace_color_render']
+        hand = self.env.components['handspace_color_render']
+        work_width = workspace.width
+        work_height = workspace.height
+        hand_width = hand.width
+        hand_height = hand.height
+
+        work_snap = self.env.components['workspace_pos_snap_render']
+        hand_snap = self.env.components['handspace_pos_snap_render']
+        work_snap_width = work_snap.width
+        work_snap_height = work_snap.height
+        hand_snap_width = hand_snap.width
+        hand_snap_height = hand_snap.height
+
+        num_nodes = (
+            6 + # workspace camera motion
+            6 + # handspace camera motion
+            1 + # disassembly
+            1 + # rotate
+            1 + # pick and place
+            1 + # brick insertion
+            1   # start reassembly
+        )
+
+        insertion = self.env.components['insert_brick']
+        max_id = max(insertion.id_to_brick_type.keys())+1
+        max_color = len(insertion.colors)
+
+        self.action_space = spaces.MultiDiscrete(
+            [num_nodes, 2, 2, work_snap_height, work_snap_width, hand_snap_height,
+            hand_snap_width, work_snap_height, work_snap_width, 2, max_id, max_color]
+        )
+
+        self.observation_space = spaces.Dict({
+            'workspace' : spaces.Box(low=0, high=255, shape=(work_height, work_width, 3), dtype=numpy.uint8),
+            'handspace' : spaces.Box(low=0, high=255, shape=(hand_height, hand_width, 3), dtype=numpy.uint8)
+        })
+
+    def reset(self):
+        observation = self.env.reset()
+        observation = self.convert_observation(observation)
+        return observation
+
+    def step(self, action):
+        action = self.convert_action(action)
+        observation, reward, terminal, info = self.env.step(action)
+        observation = self.convert_observation(observation)
+        return observation, reward, terminal, info
+
+    def convert_observation(self, obs):
+        return obs['workspace_color_render'], obs['handspace_color_render']
+
+    def convert_action(self, action):
+        mode, polarity, direction, pick_work_y, pick_work_x, \
+        pick_hand_y, pick_hand_x, place_y, place_x, place_origin, classid, color = action
+        dict_action = {}
+
+        # viewpoint
+        if mode < 6:
+            workspace_viewpoint_action = mode + 1
+            handspace_viewpoint_action = 0
+        elif mode < 12:
+            workspace_viewpoint_action = 0
+            handspace_viewpoint_action = mode-6+1
+        else:
+            workspace_viewpoint_action = 0
+            handspace_viewpoint_action = 0
+        dict_action['workspace_viewpoint'] = workspace_viewpoint_action
+        dict_action['handspace_viewpoint'] = handspace_viewpoint_action
+
+        # disassembly
+        dict_action['disassembly'] = {
+            'activate': (mode == 12),
+            'polarity': polarity,
+            'direction': direction,
+            'pick': (pick_work_y, pick_work_x),
+        }
+
+        # rotate
+        dict_action['rotate'] = {
+            'activate': (mode == 13),
+            'polarity': polarity,
+            'direction': direction,
+            'pick': (pick_work_y, pick_work_x),
+        }
+
+        # pick and place
+        dict_action['pick_and_place'] = {
+            'activate': (mode == 14),
+            'polarity': polarity,
+            'direction': direction,
+            'pick': (pick_hand_y, pick_hand_x),
+            'place': (place_y, place_x),
+            'place_at_origin' : place_origin,
+        }
+
+        # brick insertion
+        if mode != 15: classid = -1
+        dict_action['insert_brick'] = {
+            'class_id': classid,
+            'color': color,
+        }
+
+        # reassembly
+        dict_action['reassembly'] = {
+            'start': (mode == 16),
+        }
+
+        return dict_action
+
 class SimplifiedReassemblyWrapper(gym.Env):
-    def __init__(*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.env = reassembly_env(*args, **kwargs)
         
         # setup action space
@@ -114,8 +233,12 @@ class SimplifiedReassemblyWrapper(gym.Env):
             1 + # pick and place
             1   # start disassembly
         )
+
+        snap_component = self.env.components['pos_snap_render']
+        snap_height = snap_component.height
+        snap_width = snap_component.width
         self.action_space = spaces.MultiDiscrete(
-            num_modes, 2, 2, height, width, height, width)
+            num_modes, 2, 2, snap_height, snap_width, snap_height, snap_width)
         
         self.observation_space = spaces.Box(
             low=0, high=255, shape=(height, width, 3), dtype=numpy.uint8)
@@ -367,7 +490,7 @@ class InteractiveHandspaceReassemblyEnv:
     def __init__(self, **kwargs):
         glut.initialize()
         self.window = glut.GlutWindowWrapper(width=256+96, height=256)
-        
+
         workspace_width = kwargs.get('width', 256)
         workspace_height = kwargs.get('height', 256)
         workspace_render_args = {
@@ -387,7 +510,7 @@ class InteractiveHandspaceReassemblyEnv:
             handspace_render_args=handspace_render_args,
             **kwargs,
         )
-        
+
         self.workspace_scene = (
             self.env.components['workspace_scene'].brick_scene)
         self.handspace_scene = (
@@ -527,6 +650,7 @@ class InteractiveHandspaceReassemblyEnv:
                 'place':(0,0),
                 'place_at_origin':True,
             }
+
             self.step(action)
         
         elif key == b'[' and space == 'workspace':

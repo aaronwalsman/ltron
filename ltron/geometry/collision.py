@@ -17,6 +17,7 @@ class CollisionChecker:
         self.scene = scene
         self.frame_buffer = FrameBufferWrapper(
             resolution[0], resolution[1], anti_alias=False)
+        self.max_intersection = max_intersection
     
     def check_collision(
         self,
