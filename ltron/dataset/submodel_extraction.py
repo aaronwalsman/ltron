@@ -19,7 +19,6 @@ import os
 import numpy
 import random
 
-
 def compute_boxsize(instances, scene):
     instance_tran = {}
     for k in instances:
@@ -187,7 +186,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
     except:
         os.mkdir(folder_name)
     path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
-    mpdlist = path.rglob('*mpd') # 1432
+    mpdlist = path.rglob('*')
     stat = {"error" : [], "total_count" : 0, "models" : {}}
 
     # Iterate through mpd files
