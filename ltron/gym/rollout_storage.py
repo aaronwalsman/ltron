@@ -1,6 +1,7 @@
 import random
 import math
 import copy
+import os
 
 import numpy
 
@@ -22,9 +23,21 @@ class RolloutStorage:
         self.gym_data = None
         
         self.seq_locations = {}
+        self.finished_seqs = []
         self.batch_seq_ids = [None for _ in range(self.batch_size)]
         self.next_seq_index = 0
         self.total_steps = 0
+    
+    def save(self, path, finished_only=False):
+        path = os.path.expanduser(path)
+        if finished_only:
+            seq_ids = self.finished_seqs
+        else:
+            seq_ids = self.seq_locations.keys()
+        for i, seq_id in enumerate(seq_ids):
+            seq_path = os.path.join(path, 'seq_%06i.npz'%i)
+            seq = self.get_seq(seq_id)
+            numpy.savez_compressed(seq_path, seq=seq)
     
     def __or__(self, other):
         assert self.batch_size == other.batch_size
@@ -52,9 +65,7 @@ class RolloutStorage:
         
         return sub_storage
     
-    def append_batch(self,
-            valid=None,
-            **kwargs):
+    def append_batch(self, valid=None, **kwargs):
         
         if valid is None:
             valid = [True for _ in range(self.batch_size)]
@@ -81,10 +92,16 @@ class RolloutStorage:
                 new_seq_index = self.next_seq_index
                 self.next_seq_index += 1
                 self.seq_locations[new_seq_index] = []
+                finished_seq = self.batch_seq_ids[i]
+                if finished_seq is not None:
+                    self.finished_seqs.append(finished_seq)
                 self.batch_seq_ids[i] = new_seq_index
     
     def num_seqs(self):
         return len(self.seq_locations)
+    
+    def num_finished_seqs(self):
+        return len(self.finished_seqs)
     
     def seq_len(self, seq):
         return len(self.seq_locations[seq])
@@ -143,17 +160,27 @@ class RolloutStorage:
         max_seq_len = max(seq_lens)
         gym_data = [pad_numpy_hierarchy(d, max_seq_len) for d in gym_data]
         gym_data = stack_numpy_hierarchies(*gym_data, axis=axis)
-        #seq_mask = numpy.ones(
-        #    (max_seq_len, len(seq_ids)),
-        #    dtype=numpy.bool,
-        #)
-        #for i, seq_len in enumerate(seq_lens):
-        #    seq_mask[:seq_len, i] = False
-        return gym_data, seq_lens #seq_mask
+        return gym_data, seq_lens
     
     def get_current_seqs(self, stack_axis=1, start=None, stop=None):
         return self.pad_stack_seqs(
             self.batch_seq_ids, axis=stack_axis, start=start, stop=stop)
+    
+    def chop_sequences(self, max_seq_len=None):
+        seq_ids = list(range(self.num_seqs()))
+        seq_id_start_stops = []
+        for seq_id in seq_ids:
+            seq_len = self.seq_len(seq_id)
+            if max_seq_len is None or seq_len < max_seq_len:
+                seq_id_start_stops.append((seq_id, None, None))
+            else:
+                start = 0
+                while start < seq_len:
+                    stop = start + max_seq_len
+                    seq_id_start_stops.append((seq_id, start, stop))
+                    start = stop
+        
+        return seq_id_start_stops
 
 class ReadOnlyRolloutStorage(RolloutStorage):
     def append_batch(self, *args, **kwargs):
@@ -175,6 +202,7 @@ class BatchSeqIterator:
         self.shuffle = shuffle
         self.max_seq_len = max_seq_len
         
+        '''
         seq_ids = list(range(rollout_storage.num_seqs()))
         self.seq_id_start_stops = []
         for seq_id in seq_ids:
@@ -187,6 +215,9 @@ class BatchSeqIterator:
                     stop = start + max_seq_len
                     self.seq_id_start_stops.append((seq_id, start, stop))
                     start = stop
+        '''
+        self.seq_id_start_stops = self.rollout_storage.chop_sequences(
+            max_seq_len)
     
     def __iter__(self):
         if self.shuffle:

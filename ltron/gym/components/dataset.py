@@ -12,22 +12,25 @@ from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class DatasetPathComponent(LtronGymComponent):
     def __init__(self,
-            dataset,
-            split,
-            subset=None,
-            rank=0,
-            size=1,
-            reset_mode='uniform',
-            observe_episode_id=False,
-            observe_dataset_id=False):
+        dataset,
+        split,
+        subset=None,
+        rank=0,
+        size=1,
+        reset_mode='uniform',
+        observe_episode_id=False,
+        observe_dataset_id=False,
+    ):
         
-        self.reset_mode = reset_mode
         self.dataset = dataset
         self.split = split
         self.subset = subset
         self.rank = rank
         self.size = size
+        self.reset_mode = reset_mode
         self.dataset_info = get_dataset_info(self.dataset)
+        self.observe_episode_id = observe_episode_id
+        self.observe_dataset_id = observe_dataset_id
         
         self.dataset_paths = get_dataset_paths(dataset, split, subset)
         self.length = len_hierarchy(self.dataset_paths)
@@ -40,8 +43,6 @@ class DatasetPathComponent(LtronGymComponent):
             'dataset_id':None,
         })
         
-        self.observe_episode_id = observe_episode_id
-        self.observe_dataset_id = observe_dataset_id
         observation_space = {}
         if self.observe_episode_id:
             observation_space['episode_id'] = Box(

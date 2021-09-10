@@ -17,6 +17,17 @@ def compute_matching(scores):
     
     return x_scores, y_scores, x_best, y_best
 
+# f1 score, except that examples can be in the range 0-1 where 0 represents a
+# false positive and 1 represents true positive and values in between represent
+# partial correctness
+def pseudo_f1(x_scores, y_scores):
+    
+    tp = numpy.sum(x_scores)
+    fp = len(x_scores) - tp
+    fn = len(y_scores) - tp
+    
+    return tp / (tp + 0.5 * (fp + fn))
+
 def score_neighbor(
     x_neighbor,
     y_neighbor,
@@ -38,63 +49,109 @@ def score_neighbor(
     
     return 1.
 
+'''
 def type_color_offset(brick, neighbor):
     neighbor_type = str(neighbor.brick_type)
     neighbor_color = str(neighbor.color)
     neighbor_offset = numpy.linalg.inv(brick.transform) @ neighbor.transform
     
     return neighbor_type, neighbor_color, neighbor_offset
+'''
 
-def pseudo_f1(x_scores, y_scores):
-    
-    tp = numpy.sum(x_scores)
-    fp = len(x_scores) - tp
-    fn = len(y_scores) - tp
-    
-    return tp / (tp + 0.5 * (fp + fn))
-
-def score_brick(
-    x_brick, x_offsets, y_brick, y_offsets, wrong_pose_discount=0.5
+def score_brick_assignment(
+    x_brick_type,
+    x_brick_color,
+    x_neighbors,
+    y_brick_type,
+    y_brick_color,
+    y_neighbors,
+    wrong_pose_discount=0.0
 ):
     
-    if str(x_brick.brick_type) != str(y_brick.brick_type):
+    if str(x_brick_type) != str(y_brick_type):
         return 0.
     
-    if str(x_brick.color) != str(y_brick.color):
+    if str(x_brick_color) != str(y_brick_color):
         return 0.
     
-    xy_scores = numpy.zeros((len(x_offsets), len(y_offsets)))
-    for x, x_offset in enumerate(x_offsets):
-        for y, y_offset in enumerate(y_offsets):
+    xy_scores = numpy.zeros((len(x_neighbors), len(y_neighbors)))
+    for x, x_neighbor in enumerate(x_neighbors):
+        for y, y_neighbor in enumerate(y_neighbors):
             xy_scores[x,y] = score_neighbor(
-                x_offset, y_offset, wrong_pose_discount)
+                x_neighbor, y_neighbor, wrong_pose_discount)
     
     x_scores, y_scores, x_best, y_best = compute_matching(xy_scores)
     return pseudo_f1(x_scores, y_scores)
 
+def get_neighbors(configuration):
+    neighbors = []
+    for i in range(1, configuration['num_instances']+1):
+        edges = configuration['edges']['edge_index']
+        edge_locations = numpy.where(edges[0] == i)[0]
+        neighbor_ids = edges[1,edge_locations]
+        if len(neighbor_ids):
+            neighbor_brick_type = configuration['class'][neighbor_ids]
+            neighbor_color = configuration['color'][neighbor_ids]
+            neighbor_poses = configuration['pose'][neighbor_ids]
+            i_pose = configuration['pose'][i]
+            neighbor_offset = [
+                numpy.linalg.inv(i_pose) @ neighbor_pose
+                for neighbor_pose in neighbor_poses
+            ]
+            neighbors.append(list(zip(
+                neighbor_brick_type, neighbor_color, neighbor_offset)))
+        else:
+            neighbors.append([])
+    
+    return neighbors
+
 def score_configurations(
-    x_bricks, x_neighbors, y_bricks, y_neighbors, wrong_pose_discount=0.5
+    #x_bricks, x_neighbors, y_bricks, y_neighbors,
+    x_configuration,
+    y_configuration,
+    wrong_pose_discount=0.0
 ):
     # for each brick in the list of x_bricks, get the offset, color and type
     # of all neighbors
-    x_offsets = [
-        [type_color_offset(b, n) for n in neighbors]
-        for b, neighbors in zip(x_bricks, x_neighbors)
-    ]
+    #x_offsets = [
+    #    [type_color_offset(b, n) for n in neighbors]
+    #    for b, neighbors in zip(x_bricks, x_neighbors)
+    #]
+    x_neighbors = get_neighbors(x_configuration)
     # for each brick in the list of y_bricks, get the offset, color and type
     # of all neighbors
-    y_offsets = [
-        [type_color_offset(b, n) for n in neighbors]
-        for b, neighbors in zip(y_bricks, y_neighbors)
-    ]
+    #y_offsets = [
+    #    [type_color_offset(b, n) for n in neighbors]
+    #    for b, neighbors in zip(y_bricks, y_neighbors)
+    #]
+    y_neighbors = get_neighbors(y_configuration)
     # score every pairwise association between bricks
-    xy_scores = numpy.zeros((len(x_bricks), len(y_bricks)))
+    #xy_scores = numpy.zeros((len(x_bricks), len(y_bricks)))
+    xy_scores = numpy.zeros(
+        (x_configuration['num_instances'], y_configuration['num_instances']))
+    for x in range(1, x_configuration['num_instances']+1):
+        for y in range(1, y_configuration['num_instances']+1):
+            xy_scores[x-1, y-1] = score_brick_assignment(
+                x_configuration['class'][x],
+                x_configuration['color'][x],
+                x_neighbors[x-1],
+                y_configuration['class'][y],
+                y_configuration['color'][y],
+                y_neighbors[y-1],
+            )
+    '''
     for x, (x_brick, x_offset) in enumerate(zip(x_bricks, x_offsets)):
         for y, (y_brick, y_offset) in enumerate(zip(y_bricks, y_offsets)):
-            xy_scores[x, y] = score_brick(
+            xy_scores[x, y] = score_brick_assignment(
                 x_brick, x_offset, y_brick, y_offset, wrong_pose_discount)
+    '''
     
     # compute the best matching between x bricks and y bricks
     x_scores, y_scores, x_best, y_best = compute_matching(xy_scores)
     
-    return pseudo_f1(x_scores, y_scores), x_best, y_best
+    return (
+        pseudo_f1(x_scores, y_scores),
+        x_scores, y_scores,
+        x_best, y_best,
+        xy_scores,
+    )

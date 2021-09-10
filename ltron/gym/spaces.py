@@ -153,6 +153,100 @@ class ClassDistributionSpace(spaces.Box):
             shape=(max_instances+1, num_classes),
         )
 
+class ConfigurationSpace(spaces.Dict):
+    '''
+    A variable length vector of instances, each with a class-label,
+    color and pose, along with a list of edges connections.
+    '''
+    def __init__(
+        self,
+        num_classes,
+        num_colors,
+        max_instances,
+        max_edges,
+        max_snaps_per_brick,
+        scene_min=-1000,
+        scene_max=1000,
+    ):
+        self.num_classes = num_classes
+        self.num_colors = num_colors
+        self.max_instances = max_instances
+        self.max_edges = max_edges
+        
+        self.space_dict = {
+            'num_instances' : SingleInstanceIndexSpace(max_instances),
+            'class' : spaces.Box(
+                low=0,
+                high=num_classes,
+                shape=(max_instances+1,),
+                dtype=numpy.long,
+            ),
+            'color' : spaces.Box(
+                low=0,
+                high=num_colors,
+                shape=(max_instances+1,),
+                dtype=numpy.long,
+            ),
+            'pose' : MultiSE3Space(max_instances, scene_min, scene_max),
+            'edges' : EdgeSpace(
+                max_instances,
+                max_snaps_per_brick,
+                max_edges,
+            ),
+        }
+        
+        super(ConfigurationSpace, self).__init__(self.space_dict)
+    
+    def from_scene(self, scene, class_ids, color_ids):
+        result = {}
+        result['num_instances'] = len(scene.instances)
+        result['class'] = numpy.zeros(
+            (self.max_instances+1,), dtype=numpy.long)
+        result['color'] = numpy.zeros(
+            (self.max_instances+1,), dtype=numpy.long)
+        result['pose'] = numpy.zeros(
+            (self.max_instances+1, 4, 4), dtype=numpy.long)
+        
+        for instance_id, instance in scene.instances.items():
+            brick_type_name = str(instance.brick_type)
+            class_id = class_ids[brick_type_name]
+            result['class'][instance_id] = class_id
+            color_name = str(instance.color)
+            color_id = color_ids[color_name]
+            result['color'][instance_id] = color_id
+            result['pose'][instance_id] = instance.transform
+        
+        result['edges'] = self.space_dict['edges'].from_scene(scene)
+        
+        return result
+
+'''
+class InstanceAlignmentSpace(spaces.Box):
+    def __init__(self, max_instances):
+        super(InstanceAlignmentSpace, self).__init__(
+            shape=(max_instances+1,),
+            low=0,
+            high=max_instances,
+            dtype=numpy.long,
+        )
+'''
+
+class InstanceAlignmentSpace(spaces.Dict):
+    def __init__(self, max_instances):
+        alignment_space = spaces.Box(
+            shape=(max_instances, 2),
+            low=1,
+            high=max_instances,
+            dtype=numpy.long,
+        )
+        score_space = spaces.Box(
+            shape=(max_instances, 2),
+            low=0.,
+            high=1.,
+        )
+        super(InstanceAlignmentSpace, self).__init__({
+            'alignment':alignment_space, 'score':score_space})
+
 class InstanceListSpace(spaces.Dict):
     '''
     A variable length vector of instances
@@ -207,11 +301,16 @@ class EdgeSpace(spaces.Dict):
         self.max_edges = max_edges
         self.include_score = include_score
         
+        low = numpy.zeros((4, max_edges), dtype=numpy.long)
+        high = numpy.zeros((4, max_edges), dtype=numpy.long)
+        high[:2,:] = max_instances
+        high[2:,:] = max_snaps-1
+        
         space_dict = {
             'num_edges' : spaces.Discrete(max_edges+1),
             'edge_index' : spaces.Box(
-                low=0,
-                high=max(max_instances, max_snaps-1),
+                low=low,
+                high=high,
                 shape=(4, max_edges),
                 dtype=numpy.long),
         }
@@ -226,7 +325,7 @@ class EdgeSpace(spaces.Dict):
     
     def from_scene(self, scene, score=None):
         result = {}
-        edges = scene.get_all_edges(unidirectional=True)
+        edges = scene.get_all_edges(unidirectional=False)
         num_edges = edges.shape[-1]
         if num_edges < self.max_edges:
             edges = numpy.concatenate(

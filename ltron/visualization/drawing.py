@@ -1,6 +1,6 @@
 import numpy
 
-import PIL.Image as Image
+from PIL import Image, ImageDraw, ImageFont
 
 from skimage.draw import line
 
@@ -71,3 +71,19 @@ def draw_crosshairs(image, x, y, size, color):
     
     image[center_y, start_x:end_x] = color
     image[start_y:end_y, center_x] = color
+
+def write_text(
+    image,
+    text,
+    location=(10,10),
+    font='Roboto-Regular',
+    size=10,
+    color=(0,0,0),
+):
+    image = Image.fromarray(image)
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype(font, size)
+    #color = 'rgb(%i, %i, %i)'%color
+    draw.text(location, text, color, font)
+    
+    return numpy.array(image)

@@ -35,7 +35,11 @@ class GridBucket:
         if value not in self.value_to_cell_positions:
             self.value_to_cell_positions[value] = set()
         self.value_to_cell_positions[value].add((cell, position))
-        
+    
+    def insert_many(self, values, positions):
+        for value, position in zip(values, positions):
+            self.insert(value, position)
+    
     def remove(self, value):
         if value in self.value_to_cell_positions:
             cell_positions = self.value_to_cell_positions[value]
@@ -55,3 +59,6 @@ class GridBucket:
                 value for value, value_position in cell_contents
                 if close_enough(position, value_position, radius))
         return values_in_radius
+    
+    def lookup_many(self, positions, radius):
+        return [self.lookup(position, radius) for position in positions]

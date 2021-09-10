@@ -139,3 +139,6 @@ class BrickInstance:
             else:
                 instance_args['mask_color'] = self.mask_color
         return instance_args
+    
+    def bbox_vertices(self):
+        return self.transform @ self.brick_type.bbox_vertices

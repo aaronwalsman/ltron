@@ -75,15 +75,21 @@ class HandspacePickAndPlace(LtronGymComponent):
             pick_map = self.handspace_neg_snap_component.observation
             place_map = self.workspace_pos_snap_component.observation
         
-        pick_instance_id, pick_snap_id = pick_map[pick_y, pick_x]
-        place_instance_id, place_snap_id = place_map[place_y, place_x]
+        try:
+            pick_instance_id, pick_snap_id = pick_map[pick_y, pick_x]
+        except IndexError:
+            print('pick out of bounds')
+            pick_instance_id = 0
+        
+        try:
+            place_instance_id, place_snap_id = place_map[place_y, place_x]
+        except IndexError:
+            place_instance_id = 0
         
         if pick_instance_id == 0:
-            print('pick_miss')
             return {'success':0}, 0, False, None
         
         if place_instance_id == 0 and not place_at_origin:
-            print('place_miss')
             return {'success':0}, 0, False, None
         
         workspace_scene = self.workspace_scene_component.brick_scene
@@ -125,7 +131,6 @@ class HandspacePickAndPlace(LtronGymComponent):
             best_workspace_transform,
         )
         
-        success = False
         if place_at_origin:
             if self.check_collisions:
                 collision = workspace_scene.check_snap_collision(
@@ -135,8 +140,11 @@ class HandspacePickAndPlace(LtronGymComponent):
                     dump_images='push')
                 if collision:
                     workspace_scene.remove_instance(new_brick)
+                    success = False
                 else:
                     success = True
+            else:
+                success = True
         
         else:
             workspace_scene.pick_and_place_snap(
@@ -148,11 +156,14 @@ class HandspacePickAndPlace(LtronGymComponent):
                     [new_brick], new_brick.get_snap(pick_snap_id), 'push')
                 if collision:
                     workspace_scene.remove_instance(new_brick)
+                    success = False
                 else:
                     success = True
+            else:
+                success = True
         
         if success:
-            handspace_scene.clear_instances() 
+            handspace_scene.clear_instances()
         
         return {'success':success}, 0., False, {}
 
@@ -220,15 +231,12 @@ class PickAndPlace(LtronGymComponent):
         #     return {'pick_place_succeed': 0}, 0, False, None
         
         if pick_instance == 0 and pick_id == 0:
-            print('pick miss')
             return {'success' : 0}, 0, False, None
         
         if place_instance == 0 and place_id == 0:
-            print('place miss')
             return {'success' : 0}, 0, False, None
         
         if pick_instance == place_instance:
-            print('pick/place are the same')
             return {'success' : 0}, 0, False, None
         
         if self.check_collisions and False:

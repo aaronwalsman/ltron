@@ -19,11 +19,12 @@ class BrickLibrary(collections.abc.MutableMapping):
             brick_types = {}
         self.brick_types = brick_types
     
-    def add_type(self, document):
-        if document in self:
-            return self[document]
+    def add_type(self, new_type):
+        if new_type in self:
+            return self[new_type]
         
-        new_type = BrickType(document)
+        if not isinstance(new_type, BrickType):
+            new_type = BrickType(new_type)
         self[new_type.reference_name] = new_type
         return new_type
     
@@ -96,8 +97,7 @@ class BrickType:
                     reference_name = command.reference_name
                     reference_document = (
                             reference_table['ldraw'][reference_name])
-                    reference_transform = numpy.dot(
-                            transform, command.transform)
+                    reference_transform = transform @ command.transform
                     try:
                         s, v = snaps_and_vertices_from_nested_document(
                                 reference_document, reference_transform)
@@ -108,10 +108,14 @@ class BrickType:
                         raise
                 elif isinstance(command, LDCadSnapInclCommand):
                     reference_name = command.reference_name
-                    reference_document = (
-                            reference_table['shadow'][reference_name])
-                    reference_transform = numpy.dot(
-                            transform, command.transform)
+                    try:
+                        reference_document = (
+                                reference_table['shadow'][reference_name])
+                    except:
+                        print('Could not find shadow file %s'%
+                            reference_name)
+                        raise
+                    reference_transform = transform @ command.transform
                     try:
                         s, v = snaps_and_vertices_from_nested_document(
                                 reference_document, reference_transform)
@@ -126,7 +130,7 @@ class BrickType:
                     new_snaps = Snap.construct_snaps(command, transform)
                     snaps.extend(new_snaps)
                 elif isinstance(command, LDrawContentCommand):
-                    vertices.append(command.vertices)
+                    vertices.append(transform @ command.vertices)
             
             if not document.shadow:
                 reference_name = document.reference_name

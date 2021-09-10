@@ -343,7 +343,7 @@ class BrickScene:
                         (instance_a_id, instance_b_id, snap_id_a, snap_id_b))
         num_edges = len(all_edges)
         all_edges = numpy.array(list(all_edges)).T.reshape(4, num_edges)
-        return all_edges
+        return all_edges.astype(numpy.long)
     
     def get_brick_neighbors(self, instances=None):
         if instances is None:

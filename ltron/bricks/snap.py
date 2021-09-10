@@ -166,8 +166,9 @@ class SnapCylinder(SnapStyle):
         self.secs = command.flags['secs']
         self.caps = command.flags.get('caps', 'one')
         self.slide = str_to_bool(command.flags.get('slide', 'false'))
+        center_string = ('uncentered', 'centered')[self.center]
         #self.subtype_id = 'cyl|%s|%s|%s'%(self.secs, self.caps, self.polarity)
-        self.subtype_id = 'cylinder(%s)'%self.secs
+        self.subtype_id = 'cylinder(%s,%s)'%(self.secs, center_string)
     
     def connected(
         self,
@@ -229,7 +230,9 @@ class SnapClip(SnapStyle):
         self.radius = float(command.flags.get('radius', 4.0))
         self.length = float(command.flags.get('length', 8.0))
         self.slide = str_to_bool(command.flags.get('slide', 'false'))
-        self.subtype_id = 'clip(%s,%s)'%(self.radius, self.length)
+        center_string = ('uncentered', 'centered')[self.center]
+        self.subtype_id = 'clip(%s,%s,%s)'%(
+            self.radius, self.length, center_string)
     
     def connected(
         self,
@@ -283,7 +286,9 @@ class SnapFinger(SnapStyle):
         self.radius = float(command.flags.get('radius', 4.0))
         # center defaulting to true is not documented, but seems to be correct
         self.center = str_to_bool(command.flags.get('center', 'true'))
-        self.subtype_id = 'finger(%s,%i)'%(self.radius, sum(self.seq))
+        center_string = ('uncentered', 'centered')[self.center]
+        self.subtype_id = 'finger(%s,%i,%s)'%(
+            self.radius, sum(self.seq), center_string)
     
     def connected(
         self,

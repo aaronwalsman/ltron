@@ -3,6 +3,7 @@ import numpy
 from splendor.frame_buffer import FrameBufferWrapper
 from splendor.camera import orthographic_matrix
 from splendor.image import save_image, save_depth
+from splendor.masks import color_byte_to_index
 
 from ltron.geometry.utils import unscale_transform
 
@@ -99,6 +100,7 @@ def check_collision(
     required_clearance=24,
     tolerance_spacing=8,
     dump_images=None,
+    return_colliding_instances=False,
 ):
     
     # setup ====================================================================
@@ -125,7 +127,6 @@ def check_collision(
     # store the camera info and which bricks are hidden ------------------------
     original_view_matrix = scene.get_view_matrix()
     original_projection = scene.get_projection()
-    hidden_instances = {i : scene.instance_hidden(i) for i in scene.instances}
     
     # render the scene depth map ===============================================
     # setup the camera ---------------------------------------------------------
@@ -162,7 +163,7 @@ def check_collision(
     frame_buffer.enable()
     scene.viewport_scissor(0,0,frame_buffer.width, frame_buffer.height)
     scene.mask_render(instances=scene_instance_names, ignore_hidden=True)
-    if dump_images:
+    if dump_images or return_colliding_instances:
         scene_mask = frame_buffer.read_pixels()
     scene_depth_map = frame_buffer.read_pixels(
             read_depth=True, projection=orthographic_projection)
@@ -201,8 +202,6 @@ def check_collision(
     offset = (scene_depth_map - target_depth_map).reshape(valid_pixels.shape)
     offset *= valid_pixels
     
-    collision = numpy.max(offset) > max_intersection
-    
     # dump images ==============================================================
     if dump_images is not None:
         save_image(scene_mask, './%s_scene_mask.png'%dump_images)
@@ -214,7 +213,15 @@ def check_collision(
         collision_pixels = collision_pixels * 255
         save_image(collision_pixels, './%s_collision.png'%dump_images)
     
-    return collision
+    if return_colliding_instances:
+        colliding_y, colliding_x = numpy.where(offset > max_intersection)
+        colliding_colors = scene_mask[colliding_y, colliding_x]
+        colliding_bricks = numpy.unique(color_byte_to_index(colliding_colors))
+        return colliding_bricks
+    
+    else:
+        collision = numpy.max(offset) > max_intersection
+        return collision
 
 
 def check_collision_old(
@@ -247,7 +254,7 @@ def check_collision_old(
     # store the camera info and which bricks are hidden ------------------------
     original_view_matrix = scene.get_view_matrix()
     original_projection = scene.get_projection()
-    hidden_instances = {i : scene.instance_hidden(i) for i in scene.instances}
+    #hidden_instances = {i : scene.instance_hidden(i) for i in scene.instances}
     
     # compute the camera distance, clipping plane and the orthgraphic width ----
     #camera_distance = 500 # TMP

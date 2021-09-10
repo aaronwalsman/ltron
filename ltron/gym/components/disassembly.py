@@ -7,6 +7,7 @@ from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class DisassemblyComponent(LtronGymComponent):
     def __init__(self,
+        max_instances,
         scene_component,
         handspace_component=None,
         check_collisions=False,
@@ -18,10 +19,13 @@ class DisassemblyComponent(LtronGymComponent):
             scene = self.scene_component.brick_scene
             assert scene.collision_checker is not None
         
-        self.observation_space = Dict({'success': Discrete(2)})
+        self.observation_space = Dict({
+            'success': Discrete(2),
+            'instance_id': bg_spaces.SingleInstanceIndexSpace(max_instances),
+        })
     
     def reset(self):
-        return {'success': False}
+        return {'success': False, 'instance_id': 0}
     
     def disassemble(
         self,
@@ -30,6 +34,7 @@ class DisassemblyComponent(LtronGymComponent):
         direction='push',
     ):
         success = False
+        instance_id = 0
         if instance_index != 0:
             scene = self.scene_component.brick_scene
             if self.check_collisions:
@@ -40,11 +45,13 @@ class DisassemblyComponent(LtronGymComponent):
                 if not collision:
                     self.remove_instance(instance_index)
                     success = True
+                    instance_id =instance_index
             else:
                 self.remove_instance(instance_index)
                 success = True
+                instance_id = instance_index
         
-        return success
+        return success, instance_id
     
     def remove_instance(self, instance_index):
         scene = self.scene_component.brick_scene
@@ -66,7 +73,7 @@ class IndexDisassemblyComponent(DisassemblyComponent):
         scene_component,
     ):
         super(InstanceDisassemblyComponent, self).__init__(
-            scene_component, check_collisions=False)
+            max_instances, scene_component, check_collisions=False)
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
@@ -76,10 +83,11 @@ class IndexDisassemblyComponent(DisassemblyComponent):
     def step(self, action):
         activate, instance_index = action
         success = False
+        instance_id = 0
         if activate:
-            success = self.disassemble(instance_index)
+            success, instance_id = self.disassemble(instance_index)
         
-        return {'success':success}, 0., False, None
+        return {'success':success, 'instance_id':instance_id}, 0., False, None
 
 class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
     def __init__(self,
@@ -87,7 +95,7 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
         scene_component,
     ):
         super(IndexDisassemblyWithCollisionComponent, self).__init__(
-            scene_component, check_collisions=True)
+            max_instances, scene_component, check_collisions=True)
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
@@ -99,13 +107,17 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
     def step(self, action):
         activate, direction, (instance_index, snap_index) = action
         success = False
+        instance_id = 0
         if activate and instance_index != 0:
             direction = ('pull', 'push')[direction]
-            success = self.disassemble(
+            success, instance_id = self.disassemble(
                 instance_index, snap_index, direction=direction)
+        
+        return {'success':success, 'instance_id':instance_id}, 0., False, None
 
 class PixelDisassemblyComponent(DisassemblyComponent):
     def __init__(self,
+        max_instances,
         scene_component,
         pos_snap_render_component,
         neg_snap_render_component,
@@ -113,6 +125,7 @@ class PixelDisassemblyComponent(DisassemblyComponent):
         check_collisions=False,
     ):
         super(PixelDisassemblyComponent, self).__init__(
+            max_instances,
             scene_component,
             handspace_component=handspace_component,
             check_collisions=check_collisions,
@@ -145,6 +158,7 @@ class PixelDisassemblyComponent(DisassemblyComponent):
         direction = action['direction']
         y, x = action['pick']
         success = False
+        instance_id = 0
         if activate:
             polarity = '-+'[polarity]
             direction = ('pull', 'push')[direction]
@@ -154,7 +168,7 @@ class PixelDisassemblyComponent(DisassemblyComponent):
                 pick_map = self.neg_snap_render.observation
             instance_index, snap_index = pick_map[y,x]
             if instance_index != 0:
-                success = self.disassemble(
+                success, instance_id = self.disassemble(
                     instance_index, snap_index, direction=direction)
         
-        return {'success':success}, 0., False, None
+        return {'success':success, 'instance_id':instance_id}, 0., False, None

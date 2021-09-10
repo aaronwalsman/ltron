@@ -1,7 +1,10 @@
 import math
 from collections import OrderedDict
 
+
 from OpenGL import GL
+
+import numpy
 
 import gym
 import gym.spaces as spaces
@@ -66,31 +69,33 @@ def handspace_reassembly_template_action():
             'activate':False,
             'polarity':0,
             'direction':0,
-            'pick':(0,0),
+            'pick':numpy.array((0,0), dtype=numpy.long),
         },
         
         'rotate' : {
             'activate':False,
             'polarity':0,
             'direction':0,
-            'pick':(0,0),
+            'pick':numpy.array((0,0), dtype=numpy.long),
         },
         
         'pick_and_place' : {
             'activate':False,
             'polarity':0,
             'direction':0,
-            'pick':(0,0),
-            'place':(0,0),
+            'pick':numpy.array((0,0), dtype=numpy.long),
+            'place':numpy.array((0,0), dtype=numpy.long),
+            'place_at_origin':False,
         },
         
         'insert_brick' : {
             'class_id' : 0,
-            'color' : 0,
+            'color_id' : 0,
         },
         
         'reassembly' : {
             'start':False,
+            'end':False,
         },
     }
 
@@ -433,7 +438,10 @@ class InteractiveHandspaceReassemblyEnv:
         self.render_mode = 'color'
         self.pick = (0,0)
         self.insert_class_id = ''
-        self.insert_color = 0
+        self.insert_color_id = 0
+        
+        self.color_ids = self.env.components['insert_brick'].color_name_to_id
+        self.num_colors = len(self.color_ids)
     
     def workspace_viewport(self):
         GL.glViewport(0,0,self.workspace_width, self.workspace_height)
@@ -576,14 +584,12 @@ class InteractiveHandspaceReassemblyEnv:
             self.direction = 'push'
         
         elif key == b',':
-            num_colors = len(self.env.components['insert_brick'].colors)
-            self.insert_color = (self.insert_color - 1) % num_colors
-            print('Color: %i'%self.insert_color)
+            self.insert_color_id = (self.insert_color_id - 1) % self.num_colors
+            print('Color: %i'%self.insert_color_id)
         
         elif key == b'.':
-            num_colors = len(self.env.components['insert_brick'].colors)
-            self.insert_color = (self.insert_color + 1) % num_colors
-            print('Color: %i'%self.insert_color)
+            self.insert_color_id = (self.insert_color_id + 1) % self.num_colors
+            print('Color: %i'%self.insert_color_id)
         
         elif key in b'0123456789':
             self.insert_class_id += key.decode("utf-8")
@@ -598,10 +604,14 @@ class InteractiveHandspaceReassemblyEnv:
                 insert_class_id = int(self.insert_class_id)
             except ValueError:
                 insert_class_id = 0
+            try:
+                insert_color_id = int(self.insert_color_id)
+            except ValueError:
+                insert_color_id = 0
             action = handspace_reassembly_template_action()
             action['insert_brick'] = {
                 'class_id':insert_class_id,
-                'color':self.insert_color,
+                'color_id':insert_color_id,
             }
             self.step(action)
             self.insert_class_id = ''
@@ -677,9 +687,11 @@ def reassembly_env(
     map_height=64,
     dataset_reset_mode='uniform',
     render_args=None,
+    randomize_viewpoint=True,
     randomize_colors=True,
     check_collisions=True,
     print_traceback=True,
+    train=False,
 ):
     components = OrderedDict()
     
@@ -692,13 +704,17 @@ def reassembly_env(
     # scene
     components['scene'] = SceneComponent(
         dataset_component=components['dataset'],
-        path_location=[0],
+        path_location=['mpd'],
         render_args=render_args,
         track_snaps=True,
         collision_checker=check_collisions,
     )
     
     # viewpoint
+    if randomize_viewpoint:
+        start_position='uniform'
+    else:
+        start_position=(0,0,0)
     components['viewpoint'] = ControlledAzimuthalViewpointComponent(
         components['scene'],
         azimuth_steps=8,
@@ -708,12 +724,13 @@ def reassembly_env(
         distance_steps=1,
         azimuth_offset=math.radians(45.),
         aspect_ratio=image_width/image_height,
+        start_position=start_position,
     )
     
     # color randomization
     if randomize_colors:
         components['color_randomization'] = RandomizeColorsComponent(
-            dataset_info['all_colors'],
+            dataset_info['color_ids'],
             components['scene'],
             randomize_frequency='reset',
         )
@@ -726,6 +743,7 @@ def reassembly_env(
     
     # action spaces
     components['disassembly'] = PixelDisassemblyComponent(
+        max_instances,
         components['scene'],
         pos_snap_render,
         neg_snap_render,
@@ -782,9 +800,11 @@ def handspace_reassembly_env(
     max_episode_length=32,
     workspace_render_args=None,
     handspace_render_args=None,
+    randomize_viewpoint=True,
     randomize_colors=True,
     check_collisions=True,
     print_traceback=True,
+    train=False,
 ):
     components = OrderedDict()
     
@@ -793,13 +813,16 @@ def handspace_reassembly_env(
         dataset, split, subset, rank, size, reset_mode=dataset_reset_mode)
     dataset_info = components['dataset'].dataset_info
     class_ids = dataset_info['class_ids']
-    colors = dataset_info['all_colors']
+    color_ids = dataset_info['color_ids']
     max_instances = dataset_info['max_instances_per_scene']
+    max_edges = dataset_info['max_edges_per_scene']
+    # TMP
+    max_snaps = 100
     
     # scenes
     components['workspace_scene'] = SceneComponent(
         dataset_component=components['dataset'],
-        path_location=[0],
+        path_location=['mpd'],
         render_args=workspace_render_args,
         track_snaps=True,
         collision_checker=check_collisions,
@@ -807,7 +830,7 @@ def handspace_reassembly_env(
     
     components['handspace_scene'] = SceneComponent(
         render_args=handspace_render_args,
-        track_snaps=False,
+        track_snaps=True,
         collision_checker=False,
     )
     
@@ -819,6 +842,10 @@ def handspace_reassembly_env(
     elevation_range = [math.radians(-30), math.radians(30)]
     elevation_steps = 2
     distance_steps = 1
+    if randomize_viewpoint:
+        start_position='uniform'
+    else:
+        start_position=(0,0,0)
     components['workspace_viewpoint'] = ControlledAzimuthalViewpointComponent(
         components['workspace_scene'],
         azimuth_steps=azimuth_steps,
@@ -827,6 +854,7 @@ def handspace_reassembly_env(
         distance_range=[250,250],
         distance_steps=distance_steps,
         aspect_ratio=workspace_image_width/workspace_image_height,
+        start_position=start_position,
     )
     
     components['handspace_viewpoint'] = ControlledAzimuthalViewpointComponent(
@@ -843,7 +871,7 @@ def handspace_reassembly_env(
     # color randomization
     if randomize_colors:
         components['color_randomization'] = RandomizeColorsComponent(
-            dataset_info['all_colors'],
+            dataset_info['color_ids'],
             components['workspace_scene'],
             randomize_frequency='reset',
         )
@@ -877,6 +905,7 @@ def handspace_reassembly_env(
     
     # action spaces
     components['disassembly'] = PixelDisassemblyComponent(
+        max_instances,
         components['workspace_scene'],
         workspace_pos_snap_render,
         workspace_neg_snap_render,
@@ -900,15 +929,25 @@ def handspace_reassembly_env(
     )
     components['insert_brick'] = HandspaceBrickInserter(
         components['handspace_scene'],
+        components['workspace_scene'],
         class_ids,
-        colors,
+        color_ids,
+        max_instances,
     )
     
     # reassembly
     components['reassembly'] = Reassembly(
-        components['workspace_scene'],
-        handspace_scene_component = components['handspace_scene'],
-        reassembly_mode = 'clear'
+        class_ids=class_ids,
+        color_ids=color_ids,
+        max_instances=max_instances,
+        max_edges=max_edges,
+        max_snaps_per_brick=max_snaps,
+        workspace_scene_component=components['workspace_scene'],
+        handspace_scene_component=components['handspace_scene'],
+        dataset_component=components['dataset'],
+        metadata_path=['metadata'],
+        reassembly_mode='clear',
+        train=train,
     )
     
     # color render
@@ -916,15 +955,24 @@ def handspace_reassembly_env(
         workspace_image_width,
         workspace_image_height,
         components['workspace_scene'],
-        anti_alias=True
+        anti_alias=True,
     )
     
     components['handspace_color_render'] = ColorRenderComponent(
         handspace_image_width,
         handspace_image_height,
         components['handspace_scene'],
-        anti_alias=True
+        anti_alias=True,
     )
+    
+    if train:
+        components['workspace_segmentation_render'] = (
+             SegmentationRenderComponent(
+                workspace_map_width,
+                workspace_map_height,
+                components['workspace_scene'],
+            )
+        )
     
     # snap render
     components['workspace_pos_snap_render'] = workspace_pos_snap_render
@@ -942,5 +990,8 @@ if __name__ == '__main__':
     interactive_env = InteractiveHandspaceReassemblyEnv(
         dataset='random_six',
         split='simple_single',
-        subset=1)
+        subset=1,
+        train=True,
+        randomize_colors=False,
+        randomize_viewpoint=False)
     interactive_env.start()

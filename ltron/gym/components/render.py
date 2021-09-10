@@ -64,7 +64,8 @@ class SegmentationRenderComponent(LtronGymComponent):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
         scene.viewport_scissor(0,0,self.width,self.height)
-        scene.render_brick_instance_ids()
+        #scene.render_brick_instance_ids()
+        scene.mask_render()
         mask = self.frame_buffer.read_pixels()
         self.observation = masks.color_byte_to_index(mask)
     

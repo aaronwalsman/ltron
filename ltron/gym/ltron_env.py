@@ -4,6 +4,7 @@ import multiprocessing
 
 import gym
 from gym.vector.async_vector_env import AsyncVectorEnv
+from gym.vector.sync_vector_env import SyncVectorEnv
 from gym import spaces
 
 from ltron.bricks.brick_scene import BrickScene
@@ -128,10 +129,23 @@ def async_ltron(
     def constructor_wrapper(i):
         def constructor():
             env = env_constructor(
-                    *args, rank=i, size=num_processes, **kwargs)
+                *args, rank=i, size=num_processes, **kwargs)
             return env
         return constructor
     constructors = [constructor_wrapper(i) for i in range(num_processes)]
     vector_env = AsyncVectorEnv(constructors, context='spawn')
+    
+    return vector_env
+
+def sync_ltron(
+        num_processes, env_constructor, *args, **kwargs):
+    def constructor_wrapper(i):
+        def constructor():
+            env = env_constructor(
+                *args, rank=1, size=num_processes, **kwargs)
+            return env
+        return constructor
+    constructors = [constructor_wrapper(i) for i in range(num_processes)]
+    vector_env = SyncVectorEnv(constructors)
     
     return vector_env

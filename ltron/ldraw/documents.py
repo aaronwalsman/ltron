@@ -91,6 +91,9 @@ class LDrawDocument:
             return numpy.concatenate(vertices, axis=1)
         else:
             return numpy.zeros((4,0))
+    
+    def __str__(self):
+        return self.reference_name
 
 class LDrawMPDMainFile(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
