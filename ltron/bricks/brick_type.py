@@ -168,10 +168,14 @@ class BrickType:
                             if p.type_id != snap.type_id]
         
         self.snaps = resolved_snaps
-        bb = (
-            numpy.min(self.vertices[:3], axis=1),
-            numpy.max(self.vertices[:3], axis=1),
-        )
+        try:
+            bb = (
+                numpy.min(self.vertices[:3], axis=1),
+                numpy.max(self.vertices[:3], axis=1),
+            )
+        except ValueError:
+            bb = numpy.array([[0,0,0], [0,0,0]])
+            # print(self.reference_name)
         self.bbox = bb
         self.bbox_vertices = numpy.array([
             [bb[0][0], bb[0][0], bb[0][0], bb[0][0],

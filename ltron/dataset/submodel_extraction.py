@@ -12,6 +12,7 @@ from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent,
         RandomizedAzimuthalViewpointComponent,
         FixedAzimuthalViewpointComponent)
+from ltron.bricks.brick_type import BrickType
 import copy
 import collections
 import math
@@ -65,6 +66,20 @@ def compute_boxsize(instances, scene):
     # else: return -1000
     return max(abs(max_y - min_y), abs(max_x - min_x), abs(max_z - min_z))
 
+def blacklist_computation(threshold):
+    path = Path("~/.cache/ltron/ldraw/parts").expanduser()
+    partlist = path.glob("*.dat")
+
+    blacklist = []
+    for part in partlist:
+        part = str(part)
+        btype = BrickType(part)
+        max_dim = numpy.max(btype.bbox[1] - btype.bbox[0])
+        if max_dim > threshold:
+            blacklist.append(btype.reference_name)
+
+    return blacklist
+
 def add_brick(limit, cur_mod, comp_list, instance_id, scene):
     instance = scene.instances.instances[instance_id]
     connections = scene.get_all_snap_connections([instance])[str(instance_id)]
@@ -83,36 +98,35 @@ def add_brick(limit, cur_mod, comp_list, instance_id, scene):
 
 def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], debug=False):
     instance = scene.instances.instances[instance_id]
-    connections = scene.get_all_snap_connections([instance])[str(instance_id)]
-    if len(connections) == 0:
-        if debug:
-            print("no connection")
-        return False
+    connections = scene.get_all_snap_connections(cur_mod)
     box_map = {}
-    for conn in connections:
-        temp = copy.deepcopy(cur_mod)
-        target = int(conn[0])
-        if target in blacklist:
-            continue
-        if target in cur_mod:
-            if debug:
-                print("current")
-            continue
-        if target in used_brick:
-            if debug:
-                print("used")
-            continue
-        temp.append(target)
-        box_map[target] = compute_boxsize(temp, scene)
+
+    for _, connection in connections.items():
+        for conn in connection:
+            temp = copy.deepcopy(cur_mod)
+            target = int(conn[0])
+            if target in blacklist:
+                continue
+            if target in cur_mod:
+                continue
+            if target in used_brick:
+                continue
+            if target in box_map.keys():
+                continue
+            temp.append(target)
+            box_map[target] = compute_boxsize(temp, scene)
 
     if len(box_map) == 0:
-        if debug:
-            print("no map")
+        if compute_boxsize(cur_mod, scene) >= min:
+            comp_list.append(cur_mod)
+            return True
         return False
     best_target = min(box_map, key=box_map.get)
     cur_mod.append(best_target)
     # used_brick.append(best_target)
     if len(cur_mod) >= limit:
+        # if compute_boxsize(cur_mod, scene) >= max:
+        #     return False
         comp_list.append(cur_mod)
         return True
     else:
@@ -178,7 +192,7 @@ def subcomponent_extraction(limit, num_comp):
             break
 
 # The method in use
-def subcomponent_nonoverlap_extraction(limit, num_comp):
+def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist):
     global_count = 0
     folder_name = "subcomponents" + str(limit) + "/"
     try:
@@ -187,7 +201,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
         os.mkdir(folder_name)
     path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
     mpdlist = path.rglob('*')
-    stat = {"error" : [], "total_count" : 0, "models" : {}}
+    stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
     # Iterate through mpd files
     for mpd in mpdlist:
@@ -205,35 +219,41 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
         # print(num_instances)
         components = []
         used_brick = []
-        for i in range(num_instances):
-            cur_list = []
-            debug = False
-            # if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
-            #     debug = True
-            status = add_brick_box(limit, [], cur_list, i+1, scene, used_brick, debug=debug)
-            # print(status)
-            # if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
-            #     print(i)
-            #     print(status)
-            for subcomp in cur_list:
+
+        not_terminate = True
+        sad_instance = []
+        while not_terminate:
+
+            not_terminate = False
+            for i in range(num_instances):
+                if i in sad_instance:
+                    continue
+                cur_list = []
+                debug = False
+
+                status = add_brick_box(limit, [i+1], cur_list, i+1, scene, used_brick, blacklist, debug=debug)
+                # if not status:
+                #     sad_instance.append(i)
+                # not_terminate = not_terminate or status
+
+                for subcomp in cur_list:
+                    if global_count == num_comp:
+                        break
+                    subcomp.sort()
+                    if subcomp not in components:
+                        decider = True
+                        for ins in subcomp:
+                            if ins in used_brick:
+                                decider = False
+                                break
+                            used_brick.append(ins)
+                        if decider:
+                            components.append(subcomp)
+                            global_count += 1
+
                 if global_count == num_comp:
+                    not_terminate = False
                     break
-                subcomp.sort()
-                if subcomp not in components:
-                    decider = True
-                    for ins in subcomp:
-                        if ins in used_brick:
-                            decider = False
-                            break
-                        used_brick.append(ins)
-                    if decider:
-                        components.append(subcomp)
-                        global_count += 1
-
-            if global_count == num_comp:
-                break
-
-        # print(global_count)
 
         count = 1
         modelname = mpd.split("/")[-1][:-4]
@@ -259,74 +279,97 @@ def subcomponent_nonoverlap_extraction(limit, num_comp):
     with open(folder_name + "stat.json", "w") as f:
         json.dump(stat, f)
 
-def subcomponent_partition_extractoin(limit, num_comp):
+def subcomponent_minmax_extraction(limit, min_size, max_size, num_comp, blacklist):
     global_count = 0
-    global_list = []
     folder_name = "subcomponents" + str(limit) + "/"
     try:
         os.stat(folder_name)
     except:
         os.mkdir(folder_name)
     path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
-    mpdlist = path.rglob('*mpd')  # 1432
-    stat = {"error": []}
+    mpdlist = path.rglob('*')
+    stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
-    while global_count < num_comp:
+    # Iterate through mpd files
+    for mpd in mpdlist:
+        print(mpd)
+        mpd = str(mpd)
+        try:
+            mpdfile = LDrawMPDMainFile(mpd)
+            scene = BrickScene(track_snaps=True)
+            scene.import_ldraw(mpd)
+        except:
+            stat['error'].append(mpd)
+            continue
 
-        # Iterate through mpd files
-        for mpd in mpdlist:
-            print(mpd)
-            mpd = str(mpd)
-            try:
-                mpdfile = LDrawMPDMainFile(mpd)
-                scene = BrickScene(track_snaps=True)
-                scene.import_ldraw(mpd)
-            except:
-                stat['error'].append(mpd)
-                continue
+        num_instances = len(scene.instances.instances)
+        # print(num_instances)
+        components = []
+        used_brick = []
 
-            num_instances = len(scene.instances.instances)
-            components = []
-            used_brick = []
+        not_terminate = True
+        sad_instance = []
+        while not_terminate:
+            print("l")
+            not_terminate = False
+            for i in range(num_instances):
+                if i in sad_instance:
+                    continue
+                cur_list = []
+                debug = False
+                # if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
+                #     debug = True
+                status = add_brick_box(limit, [], cur_list, i+1, scene, used_brick, blacklist, debug=debug)
+                if not status:
+                    sad_instance.append(i)
+                not_terminate = not_terminate or status
+                # if mpd == "/home/nanami/.cache/ltron/collections/omr/ldraw/42038-1 - Arctic Truck.mpd":
+                #     print(i)
+                #     print(status)
+                for subcomp in cur_list:
+                    if global_count == num_comp:
+                        break
+                    subcomp.sort()
+                    if subcomp not in components:
+                        decider = True
+                        for ins in subcomp:
+                            if ins in used_brick:
+                                decider = False
+                                break
+                            used_brick.append(ins)
+                        if decider:
+                            components.append(subcomp)
+                            global_count += 1
 
-            ini_brick = random.randint(1, num_instances)
-            cur_list = []
-            add_brick(limit, [], cur_list, ini_brick, scene)
-
-            for subcomp in cur_list:
                 if global_count == num_comp:
-                    break
-                subcomp.sort()
-                if subcomp not in components:
-                    decider = True
-                    for ins in subcomp:
-                        if ins in used_brick:
-                            decider = False
-                            break
-                        used_brick.append(ins)
-                    if decider:
-                        components.append(subcomp)
-                        global_count += 1
-
-                if global_count == num_comp:
+                    not_terminate = False
                     break
 
-            count = 1
-            modelname = mpd.split("/")[-1][:-4]
-            for comp in components:
-                temp_scene = BrickScene()
-                temp_scene.import_ldraw(mpd)
-                instances = copy.deepcopy(temp_scene.instances.instances)
-                for k, v in instances.items():
-                    if k not in comp:
-                        temp_scene.remove_instance(v)
+        # print(global_count)
 
-                temp_scene.export_ldraw(folder_name + modelname + "_"
-                                        + str(count) + ".mpd")
-                count += 1
+        count = 1
+        modelname = mpd.split("/")[-1][:-4]
+        for comp in components:
+            temp_scene = BrickScene()
+            temp_scene.import_ldraw(mpd)
+            instances = copy.deepcopy(temp_scene.instances.instances)
+            for k, v in instances.items():
+                if k not in comp:
+                    temp_scene.remove_instance(v)
 
-            if global_count == num_comp:
-                break
+            temp_scene.export_ldraw(folder_name + modelname + "_"
+                                                            + str(count) + ".mpd")
+            count += 1
+
+        stat['models'][modelname] = [num_instances, count - 1]
+
+        if global_count == num_comp:
+            break
+
+    stat['total_count'] = global_count
+
+    with open(folder_name + "stat.json", "w") as f:
+        json.dump(stat, f)
 
 # Render a .mpd file
 def render(filepath):
@@ -350,7 +393,9 @@ def render(filepath):
     # print(compute_boxsize(components['scene'].brick_scene.instances.instances.keys(), components['scene'].brick_scene))
 
 def main():
-    subcomponent_nonoverlap_extraction(8, 40000000)
+    # blacklist = blacklist_computation(200)
+    # print(blacklist)
+    subcomponent_nonoverlap_extraction(8, 400, blacklist=[])
     render("subcomponents8/6954-1 - Renegade_1.mpd")
     render("subcomponents8/6954-1 - Renegade_2.mpd")
 
