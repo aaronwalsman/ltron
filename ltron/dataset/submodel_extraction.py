@@ -1,3 +1,4 @@
+import time
 import json
 from ltron.ldraw.documents import LDrawMPDMainFile
 from ltron.bricks.brick_scene import BrickScene
@@ -20,7 +21,7 @@ import os
 import numpy
 import random
 
-def compute_boxsize(instances, scene):
+def compute_boxsize_old(instances, scene):
     instance_tran = {}
     for k in instances:
         instance_tran[k] = scene.instances.instances[k].transform
@@ -59,12 +60,20 @@ def compute_boxsize(instances, scene):
             min_x = p[0]
         if p[2] > max_z:
             max_z = p[2]
-        if p[2] < max_z:
+        if p[2] < min_z:
             min_z = p[2]
 
     # if abs(max_y - min_y) - 35 > 0: return 10000
     # else: return -1000
     return max(abs(max_y - min_y), abs(max_x - min_x), abs(max_z - min_z))
+
+def compute_boxsize(instance, scene):
+    all_vertices = numpy.concatenate([
+        scene.instances[i].bbox_vertices() for i in instance], axis=1)
+    bbox_min = numpy.min(all_vertices[:3], axis=1)
+    bbox_max = numpy.max(all_vertices[:3], axis=1)
+    offset = bbox_max - bbox_min
+    return max(offset)
 
 def blacklist_computation(threshold):
     path = Path("~/.cache/ltron/ldraw/parts").expanduser()
@@ -96,12 +105,16 @@ def add_brick(limit, cur_mod, comp_list, instance_id, scene):
             add_brick(limit, cur_mod, comp_list, target, scene)
             return True
 
-def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], min_size=100000, max_size=100000, debug=False):
+def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], min_size=100000, max_size=100000, debug=False, connections={}):
     instance = scene.instances.instances[instance_id]
-    connections = scene.get_all_snap_connections(cur_mod)
+    #connections = scene.get_all_snap_connections(cur_mod)
     box_map = {}
-
-    for _, connection in connections.items():
+    
+    #for instance_name, connection in connections.items():
+    #    if int(instance_name) not in cur_mod:
+    #        continue
+    for instance_id in cur_mod:
+        connection = connections[str(instance_id)]
         for conn in connection:
             temp = copy.deepcopy(cur_mod)
             target = int(conn[0])
@@ -120,17 +133,19 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
         if compute_boxsize(cur_mod, scene) >= min_size:
             comp_list.append(cur_mod)
             return True
+        #print('bail box')
         return False
     best_target = min(box_map, key=box_map.get)
     cur_mod.append(best_target)
     # used_brick.append(best_target)
     if len(cur_mod) >= limit:
         if compute_boxsize(cur_mod, scene) >= max_size:
+            #print('bail big')
             return False
         comp_list.append(cur_mod)
         return True
     else:
-        status = add_brick_box(limit, cur_mod, comp_list, best_target, scene, used_brick)
+        status = add_brick_box(limit, cur_mod, comp_list, best_target, scene, used_brick, connections=connections)
         return status
 
 # limit - number of bricks in each subcomponent
@@ -199,13 +214,17 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
         os.stat(folder_name)
     except:
         os.mkdir(folder_name)
-    path = Path("~/.cache/ltron/collections/omr/omrtest").expanduser()
+    path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
     mpdlist = path.rglob('*')
     stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
     # Iterate through mpd files
     cnt = 0
     for mpd in mpdlist:
+        t_start = time.time()
+        t_add_total = 0.
+        t_for_total = 0.
+        num_adds = 0
         cnt += 1
         if cnt == 5: break
         print(mpd)
@@ -225,21 +244,32 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
 
         not_terminate = True
         sad_instance = []
+    
+        connections = scene.get_all_snap_connections()
         while not_terminate:
 
             not_terminate = False
             for i in range(num_instances):
                 if i in sad_instance:
                     continue
+                #if i in used_brick:
+                #    print('used, skipping')
+                #    continue
                 cur_list = []
                 debug = False
-
+                
+                t_add_start = time.time()
                 status = add_brick_box(limit, [i+1], cur_list, i+1, scene, used_brick,
-                                       min_size=min_size, max_size=max_size, blacklist=blacklist, debug=debug)
+                                       min_size=min_size, max_size=max_size, blacklist=blacklist, debug=debug, connections=connections)
+                t_add_end = time.time()
+                num_adds += 1
+                t_add_total += (t_add_end - t_add_start)
+                #print('add elapsed: %f'%(t_add_end-t_add_start))
                 # if not status:
                 #     sad_instance.append(i)
                 # not_terminate = not_terminate or status
-
+                
+                t_for_start = time.time()
                 for subcomp in cur_list:
                     if global_count == num_comp:
                         break
@@ -258,22 +288,35 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
                 if global_count == num_comp:
                     not_terminate = False
                     break
-
+                t_for_end = time.time()
+                t_for_total += t_for_end - t_for_start
+        
+        t_end_start = time.time()
         count = 1
         modelname = mpd.split("/")[-1][:-4]
         for comp in components:
-            temp_scene = BrickScene()
-            temp_scene.import_ldraw(mpd)
-            instances = copy.deepcopy(temp_scene.instances.instances)
-            for k, v in instances.items():
-                if k not in comp:
-                    temp_scene.remove_instance(v)
+            #temp_scene = BrickScene()
+            #temp_scene.import_ldraw(mpd)
+            #instances = copy.deepcopy(temp_scene.instances.instances)
+            #for k, v in instances.items():
+            #    if k not in comp:
+            #        temp_scene.remove_instance(v)
 
-            # temp_scene.export_ldraw(folder_name + modelname + "_"
-            #                                                 + str(count) + ".mpd")
+            #temp_scene.export_ldraw(folder_name + modelname + "_"
+            #                                                + str(count) + ".mpd")
+            
+            scene.export_ldraw(folder_name + modelname + "_" + str(count) + ".mpd", instances=comp)
+            
             count += 1
-
+        t_end_end = time.time()
+        
         stat['models'][modelname] = [num_instances, count - 1]
+        t_end = time.time()
+        print('elapsed: %f'%(t_end-t_start))
+        print('add total: %f'%(t_add_total))
+        print('for total: %f'%(t_for_total))
+        print('end total: %f'%(t_end_end - t_end_start))
+        print('num adds: %i'%(num_adds))
 
         if global_count == num_comp:
             break
@@ -402,8 +445,8 @@ def main():
     f = open('subcomponents8/stat_blacklist200.json')
     blacklist = json.load(f)['blacklist']
     subcomponent_nonoverlap_extraction(8, 40000, blacklist=blacklist, min_size=200, max_size=300)
-    render("subcomponents8/6954-1 - Renegade_1.mpd")
-    render("subcomponents8/6954-1 - Renegade_2.mpd")
+    #render("subcomponents8/6954-1 - Renegade_1.mpd")
+    #render("subcomponents8/6954-1 - Renegade_2.mpd")
 
 if __name__ == '__main__' :
     main()

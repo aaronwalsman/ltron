@@ -111,7 +111,10 @@ class BrickScene:
             for brick_instance in new_instances:
                 self.update_instance_snaps(brick_instance)
     
-    def export_ldraw(self, path):
+    def export_ldraw(self, path, instances=None):
+        if instances is None:
+            instances = self.instances
+        
         directory, file_name = os.path.split(path)
         lines = [
                 '0 FILE %s'%file_name,
@@ -119,7 +122,9 @@ class BrickScene:
                 '0 Name: %s'%file_name,
                 '0 Author: LTRON',
         ]
-        for instance in self.instances.values():
+        #for instance in self.instances.values():
+        for instance in instances:
+            instance = self.instances[int(instance)]
             color = instance.color
             t = self.upright @ instance.transform
             str_transform = (' '.join(['%f']*12))%(
@@ -134,6 +139,55 @@ class BrickScene:
         
         with open(path, 'w') as f:
             f.write('\n'.join(lines))
+    
+    def import_configuration(self, configuration):
+        for i in range(len(configuration['class'])):
+            instance_class = configuration['class'][i]
+            if instance_class == 0:
+                continue
+            instance_color = configuration['color'][i]
+            instance_pose = configuration['pose'][i]
+            class_labels = {
+                value:key for key, value in configuration['class_ids'].items()}
+            color_labels = {
+                value:key for key, value in configuration['color_ids'].items()}
+            brick_type = class_labels[instance_class]
+            color = color_labels[instance_color]
+            
+            self.add_instance(brick_type, color, instance_pose)
+    
+    def get_configuration(
+        self,
+        class_ids,
+        color_ids,
+        max_instances=None,
+        max_edges=None,
+        unidirectional=False,
+    ):
+        config = {}
+        
+        if max_instances is None:
+            max_instances = max(self.instances.keys())
+        else:
+            assert len(self.instances) <= max_instances, 'Too many instances'
+        config['class'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        config['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        config['pose'] = numpy.zeros((max_instances+1, 4, 4))
+        for instance_id, instance in self.instances.items():
+            config['class'][instance_id] = class_ids[str(instance.brick_type)]
+            config['color'][instance_id] = color_ids[str(instance.color)]
+            config['pose'][instance_id] = instance.transform
+        
+        all_edges = self.get_all_edges(unidirectional=unidirectional)
+        num_edges = all_edges.shape[1]
+        if max_edges is not None:
+            assert all_edges.shape[1] <= max_edges, 'Too many edges'
+            extra_edges = numpy.zeros(
+                (4, max_edges - num_edges), dtype=numpy.long)
+            all_edges = numpy.concatenate((all_edges, extra_edges), axis=1)
+        config['edges'] = all_edges
+        
+        return config
     
     # assets -------------------------------------------------------------------
     
