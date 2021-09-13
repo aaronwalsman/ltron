@@ -86,7 +86,7 @@ def add_brick(limit, cur_mod, comp_list, instance_id, scene):
     if len(connections) == 0: return False
     for conn in connections:
         target = int(conn[0])
-        if target in cur_mod:
+        if conn[0].reference_name in cur_mod:
             continue
         cur_mod.append(target)
         if len(cur_mod) >= limit:
@@ -96,7 +96,7 @@ def add_brick(limit, cur_mod, comp_list, instance_id, scene):
             add_brick(limit, cur_mod, comp_list, target, scene)
             return True
 
-def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], debug=False):
+def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], min_size=100000, max_size=100000, debug=False):
     instance = scene.instances.instances[instance_id]
     connections = scene.get_all_snap_connections(cur_mod)
     box_map = {}
@@ -117,7 +117,7 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
             box_map[target] = compute_boxsize(temp, scene)
 
     if len(box_map) == 0:
-        if compute_boxsize(cur_mod, scene) >= min:
+        if compute_boxsize(cur_mod, scene) >= min_size:
             comp_list.append(cur_mod)
             return True
         return False
@@ -125,8 +125,8 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
     cur_mod.append(best_target)
     # used_brick.append(best_target)
     if len(cur_mod) >= limit:
-        # if compute_boxsize(cur_mod, scene) >= max:
-        #     return False
+        if compute_boxsize(cur_mod, scene) >= max_size:
+            return False
         comp_list.append(cur_mod)
         return True
     else:
@@ -143,7 +143,7 @@ def subcomponent_extraction(limit, num_comp):
         os.stat(folder_name)
     except:
         os.mkdir(folder_name)
-    path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
+    path = Path("~/.cache/ltron/collections/omr/omrtest").expanduser()
     mpdlist = path.rglob('*mpd') # 1432
     ldrlist = path.rglob('*ldr') # 62
     stat = {"error" : []}
@@ -192,19 +192,22 @@ def subcomponent_extraction(limit, num_comp):
             break
 
 # The method in use
-def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist):
+def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=100000, max_size=100000):
     global_count = 0
     folder_name = "subcomponents" + str(limit) + "/"
     try:
         os.stat(folder_name)
     except:
         os.mkdir(folder_name)
-    path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
+    path = Path("~/.cache/ltron/collections/omr/omrtest").expanduser()
     mpdlist = path.rglob('*')
     stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
     # Iterate through mpd files
+    cnt = 0
     for mpd in mpdlist:
+        cnt += 1
+        if cnt == 5: break
         print(mpd)
         mpd = str(mpd)
         try:
@@ -231,7 +234,8 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist):
                 cur_list = []
                 debug = False
 
-                status = add_brick_box(limit, [i+1], cur_list, i+1, scene, used_brick, blacklist, debug=debug)
+                status = add_brick_box(limit, [i+1], cur_list, i+1, scene, used_brick,
+                                       min_size=min_size, max_size=max_size, blacklist=blacklist, debug=debug)
                 # if not status:
                 #     sad_instance.append(i)
                 # not_terminate = not_terminate or status
@@ -276,7 +280,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist):
 
     stat['total_count'] = global_count
 
-    with open(folder_name + "stat.json", "w") as f:
+    with open(folder_name + "stat_blacklist200_min200_max300.json", "w") as f:
         json.dump(stat, f)
 
 def subcomponent_minmax_extraction(limit, min_size, max_size, num_comp, blacklist):
@@ -368,7 +372,7 @@ def subcomponent_minmax_extraction(limit, min_size, max_size, num_comp, blacklis
 
     stat['total_count'] = global_count
 
-    with open(folder_name + "stat.json", "w") as f:
+    with open(folder_name + "stat_blacklist.json", "w") as f:
         json.dump(stat, f)
 
 # Render a .mpd file
@@ -395,7 +399,9 @@ def render(filepath):
 def main():
     # blacklist = blacklist_computation(200)
     # print(blacklist)
-    subcomponent_nonoverlap_extraction(8, 400, blacklist=[])
+    f = open('subcomponents8/stat_blacklist200.json')
+    blacklist = json.load(f)['blacklist']
+    subcomponent_nonoverlap_extraction(8, 40000, blacklist=blacklist, min_size=200, max_size=300)
     render("subcomponents8/6954-1 - Renegade_1.mpd")
     render("subcomponents8/6954-1 - Renegade_2.mpd")
 
