@@ -130,7 +130,8 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
             box_map[target] = compute_boxsize(temp, scene)
 
     if len(box_map) == 0:
-        if compute_boxsize(cur_mod, scene) >= min_size and len(cur_mod) > 2:
+        size = compute_boxsize(cur_mod, scene)
+        if min_size <= size <= max_size and len(cur_mod) > 2:
             comp_list.append(cur_mod)
             return True
         #print('bail box')
@@ -325,7 +326,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
 
     stat['total_count'] = global_count
 
-    with open(folder_name + "stat_blacklist100_min200_max300.json", "w") as f:
+    with open(folder_name + "stat_blacklist70_min200_max300_b.json", "w") as f:
         json.dump(stat, f)
 
 def subcomponent_minmax_extraction(limit, min_size, max_size, num_comp, blacklist):
@@ -442,11 +443,11 @@ def render(filepath):
     # print(compute_boxsize(components['scene'].brick_scene.instances.instances.keys(), components['scene'].brick_scene))
 
 def main():
-    # blacklist = blacklist_computation(30)
-    # print(blacklist)
-    f = open('subcomponents8/stat_blacklist100_min200_max300.json')
+    # blacklist = blacklist_computation(70)
+    # # print(blacklist)
+    f = open('subcomponents8/stat_blacklist70_min200_max300.json')
     blacklist = json.load(f)['blacklist']
-    subcomponent_nonoverlap_extraction(8, 40000, blacklist=blacklist, min_size=200, max_size=500)
+    subcomponent_nonoverlap_extraction(8, 40000, blacklist=blacklist, min_size=200, max_size=300)
     #render("subcomponents8/6954-1 - Renegade_1.mpd")
     #render("subcomponents8/6954-1 - Renegade_2.mpd")
 
