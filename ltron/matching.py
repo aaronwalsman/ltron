@@ -2,6 +2,8 @@ import time
 
 import numpy
 
+import tqdm
+
 from scipy.spatial import cKDTree
 
 from ltron.geometry.grid_bucket import GridBucket
@@ -16,16 +18,16 @@ def match_configurations(
     t_lookup = 0.
     t_valid = 0.
     
-    na = config_a['class'].shape[0]
-    nb = config_b['class'].shape[0]
-    
+    # build the kdtree if one was not passed in
     if kdtree is None:
         kdtree = cKDTree(config_b['pose'][:,:3,3])
     
+    # initialize the set of matches that have been tested already
     ab_tested_matches = set()
     
+    # order the classes from least common to common
+    # this makes it more likely that we will find a good match sooner
     unique_a, count_a = numpy.unique(config_a['class'], return_counts=True)
-    
     sort_order = numpy.argsort(count_a)
     class_order = unique_a[sort_order]
     
@@ -34,7 +36,7 @@ def match_configurations(
     
     n_checks = 0
     
-    for c in class_order:
+    for c in tqdm.tqdm(class_order):
         if c == 0:
             continue
         
@@ -45,7 +47,7 @@ def match_configurations(
         instance_indices_a = numpy.where(config_a['class'] == c)[0]
         
         # N^2 hold on!
-        for a in instance_indices_a:
+        for a in tqdm.tqdm(instance_indices_a):
             color_a = config_a['color'][a]
             for b in instance_indices_b:
                 if (a,b) in ab_tested_matches:
@@ -62,41 +64,21 @@ def match_configurations(
                 a_to_b = pose_b @ numpy.linalg.inv(pose_a)
                 transformed_a = numpy.matmul(a_to_b, config_a['pose'])
                 
-                if True:
-                    pos_a = transformed_a[:,:3,3]
-                    t_lookup_start = time.time()
-                    matches = kdtree.query_ball_point(pos_a, radius)
-                    t_lookup_end = time.time()
-                    t_lookup += t_lookup_end - t_lookup_start
-                    
-                    potential_matches = sum(1 for m in matches if len(m))
-                    if potential_matches < len(best_matches):
-                        continue
-                    
-                    t_valid_start = time.time()
-                    valid_matches = validate_matches(
-                        config_a, config_b, matches)
-                    t_valid_end = time.time()
-                    t_valid += t_valid_end - t_valid_start
+                pos_a = transformed_a[:,:3,3]
+                t_lookup_start = time.time()
+                matches = kdtree.query_ball_point(pos_a, radius)
+                t_lookup_end = time.time()
+                t_lookup += t_lookup_end - t_lookup_start
                 
-                if False:
-                    # test matching N^3 ???
-                    pos_a = transformed_a[:,:3,3]
-                    
-                    t_lookup_start = time.time()
-                    matches = bucket_b.lookup_many(pos_a, radius)
-                    t_lookup_end = time.time()
-                    t_lookup += t_lookup_end - t_lookup_start
-                    
-                    valid_matches = validate_matches(
-                        config_a, config_b, matches)
+                potential_matches = sum(1 for m in matches if len(m))
+                if potential_matches < len(best_matches):
+                    continue
                 
-                if False:
-                    t_lookup_start = time.time()
-                    valid_matches = slow_match(
-                        transformed_a, config_a, config_b)
-                    t_lookup_end = time.time()
-                    t_lookup += t_lookup_end - t_lookup_start
+                t_valid_start = time.time()
+                valid_matches = validate_matches(
+                    config_a, config_b, matches)
+                t_valid_end = time.time()
+                t_valid += t_valid_end - t_valid_start
                 
                 if len(valid_matches) > len(best_matches):
                     best_alignment = (a,b)
@@ -111,29 +93,11 @@ def match_configurations(
     print('checks: %i'%n_checks)
     return best_matches
 
-def slow_match(transformed_poses_a, config_a, config_b):
-    valid_matches = set()
-    for a, pose_a in enumerate(transformed_poses_a):
-        for b, pose_b in enumerate(config_b['pose']):
-            if config_a['class'][a] != config_b['class'][b]:
-                continue
-            if config_a['color'][a] != config_b['color'][b]:
-                continue
-            if not numpy.allclose(pose_a, pose_b):
-                continue
-            
-            valid_matches.add((a,b))
-            break
-    
-    return valid_matches
-
 def validate_matches(config_a, config_b, matches):
     n = len(matches)
     valid_matches = set()
-    total_checks = 0
     for a in range(n):
         for b in matches[a]:
-            total_checks += 1
             class_a = config_a['class'][a]
             class_b = config_b['class'][b]
             if class_a != class_b or class_a == 0 or class_b == 0:
@@ -152,5 +116,4 @@ def validate_matches(config_a, config_b, matches):
             valid_matches.add((a,b))
             break
     
-    print(total_checks)
     return valid_matches
