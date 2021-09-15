@@ -105,7 +105,7 @@ def add_brick(limit, cur_mod, comp_list, instance_id, scene):
             add_brick(limit, cur_mod, comp_list, target, scene)
             return True
 
-def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], min_size=100000, max_size=100000, debug=False, connections={}):
+def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = [], blacklist=[], min_size=100000, max_size=100000, min_brick=3, debug=False, connections={}):
     instance = scene.instances.instances[instance_id]
     #connections = scene.get_all_snap_connections(cur_mod)
     box_map = {}
@@ -131,7 +131,7 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
 
     if len(box_map) == 0:
         size = compute_boxsize(cur_mod, scene)
-        if min_size <= size <= max_size and len(cur_mod) > 2:
+        if min_size <= size <= max_size and len(cur_mod) >= min_brick:
             comp_list.append(cur_mod)
             return True
         #print('bail box')
@@ -308,7 +308,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
             #temp_scene.export_ldraw(folder_name + modelname + "_"
             #                                                + str(count) + ".mpd")
             
-            # scene.export_ldraw(folder_name + modelname + "_" + str(count) + ".mpd", instances=comp)
+            scene.export_ldraw(folder_name + modelname + "_" + str(count) + ".mpd", instances=comp)
             
             count += 1
         # t_end_end = time.time()
