@@ -14,19 +14,18 @@ def match_configurations(
     kdtree=None,
     radius=0.01,
 ):
-    t_start = time.time()
-    t_lookup = 0.
-    t_valid = 0.
     
-    # build the kdtree if one was not passed in
+    # Build the kdtree if one was not passed in.
     if kdtree is None:
         kdtree = cKDTree(config_b['pose'][:,:3,3])
     
-    # initialize the set of matches that have been tested already
+    # Initialize the set of matches that have been tested already.
     ab_tested_matches = set()
     
-    # order the classes from least common to common
-    # this makes it more likely that we will find a good match sooner
+    # Filter the poses in a to only contain non-zero entries
+    
+    # Order the classes from least common to common.
+    # This makes it more likely that we will find a good match sooner.
     unique_a, count_a = numpy.unique(config_a['class'], return_counts=True)
     sort_order = numpy.argsort(count_a)
     class_order = unique_a[sort_order]
@@ -34,70 +33,111 @@ def match_configurations(
     best_alignment = None
     best_matches = set()
     
-    n_checks = 0
+    matched_a = set()
+    matched_b = set()
     
-    for c in tqdm.tqdm(class_order):
-        if c == 0:
-            continue
-        
-        instance_indices_b = numpy.where(config_b['class'] == c)[0]
-        if not len(instance_indices_b):
-            continue
-        
-        instance_indices_a = numpy.where(config_a['class'] == c)[0]
-        
-        # N^2 hold on!
-        for a in tqdm.tqdm(instance_indices_a):
-            color_a = config_a['color'][a]
-            for b in instance_indices_b:
-                if (a,b) in ab_tested_matches:
-                    continue
+    finished = False
+    while not finished:
+        finished = True
+        for c in class_order:
+            if c == 0:
+                continue
+            
+            instance_indices_b = numpy.where(config_b['class'] == c)[0]
+            if not len(instance_indices_b):
+                continue
+            
+            instance_indices_a = numpy.where(config_a['class'] == c)[0]
+            
+            for a in instance_indices_a:
+                color_a = config_a['color'][a]
+                for b in instance_indices_b:
+                    # If a and b are matched under the current best offset
+                    # even if they are not matched to each other, don't
+                    # consider this offset.
+                    if a in matched_a and b in matched_b:
+                        continue
+                    
+                    # If the offset between a and b has already been tested
+                    # don't reconsider this offset.
+                    if (a,b) in ab_tested_matches:
+                        continue
+                    
+                    # If the colors don't match, do not consider this offset.
+                    color_b = config_b['color'][b]
+                    if color_a != color_b:
+                        continue
+                    
+                    # Compute the offset between a and b.
+                    pose_a = config_a['pose'][a]
+                    pose_b = config_b['pose'][b]
+                    a_to_b = pose_b @ numpy.linalg.inv(pose_a)
+                    transformed_a = numpy.matmul(a_to_b, config_a['pose'])
+                    #transformed_a = numpy.matmul(a_to_b, sparse_poses_a)
+                    
+                    # Compute the closeset points.
+                    pos_a = transformed_a[:,:3,3]
+                    matches = kdtree.query_ball_point(pos_a, radius)
+                    #matches = [[] for _ in config_a['class']]
+                    #for i, sparse_match in zip(sparse_id_a, sparse_matches):
+                    #    matches[i] = sparse_match
+                    
+                    # If the number of matches is less than the current best
+                    # skip the validation step.
+                    potential_matches = sum(
+                        1 for c, m in zip(config_a['class'], matches)
+                        if len(m) and c != 0
+                    )
+                    if potential_matches < len(best_matches):
+                        continue
+                    
+                    # Validate the matches.
+                    valid_matches = validate_matches(
+                        config_a, config_b, matches, a_to_b)
+                    
+                    # Update the set of tested matches with everything that was
+                    # matched in this comparison, this avoids reconsidering the
+                    # same offset later.
+                    ab_tested_matches.update(valid_matches)
+                    
+                    # If the number of valid matches is the best so far, update
+                    # and break.  Breaking will exit all the way out to the
+                    # main while loop and start over from the beginning.
+                    # This is important because
+                    # it allows us to reconsider offsets that we might have
+                    # skipped because of the first short-circuit in this block.
+                    # Two bricks a and b may have been connected in the previous
+                    # alignment, but may not be connected after this better
+                    # alignment, so now we need to consider them again.
+                    # As convoluted as this is, it saves a ton of computation.
+                    if len(valid_matches) > len(best_matches):
+                        best_alignment = (a,b)
+                        best_matches.clear()
+                        best_matches.update(valid_matches)
+                        matched_a.clear()
+                        matched_b.clear()
+                        matched_a.update(set(a for a,b in valid_matches))
+                        matched_b.update(set(b for a,b in valid_matches))
+                        finished = False
+                        break
                 
-                color_b = config_b['color'][b]
-                if color_a != color_b:
-                    continue
-                
-                n_checks += 1
-                
-                pose_a = config_a['pose'][a]
-                pose_b = config_b['pose'][b]
-                a_to_b = pose_b @ numpy.linalg.inv(pose_a)
-                transformed_a = numpy.matmul(a_to_b, config_a['pose'])
-                
-                pos_a = transformed_a[:,:3,3]
-                t_lookup_start = time.time()
-                matches = kdtree.query_ball_point(pos_a, radius)
-                t_lookup_end = time.time()
-                t_lookup += t_lookup_end - t_lookup_start
-                
-                potential_matches = sum(1 for m in matches if len(m))
-                if potential_matches < len(best_matches):
-                    continue
-                
-                t_valid_start = time.time()
-                valid_matches = validate_matches(
-                    config_a, config_b, matches)
-                t_valid_end = time.time()
-                t_valid += t_valid_end - t_valid_start
-                
-                if len(valid_matches) > len(best_matches):
-                    best_alignment = (a,b)
-                    best_matches = valid_matches
-                ab_tested_matches = ab_tested_matches | valid_matches
+                # If we just found a new best, start over from the beginning
+                if not finished:
+                    break
+            
+            # If we just found a new best, start over from the beginning
+            if not finished:
+                break
     
-    t_end = time.time()
-    
-    print('total time: %.06f'%(t_end-t_start))
-    print('lookup time: %.06f'%(t_lookup))
-    print('valid time: %.06f'%(t_valid))
-    print('checks: %i'%n_checks)
+    # Return.
     return best_matches
 
-def validate_matches(config_a, config_b, matches):
-    n = len(matches)
+def validate_matches(config_a, config_b, matches, a_to_b):
+    # Ensure that classes match, colors match, poses match and that each brick
+    # is only matched to one other.
     valid_matches = set()
-    for a in range(n):
-        for b in matches[a]:
+    for a, a_matches in enumerate(matches):
+        for b in a_matches:
             class_a = config_a['class'][a]
             class_b = config_b['class'][b]
             if class_a != class_b or class_a == 0 or class_b == 0:
@@ -108,9 +148,9 @@ def validate_matches(config_a, config_b, matches):
             if color_a != color_b:
                 continue
             
-            pose_a = config_a['pose'][a]
+            transformed_pose_a = a_to_b @ config_a['pose'][a]
             pose_b = config_b['pose'][b]
-            if not numpy.allclose(pose_a, pose_b):
+            if not numpy.allclose(transformed_pose_a, pose_b):
                 continue
             
             valid_matches.add((a,b))
