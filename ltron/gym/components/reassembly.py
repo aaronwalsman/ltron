@@ -26,8 +26,8 @@ class Reassembly(LtronGymComponent):
         train=False,
         wrong_pose_discount=0.1,
     ):
-        self.class_ids = class_ids
-        self.color_ids = color_ids
+        #self.class_ids = class_ids
+        #self.color_ids = color_ids
         self.max_instances = max_instances
         self.workspace_scene_component = workspace_scene_component
         self.handspace_scene_component = handspace_scene_component
@@ -39,29 +39,35 @@ class Reassembly(LtronGymComponent):
         
         assert wrong_pose_discount > 0., 'Requires wrong pose discount > 0'
         
-        num_classes = max(self.class_ids.values())+1
-        num_colors = max(self.color_ids.values())+1
+        #num_classes = max(self.class_ids.values())+1
+        #num_colors = max(self.color_ids.values())+1
         
         self.action_space = Dict({'start':Discrete(2), 'end':Discrete(2)})
         observation_space = {'reassembling':Discrete(2)}
         if self.train:
             observation_space['target_configuration'] = ConfigurationSpace(
-                num_classes,
-                num_colors,
+                #num_classes,
+                #num_colors,
+                class_ids,
+                color_ids,
                 max_instances,
                 max_edges,
                 max_snaps_per_brick,
             )
             observation_space['workspace_configuration'] = ConfigurationSpace(
-                num_classes,
-                num_colors,
+                #num_classes,
+                #num_colors,
+                class_ids,
+                color_ids,
                 max_instances,
                 max_edges,
                 max_snaps_per_brick,
             )
             observation_space['handspace_configuration'] = ConfigurationSpace(
-                num_classes,
-                num_colors,
+                #num_classes,
+                #num_colors,
+                class_ids,
+                color_ids,
                 1,
                 0,
                 max_snaps_per_brick,
@@ -80,8 +86,9 @@ class Reassembly(LtronGymComponent):
         scene = self.workspace_scene_component.brick_scene
         handspace_scene = self.handspace_scene_component.brick_scene
         workspace_space = self.observation_space['workspace_configuration']
-        workspace_configuration = workspace_space.from_scene(
-            scene, self.class_ids, self.color_ids)
+        #workspace_configuration = workspace_space.from_scene(
+        #    scene, self.class_ids, self.color_ids)
+        workspace_configuration = workspace_space.from_scene(scene)
         
         #current_bricks, current_neighbors = scene.get_brick_neighbors()
         
@@ -103,8 +110,10 @@ class Reassembly(LtronGymComponent):
             self.observation['workspace_configuration'] = (
                 workspace_configuration)
             handspace_space = self.observation_space['handspace_configuration']
+            #handspace_configuration = handspace_space.from_scene(
+            #    handspace_scene, self.class_ids, self.color_ids)
             handspace_configuration = handspace_space.from_scene(
-                handspace_scene, self.class_ids, self.color_ids)
+                handspace_scene)
             self.observation['handspace_configuration'] = (
                 handspace_configuration)
             #alignment = numpy.zeros((self.max_instances+1,), dtype=numpy.long)
@@ -132,8 +141,9 @@ class Reassembly(LtronGymComponent):
         #]
         if self.train:
             target_space = self.observation_space['target_configuration']
-            self.target_configuration = target_space.from_scene(
-                workspace_scene, self.class_ids, self.color_ids)
+            #self.target_configuration = target_space.from_scene(
+            #    workspace_scene, self.class_ids, self.color_ids)
+            self.target_configuration = target_space.from_scene(workspace_scene)
             
             if self.dataset_component is not None:
                 metadata_path = hierarchy_branch(
