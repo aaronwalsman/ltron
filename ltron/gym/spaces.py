@@ -160,21 +160,27 @@ class ConfigurationSpace(spaces.Dict):
     '''
     def __init__(
         self,
-        num_classes,
-        num_colors,
+        #num_classes,
+        #num_colors,
+        class_ids,
+        color_ids,
         max_instances,
         max_edges,
         max_snaps_per_brick,
-        scene_min=-1000,
-        scene_max=1000,
+        scene_min=-10000,
+        scene_max=10000,
     ):
-        self.num_classes = num_classes
-        self.num_colors = num_colors
+        #self.num_classes = num_classes
+        #self.num_colors = num_colors
+        self.class_ids = class_ids
+        num_classes = max(self.class_ids.values())
+        self.color_ids = color_ids
+        num_colors = max(self.color_ids.values())
         self.max_instances = max_instances
         self.max_edges = max_edges
         
         self.space_dict = {
-            'num_instances' : SingleInstanceIndexSpace(max_instances),
+            #'num_instances' : SingleInstanceIndexSpace(max_instances),
             'class' : spaces.Box(
                 low=0,
                 high=num_classes,
@@ -188,15 +194,20 @@ class ConfigurationSpace(spaces.Dict):
                 dtype=numpy.long,
             ),
             'pose' : MultiSE3Space(max_instances, scene_min, scene_max),
-            'edges' : EdgeSpace(
-                max_instances,
-                max_snaps_per_brick,
-                max_edges,
-            ),
+            'edges' : EdgeSpace(max_instances, max_snaps_per_brick, max_edges),
         }
         
         super(ConfigurationSpace, self).__init__(self.space_dict)
     
+    def from_scene(self, scene):
+        return scene.get_configuration(
+            self.class_ids,
+            self.color_ids,
+            self.max_instances,
+            self.max_edges,
+        )
+    
+    '''
     def from_scene(self, scene, class_ids, color_ids):
         result = {}
         result['num_instances'] = len(scene.instances)
@@ -205,7 +216,7 @@ class ConfigurationSpace(spaces.Dict):
         result['color'] = numpy.zeros(
             (self.max_instances+1,), dtype=numpy.long)
         result['pose'] = numpy.zeros(
-            (self.max_instances+1, 4, 4), dtype=numpy.long)
+            (self.max_instances+1, 4, 4))
         
         for instance_id, instance in scene.instances.items():
             brick_type_name = str(instance.brick_type)
@@ -219,6 +230,7 @@ class ConfigurationSpace(spaces.Dict):
         result['edges'] = self.space_dict['edges'].from_scene(scene)
         
         return result
+    '''
 
 '''
 class InstanceAlignmentSpace(spaces.Box):
@@ -289,6 +301,20 @@ class InstanceListSpace(spaces.Dict):
         
         return result
 
+class EdgeSpace(spaces.Box):
+    def __init__(self, max_instances, max_snaps, max_edges):
+        low = numpy.zeros((4, max_edges), dtype=numpy.long)
+        high = numpy.zeros((4, max_edges), dtype=numpy.long)
+        high[:2,:] = max_instances
+        high[2:,:] = max_snaps-1
+        super(EdgeSpace, self).__init__(
+            low=low,
+            high=high,
+            shape=(4, max_edges),
+            dtype=numpy.long,
+        )
+
+'''
 class EdgeSpace(spaces.Dict):
     def __init__(
         self,
@@ -339,6 +365,7 @@ class EdgeSpace(spaces.Dict):
             result['score'] = score
         
         return result
+'''
 
 class InstanceGraphSpace(spaces.Dict):
     '''
