@@ -140,7 +140,7 @@ class BrickScene:
         with open(path, 'w') as f:
             f.write('\n'.join(lines))
     
-    def import_configuration(self, configuration):
+    def import_configuration(self, configuration, class_ids, color_ids):
         for i in range(len(configuration['class'])):
             instance_class = configuration['class'][i]
             if instance_class == 0:
@@ -148,9 +148,9 @@ class BrickScene:
             instance_color = configuration['color'][i]
             instance_pose = configuration['pose'][i]
             class_labels = {
-                value:key for key, value in configuration['class_ids'].items()}
+                value:key for key, value in class_ids.items()}
             color_labels = {
-                value:key for key, value in configuration['color_ids'].items()}
+                value:key for key, value in color_ids.items()}
             brick_type = class_labels[instance_class]
             color = color_labels[instance_color]
             
