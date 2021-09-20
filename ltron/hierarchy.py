@@ -5,20 +5,16 @@ import numpy
 def map_hierarchies(fn, *a):
     if isinstance(a[0], dict):
         assert all(isinstance(aa, dict) for aa in a[1:])
-        assert (
-            all(aa.keys() == a[0].keys() for aa in a[1:]),
-            ':'.join([str(aa.keys()) for aa in a])
-        )
+        assert all(aa.keys() == a[0].keys() for aa in a[1:]), (
+            ':'.join([str(aa.keys()) for aa in a]))
         return {
             key : map_hierarchies(fn, *[aa[key] for aa in a])
             for key in a[0].keys()
         }
     
     elif isinstance(a[0], (tuple, list)):
-        assert (
-            all(isinstance(aa, (tuple, list)) for aa in a[1:]),
-            ':'.join([str(aa) for aa in a])
-        )
+        assert all(isinstance(aa, (tuple, list)) for aa in a[1:]), (
+            ':'.join([str(aa) for aa in a]))
         assert all(len(aa) == len(a[0]) for aa in a[1:])
         return [
             map_hierarchies(fn, *[aa[i] for aa in a])
