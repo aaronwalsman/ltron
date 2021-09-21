@@ -310,6 +310,15 @@ class BrickScene:
             
         del(self.instances[instance])
     
+    def get_scene_bbox(self):
+        vertices = []
+        for instance in self.instances:
+            vertices.append(instance.bbox_vertices)
+        vertices = numpy.concatenate(vertices, axis=1)
+        vmin = numpy.min(vertices[:3])
+        vmax = numpy.max(vertices[:3])
+        return vmin, vmax
+    
     # instance snaps -----------------------------------------------------------
     
     def update_instance_snaps(self, instance):
