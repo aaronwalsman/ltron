@@ -211,7 +211,7 @@ class BrickScene:
     # instances ----------------------------------------------------------------
     
     def add_instance(self, brick_type, brick_color, transform):
-        if self.render_environment.window is not None:
+        if self.renderable and self.render_environment.window is not None:
             self.render_environment.window.set_active()
         self.brick_library.add_type(brick_type)
         self.color_library.load_colors([brick_color])
