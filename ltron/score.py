@@ -3,6 +3,7 @@ import numpy
 from scipy.optimize import linear_sum_assignment
 
 from ltron.symmetry import symmetry_table
+from ltron.matching import match_configurations
 
 # hungarian matching
 def compute_matching(scores):
