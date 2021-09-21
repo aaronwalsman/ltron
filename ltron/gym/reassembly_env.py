@@ -849,6 +849,8 @@ def reassembly_env(
         azimuth_offset=math.radians(45.),
         aspect_ratio=image_width/image_height,
         start_position=start_position,
+        frame_scene=True,
+        frame_border=0.,
     )
     
     # color randomization
@@ -979,6 +981,8 @@ def handspace_reassembly_env(
         distance_steps=distance_steps,
         aspect_ratio=workspace_image_width/workspace_image_height,
         start_position=start_position,
+        frame_scene=True,
+        frame_border=0.,
     )
     
     components['handspace_viewpoint'] = ControlledAzimuthalViewpointComponent(
@@ -990,6 +994,8 @@ def handspace_reassembly_env(
         distance_steps=distance_steps,
         aspect_ratio=handspace_image_width/handspace_image_height,
         start_position=(0,0,0),
+        frame_scene=True,
+        frame_border=0.
     )
     
     # color randomization

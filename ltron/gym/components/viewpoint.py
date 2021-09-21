@@ -28,6 +28,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         observe_view_matrix=False,
         scene_min=-1000,
         scene_max=1000,
+        frame_scene=True,
+        frame_border=0.,
     ):
         
         self.scene_component = scene_component
@@ -44,6 +46,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.start_position = start_position
         self.observe_camera_parameters = observe_camera_parameters
         self.observe_view_matrix = observe_view_matrix
+        self.frame_scene = frame_scene
+        self.frame_border = frame_border
         
         self.center = (0,0,0)
         
@@ -95,6 +99,12 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
                     random.randint(0, self.distance_steps-1)]
         else:
             self.position = list(self.start_position)
+        
+        if self.frame_scene:
+            scene = self.scene_component.brick_scene
+            bbox_min, bbox_max = scene.get_scene_bbox()
+            self.center = (bbox_min + bbox_max) / 2.
+        
         self.set_camera()
         
         self.compute_observation()
