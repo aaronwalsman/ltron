@@ -1,6 +1,7 @@
 import random
 import json
 import os
+import glob
 
 import tqdm
 
@@ -8,7 +9,52 @@ from ltron.bricks.brick_scene import BrickScene
 
 random.seed(141414)
 
-def build_dataset(name, path_root, paths, test_set):
+def build_metadata(name, path_root, test_percent):
+    metadata = {}
+    mpds = glob.glob(os.path.join(path_root, 'ldraw', '*.mpd'))
+    num_test = round(len(mpds) * test_percent)
+    num_train = len(mpds) - num_test
+    metadata['splits'] = {
+        'all':'{%s}/ldraw/*.mpd'%name,
+        'train':'{%s}/ldraw/*.mpd[:%i]'%(name, num_train),
+        'test':'{%s}/ldraw/*.mpd[%i:]'%(name, num_train),
+    }
+    
+    max_instances_per_scene = 0
+    max_edges_per_scene = 0
+    all_brick_names = set()
+    all_color_names = set()
+    for mpd in tqdm.tqdm(mpds):
+        scene = BrickScene(track_snaps=True)
+        scene.import_ldraw(mpd)
+        brick_names = set(scene.brick_library.keys())
+        all_brick_names |= brick_names
+        color_names = set(scene.color_library.keys())
+        all_color_names |= color_names
+        
+        num_instances = len(scene.instances)
+        max_instances_per_scene = max(num_instances, max_instances_per_scene)
+        
+        edges = scene.get_all_edges(unidirectional=False)
+        num_edges = edges.shape[1]
+        max_edges_per_scene = max(num_edges, max_edges_per_scene)
+    
+    metadata['max_instances_per_scene'] = max_instances_per_scene
+    metadata['max_edges_per_scene'] = max_edges_per_scene
+    metadata['class_ids'] = {
+        brick_name : i
+        for i, brick_name in enumerate(all_brick_names, start=1)
+    }
+    metadata['color_ids'] = {
+        color_name : i
+        for i, color_name in enumerate(all_color_names, start=0)
+    }
+    
+    out_path = os.path.join(path_root, '%s.json'%name)
+    with open(out_path, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+def build_dataset_old(name, path_root, paths, test_set):
     # intialize data
     data = {}
     data['splits'] = {}

@@ -1075,7 +1075,6 @@ def handspace_reassembly_env(
         workspace_scene_component=components['workspace_scene'],
         handspace_scene_component=components['handspace_scene'],
         dataset_component=components['dataset'],
-        metadata_path=['metadata'],
         reassembly_mode='clear',
         train=train,
     )
