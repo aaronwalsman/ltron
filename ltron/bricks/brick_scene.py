@@ -312,11 +312,16 @@ class BrickScene:
     
     def get_scene_bbox(self):
         vertices = []
-        for instance in self.instances:
-            vertices.append(instance.bbox_vertices)
-        vertices = numpy.concatenate(vertices, axis=1)
-        vmin = numpy.min(vertices[:3])
-        vmax = numpy.max(vertices[:3])
+        for i, instance in self.instances.items():
+            vertices.append(instance.bbox_vertices())
+        if len(vertices):
+            vertices = numpy.concatenate(vertices, axis=1)
+            vmin = numpy.min(vertices[:3])
+            vmax = numpy.max(vertices[:3])
+        else:
+            print('no verts')
+            vmin = numpy.zeros(3)
+            vmax = numpy.zeros(3)
         return vmin, vmax
     
     # instance snaps -----------------------------------------------------------
