@@ -67,7 +67,11 @@ def remap_variant_paths(paths, out_path, variant_tables=None):
         variant_tables = json.load(open(variant_table_path))
     
     if os.isdir(paths):
-        paths = [os.path.join(path, p) for p in os.listdir(path)]
+        #paths = [os.path.join(path, p) for p in os.listdir(path)]
+        paths = (
+            glob.glob(os.path.join(paths, '*.ldr')) +
+            glob.glob(os.path.join(paths, '*.mpd'))
+        )
     
     for path in paths:
         file_name = os.path.split(path)[-1]
