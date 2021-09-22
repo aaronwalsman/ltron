@@ -7,6 +7,30 @@ from ltron.gym.reassembly_env import handspace_reassembly_template_action
 from ltron.matching import match_configurations
 from ltron.hierarchy import len_hierarchy, index_hierarchy
 
+class ExpertError(Exception):
+    pass
+
+class NothingRemovableError(ExpertError):
+    pass
+
+class UnfixableInstanceError(ExpertError):
+    pass
+
+class Off90RotationError(ExpertError):
+    pass
+
+class NoPlaceableTargetsError(ExpertError):
+    pass
+
+class NoUprightVisibleSnapsError(ExpertError):
+    pass
+
+class CantFindSnapError(ExpertError):
+    pass
+
+class TooManyRotatableSnapsError(ExpertError):
+    pass
+
 class ReassemblyExpert:
     def __init__(self, batch_size, class_ids, color_ids):
         self.batch_size = batch_size
@@ -14,6 +38,7 @@ class ReassemblyExpert:
         self.class_names = {value:key for key, value in class_ids.items()}
         self.color_ids = color_ids
         self.color_names = {value:key for key, value in color_ids.items()}
+        self.broken_seqs = {}
     
     def __call__(
         self,
@@ -22,14 +47,28 @@ class ReassemblyExpert:
         unfixable_mode='terminate'
     ):
         num_observations = len_hierarchy(observations)
-        return [
-            self.act(
-                index_hierarchy(observations, i),
-                check_collisions=check_collisions,
-                unfixable_mode=unfixable_mode,
-            )
-            for i in range(num_observations)
-        ]
+        actions = []
+        for i in range(num_observations):
+            try:
+                action = self.act(
+                    index_hierarchy(observations, i),
+                    check_collisions=check_collisions,
+                    unfixable_mode=unfixable_mode,
+                )
+                actions.append(action)
+            except ExpertError as e:
+                action = handspace_reassembly_template_action()
+                action['reassembly']['end'] = 1
+                actions.append(action)
+                
+                type_str = str(type(e))
+                if type_str not in self.broken_seqs:
+                    self.broken_seqs[type_str] = 0
+                self.broken_seqs[type_str] += 1
+                for c, n in self.broken_seqs.items():
+                    print('%s: %i'%(str(c), n))
+        
+        return actions
     
     def act(
         self,
@@ -76,6 +115,8 @@ class ReassemblyExpert:
         
         # TMP
         removable_instances = [i for i in visible_instances if i != 0]
+        if not len(removable_instances):
+            raise NothingRemovableError
         instance_to_remove = random.choice(removable_instances)
         
         return instance_to_remove
@@ -165,7 +206,8 @@ class ReassemblyExpert:
         if len(unfixable_instances):
             
             # TODO: All of this basically
-            raise NotImplementedError('Unfixable instance, come back to this')
+            #raise NotImplementedError('Unfixable instance, come back to this')
+            raise UnfixableInstanceError
             
             if unfixable_mode == 'terminate':
                 action = handspace_resassembly_template_action()
@@ -254,21 +296,18 @@ class ReassemblyExpert:
             elif numpy.allclose(offset_to_r2, target_offset):
                 direction = random.randint(0,1)
             else:
-                assert False, 'this should never happen (yet)'
+                #assert False, 'this should never happen (yet)'
+                raise Off90RotationError
             
             pos_snaps = observation['workspace_pos_snap_render']
             neg_snaps = observation['workspace_neg_snap_render']
             
-            try:
-                pick_y, pick_x, pick_p = self.select_from_pos_neg_maps(
-                    (pos_snaps[:,:,0] == misplaced_instance) &
-                    (pos_snaps[:,:,1] == snap_to_rotate),
-                    (neg_snaps[:,:,0] == misplaced_instance) &
-                    (neg_snaps[:,:,1] == snap_to_rotate),
-                )
-            except:
-                import pdb
-                pdb.set_trace()
+            pick_y, pick_x, pick_p = self.select_from_pos_neg_maps(
+                (pos_snaps[:,:,0] == misplaced_instance) &
+                (pos_snaps[:,:,1] == snap_to_rotate),
+                (neg_snaps[:,:,0] == misplaced_instance) &
+                (neg_snaps[:,:,1] == snap_to_rotate),
+            )
             
             action = handspace_reassembly_template_action()
             action['rotate']['activate'] = True
@@ -340,9 +379,10 @@ class ReassemblyExpert:
                 if len(upright_snaps):
                     placeable_target_instances.append(target_instance)
             
-        assert len(placeable_target_instances), (
-            'No placeable instances, there may be no upright target instances')
-        
+        #assert len(placeable_target_instances), (
+        #    'No placeable instances, there may be no upright target instances')
+        if not len(placeable_target_instances):
+            raise NoPlaceableTargetsError
         
         return self.pick_target_instance(
             target_config, placeable_target_instances)
@@ -422,7 +462,13 @@ class ReassemblyExpert:
             # There should only be one correct snap between the misplaced
             # and candidate bricks, otherwise, the misplaced brick wouldn't
             # be misplaced.
-            assert len(instance_matching_snaps) < 2
+            #try:
+            #    assert len(set(instance_matching_snaps)) < 2
+            #except:
+            #    import pdb
+            #    pdb.set_trace()
+            if len(set(instance_matching_snaps)) >= 2:
+                raise TooManyRotatableSnapsError
             
             rotation_snaps.extend(instance_matching_snaps)
             target_match.extend(instance_target_matches)
@@ -476,8 +522,10 @@ class ReassemblyExpert:
             set(numpy.unique(neg_snaps[:,:,1]))
         )
         upright_visible_snaps = (visible_snaps & set(upright_snaps)) - set([0])
-        assert len(upright_visible_snaps), (
-            'Somehow none of the upright snaps are visible')
+        #assert len(upright_visible_snaps), (
+        #    'Somehow none of the upright snaps are visible')
+        if not len(upright_visible_snaps):
+            raise NoUprightVisibleSnapsError
         picked_snap = random.choice(list(upright_visible_snaps))
         
         # Pick one of the snap pixels.
@@ -580,14 +628,6 @@ class ReassemblyExpert:
             (neg_workspace_snaps[:,:,1] == w_snap)
         )
         
-        
-        if (not numpy.any(pos_workspace_map) and
-            not numpy.any(neg_workspace_map)
-        ):
-            import pdb
-            pdb.set_trace()
-        
-        
         place_y, place_x, place_p = self.select_from_pos_neg_maps(
             pos_workspace_map, neg_workspace_map)
         
@@ -624,7 +664,11 @@ class ReassemblyExpert:
             numpy.zeros(neg_y.shape, dtype=numpy.long),
         ))
         
-        r = random.randint(0, y.shape[0]-1)
+        try:
+            r = random.randint(0, y.shape[0]-1)
+        except:
+            raise CantFindSnapError
+        
         pick_y = y[r]
         pick_x = x[r]
         pick_p = p[r]

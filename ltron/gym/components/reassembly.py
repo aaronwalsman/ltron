@@ -21,7 +21,6 @@ class Reassembly(LtronGymComponent):
         workspace_scene_component,
         handspace_scene_component=None,
         dataset_component=None,
-        metadata_path=None,
         reassembly_mode='clear',
         train=False,
         wrong_pose_discount=0.1,
@@ -32,7 +31,6 @@ class Reassembly(LtronGymComponent):
         self.workspace_scene_component = workspace_scene_component
         self.handspace_scene_component = handspace_scene_component
         self.dataset_component = dataset_component
-        self.metadata_path = metadata_path
         self.reassembly_mode = reassembly_mode
         self.train = train
         self.wrong_pose_discount = wrong_pose_discount
@@ -145,6 +143,7 @@ class Reassembly(LtronGymComponent):
             #    workspace_scene, self.class_ids, self.color_ids)
             self.target_configuration = target_space.from_scene(workspace_scene)
             
+            '''
             if self.dataset_component is not None:
                 metadata_path = hierarchy_branch(
                     self.dataset_component.dataset_item, self.metadata_path)
@@ -155,6 +154,7 @@ class Reassembly(LtronGymComponent):
                     self.target_ordering = numpy.zeros(
                         self.max_instances+1, dtype=numpy.long)
                     self.target_ordering[:len(ordering)] = ordering
+            '''
         
         if self.handspace_scene_component is not None:
             handspace_scene = self.handspace_scene_component.brick_scene

@@ -14,6 +14,7 @@ from gym.spaces import (
 from ltron.gym.spaces import (
     SinglePixelSelectionSpace,
 )
+from ltron.geometry.utils import matrix_is_mirrored
 
 from ltron.geometry.collision import check_collision
 
@@ -98,7 +99,9 @@ class HandspacePickAndPlace(LtronGymComponent):
         pick_brick_type = pick_instance.brick_type
         pick_brick_color = pick_instance.color
         brick_type_snap = pick_brick_type.snaps[pick_snap_id]
-        
+        brick_type_snap_transform = brick_type_snap.transform
+        if matrix_is_mirrored(brick_type_snap_transform):
+            brick_type_snap_transform[0:3,0] *= -1
         
         workspace_view_matrix = workspace_scene.get_view_matrix()
         handspace_view_matrix = handspace_scene.get_view_matrix()
@@ -110,7 +113,7 @@ class HandspacePickAndPlace(LtronGymComponent):
             workspace_transform = (
                 workspace_scene.upright @
                 rotation.transformation_matrix @
-                numpy.linalg.inv(brick_type_snap.transform)
+                numpy.linalg.inv(brick_type_snap_transform)
             )
             handspace_camera_local = (
                 handspace_view_matrix @ pick_instance.transform)
