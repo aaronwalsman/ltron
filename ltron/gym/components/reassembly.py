@@ -9,7 +9,7 @@ from gym.spaces import Dict, Discrete
 from ltron.hierarchy import hierarchy_branch
 from ltron.score import score_configurations
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
-from ltron.gym.spaces import ConfigurationSpace, InstanceAlignmentSpace
+from ltron.gym.spaces import ConfigurationSpace, InstanceMatchingSpace
 
 class Reassembly(LtronGymComponent):
     def __init__(self,
@@ -23,7 +23,7 @@ class Reassembly(LtronGymComponent):
         dataset_component=None,
         reassembly_mode='clear',
         train=False,
-        wrong_pose_discount=0.1,
+        #wrong_pose_discount=0.1,
     ):
         #self.class_ids = class_ids
         #self.color_ids = color_ids
@@ -33,9 +33,9 @@ class Reassembly(LtronGymComponent):
         self.dataset_component = dataset_component
         self.reassembly_mode = reassembly_mode
         self.train = train
-        self.wrong_pose_discount = wrong_pose_discount
+        #self.wrong_pose_discount = wrong_pose_discount
         
-        assert wrong_pose_discount > 0., 'Requires wrong pose discount > 0'
+        #assert wrong_pose_discount > 0., 'Requires wrong pose discount > 0'
         
         #num_classes = max(self.class_ids.values())+1
         #num_colors = max(self.color_ids.values())+1
@@ -70,12 +70,8 @@ class Reassembly(LtronGymComponent):
                 0,
                 max_snaps_per_brick,
             )
-            observation_space['target_workspace_alignment'] = (
-                InstanceAlignmentSpace(max_instances))
-        
-        #if self.dataset_component is not None:
-        #    observation_space['target_ordering'] = InstanceAlignmentSpace(
-        #        max_instances)
+            observation_space['target_workspace_matching'] = (
+                InstanceMatchingSpace(max_instances))
         
         self.observation_space = Dict(observation_space)
         self.reassembling=False
@@ -90,17 +86,18 @@ class Reassembly(LtronGymComponent):
         
         #current_bricks, current_neighbors = scene.get_brick_neighbors()
         
-        self.score, x_scores, y_scores, x_best, y_best, s = score_configurations(
+        #self.score, x_scores, y_scores, x_best, y_best, s = score_configurations(
+        self.score, matching = score_configurations(
             #self.target_bricks,
             #self.target_neighbors,
             #current_bricks,
             #current_neighbors,
             self.target_configuration,
             workspace_configuration,
-            wrong_pose_discount=self.wrong_pose_discount,
+            #wrong_pose_discount=self.wrong_pose_discount,
         )
         
-        scene.export_ldraw('./tmp.mpd')
+        #scene.export_ldraw('./tmp.mpd')
         
         self.observation = {'reassembling':self.reassembling}
         if self.train:
@@ -116,14 +113,18 @@ class Reassembly(LtronGymComponent):
                 handspace_configuration)
             #alignment = numpy.zeros((self.max_instances+1,), dtype=numpy.long)
             #alignment[1:len(x_best)+1] = x_best+1
-            alignment = numpy.zeros((self.max_instances, 2), dtype=numpy.long)
-            alignment[:len(x_best),0] = x_best+1
-            alignment[:len(y_best),1] = y_best+1
-            score = numpy.zeros((self.max_instances, 2))
-            score[:len(x_scores),0] = x_scores
-            score[:len(y_scores),1] = y_scores
-            self.observation['target_workspace_alignment'] = {
-                'alignment':alignment, 'score':score}
+            matching_array = numpy.zeros(
+                (self.max_instances, 2), dtype=numpy.long)
+            if len(matching):
+                matching_array[:len(matching)] = list(matching)
+            #alignment[:len(x_best),0] = x_best+1
+            #alignment[:len(y_best),1] = y_best+1
+            #score = numpy.zeros((self.max_instances, 2))
+            #score[:len(x_scores),0] = x_scores
+            #score[:len(y_scores),1] = y_scores
+            #self.observation['target_workspace_alignment'] = {
+            #    'alignment':alignment}
+            self.observation['target_workspace_matching'] = matching_array
             
             #if self.dataset_component is not None:
             #    self.observation['target_ordering'] = (

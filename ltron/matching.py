@@ -157,3 +157,13 @@ def validate_matches(config_a, config_b, matches, a_to_b):
             break
     
     return valid_matches
+
+def match_lookup(matching, a_config, b_config):
+    a_to_b = {a:b for a, b in matching}
+    b_to_a = {b:a for a, b in matching}
+    a_instances = numpy.where(a_config['class'] != 0)[0]
+    miss_a = set(a for a in a_instances if a not in a_to_b)
+    b_instances = numpy.where(b_config['class'] != 0)[0]
+    miss_b = set(b for b in b_instances if b not in b_to_a)
+    
+    return a_to_b, b_to_a, miss_a, miss_b

@@ -4,7 +4,7 @@ import numpy
 
 from ltron.bricks.brick_type import BrickType
 from ltron.gym.reassembly_env import handspace_reassembly_template_action
-from ltron.matching import match_configurations
+from ltron.matching import match_configurations, match_lookup
 from ltron.hierarchy import len_hierarchy, index_hierarchy
 
 class ExpertError(Exception):
@@ -167,6 +167,7 @@ class ReassemblyExpert:
         # Compute matching between workspace and target.
         matching = match_configurations(workspace_config, target_config)
         
+        '''
         # Compute what is missing from the target (false negatives)
         # and what is extra in the workspace (false positives).
         workspace_to_target = {a:b for a, b in matching}
@@ -177,6 +178,12 @@ class ReassemblyExpert:
         target_instances = numpy.where(target_config['class'] != 0)[0]
         unplaced_target_instances = [
             b for b in target_instances if b not in target_to_workspace]
+        '''
+        (workspace_to_target,
+         target_to_workspace,
+         misplaced_workspace_instances,
+         unplaced_target_instances) = match_lookup(
+            matching, workspace_config, target_config)
         
         # Compute which misplaced instances in the workspace are fixable
         # using low-level actions.
@@ -184,8 +191,10 @@ class ReassemblyExpert:
         unfixable_instances = []
         misplaced_rotatable_snaps = []
         misplaced_target_matches = []
-        unplaced_classes = target_config['class'][unplaced_target_instances]
-        unplaced_colors = target_config['color'][unplaced_target_instances]
+        unplaced_classes = target_config['class'][
+            list(unplaced_target_instances)]
+        unplaced_colors = target_config['color'][
+            list(unplaced_target_instances)]
         unplaced_class_colors = set(zip(unplaced_classes, unplaced_colors))
         for misplaced_instance in misplaced_workspace_instances:
             rotatable_snaps, target_match = self.find_misplaced_rotatable_snaps(

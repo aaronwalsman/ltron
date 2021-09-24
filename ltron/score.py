@@ -5,6 +5,27 @@ from scipy.optimize import linear_sum_assignment
 from ltron.symmetry import symmetry_table
 from ltron.matching import match_configurations
 
+def f1(tp, fp, fn):
+    return tp / (tp + 0.5 * (fp + fn))
+
+def score_configurations(proposal, target):
+    matching = match_configurations(proposal, target)
+    matched_proposals = set(p for p, t in matching)
+    matched_targets = set(t for p, t in matching)
+    proposed_instances = numpy.where(proposal['class'] != 0)[0]
+    target_instances = numpy.where(target['class'] != 0)[0]
+    true_positives = sum(
+        1 for p in proposed_instances if p in matched_proposals)
+    false_positives = sum(
+        1 for p in proposed_instances if p not in matched_proposals)
+    false_negatives = sum(
+        1 for t in target_instances if t not in matched_targets)
+    
+    return f1(true_positives, false_positives, false_negatives), matching
+
+# ==============================================================================
+# Old, unused, for reference only
+
 # hungarian matching
 def compute_matching(scores):
     costs = 1. - scores
@@ -124,7 +145,7 @@ def get_neighbors(configuration):
     
     return neighbors
 
-def score_configurations(
+def score_configurations_old(
     #x_bricks, x_neighbors, y_bricks, y_neighbors,
     x_configuration,
     y_configuration,

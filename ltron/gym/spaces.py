@@ -242,7 +242,7 @@ class InstanceAlignmentSpace(spaces.Box):
             dtype=numpy.long,
         )
 '''
-
+'''
 class InstanceAlignmentSpace(spaces.Dict):
     def __init__(self, max_instances):
         alignment_space = spaces.Box(
@@ -258,6 +258,15 @@ class InstanceAlignmentSpace(spaces.Dict):
         )
         super(InstanceAlignmentSpace, self).__init__({
             'alignment':alignment_space, 'score':score_space})
+'''
+class InstanceMatchingSpace(spaces.Box):
+    def __init__(self, max_instances):
+        super(InstanceMatchingSpace, self).__init__(
+            shape=(max_instances, 2),
+            low=0,
+            high=max_instances,
+            dtype=numpy.long,
+        )
 
 class InstanceListSpace(spaces.Dict):
     '''

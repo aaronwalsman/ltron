@@ -104,6 +104,11 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
             scene = self.scene_component.brick_scene
             bbox_min, bbox_max = scene.get_scene_bbox()
             self.center = (bbox_min + bbox_max) / 2.
+            print('!'*80)
+            print('center')
+            print(bbox_min, bbox_max)
+            print(self.center)
+            print('+'*80)
         
         self.set_camera()
         
@@ -156,14 +161,14 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         scene.set_projection(self.projection)
         
         # pose
-        bbox = scene.get_instance_center_bbox()
-        bbox_min, bbox_max = bbox
-        bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
+        #bbox = scene.get_instance_center_bbox()
+        #bbox_min, bbox_max = bbox
+        #bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
         #center = bbox_min + bbox_range * 0.5
-        center = (0,0,0)
+        #center = (0,0,0)
         self.view_matrix = numpy.linalg.inv(
             camera.azimuthal_parameters_to_matrix(
-                azimuth, elevation, 0, distance, 0.0, 0.0, *center)
+                azimuth, elevation, 0, distance, 0.0, 0.0, *self.center)
         )
         scene.set_view_matrix(self.view_matrix)
 

@@ -13,11 +13,13 @@ class CollisionChecker:
         scene,
         resolution=(64,64),
         max_intersection=4,
+        return_colliding_instances=False
     ):
         self.scene = scene
         self.frame_buffer = FrameBufferWrapper(
             resolution[0], resolution[1], anti_alias=False)
         self.max_intersection = max_intersection
+        self.return_colliding_instances=False
     
     def check_collision(
         self,
@@ -31,6 +33,7 @@ class CollisionChecker:
             render_transform,
             frame_buffer=self.frame_buffer,
             max_intersection=self.max_intersection,
+            return_colliding_instances=self.return_colliding_instances
         )
     
     def check_snap_collision(
@@ -48,6 +51,7 @@ class CollisionChecker:
             direction,
             *args,
             frame_buffer=self.frame_buffer,
+            return_colliding_instances=return_colliding_instances,
             **kwargs,
         )
 
