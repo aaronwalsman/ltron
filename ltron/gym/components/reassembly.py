@@ -19,6 +19,7 @@ class Reassembly(LtronGymComponent):
         max_edges,
         max_snaps_per_brick,
         workspace_scene_component,
+        workspace_viewpoint_component=None,
         handspace_scene_component=None,
         dataset_component=None,
         reassembly_mode='clear',
@@ -29,6 +30,7 @@ class Reassembly(LtronGymComponent):
         #self.color_ids = color_ids
         self.max_instances = max_instances
         self.workspace_scene_component = workspace_scene_component
+        self.workspace_viewpoint_component = workspace_viewpoint_component
         self.handspace_scene_component = handspace_scene_component
         self.dataset_component = dataset_component
         self.reassembly_mode = reassembly_mode
@@ -173,6 +175,9 @@ class Reassembly(LtronGymComponent):
             self.reassembling=True
             workspace_scene = self.workspace_scene_component.brick_scene
             workspace_scene.clear_instances()
+            
+            if self.workspace_viewpoint_component is not None:
+                self.workspace_viewpoint_component.center = (0,0,0)
             
             if self.handspace_scene_component is not None:
                 handspace_scene = self.handspace_scene_component.brick_scene

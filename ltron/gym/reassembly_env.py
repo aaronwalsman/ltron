@@ -1073,6 +1073,7 @@ def handspace_reassembly_env(
         max_edges=max_edges,
         max_snaps_per_brick=max_snaps,
         workspace_scene_component=components['workspace_scene'],
+        workspace_viewpoint_component=components['workspace_viewpoint'],
         handspace_scene_component=components['handspace_scene'],
         dataset_component=components['dataset'],
         reassembly_mode='clear',

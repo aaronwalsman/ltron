@@ -2,10 +2,13 @@ import random
 
 import numpy
 
+from PIL import Image
+
 from ltron.bricks.brick_type import BrickType
 from ltron.gym.reassembly_env import handspace_reassembly_template_action
 from ltron.matching import match_configurations, match_lookup
 from ltron.hierarchy import len_hierarchy, index_hierarchy
+from ltron.visualization.drawing import stack_images_horizontal, write_text
 
 class ExpertError(Exception):
     pass
@@ -44,16 +47,26 @@ class ReassemblyExpert:
         self,
         observations,
         check_collisions=False,
-        unfixable_mode='terminate'
+        unfixable_mode='terminate',
+        seq_ids=None,
+        frame_ids=None
     ):
         num_observations = len_hierarchy(observations)
         actions = []
         for i in range(num_observations):
             try:
+                if seq_ids is None:
+                    seq_id = None
+                    frame_id = None
+                else:
+                    seq_id = seq_ids[i]
+                    frame_id = frame_ids[i]
                 action = self.act(
                     index_hierarchy(observations, i),
                     check_collisions=check_collisions,
                     unfixable_mode=unfixable_mode,
+                    seq_id=seq_id,
+                    frame_id=frame_id,
                 )
                 actions.append(action)
             except ExpertError as e:
@@ -67,28 +80,49 @@ class ReassemblyExpert:
                 self.broken_seqs[type_str] += 1
                 for c, n in self.broken_seqs.items():
                     print('%s: %i'%(str(c), n))
-        
+                
         return actions
     
     def act(
         self,
         observation,
         check_collisions=False,
-        unfixable_mode='terminate'
+        unfixable_mode='terminate',
+        seq_id=None,
+        frame_id=None,
     ):
-        print('='*80)
-        print('act')
-        if not observation['reassembly']['reassembling']:
-            return self.disassembly_step(
-                observation,
-                check_collisions=check_collisions,  
-            )
-        else:
-            return self.reassembly_step(
-                observation,
-                check_collisions=check_collisions,
-                unfixable_mode=unfixable_mode,
-            )
+        observation['workspace_visualization'] = (
+            observation['workspace_color_render'].copy())
+        observation['handspace_visualization'] = (
+            observation['handspace_color_render'].copy())
+        
+        try:
+            print('='*80)
+            print('act')
+            if not observation['reassembly']['reassembling']:
+                return self.disassembly_step(
+                    observation,
+                    check_collisions=check_collisions,  
+                )
+            else:
+                return self.reassembly_step(
+                    observation,
+                    check_collisions=check_collisions,
+                    unfixable_mode=unfixable_mode,
+                )
+        
+        except ExpertError as e:
+            observation['workspace_visualization'] = write_text(
+                observation['workspace_visualization'], str(type(e)))
+            raise
+        
+        finally:
+            visualization = stack_images_horizontal(
+                (observation['workspace_visualization'],
+                 observation['handspace_visualization']),
+                align='bottom')
+            Image.fromarray(visualization).save(
+                './vis_%i_%i.png'%(seq_id, frame_id))
     
     def disassembly_step(self, observation, check_collisions=False):
         print('-- disassembly_step')

@@ -4,6 +4,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 from skimage.draw import line
 
+from splendor.masks import color_index_to_byte
+
 def draw_box(image, min_x, min_y, max_x, max_y, color):
     # expects numpy image hxwx3
     image[min_y, min_x:max_x+1] = color
@@ -11,13 +13,7 @@ def draw_box(image, min_x, min_y, max_x, max_y, color):
     image[min_y:max_y+1, min_x] = color
     image[min_y:max_y+1, max_x] = color
 
-def test(path):
-    image = numpy.array(Image.open(path))
-    draw_box(image, 10, 10, 20, 40, (255, 0, 0))
-    Image.fromarray(image).save('box.png')
-
 def draw_vector_field(image, vector_field, weight, color):
-    
     image_height, image_width = image.shape[:2]
     field_height, field_width = vector_field.shape[:2]
     
@@ -87,3 +83,51 @@ def write_text(
     draw.text(location, text, color, font)
     
     return numpy.array(image)
+
+def map_overlay(image, overlay, opacity, convert_mask_colors=False):
+    h, w = image.shape[:2]
+    if convert_map_colors:
+        overlay = color_index_to_byte(overlay)
+    upsampled_overlay = block_upscale_image(overlay, w, h)
+    upsampled_opacity = block_upscale_image(opacity, w, h)
+    return (
+        image * (1. - upsampled_opacity) +
+        upsampled_overlay * upsampled_opacity).astype(numpy.uint8)
+
+def stack_images_horizontal(images, align='top', background_color=(0,0,0)):
+    max_h = max(image.shape[0] for image in images)
+    sum_w = sum(image.shape[1] for image in images)
+    out = numpy.zeros((max_h, sum_w, 3), dtype=numpy.uint8)
+    out[:,:] = background_color
+    start_x = 0
+    for image in images:
+        h, w = image.shape[:2]
+        end_x = start_x + w
+        if align=='top':
+            start_y = 0
+            end_y = h
+        elif align=='bottom':
+            start_y = max_h-h
+            end_y = max_h
+        out[start_y:end_y, start_x:end_x] = image
+        start_x = end_x
+    return out
+
+def stack_images_vertical(images, align='left', background_color=(0,0,0)):
+    sum_h = sum(image.shape[0] for image in images)
+    max_w = max(image.shape[1] for image in images)
+    out = numpy.zeros((sum_h, max_w, 3), dtype=numpy.uint8)
+    out[:,:] = background_color
+    start_y = 0
+    for image in images:
+        h, w = image.shape[:2]
+        end_y = start_y + h
+        if align=='left':
+            start_x = 0
+            end_x = w
+        elif align=='right':
+            start_x = max_w-w
+            end_x = max_w
+        out[start_y:end_y, start_x:end_x] = image
+        start_y = end_y
+    return out
