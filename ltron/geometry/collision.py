@@ -1,11 +1,22 @@
 import numpy
 
+from scipy.ndimage import binary_erosion
+
 from splendor.frame_buffer import FrameBufferWrapper
 from splendor.camera import orthographic_matrix
 from splendor.image import save_image, save_depth
 from splendor.masks import color_byte_to_index
 
 from ltron.geometry.utils import unscale_transform
+
+def make_collision_framebuffer(resolution):
+    frame_buffer = FrameBufferWrapper(
+        resolution[0],
+        resolution[1],
+        anti_alias=False,
+    )
+    
+    return frame_buffer
 
 class CollisionChecker:
     def __init__(
@@ -16,8 +27,7 @@ class CollisionChecker:
         return_colliding_instances=False
     ):
         self.scene = scene
-        self.frame_buffer = FrameBufferWrapper(
-            resolution[0], resolution[1], anti_alias=False)
+        self.frame_buffer = make_collision_framebuffer(resolution)
         self.max_intersection = max_intersection
         self.return_colliding_instances=False
     
@@ -54,6 +64,90 @@ class CollisionChecker:
             return_colliding_instances=return_colliding_instances,
             **kwargs,
         )
+
+def build_collision_map(
+    scene,
+    target_instances=None,
+    scene_instances=None,
+    frame_buffer=None,
+    resolution=(64,64),
+    *args,
+    **kwargs,
+):
+    
+    if target_instances is None:
+        target_instances = set(str(i) for i in scene.instances.keys())
+    
+    if scene_instances is None:
+        scene_instances = set(str(i) for i in scene.instances.keys())
+    else:
+        scene_instances = set(
+            str(scene_instance) for scene_instance in scene_instances)
+    
+    if frame_buffer is None:
+        frame_buffer = make_collision_framebuffer(resolution)
+    
+    edges = scene.get_all_edges(unidirectional=False)
+    collision_map = {}
+    for instance in target_instances:
+        instance = scene.instances[instance]
+        instance_id = instance.instance_id
+        instance_name = instance.instance_name
+        collision_map[instance_id] = {}
+        source_edges = edges[0] == instance_id
+        snaps_to_check = edges[2, source_edges]
+        snap_groups = {}
+        for snap_id in snaps_to_check:
+            snap = instance.get_snap(snap_id)
+            #feature = (snap.polarity == '+', *tuple(snap.transform[:3,1]))
+            axis = snap.transform[:3,1]
+            for key in snap_groups:
+                #if numpy.allclose(key, feature):
+                if numpy.abs(key @ axis) < 0.0001:
+                    snap_groups[key].append(snap_id)
+                    break
+            else:
+                #snap_groups[feature] = [snap_id]
+                snap_groups[axis] = [snap_id]
+        
+        #for snap_id in snaps_to_check:
+        #for feature, snap_ids in snap_groups.items():
+        for axis, snap_ids in snap_groups.items():
+            snap_id = snap_ids[0]
+            snap = instance.get_snap(snap_id)
+            for direction in 'push', 'pull':
+                for s_id in snap_ids:
+                    collision_map[instance_id][s_id, direction] = set()
+                current_scene_instances = scene_instances - set([instance_name])
+                k = 0
+                while current_scene_instances:
+                    #if instance_id == 1:
+                    #    dump_images = 'one_%i_%s_%i'%(snap_id, direction, k)
+                    #else:
+                    #    dump_images = None
+                    k += 1
+                    colliders = check_snap_collision(
+                        scene,
+                        [instance],
+                        snap,
+                        direction,
+                        scene_instances=current_scene_instances,
+                        return_colliding_instances=True,
+                        frame_buffer=frame_buffer,
+                        #dump_images=dump_images,
+                        *args,
+                        **kwargs,
+                    )
+                    if len(colliders):
+                        colliders = set(str(i) for i in colliders)
+                        for s_id in snap_ids:
+                            collision_map[instance_id][s_id, direction] |= (
+                                colliders)
+                        current_scene_instances -= colliders
+                    else:
+                        break
+    
+    return collision_map
 
 def check_snap_collision(
     scene,
@@ -102,6 +196,7 @@ def check_collision(
     resolution=(64,64),
     frame_buffer=None,
     max_intersection=4,
+    erosion=1,
     required_clearance=24,
     tolerance_spacing=8,
     dump_images=None,
@@ -124,10 +219,7 @@ def check_collision(
     
     # build a splendor frame buffer if a shared one was not specified ----------
     if frame_buffer is None:
-        frame_buffer = FrameBufferWrapper(
-                resolution[0],
-                resolution[1],
-                anti_alias=False)
+        frame_buffer = make_collision_framebuffer(resolution)
     
     # store the camera info and which bricks are hidden ------------------------
     original_view_matrix = scene.get_view_matrix()
@@ -148,7 +240,7 @@ def check_collision(
     local_target_vertices = numpy.concatenate(local_target_vertices, axis=1)
     box_min = numpy.min(local_target_vertices, axis=1)
     box_max = numpy.max(local_target_vertices, axis=1)
-    thickness = box_max[1] - box_min[1]
+    thickness = box_max[2] - box_min[2]
     camera_distance = thickness + required_clearance + 2 * tolerance_spacing
     near_clip = 1 * tolerance_spacing
     far_clip = thickness * 2 + required_clearance + 3 * tolerance_spacing
@@ -162,6 +254,7 @@ def check_collision(
             t = -box_min[1],
             n = near_clip,
             f = far_clip)
+    
     scene.set_projection(orthographic_projection)
     
     # render -------------------------------------------------------------------
@@ -218,14 +311,22 @@ def check_collision(
         collision_pixels = collision_pixels * 255
         save_image(collision_pixels, './%s_collision.png'%dump_images)
     
+    if erosion or return_colliding_instances:
+        collision = offset > max_intersection
+        if erosion:
+            collision = binary_erosion(collision, iterations=erosion)
+    
     if return_colliding_instances:
-        colliding_y, colliding_x = numpy.where(offset > max_intersection)
+        colliding_y, colliding_x = numpy.where(collision)
         colliding_colors = scene_mask[colliding_y, colliding_x]
         colliding_bricks = numpy.unique(color_byte_to_index(colliding_colors))
         return colliding_bricks
     
     else:
-        collision = numpy.max(offset) > max_intersection
+        if erosion:
+            collision = numpy.any(collision)
+        else:
+            collision = numpy.max(offset) > max_intersection
         return collision
 
 
