@@ -156,20 +156,40 @@ class BrickScene:
             
             self.add_instance(brick_type, color, instance_pose)
     
+    def make_class_ids(self):
+        brick_types = [str(bt) for bt in self.brick_library.values()]
+        class_ids = {bt:i+1 for i, bt in enumerate(brick_types)}
+        return class_ids
+    
+    def make_color_ids(self):
+        colors = [int(c) for c in self.color_library.values()]
+        color_ids = {str(c):i for i, c in enumerate(sorted(colors))}
+        return color_ids
+    
     def get_configuration(
         self,
-        class_ids,
-        color_ids,
+        class_ids=None,
+        color_ids=None,
         max_instances=None,
         max_edges=None,
         unidirectional=False,
     ):
         config = {}
         
+        if class_ids is None:
+            class_ids = self.make_class_ids()
+        if color_ids is None:
+            color_ids = self.make_color_ids()
         if max_instances is None:
-            max_instances = max(self.instances.keys())
+            if len(self.instances.keys()):
+                max_instances = max(self.instances.keys())
+            else:
+                max_instances = 0
         else:
-            assert len(self.instances) <= max_instances, 'Too many instances'
+            if len(self.instances):
+                assert max(self.instances.keys()) <= max_instances, (
+                    'Instance ids %s larger than max_instances: %i'%(
+                    list(self.instances.keys()), max_instances))
         config['class'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         config['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         config['pose'] = numpy.zeros((max_instances+1, 4, 4))
@@ -319,7 +339,6 @@ class BrickScene:
             vmin = numpy.min(vertices[:3], axis=1)
             vmax = numpy.max(vertices[:3], axis=1)
         else:
-            print('no verts')
             vmin = numpy.zeros(3)
             vmax = numpy.zeros(3)
         return vmin, vmax

@@ -29,8 +29,12 @@ class HandspaceBrickInserter(LtronGymComponent):
         return {'success' : False}
     
     def step(self, action):
-        num_instances = len(self.workspace_component.brick_scene.instances)
-        if num_instances >= self.max_instances:
+        if len(self.workspace_component.brick_scene.instances):
+            num_instances = max(
+                self.workspace_component.brick_scene.instances.keys())
+        else:
+            num_instances = 0
+        if num_instances > self.max_instances:
             success = False
         elif action['class_id'] in self.id_to_brick_type:
             scene = self.handspace_component.brick_scene

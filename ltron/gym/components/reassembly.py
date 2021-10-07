@@ -17,7 +17,6 @@ class Reassembly(LtronGymComponent):
         color_ids,
         max_instances,
         max_edges,
-        max_snaps_per_brick,
         workspace_scene_component,
         workspace_viewpoint_component=None,
         handspace_scene_component=None,
@@ -52,7 +51,6 @@ class Reassembly(LtronGymComponent):
                 color_ids,
                 max_instances,
                 max_edges,
-                max_snaps_per_brick,
             )
             observation_space['workspace_configuration'] = ConfigurationSpace(
                 #num_classes,
@@ -61,7 +59,6 @@ class Reassembly(LtronGymComponent):
                 color_ids,
                 max_instances,
                 max_edges,
-                max_snaps_per_brick,
             )
             observation_space['handspace_configuration'] = ConfigurationSpace(
                 #num_classes,
@@ -70,7 +67,6 @@ class Reassembly(LtronGymComponent):
                 color_ids,
                 1,
                 0,
-                max_snaps_per_brick,
             )
             observation_space['target_workspace_matching'] = (
                 InstanceMatchingSpace(max_instances))

@@ -172,3 +172,57 @@ class PixelDisassemblyComponent(DisassemblyComponent):
                     instance_index, snap_index, direction=direction)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
+
+class CursorDisassemblyComponent(DisassemblyComponent):
+    def __init__(self,
+        max_instances,
+        scene_component,
+        cursor_component,
+        pos_snap_render_component,
+        neg_snap_render_component,
+        handspace_component=None,
+        check_collisions=False,
+    ):
+        super(CursorDisassemblyComponent, self).__init__(
+            max_instances,
+            scene_component,
+            handspace_component=handspace_component,
+            check_collisions=check_collisions,
+        )
+        assert (pos_snap_render_component.width ==
+            neg_snap_render_component.width)
+        assert (pos_snap_render_component.height ==
+            neg_snap_render_component.height)
+        self.cursor_component = cursor_component
+        self.width = pos_snap_render_component.width
+        self.height = pos_snap_render_component.height
+        self.pos_snap_render = pos_snap_render_component
+        self.neg_snap_render = neg_snap_render_component
+        
+        activate_space = Discrete(2)
+        direction_space = Discrete(2)
+        
+        self.action_space = Dict({
+            'activate':activate_space,
+            'direction':direction_space,
+        })
+    
+    def step(self, action):
+        activate = action['activate']
+        direction = action['direction']
+        y, x, polarity = self.cursor_component.cursor
+        success = False
+        instance_id = 0
+        if activate:
+            polarity = '-+'[polarity]
+            direction = ('pull', 'push')[direction]
+            if polarity == '+':
+                pick_map = self.pos_snap_render.observation
+            elif polarity == '-':
+                pick_map = self.neg_snap_render.observation
+            instance_index, snap_index = pick_map[y,x]
+            if instance_index != 0:
+                success, instance_id = self.disassemble(
+                    instance_index, snap_index, direction=direction)
+        
+        return {'success':success, 'instance_id':instance_id}, 0., False, None

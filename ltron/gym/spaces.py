@@ -166,7 +166,6 @@ class ConfigurationSpace(spaces.Dict):
         color_ids,
         max_instances,
         max_edges,
-        max_snaps_per_brick,
         scene_min=-10000,
         scene_max=10000,
     ):
@@ -194,7 +193,7 @@ class ConfigurationSpace(spaces.Dict):
                 dtype=numpy.long,
             ),
             'pose' : MultiSE3Space(max_instances, scene_min, scene_max),
-            'edges' : EdgeSpace(max_instances, max_snaps_per_brick, max_edges),
+            'edges' : EdgeSpace(max_instances, max_edges),
         }
         
         super(ConfigurationSpace, self).__init__(self.space_dict)
@@ -311,11 +310,12 @@ class InstanceListSpace(spaces.Dict):
         return result
 
 class EdgeSpace(spaces.Box):
-    def __init__(self, max_instances, max_snaps, max_edges):
+    MAX_SNAPS_PER_BRICK = 4096
+    def __init__(self, max_instances, max_edges):
         low = numpy.zeros((4, max_edges), dtype=numpy.long)
         high = numpy.zeros((4, max_edges), dtype=numpy.long)
         high[:2,:] = max_instances
-        high[2:,:] = max_snaps-1
+        high[2:,:] = self.MAX_SNAPS_PER_BRICK-1
         super(EdgeSpace, self).__init__(
             low=low,
             high=high,

@@ -1,0 +1,2 @@
+class LTronException(Exception):
+    pass

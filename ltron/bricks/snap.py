@@ -7,7 +7,7 @@ except ImportError:
     splendor_available = False
 
 from ltron.ldraw.commands import *
-from ltron.ldraw.exceptions import LDrawException
+from ltron.exceptions import LTronException
 from ltron.geometry.utils import close_enough
 
 gender_to_polarity = {
@@ -20,7 +20,7 @@ gender_to_polarity = {
 def str_to_bool(s):
     return s.lower() == 'true'
 
-class BadGridException(LDrawException):
+class BadGridException(LTronException):
     pass
 
 def griderate(grid, transform):

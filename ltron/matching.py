@@ -14,6 +14,9 @@ def match_configurations(
     kdtree=None,
     radius=0.01,
 ):
+    '''
+    Note: This is optimized for the case where config_b is larger than config_a
+    '''
     
     # Build the kdtree if one was not passed in.
     if kdtree is None:
@@ -32,6 +35,7 @@ def match_configurations(
     
     best_alignment = None
     best_matches = set()
+    best_offset = numpy.eye(4)
     
     matched_a = set()
     matched_b = set()
@@ -88,7 +92,7 @@ def match_configurations(
                         1 for c, m in zip(config_a['class'], matches)
                         if len(m) and c != 0
                     )
-                    if potential_matches < len(best_matches):
+                    if potential_matches <= len(best_matches):
                         continue
                     
                     # Validate the matches.
@@ -114,6 +118,7 @@ def match_configurations(
                         best_alignment = (a,b)
                         best_matches.clear()
                         best_matches.update(valid_matches)
+                        best_offset = a_to_b
                         matched_a.clear()
                         matched_b.clear()
                         matched_a.update(set(a for a,b in valid_matches))
@@ -130,7 +135,7 @@ def match_configurations(
                 break
     
     # Return.
-    return best_matches
+    return best_matches, best_offset
 
 def validate_matches(config_a, config_b, matches, a_to_b):
     # Ensure that classes match, colors match, poses match and that each brick

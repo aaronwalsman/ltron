@@ -29,7 +29,6 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         scene_min=-1000,
         scene_max=1000,
         frame_scene=True,
-        frame_border=0.,
     ):
         
         self.scene_component = scene_component
@@ -47,7 +46,6 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.observe_camera_parameters = observe_camera_parameters
         self.observe_view_matrix = observe_view_matrix
         self.frame_scene = frame_scene
-        self.frame_border = frame_border
         
         self.center = (0,0,0)
         
@@ -64,8 +62,6 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
                 scene_min, scene_max)
         if len(observation_space):
             self.observation_space = Dict(observation_space)
-        
-        self.action_space = Discrete(7)
         
         self.position = None
         
@@ -104,11 +100,6 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
             scene = self.scene_component.brick_scene
             bbox_min, bbox_max = scene.get_scene_bbox()
             self.center = (bbox_min + bbox_max) / 2.
-            print('!'*80)
-            print('center')
-            print(bbox_min, bbox_max)
-            print(self.center)
-            print('+'*80)
         
         self.set_camera()
         
