@@ -8,6 +8,8 @@ from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.collision import build_collision_map
 from ltron.geometry.epsilon_array import EpsilonArray
 from ltron.matching import match_configurations, match_lookup
+from ltron.bricks.brick_instance import BrickInstance
+from ltron.bricks.brick_type import BrickType
 
 class PlanningException(LTronException):
     pass
@@ -15,37 +17,33 @@ class PlanningException(LTronException):
 class PathNotFoundError(PlanningException):
     pass
 
-'''
-def configuration_to_state(config, global_offset=None):
-    class_ids = tuple(config['class'])
-    color_ids = tuple(config['color'])
-    poses = config['pose']
-    if global_offset is not None:
-        poses = global_offset @ poses
-    poses = tuple(EpsilonArray(pose) for pose in poses)
-    return frozenset(
-        (class_id, color_id, pose)
-        for class_id, color_id, pose in zip(class_ids, color_ids, poses)
-        if class_id != 0
-    )
-'''
+def brick_type_has_upright_snaps(brick_type):
+    for snap in brick_type.snaps:
+        
 
-def node_addable(
+def node_connected_collision_free(
     new_brick,
+    new_brick_type_name,
     existing_bricks,
     goal_state,
     collision_map,
     goal_configuration,
 ):
     if not len(existing_bricks):
-        for axis, polarity, snaps in collision_map[new_brick]:
-            if (polarity and numpy.allclose(axis, (0,-1,0))) or (
-                not polarity and numpy.allclose(axis, (0,1,0))
-            ):
-                return True
+        # This is actually not a good check, the collision map only contains
+        # connected snaps.
+        #for axis, polarity, snaps in collision_map[new_brick]:
+        #    if (polarity and numpy.allclose(axis, (0,-1,0))) or (
+        #        not polarity and numpy.allclose(axis, (0,1,0))
+        #    ):
+        #        return True
+        #
+        #else:
+        #    return False
+        brick_type = BrickType(new_brick_type_name)
+        brick_transform = goal_configuration['pose'][new_brick]
         
-        else:
-            return False
+        return bool(len(brick_type.get_upright_snaps()))
     
     else:
         # there must be a connection to a new brick
@@ -71,42 +69,75 @@ def node_addable(
         
         return True
 
-'''
-class GraphEdge:
-    def __init__(self, collision_free, viewpoint_change, feasible):
-        self.collision_free = collision_free
-        self.viewpoint_change = viewpoint_change
-        self.feasible = feasible
-'''
-class Planner:
-    def __init__(self, roadmap, start_config):
+class Roadmap:
+    def __init__(self, env, goal_config, class_ids, color_ids):
+        self.env = env
+        self.goal_config = goal_config
+        self.goal_state = frozenset(numpy.where(goal_config['class'])[0])
+        self.nodes = set()
+        self.nodes.add(self.goal_state)
+        self.edges = {}
+        self.successors = {}
+        self.env_states = {}
+        self.class_ids = class_ids
+        self.id_classes = {value:key for key, value in self.class_ids.items()}
+        self.color_ids = color_ids
+        
+        goal_scene = BrickScene(renderable=True, track_snaps=True)
+        goal_scene.import_configuration(
+            self.goal_config, self.class_ids, self.color_ids)
+        self.goal_collision_map = build_collision_map(goal_scene)
+
+class RoadmapPlanner:
+    def __init__(self, roadmap, start_env_state):
+        
+        # init
+        self.roadmap = roadmap
+        self.edge_checker = EdgeChecker(self.roadmap)
+        
+        # set the env to the start state
+        observation = self.roadmap.env.set_state(start_env_state)
+        self.start_config = observation['workspace_scene']['config']
         
         # compute a matching
         matching, offset = match_configurations(
-            start_config, roadmap.goal_config)
+            self.start_config, roadmap.goal_config)
         (start_to_goal_lookup,
          goal_to_start_lookup,
          false_positives,
          false_negatives) = match_lookup(
-            matching, start_config, roadmap.goal_config)
+            matching, self.start_config, roadmap.goal_config)
         
-        self.roadmap = roadmap
-        self.start_config = start_config
         self.start_state = frozenset(goal_to_start_lookup.keys())
         self.roadmap.nodes.add(self.start_state)
+        assert self.start_state not in self.roadmap.env_states
+        self.roadmap.env_states[self.start_state] = start_env_state
         
         self.visits = {}
         
         # build start collision map
         start_scene = BrickScene(renderable=True, track_snaps=True)
         start_scene.import_configuration(
-            start_config, self.roadmap.class_ids, self.roadmap.color_ids)
+            self.start_config, self.roadmap.class_ids, self.roadmap.color_ids)
         self.start_collision_map = build_collision_map(start_scene)
+    
+    def greedy_path(self):
+        current_state = self.start_state
+        path = [self.start_state]
+        while current_state != self.roadmap.goal_state:
+            successors = self.roadmap.successors[current_state]
+            edges = [(current_state, successor) for successor in successors]
+            best_q, current_state = max(zip(
+                (self.visits[edge]['q'] for edge in edges),
+                successors))
+            path.append(current_state)
         
+        return path
+    
     def plan(self, max_cost=float('inf'), timeout=float('inf')):
         t_start = time.time()
-        w = 0
-        n = 0
+        #w = 0
+        #n = 0
         while True:
             t_loop = time.time()
             if t_loop - t_start >= timeout:
@@ -114,15 +145,18 @@ class Planner:
             
             # plan a path
             candidate_path, goal_found = self.plan_collision_free()
-            if goal_found:
-                q = 1
-            else:
-                q = -1
-            w += q
-            n += 1
-            print(w/n)
+            truncated_path, goal_feasible = self.edge_checker.check_path(
+                candidate_path)
             
-            self.update_path_visits(candidate_path, q)
+            #if goal_feasible:
+            #    q = 1
+            #else:
+            #    q = -1
+            #w += q
+            #n += 1
+            #print(w/n)
+            
+            self.update_path_visits(truncated_path, q)
     
     def plan_collision_free(self):
         current_state = self.start_state
@@ -166,8 +200,9 @@ class Planner:
         elif false_negatives:
             for false_negative in false_negatives:
                 # check if false_negative can be added
-                if node_addable(
+                if node_connected_collision_free(
                     false_negative,
+                    self.roadmap.id_classes[false_negative],
                     state,
                     self.roadmap.goal_state,
                     self.roadmap.goal_collision_map,
@@ -214,152 +249,84 @@ class Planner:
         else:
             return None
 
-class RoadMap:
-    def __init__(self, goal_config, class_ids, color_ids):
-        self.goal_config = goal_config
-        #self.goal_state = configuration_to_state(self.goal_config)
-        self.goal_state = frozenset(numpy.where(goal_config['class'])[0])
-        self.nodes = set()
-        self.nodes.add(self.goal_state)
-        self.edges = {}
-        self.successors = {}
-        self.class_ids = class_ids
-        self.color_ids = color_ids
-        
-        goal_scene = BrickScene(renderable=True, track_snaps=True)
-        goal_scene.import_configuration(
-            self.goal_config, self.class_ids, self.color_ids)
-        self.goal_collision_map = build_collision_map(goal_scene)
+class EdgeChecker:
+    def __init__(self, roadmap):
+        self.roadmap = roadmap
     
-    def new_planner(self, start_config):
-        return Planner(self, start_config)
-    
-    def plan(self,
-        start_config,
-        max_cost=float('inf'),
-        timeout=float('inf')
-    ):
-        t_start = time.time()
-        
-        # compute a matching
-        matching, offset = match_configurations(start_config, self.goal_config)
-        (start_to_goal_lookup,
-         goal_to_start_lookup,
-         false_positives,
-         false_negatives) = match_lookup(
-            matching, start_config, self.goal_config)
-        
-        # build start collision map
-        start_scene = BrickScene(renderable=True, track_snaps=True)
-        start_scene.import_configuration(
-            start_config, self.class_ids, self.color_ids)
-        start_collision_map = build_collision_map(start_scene)
-        
-        #start_state = configuration_to_state(start_config, offset)
-        start_state = frozenset(goal_to_start_lookup.keys())
-        self.nodes.add(start_state)
-        
-        visit_stats = {}
-        
-        W = 0
-        N = 0
-        while True:
-            t_loop = time.time()
-            if t_loop - t_start >= timeout:
-                raise PathNotFoundError
-            
-            # plan a path
-            high_level_path, goal_found = self.high_level_plan(
-                start_state, visit_stats, start_collision_map)
-            
-            if goal_found:
-                # check the edge connectivity everywhere
-                Q = 1
+    def check_path(self, candidate_path):
+        truncated_path = [candidate_path[0]]
+        for a, b in zip(candidate_path[:-1], candidate_path[1:]):
+            edge = self.roadmap.edges[a,b]
+            if b not in self.roadmap.env_states:
+                try:
+                    self.check_edge(a, b)
+                    truncated_path.append(b)
+                    last_state = self.roadmap.env.get_state()
+                    self.roadmap.env_states[b] = last_state
+                except EdgeNotConnectableError:
+                    return truncated_path, False
             else:
-                Q = -1
-            
-            W += Q
-            N += 1
-            print(W/N)
-            
-            for a, b in zip(high_level_path[:-1], high_level_path[1:]):
-                visit_stats[a,b]['W'] += Q
-                visit_stats[a,b]['N'] += 1
-                visit_stats[a,b]['Q'] = (
-                    visit_stats[a,b]['W'] / visit_stats[a,b]['N'])
-            
-    def high_level_plan(self, start_state, visit_stats, start_collision_map):
-        current_state = start_state
-        path = [start_state]
-        goal_found = True
-        
-        while current_state != self.goal_state:
-            # if we are at an unexplored node, then find the neighbors
-            if current_state not in visit_stats:
-                self.expand_high_level_state(
-                    current_state, visit_stats, start_collision_map)
-            
-            # sample a high level node based on visit counts
-            current_state = self.sample_next(current_state, visit_stats)
-            if current_state is None:
-                goal_found = False
-                break
-            else:
-                path.append(current_state)
-        
-        return path, goal_found
-    
-    def expand_high_level_state(self, state, visit_stats, start_collision_map):
-        false_positives = state - self.goal_state
-        false_negatives = self.goal_state - state
-        
-        successors = []
-        if false_positives:
-            for false_positive in false_positives:
-                successor = state - frozenset((false_positive,))
-                successors.append(successor)
-        
-        elif false_negatives:
-            for false_negative in false_negatives:
-                # check if false_negative can be added
-                # (does will it block anything else that hasn't been added yet?)
-                if node_addable(
-                    false_negative,
-                    state,
-                    self.goal_state,
-                    #start_collision_map,
-                    self.goal_collision_map,
-                    self.goal_config,
-                ):
-                    successor = state | frozenset((false_negative,))
-                    successors.append(successor)
-        
-        self.successors[state] = successors
-        visit_stats[state] = {'N':1}
-        
-        for successor in successors:
-            self.edges[state, successor] = GraphEdge(
-                collision_free=True,
-                viewpoint_change=None,
-                feasible=None,
-            )
-            self.nodes.add(successor)
-            visit_stats[state, successor] = {'N':0, 'Q':0, 'W':0}
-    
-    def sample_next(self, state, visit_stats):
-        successors = self.successors[state]
-        if len(successors):
-            U = [
-                upper_confidence_bound(
-                    q=visit_stats[state, successor]['Q'],
-                    n_action=visit_stats[state, successor]['N'],
-                    n_state=visit_stats[state]['N'],
-                )
-                for successor in successors]
-            best_u, best_successor = max(zip(U, successors))
-            return best_successor
+                truncated_path.append(b)
         else:
-            return None
+            return truncated_path, True
+    
+    def check_edge(self, a, b):
+        env_state = self.roadmap.env_states[a]
+        observation = self.roadmap.env.set_state(env_state)
+        
+        assert abs(len(a) - len(b)) == 1
+        
+        if len(a) < len(b):
+            # add a brick
+            if len(a) == 0:
+                # add the first brick
+                action_seq = self.plan_add_first_brick(next(iter(b)))
+            
+            else:
+                # add the nth brick
+                action_seq = self.plan_add_nth_brick(next(iter(b-a)))
+        
+        elif len(b) < len(a):
+            # remove a brick
+            action_seq = self.plan_remove_nth_brick(next(iter(a-b)))
+    
+    def plan_add_first_brick(self, instance):
+        brick_class = self.roadmap.goal_config['class'][instance]
+        brick_color = self.roadmap.goal_config['color'][instance]
+        brick_type = BrickType(self.roadmap.id_classes[brick_class])
+        if not len(brick_type.get_upright_snaps):
+            
+        
+        # the only thing we need to check for is non-upright snaps,
+        # if that check passes, everything else should just work
+        # actually, this is already checked at the high level... oh, but we
+        # still need to find the snap that is upright.
+
+    def plan_add_nth_brick(self, instance):
+        pass
+    
+    def plan_remove_brick(self, instance):
+        pass
+
+class EdgePlanner:
+    def __init__(self, edge_checker):
+        self.edge_checker = edge_checker
+        self.visits = {}
+    
+    def plan(self):
+        # what's the right stopping criteria?
+        # 1. number of trajectories?
+        # 2. timeout?
+        # 3. definitely break if we find a perfect (no camera motion) path
+        while True:
+            edge_trajectory = self.rollout_trajectory()
+            self.update_visit_stats(edge_trajectory)
+            
+    
+    def observation_to_candidate_actions(self, observation):
+        raise NotImplementedError
+    
+    
 
 def upper_confidence_bound(q, n_action, n_state, c=2**0.5):
     return q + c * (math.log(n_state+1)/(n_action+1))**0.5
