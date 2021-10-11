@@ -75,7 +75,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         else:
             self.distance_spacing = 0
     
-    def compute_observation(self):
+    def observe(self):
         self.observation = {}
         if self.observe_camera_parameters:
             self.observation['azimuth'] = self.position[0]
@@ -103,7 +103,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         
         self.set_camera()
         
-        self.compute_observation()
+        self.observe()
         return self.observation
     
     def step(self, action):
@@ -131,7 +131,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.set_camera()
         
         #tmp_reward = self.position[1] + self.position[2]
-        self.compute_observation()
+        self.observe()
         return self.observation, 0., False, None
     
     def set_camera(self):
@@ -152,16 +152,21 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         scene.set_projection(self.projection)
         
         # pose
-        #bbox = scene.get_instance_center_bbox()
-        #bbox_min, bbox_max = bbox
-        #bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
-        #center = bbox_min + bbox_range * 0.5
-        #center = (0,0,0)
         self.view_matrix = numpy.linalg.inv(
             camera.azimuthal_parameters_to_matrix(
                 azimuth, elevation, 0, distance, 0.0, 0.0, *self.center)
         )
         scene.set_view_matrix(self.view_matrix)
+    
+    def get_state(self):
+        return {
+            'position':self.position
+        }
+    
+    def set_state(self, state):
+        self.position = state['position']
+        self.observe()
+        return self.observation
 
 class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
     def __init__(self,
@@ -233,7 +238,7 @@ class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
         )
         scene.set_view_matrix(self.view_matrix)
     
-    def compute_observation(self):
+    def observe(self):
         if self.observe_view_matrix:
             self.observation = {'view_matrix':self.view_matrix}
         else:
@@ -241,17 +246,17 @@ class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
     
     def reset(self):
         self.set_camera()
-        self.compute_observation()
+        self.observe()
         return self.observation
     
     def step(self, action):
         if self.randomize_frequency == 'step':
             self.set_camera()
-        self.compute_observation()
+        self.observe()
         return self.observation, 0., False, None
     
-    def set_state(self, state):
-        self.set_camera()
+    #def set_state(self, state):
+    #    self.set_camera()
 
 class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
     def __init__(self,
@@ -270,6 +275,7 @@ class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
                 (field_of_view, field_of_view),
                 *args, **kwargs)
 
+'''
 class CopyViewpointComponent(LtronGymComponent):
     def __init__(self, from_scene_component, to_scene_component):
         self.from_scene_component = from_scene_component
@@ -288,3 +294,4 @@ class CopyViewpointComponent(LtronGymComponent):
     def step(self, action):
         self.copy_camera()
         return None, 0, False, None
+'''

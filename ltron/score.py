@@ -3,13 +3,16 @@ import numpy
 from scipy.optimize import linear_sum_assignment
 
 from ltron.symmetry import symmetry_table
-from ltron.matching import match_configurations
+from ltron.matching import match_configurations, match_lookup
 
 def f1(tp, fp, fn):
     return tp / (tp + 0.5 * (fp + fn))
 
 def score_configurations(proposal, target):
-    matching = match_configurations(proposal, target)
+    matching, offset = match_configurations(proposal, target)
+    true_positives, _, false_positives, false_negatives = match_lookup(
+        matching, proposal, target)
+    '''
     matched_proposals = set(p for p, t in matching)
     matched_targets = set(t for p, t in matching)
     proposed_instances = numpy.where(proposal['class'] != 0)[0]
@@ -20,8 +23,12 @@ def score_configurations(proposal, target):
         1 for p in proposed_instances if p not in matched_proposals)
     false_negatives = sum(
         1 for t in target_instances if t not in matched_targets)
+    '''
     
-    return f1(true_positives, false_positives, false_negatives), matching
+    return f1(
+        len(true_positives),
+        len(false_positives),
+        len(false_negatives)), matching
 
 # ==============================================================================
 # Old, unused, for reference only

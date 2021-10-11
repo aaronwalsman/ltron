@@ -25,7 +25,7 @@ class ColorRenderComponent(LtronGymComponent):
         self.observation_space = ltron_spaces.ImageSpace(
                 self.width, self.height)
     
-    def compute_observation(self):
+    def observe(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
         scene.viewport_scissor(0,0,self.width,self.height)
@@ -33,15 +33,16 @@ class ColorRenderComponent(LtronGymComponent):
         self.observation = self.frame_buffer.read_pixels()
     
     def reset(self):
-        self.compute_observation()
+        self.observe()
         return self.observation
     
     def step(self, action):
-        self.compute_observation()
+        self.observe()
         return self.observation, 0., False, None
     
     def set_state(self, state):
-        self.compute_observation()
+        self.observe()
+        return self.observation
 
 class SegmentationRenderComponent(LtronGymComponent):
     def __init__(self,
@@ -60,7 +61,7 @@ class SegmentationRenderComponent(LtronGymComponent):
         self.observation_space = ltron_spaces.SegmentationSpace(
                 self.width, self.height)
     
-    def compute_observation(self):
+    def observe(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
         scene.viewport_scissor(0,0,self.width,self.height)
@@ -70,15 +71,16 @@ class SegmentationRenderComponent(LtronGymComponent):
         self.observation = masks.color_byte_to_index(mask)
     
     def reset(self):
-        self.compute_observation()
+        self.observe()
         return self.observation
     
     def step(self, action):
-        self.compute_observation()
+        self.observe()
         return self.observation, 0., False, None
     
     def set_state(self, state):
-        self.compute_observation()
+        self.observe()
+        return self.observation
 
 class SnapRenderComponent(LtronGymComponent):
     def __init__(self,
@@ -100,8 +102,11 @@ class SnapRenderComponent(LtronGymComponent):
         
         self.observation_space = ltron_spaces.SnapSegmentationSpace(
             self.width, self.height)
+        
+        self.observation = numpy.zeros(
+            (self.height, self.width, 2), dtype=numpy.long)
     
-    def compute_observation(self):
+    def observe(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
         scene.viewport_scissor(0,0,self.width,self.height)
@@ -123,12 +128,13 @@ class SnapRenderComponent(LtronGymComponent):
         self.observation = numpy.stack((instance_ids, snap_ids), axis=-1)
     
     def reset(self):
-        self.compute_observation()
+        self.observe()
         return self.observation
     
     def step(self, action):
-        self.compute_observation()
+        self.observe()
         return self.observation, 0., False, None
     
     def set_state(self, state):
-        self.compute_observation()
+        self.observe()
+        return self.observation

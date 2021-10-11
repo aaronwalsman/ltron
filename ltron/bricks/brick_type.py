@@ -186,3 +186,6 @@ class BrickType:
              bb[0][2], bb[1][2], bb[0][2], bb[1][2]],
             [1, 1, 1, 1, 1, 1, 1, 1]
         ])
+    
+    def get_upright_snaps(self):
+        return [snap for snap in self.snaps if snap.is_upright()]

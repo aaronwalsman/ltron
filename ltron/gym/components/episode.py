@@ -9,19 +9,27 @@ class MaxEpisodeLengthComponent(LtronGymComponent):
         if self.observe_step:
             self.observation_space = StepSpace(max_episode_length)
     
+    def observe(self):
+        if self.observe_step:
+            self.observation = self.episode_step
+        else:
+            self.observation = None
+    
     def reset(self):
         self.episode_step = 0
-        if self.observe_step:
-            observation = self.episode_step
-        else:
-            observation = None
-        return observation
+        self.observe()
+        return self.observation
     
     def step(self, action):
         self.episode_step += 1
-        if self.observe_step:
-            observation = self.episode_step
-        else:
-            observation = None
+        self.observe()
         terminal = self.episode_step >= self.max_episode_length
-        return observation, 0., terminal, None
+        return self.observation, 0., terminal, None
+    
+    def set_state(self, state):
+        self.episode_step = state['episode_step']
+        self.observe()
+        return self.observation
+    
+    def get_state(self):
+        return {'episode_step':self.episode_step}

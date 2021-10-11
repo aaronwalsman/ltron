@@ -31,7 +31,6 @@ class DisassemblyComponent(LtronGymComponent):
         self,
         instance_index,
         snap_index=None,
-        direction='push',
     ):
         success = False
         instance_id = 0
@@ -41,7 +40,7 @@ class DisassemblyComponent(LtronGymComponent):
                 instance = scene.instances[instance_index]
                 snap = instance.get_snap(snap_index)
                 collision = scene.check_snap_collision(
-                    [instance], snap, direction)
+                    [instance], snap)
                 if not collision:
                     self.remove_instance(instance_index)
                     success = True
@@ -99,19 +98,16 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
-        direction_space = Discrete(2)
         index_snap_space = bg_spaces.SingleSnapIndexSpace(self.max_snaps)
         self.action_space = Tuple(
-            activate_space, direction_space, index_snap_space)
+            activate_space, index_snap_space)
         
     def step(self, action):
-        activate, direction, (instance_index, snap_index) = action
+        activate, (instance_index, snap_index) = action
         success = False
         instance_id = 0
         if activate and instance_index != 0:
-            direction = ('pull', 'push')[direction]
-            success, instance_id = self.disassemble(
-                instance_index, snap_index, direction=direction)
+            success, instance_id = self.disassemble(instance_index, snap_index)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
 
@@ -141,27 +137,23 @@ class PixelDisassemblyComponent(DisassemblyComponent):
         
         activate_space = Discrete(2)
         polarity_space = Discrete(2)
-        direction_space = Discrete(2)
         pick_space = bg_spaces.SinglePixelSelectionSpace(
             self.width, self.height)
         
         self.action_space = Dict({
             'activate':activate_space,
             'polarity':polarity_space,
-            'direction':direction_space,
             'pick':pick_space
         })
     
     def step(self, action):
         activate = action['activate']
         polarity = action['polarity']
-        direction = action['direction']
         y, x = action['pick']
         success = False
         instance_id = 0
         if activate:
             polarity = '-+'[polarity]
-            direction = ('pull', 'push')[direction]
             if polarity == '+':
                 pick_map = self.pos_snap_render.observation
             elif polarity == '-':
@@ -169,7 +161,7 @@ class PixelDisassemblyComponent(DisassemblyComponent):
             instance_index, snap_index = pick_map[y,x]
             if instance_index != 0:
                 success, instance_id = self.disassemble(
-                    instance_index, snap_index, direction=direction)
+                    instance_index, snap_index)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
 
@@ -178,8 +170,6 @@ class CursorDisassemblyComponent(DisassemblyComponent):
         max_instances,
         scene_component,
         cursor_component,
-        pos_snap_render_component,
-        neg_snap_render_component,
         handspace_component=None,
         check_collisions=False,
     ):
@@ -189,40 +179,22 @@ class CursorDisassemblyComponent(DisassemblyComponent):
             handspace_component=handspace_component,
             check_collisions=check_collisions,
         )
-        assert (pos_snap_render_component.width ==
-            neg_snap_render_component.width)
-        assert (pos_snap_render_component.height ==
-            neg_snap_render_component.height)
         self.cursor_component = cursor_component
-        self.width = pos_snap_render_component.width
-        self.height = pos_snap_render_component.height
-        self.pos_snap_render = pos_snap_render_component
-        self.neg_snap_render = neg_snap_render_component
         
         activate_space = Discrete(2)
-        direction_space = Discrete(2)
         
         self.action_space = Dict({
             'activate':activate_space,
-            'direction':direction_space,
         })
     
     def step(self, action):
         activate = action['activate']
-        direction = action['direction']
-        y, x, polarity = self.cursor_component.cursor
         success = False
         instance_id = 0
         if activate:
-            polarity = '-+'[polarity]
-            direction = ('pull', 'push')[direction]
-            if polarity == '+':
-                pick_map = self.pos_snap_render.observation
-            elif polarity == '-':
-                pick_map = self.neg_snap_render.observation
-            instance_index, snap_index = pick_map[y,x]
-            if instance_index != 0:
-                success, instance_id = self.disassemble(
-                    instance_index, snap_index, direction=direction)
+            instance_id = self.cursor_component.instance_id
+            snap_id = self.cursor_component.snap_id
+            if instance_id != 0:
+                success, instance_id = self.disassemble(instance_id, snap_id)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None

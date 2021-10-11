@@ -35,5 +35,5 @@ class RandomizeColorsComponent(LtronGymComponent):
             self.randomize_colors()
         return None, 0., False, None
     
-    def set_state(self, state):
-        self.randomize_colors()
+    #def set_state(self, state):
+    #    self.randomize_colors()

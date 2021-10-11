@@ -30,21 +30,20 @@ collision = check_snap_collision(
         scene,
         instances,
         snap,
-        direction='push',
         resolution=(64,64),
         dump_images='test')
 
 print(collision)
 
-collision = check_snap_collision(
-        scene,
-        instances,
-        snap,
-        direction='pull',
-        resolution=(64,64),
-        dump_images='test')
+#collision = check_snap_collision(
+#        scene,
+#        instances,
+#        snap,
+#        direction='pull',
+#        resolution=(64,64),
+#        dump_images='test')
 
-print(collision)
+#print(collision)
 
 instance_transform = instances[0].transform
 instance_transform[1,3] -= 8
@@ -55,7 +54,6 @@ collision = check_snap_collision(
         scene,
         instances,
         snap,
-        direction='push',
         resolution=(64,64),
         dump_images='test')
 

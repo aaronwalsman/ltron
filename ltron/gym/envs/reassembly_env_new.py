@@ -7,77 +7,22 @@ import gym
 import gym.spaces as spaces
 import numpy
 
-from ltron.gym.envs.ltron_env import LtronEnv
-from ltron.gym.components.scene import (
-    EmptySceneComponent, DatasetSceneComponent)
+from ltron.gym.ltron_env import LtronEnv
+from ltron.gym.components.scene import SceneComponent
 from ltron.gym.components.episode import MaxEpisodeLengthComponent
 from ltron.gym.components.dataset import DatasetPathComponent
 from ltron.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent, SnapRenderComponent)
-from ltron.gym.components.cursor import SnapCursor
-from ltron.gym.components.disassembly import CursorDisassemblyComponent
-from ltron.gym.components.rotation import CursorRotationAroundSnap
+from ltron.gym.components.disassembly import PixelDisassemblyComponent
+from ltron.gym.components.rotation import RotationAroundSnap
 from ltron.gym.components.pick_and_place import (
-        CursorHandspacePickAndPlace)
+        PickAndPlace, HandspacePickAndPlace)
 from ltron.gym.components.brick_inserter import HandspaceBrickInserter
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
 from ltron.gym.components.colors import RandomizeColorsComponent
 from ltron.gym.components.reassembly import Reassembly
 
-def reassembly_template_action():
-    return {
-        'workspace_viewpoint' : 0,
-
-        'handspace_viewpoint' : 0,
-        
-        'workspace_cursor' : {
-            'activate':False,
-            'position':[0,0],
-            'polarity':0,
-        },
-        
-        'handspace_cursor' : {
-            'activate':False,
-            'position':[0,0],
-            'polarity':0,
-        },
-        
-        'disassembly' : {
-            'activate':False,
-        },
-        
-        'rotate' : {
-            'activate':False,
-            'direction':0,
-        },
-
-        'pick_and_place' : {
-            'activate':False,
-            'place_at_origin':False,
-        },
-
-        'insert_brick' : {
-            'class_id' : 0,
-            'color_id' : 0,
-        },
-
-        'reassembly' : {
-            'start':False,
-            'end':False,
-        },
-    }
-
-#def reassembly_template_state():
-#    return {
-#        'workspace_scene' : 
-#        'handspace_sceen' : 
-#        'workspace_viewpoint' : 
-#        'handspace_viewpoint' : 
-#        'workspace_cursor' : 
-#        'handspace_cursor' : 
-#        
-#    }
 
 def reassembly_env(
     dataset,
@@ -95,8 +40,8 @@ def reassembly_env(
     handspace_map_height=24,
     dataset_reset_mode='uniform',
     max_episode_length=32,
-    workspace_render_args=None,
-    handspace_render_args=None,
+    #workspace_render_args=None,
+    #handspace_render_args=None,
     randomize_viewpoint=True,
     randomize_colors=True,
     check_collisions=True,
@@ -121,18 +66,13 @@ def reassembly_env(
         render_args=workspace_render_args,
         track_snaps=True,
         collision_checker=check_collisions,
-        store_configuration=True,
         observe_configuration=train,
+        observe_initial_configuration=train,
     )
     components['handspace_scene'] = EmptySceneComponent(
-        class_ids=class_ids,
-        color_ids=color_ids,
-        max_instances=max_instances,
-        max_edges=max_edges,
         render_args=handspace_render_args,
         track_snaps=True,
         collision_checker=False,
-        store_configuration=True,
         observe_configuration=train,
     )
     
@@ -159,7 +99,7 @@ def reassembly_env(
         elevation_range=elevation_range,
         elevation_steps=elevation_steps,
         distance_range=workspace_distance_range,
-        distance_steps=workspace_distance_steps,
+        distance_steps=distance_steps,
         aspect_ratio=workspace_image_width/workspace_image_height,
         start_position=start_position,
         frame_scene=True,
@@ -217,13 +157,13 @@ def reassembly_env(
         max_instances,
         workspace_pos_snap_render,
         workspace_neg_snap_render,
-        observe_instance_snap=train,
+        observe_instance_snaps=train,
     )
     components['handspace_cursor'] = SnapCursor(
         max_instances,
         handspace_pos_snap_render,
         handspace_neg_snap_render,
-        observe_instance_snap=train,
+        observe_instance_snaps=train,
     )
     
     # action spaces
@@ -231,19 +171,24 @@ def reassembly_env(
         max_instances,
         components['workspace_scene'],
         components['workspace_cursor'],
+        workspace_pos_snap_render,
+        workspace_neg_snap_render,
         handspace_component=components['handspace_scene'],
         check_collisions=check_collisions,
     )
     components['rotate'] = CursorRotationAroundSnap(
         components['workspace_scene'],
-        components['workspace_cursor'],
+        workspace_pos_snap_render,
+        workspace_neg_snap_render,
         check_collisions=check_collisions,
     )
     components['pick_and_place'] = CursorHandspacePickAndPlace(
         components['workspace_scene'],
-        components['workspace_cursor'],
+        workspace_pos_snap_render,
+        workspace_neg_snap_render,
         components['handspace_scene'],
-        components['handspace_cursor'],
+        handspace_pos_snap_render,
+        handspace_neg_snap_render,
         check_collisions=check_collisions,
     )
     components['insert_brick'] = HandspaceBrickInserter(
@@ -302,3 +247,14 @@ def reassembly_env(
     env = LtronEnv(components, print_traceback=print_traceback)
     
     return env
+
+if __name__ == '__main__':
+    #interactive_env = InteractiveReassemblyEnv(
+    interactive_env = InteractiveHandspaceReassemblyEnv(
+        dataset='random_six',
+        split='simple_single',
+        subset=1,
+        train=True,
+        randomize_colors=False,
+        randomize_viewpoint=False)
+    interactive_env.start()

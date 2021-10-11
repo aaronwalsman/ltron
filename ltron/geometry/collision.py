@@ -50,7 +50,6 @@ class CollisionChecker:
         self,
         target_instances,
         snap,
-        direction,
         *args,
         **kwargs,
     ):
@@ -58,10 +57,9 @@ class CollisionChecker:
             self.scene,
             target_instances,
             snap,
-            direction,
             *args,
             frame_buffer=self.frame_buffer,
-            return_colliding_instances=return_colliding_instances,
+            return_colliding_instances=self.return_colliding_instances,
             **kwargs,
         )
 
@@ -76,13 +74,13 @@ def build_collision_map(
 ):
     
     if target_instances is None:
-        target_instances = set(str(i) for i in scene.instances.keys())
+        target_instances = set(int(i) for i in scene.instances)
     
     if scene_instances is None:
-        scene_instances = set(str(i) for i in scene.instances.keys())
+        scene_instances = set(int(i) for i in scene.instances)
     else:
         scene_instances = set(
-            str(scene_instance) for scene_instance in scene_instances)
+            int(scene_instance) for scene_instance in scene_instances)
     
     if frame_buffer is None:
         frame_buffer = make_collision_framebuffer(resolution)
@@ -101,51 +99,58 @@ def build_collision_map(
             snap = instance.get_snap(snap_id)
             #feature = (snap.polarity == '+', *tuple(snap.transform[:3,1]))
             axis = snap.transform[:3,1]
+            if snap.polarity == '-':
+                axis *= -1
+            #axis = tuple(axis)
+            feature = (tuple(axis) + (snap.polarity == '+',))
             for key in snap_groups:
-                #if numpy.allclose(key, feature):
-                if numpy.abs(key @ axis) < 0.0001:
+                if numpy.allclose(key, feature):
                     snap_groups[key].append(snap_id)
                     break
             else:
                 #snap_groups[feature] = [snap_id]
-                snap_groups[axis] = [snap_id]
+                snap_groups[feature] = [snap_id]
         
         #for snap_id in snaps_to_check:
         #for feature, snap_ids in snap_groups.items():
-        for axis, snap_ids in snap_groups.items():
+        for feature, snap_ids in snap_groups.items():
             snap_id = snap_ids[0]
             snap = instance.get_snap(snap_id)
-            for direction in 'push', 'pull':
-                for s_id in snap_ids:
-                    collision_map[instance_id][s_id, direction] = set()
-                current_scene_instances = scene_instances - set([instance_name])
-                k = 0
-                while current_scene_instances:
-                    #if instance_id == 1:
-                    #    dump_images = 'one_%i_%s_%i'%(snap_id, direction, k)
-                    #else:
-                    #    dump_images = None
-                    k += 1
-                    colliders = check_snap_collision(
-                        scene,
-                        [instance],
-                        snap,
-                        direction,
-                        scene_instances=current_scene_instances,
-                        return_colliding_instances=True,
-                        frame_buffer=frame_buffer,
-                        #dump_images=dump_images,
-                        *args,
-                        **kwargs,
-                    )
-                    if len(colliders):
-                        colliders = set(str(i) for i in colliders)
-                        for s_id in snap_ids:
-                            collision_map[instance_id][s_id, direction] |= (
-                                colliders)
-                        current_scene_instances -= colliders
-                    else:
-                        break
+            #for s_id in snap_ids:
+            #    collision_map[instance_id][s_id] = axis
+            #collision_map[instance_id][axis] = set()
+            map_key = (feature[:3], feature[3], tuple(snap_ids))
+            #collision_map[instance_id][tuple(snap_ids)] = set()
+            collision_map[instance_id][map_key] = set()
+            current_scene_instances = scene_instances - set([instance_id])
+            k = 0
+            while current_scene_instances:
+                #if instance_id == 1:
+                #    dump_images = 'one_%i_%s_%i'%(snap_id, direction, k)
+                #else:
+                #    dump_images = None
+                k += 1
+                colliders = check_snap_collision(
+                    scene,
+                    [instance],
+                    snap,
+                    scene_instances=current_scene_instances,
+                    return_colliding_instances=True,
+                    frame_buffer=frame_buffer,
+                    #dump_images=dump_images,
+                    *args,
+                    **kwargs,
+                )
+                if len(colliders):
+                    colliders = set(int(i) for i in colliders)
+                    #for s_id in snap_ids:
+                    #    collision_map[instance_id][s_id] |= (
+                    #        colliders)
+                    #collision_map[instance_id][tuple(snap_ids)] |= colliders
+                    collision_map[instance_id][map_key] |= colliders
+                    current_scene_instances -= colliders
+                else:
+                    break
     
     return collision_map
 
@@ -153,23 +158,14 @@ def check_snap_collision(
     scene,
     target_instances,
     snap,
-    direction,
     *args,
     **kwargs,
 ):
     
-    assert direction in ('push', 'pull')
-    
     if snap.polarity == '+':
-        if direction == 'push':
-            sign = 1
-        elif direction == 'pull':
-            sign = -1
+        sign = 1
     elif snap.polarity == '-':
-        if direction == 'push':
-            sign = -1
-        elif direction == 'pull':
-            sign = 1
+        sign = -1
     
     direction_transform = numpy.array([
         [ 1, 0,    0, 0],

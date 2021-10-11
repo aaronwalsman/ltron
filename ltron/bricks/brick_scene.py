@@ -606,10 +606,10 @@ class BrickScene:
             target_instances, render_transform, scene_instances=scene_instances)
     
     def check_snap_collision(
-        self, target_instances, snap, direction, *args, **kwargs
+        self, target_instances, snap, *args, **kwargs
     ):
         assert self.collision_checker is not None
         if self.render_environment.window is not None:
             self.render_environment.window.set_active()
         return self.collision_checker.check_snap_collision(
-            target_instances, snap, direction, *args, **kwargs)
+            target_instances, snap, *args, **kwargs)

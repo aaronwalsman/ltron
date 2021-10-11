@@ -137,10 +137,7 @@ class HandspacePickAndPlace(LtronGymComponent):
         if place_at_origin:
             if self.check_collisions:
                 collision = workspace_scene.check_snap_collision(
-                    [new_brick],
-                    new_brick.get_snap(pick_snap_id),
-                    'push',
-                    dump_images='push')
+                    [new_brick], new_brick.get_snap(pick_snap_id))
                 if collision:
                     workspace_scene.remove_instance(new_brick)
                     success = False
@@ -156,7 +153,126 @@ class HandspacePickAndPlace(LtronGymComponent):
             )
             if self.check_collisions:
                 collision = workspace_scene.check_snap_collision(
-                    [new_brick], new_brick.get_snap(pick_snap_id), 'push')
+                    [new_brick], new_brick.get_snap(pick_snap_id))
+                if collision:
+                    workspace_scene.remove_instance(new_brick)
+                    success = False
+                else:
+                    success = True
+            else:
+                success = True
+        
+        if success:
+            handspace_scene.clear_instances()
+        
+        return {'success':success}, 0., False, {}
+
+
+class CursorHandspacePickAndPlace(LtronGymComponent):
+    def __init__(self,
+        workspace_scene_component,
+        workspace_cursor_component,
+        handspace_scene_component,
+        handspace_cursor_component,
+        check_collisions=False,
+    ):
+        self.workspace_scene_component = workspace_scene_component
+        self.workspace_cursor_component = workspace_cursor_component
+        self.handspace_scene_component = handspace_scene_component
+        self.handspace_cursor_component = handspace_cursor_component
+        self.check_collisions = check_collisions
+        
+        activate_space = Discrete(2)
+        polarity_space = Discrete(2)
+        place_at_origin_space = Discrete(2)
+        self.observation_space = Dict({'success':Discrete(2)})
+        self.action_space = Dict({
+            'activate':activate_space,
+            'place_at_origin':place_at_origin_space,
+        })
+    
+    def reset(self):
+        return {'success':False}
+    
+    def step(self, action):
+        activate = action['activate']
+        if not activate:
+            return {'success':False}, 0., False, {}
+        place_at_origin = action['place_at_origin']
+        
+        pick_instance_id = self.handspace_cursor_component.instance_id
+        pick_snap_id = self.handspace_cursor_component.snap_id
+        place_instance_id = self.workspace_cursor_component.instance_id
+        place_snap_id = self.workspace_cursor_component.snap_id
+        
+        if pick_instance_id == 0:
+            return {'success':0}, 0, False, None
+        
+        if place_instance_id == 0 and not place_at_origin:
+            return {'success':0}, 0, False, None
+        
+        workspace_scene = self.workspace_scene_component.brick_scene
+        handspace_scene = self.handspace_scene_component.brick_scene
+        pick_instance = handspace_scene.instances[pick_instance_id]
+        pick_brick_type = pick_instance.brick_type
+        pick_brick_color = pick_instance.color
+        brick_type_snap = pick_brick_type.snaps[pick_snap_id]
+        brick_type_snap_transform = brick_type_snap.transform
+        if matrix_is_mirrored(brick_type_snap_transform):
+            brick_type_snap_transform[0:3,0] *= -1
+        
+        workspace_view_matrix = workspace_scene.get_view_matrix()
+        handspace_view_matrix = handspace_scene.get_view_matrix()
+        best_workspace_transform = None
+        best_pseudo_angle = -float('inf')
+        for i in range(4):
+            angle = i * math.pi / 2
+            rotation = Quaternion(axis=(0,1,0), angle=angle)
+            workspace_transform = (
+                workspace_scene.upright @
+                rotation.transformation_matrix @
+                numpy.linalg.inv(brick_type_snap_transform)
+            )
+            handspace_camera_local = (
+                handspace_view_matrix @ pick_instance.transform)
+            workspace_camera_local = (
+                workspace_view_matrix @ workspace_transform)
+            
+            offset = (
+                workspace_camera_local @
+                numpy.linalg.inv(handspace_camera_local)
+            )
+            pseudo_angle = numpy.trace(offset[:3,:3])
+            # TODO: we should maybe check collisions here first instead of later
+            if pseudo_angle > best_pseudo_angle:
+                best_pseudo_angle = pseudo_angle
+                best_workspace_transform = workspace_transform
+        new_brick = workspace_scene.add_instance(
+            str(pick_brick_type),
+            pick_brick_color,
+            best_workspace_transform,
+        )
+        
+        if place_at_origin:
+            if self.check_collisions:
+                collision = workspace_scene.check_snap_collision(
+                    [new_brick], new_brick.get_snap(pick_snap_id))
+                if collision:
+                    workspace_scene.remove_instance(new_brick)
+                    success = False
+                else:
+                    success = True
+            else:
+                success = True
+        
+        else:
+            workspace_scene.pick_and_place_snap(
+                (new_brick.instance_id, pick_snap_id),
+                (place_instance_id, place_snap_id),
+            )
+            if self.check_collisions:
+                collision = workspace_scene.check_snap_collision(
+                    [new_brick], new_brick.get_snap(pick_snap_id))
                 if collision:
                     workspace_scene.remove_instance(new_brick)
                     success = False
@@ -186,13 +302,11 @@ class PickAndPlace(LtronGymComponent):
         
         activate_space = Discrete(2)
         polarity_space = Discrete(2)
-        pick_direction_space = Discrete(2)
         pick_space = SinglePixelSelectionSpace(self.width, self.height)
         place_space = SinglePixelSelectionSpace(self.width, self.height)
         self.action_space = Dict({
             'activate':activate_space,
             'polarity':polarity_space,
-            'direction':pick_direction_space,
             'pick':pick_space,
             'place':place_space,
         })
@@ -212,12 +326,11 @@ class PickAndPlace(LtronGymComponent):
         #pick_x, pick_y = action[1], action[2]
         #place_x, place_y = action[3], action[4]
         
-        #activate, polarity, direction, pick, place = action
+        #activate, polarity, pick, place = action
         activate = action['activate']
         if not activate:
             return {'success': 0}, 0., False, {}
         polarity = action['polarity']
-        direction = action['direction']
         pick_y, pick_x = action['pick']
         place_y, place_x = action['place']
         
@@ -247,7 +360,7 @@ class PickAndPlace(LtronGymComponent):
             initial_transform = instance.transform
             snap = instance.get_snap(pick_id)
             collision = self.scene_component.brick_scene.check_snap_collision(
-                [instance], snap, direction)
+                [instance], snap)
 
             if collision:
                 self.scene_component.brick_scene.move_instance(
@@ -258,7 +371,7 @@ class PickAndPlace(LtronGymComponent):
             self.scene_component.brick_scene.pick_and_place_snap(
                 (pick_instance, pick_id), (place_instance, place_id))
             collision = self.scene_component.check_snap_collision(
-                [instance], snap, 'push')
+                [instance], snap)
 
             if collision:
                 self.scene_component.brick_scene.move_instance(

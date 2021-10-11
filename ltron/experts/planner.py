@@ -7,6 +7,8 @@ from ltron.bricks.brick_scene import BrickScene
 from ltron.matching import match_configurations, match_lookup
 from ltron.geometry.collision import build_collision_map
 
+class 
+
 def planner(
     start_config,
     goal_config,
@@ -21,6 +23,11 @@ def planner(
     # OK, here's what we've figured out so far
     # a NODE in our planning graph is an entire configuration
     # the EDGES are the add/remove actions that get us between them.
+    
+    # Actually, even better:
+    # For the high-level, a NODE is a sorted tuple of instance ids
+    # (relative to the goal configuration)
+    # the EDGES are add/remove operations
     
     # iterate until goal is reached
     frontier = [(0, start_config)]
