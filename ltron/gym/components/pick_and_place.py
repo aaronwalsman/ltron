@@ -79,7 +79,6 @@ class HandspacePickAndPlace(LtronGymComponent):
         try:
             pick_instance_id, pick_snap_id = pick_map[pick_y, pick_x]
         except IndexError:
-            print('pick out of bounds')
             pick_instance_id = 0
         
         try:
@@ -272,7 +271,7 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
             )
             if self.check_collisions:
                 collision = workspace_scene.check_snap_collision(
-                    [new_brick], new_brick.get_snap(pick_snap_id))
+                    [new_brick], new_brick.get_snap(pick_snap_id), dump_images='collision')
                 if collision:
                     workspace_scene.remove_instance(new_brick)
                     success = False
