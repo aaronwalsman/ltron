@@ -1,4 +1,4 @@
-from ltron.exceptions import LTronException
+from ltron.exceptions import LtronException
 
-class LDrawException(LTronException):
+class LDrawException(LtronException):
     pass

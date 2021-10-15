@@ -1,9 +1,9 @@
 import time
 from bisect import insort
 
-from ltron.exceptions import LTronException
+from ltron.exceptions import LtronException
 
-class PlanningException(LTronException):
+class PlanningException(LtronException):
     pass
 
 class PathNotFoundError(PlanningException):

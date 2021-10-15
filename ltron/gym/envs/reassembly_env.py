@@ -23,13 +23,20 @@ from ltron.gym.components.brick_inserter import HandspaceBrickInserter
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
 from ltron.gym.components.colors import RandomizeColorsComponent
-from ltron.gym.components.reassembly import Reassembly
+from ltron.gym.components.reassembly import Reassembly, ReassemblyScoreComponent
+from ltron.gym.components.config import ConfigComponent
 
 def reassembly_template_action():
     return {
-        'workspace_viewpoint' : 0,
+        'workspace_viewpoint' : {
+            'direction':0,
+            'frame':0,
+        },
 
-        'handspace_viewpoint' : 0,
+        'handspace_viewpoint' : {
+            'direction':0,
+            'frame':0,
+        },
         
         'workspace_cursor' : {
             'activate':False,
@@ -47,10 +54,7 @@ def reassembly_template_action():
             'activate':False,
         },
         
-        'rotate' : {
-            'activate':False,
-            'direction':0,
-        },
+        'rotate' : 0,
 
         'pick_and_place' : {
             'activate':False,
@@ -122,7 +126,7 @@ def reassembly_env(
         track_snaps=True,
         collision_checker=check_collisions,
         store_configuration=True,
-        observe_configuration=train,
+        #observe_configuration=train,
     )
     components['handspace_scene'] = EmptySceneComponent(
         class_ids=class_ids,
@@ -133,12 +137,31 @@ def reassembly_env(
         track_snaps=True,
         collision_checker=False,
         store_configuration=True,
-        observe_configuration=train,
+        #observe_configuration=train,
     )
     
     # max length
     components['max_length'] = MaxEpisodeLengthComponent(
         max_episode_length, observe_step=False)
+    
+    # color randomization
+    if randomize_colors:
+        components['color_randomization'] = RandomizeColorsComponent(
+            dataset_info['color_ids'],
+            components['workspace_scene'],
+            randomize_frequency='reset',
+        )
+    
+    # initial config
+    components['initial_workspace_config'] = ConfigComponent(
+        components['workspace_scene'],
+        class_ids,
+        color_ids,
+        max_instances,
+        max_edges,
+        update_frequency='reset',
+        observe_config=train,
+    )
     
     # viewpoint
     azimuth_steps = 8
@@ -162,7 +185,8 @@ def reassembly_env(
         distance_steps=workspace_distance_steps,
         aspect_ratio=workspace_image_width/workspace_image_height,
         start_position=start_position,
-        frame_scene=True,
+        auto_frame='reset',
+        frame_button=True,
     )
     
     components['handspace_viewpoint'] = ControlledAzimuthalViewpointComponent(
@@ -174,16 +198,9 @@ def reassembly_env(
         distance_steps=handspace_distance_steps,
         aspect_ratio=handspace_image_width/handspace_image_height,
         start_position=(0,0,0),
-        frame_scene=True,
+        auto_frame='none',
+        frame_button=True
     )
-    
-    # color randomization
-    if randomize_colors:
-        components['color_randomization'] = RandomizeColorsComponent(
-            dataset_info['color_ids'],
-            components['workspace_scene'],
-            randomize_frequency='reset',
-        )
     
     # utility rendering components
     workspace_pos_snap_render = SnapRenderComponent(
@@ -283,20 +300,48 @@ def reassembly_env(
         anti_alias=True,
     )
     
-    if train:
-        components['workspace_segmentation_render'] = (
-             SegmentationRenderComponent(
-                workspace_map_width,
-                workspace_map_height,
-                components['workspace_scene'],
-            )
-        )
+    #if train:
+    #    components['workspace_segmentation_render'] = (
+    #         SegmentationRenderComponent(
+    #            workspace_map_width,
+    #            workspace_map_height,
+    #            components['workspace_scene'],
+    #        )
+    #    )
     
     # snap render
     components['workspace_pos_snap_render'] = workspace_pos_snap_render
     components['workspace_neg_snap_render'] = workspace_neg_snap_render
     components['handspace_pos_snap_render'] = handspace_pos_snap_render
     components['handspace_neg_snap_render'] = handspace_neg_snap_render
+    
+    # current config
+    components['workspace_config'] = ConfigComponent(
+        components['workspace_scene'],
+        class_ids,
+        color_ids,
+        max_instances,
+        max_edges,
+        update_frequency = 'step',
+        observe_config = train,
+    )
+    
+    components['handspace_config'] = ConfigComponent(
+        components['handspace_scene'],
+        class_ids,
+        color_ids,
+        max_instances,
+        max_edges,
+        update_frequency = 'step',
+        observe_config = train,
+    )
+    
+    # score
+    components['reassembly_score'] = ReassemblyScoreComponent(
+        components['initial_workspace_config'],
+        components['workspace_config'],
+        components['reassembly'],
+    )
     
     # build the env
     env = LtronEnv(components, print_traceback=print_traceback)

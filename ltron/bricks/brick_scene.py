@@ -499,15 +499,27 @@ class BrickScene:
         
         return unoccupied_snaps
     
-    def pick_and_place_snap_transform(self, pick, place):
+    def pick_and_place_snap_transform(self,
+        pick,
+        place,
+        check_collisions=False
+    ):
+        if check_collisions:
+            assert self.collision_checker is not None
+        
         pick_instance_id, pick_snap_id = pick
         pick_instance = self.instances[pick_instance_id]
         pick_snap = pick_instance.get_snap(pick_snap_id)
         pick_transform = unscale_transform(pick_snap.transform.copy())
-        place_instance_id, place_snap_id = place
-        place_instance = self.instances[place_instance_id]
-        place_snap = self.instances[place_instance_id].get_snap(place_snap_id)
-        place_transform = unscale_transform(place_snap.transform.copy())
+        inv_pick_transform = numpy.linalg.inv(pick_transform)
+        pick_instance_transform = pick_instance.transform.copy()
+        if place is None:
+            place_transform = self.upright
+        else:
+            place_instance_id, place_snap_id = place
+            place_instance = self.instances[place_instance_id]
+            place_snap = place_instance.get_snap(place_snap_id)
+            place_transform = unscale_transform(place_snap.transform.copy())
         
         best_transform = None
         best_pseudo_angle = -float('inf')
@@ -517,24 +529,37 @@ class BrickScene:
             candidate_transform = (
                 place_transform @
                 rotation.transformation_matrix @
-                numpy.linalg.inv(pick_transform) @
-                pick_instance.transform
+                inv_pick_transform @
+                pick_instance_transform
             )
+            
             offset = (
                 candidate_transform @
-                numpy.linalg.inv(pick_instance.transform)
+                numpy.linalg.inv(pick_instance_transform)
             )
             pseudo_angle = numpy.trace(offset[:3,:3])
             if pseudo_angle > best_pseudo_angle:
+                if check_collisions:
+                    self.move_instance(pick_instance, candidate_transform)
+                    collision = self.check_snap_collision(
+                        [pick_instance],
+                        pick_instance.get_snap(pick_snap_id),
+                    )
+                    self.move_instance(pick_instance, pick_instance_transform)
                 best_transform = candidate_transform
                 best_pseudo_angle = pseudo_angle
         
         return best_transform
     
-    def pick_and_place_snap(self, pick, place):
+    def pick_and_place_snap(self, pick, place, check_collisions=False):
         pick_instance = self.instances[pick[0]]
-        transform = self.pick_and_place_snap_transform(pick, place)
-        self.move_instance(pick_instance, transform)
+        transform = self.pick_and_place_snap_transform(
+            pick, place, check_collisions=check_collisions)
+        if transform is None:
+            return False
+        else:
+            self.move_instance(pick_instance, transform)
+            return True
     
     def transform_about_snap(self, instances, snap, local_transform):
         offset = (

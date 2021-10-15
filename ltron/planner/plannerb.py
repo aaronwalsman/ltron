@@ -62,7 +62,50 @@ def neighbor_fn(env, state, target):
     else:
         return []
 
-But here we find another tangle: how do we determine
+But here we find another tangle: if our state space is this convoluted thing we get directly from the environment, how do we know what the neighbors will be or what high level actions we can reason about?  I mean, yeah I guess we can just hard-code it, and make our gentle user specify it in whatever implments remove_ops_for_misplaced_current_instances.  This gets back to the fact that somebody real, either us or gentle user is going to need to do some transating from goofy complicated state space output by the environment to clean precise hashable node that can be added to a python set or dictionary and tested for equality with other nodes.
+
+What to do what to do?
+
+Is there a different route to take?  Lookng further afield, we could go to the bit-vector approach, and make everything else (cameras) part of the transition space between nodes.  The problem with this is that we'd then have to track this as we trace a path through high-level nodes.
+
+What if we just tried to plan directly in the super-crazy-pants space?  Skip the high-level/low-level thing and just do all planning in the low-level space.  This seems pretty hard though.  Maybe possible with crazy heuristics?  I mean that's kind of what my last attempt was/is right?  And that has been kind of a disaster.  Why?  There's still some business to clear up there about viewpoints and other things.  What a mess.
+
+Ok, so how can we make the high-level/low-level search work?  And make it general enough to use for multiple action spaces?  This thing really is about adding and removing nodes, so maybe we do the bit-vector thing with a... no no no.  We need the camera in there too.  So the neighbor function is going to return camera motions as well?  Yikes.  Is this where some heuristic comes in to compensate for the blow-up in graph degree?  Guess so.
+
+We're also going to need something that can get us from point a to point b using low-level actions.  I guess we know how to do this, the last few attempts at this all do something similar, but the last few attempts have also been all this crazy specific mess.  I guess this is kind of fine if it gets me there, BUT I thought cleaning up that mess was part of what this attempt was all about, and it's kind of disappointing to throw away generality again (or require the gentle user to implement so so much).
+
+As a thought exercise, let's pull this together from the bottom up.  At the lowest level, our action space is all the pixels in the screen plus a dozen or so extra levers.
+
+From here we can consolidate all the pixels into a varying number of discrete regions that all do the same thing.  This takes us from ~256x256 to probably a few hundred discrete snap points.  A few hundred is still really big.  We could reduce this still if we group those few hundred into a slightly smaller functionally equivalent class, where all the snaps that result in the same next pose get grouped together.  This may help a little bit, but not as much as we need.  Is this getting us anywhere?
+
+One thought: we can make the low-level planner be another instantiation of the high-level planner.  Fancy fancy.  In this case, the check_edge function would do nothing because all the edges are already correctly connected to each other.  Would be kinda cool if it worked.
+
+Ok no more tangles.
+'''
+
+'''
+High Level:
+env: gym environment
+nodes: states
+edges: lazily evaluated low-level state-action-state paths
+neighbor_fn: [manually specified] add-remove bricks plus camera actions
+check_edge_fn: low-level planner
+
+Low Level:
+env: gym environment (shared with high-level)
+nodes: states
+edges: actions
+neighbor_fn: 
+
+Yo wait wait wait... what if we added a new action space that us find high-level neighbors automatically based on the target.  Yeah I like that a lot.  This is only in the training environment, so the agent can't actually use it, but it can be used for supervision.  We could even do this for the low-level environment too.  The purpose of it is just to specify the structure of the graph for planning at that particular level.  We could even make this some levels deeper by making the low-level planner operate in symbolic snap space and defer that plan to a low-low-level (basement-level) planner that picks out pixel coordinates and shit.  Eew man, that's nasty.  Maybe good nasty.  Maybe bad nasty.  Won't know until the morning.
+
+How does all this make the planning more general and easy to use?
+
+Oh one more thing, if we do the center-viewport-to-snap thing I've been mulling over in my head, then the number of camera actions are really big yo.  This is kind of similar to the issues I'm having with everything else though.  It seems like I need a special heuristic kind of thing to tell me which ones of these to consider.
+'''
+
+'''
+There is another argument to make here: just forget all this fancy general nonsense and make one thing that works for reassembly.  Oof.  Just fuggin do it, you know?  Is this the right thing?  Don't mull it over.  Lay it out.  Let's start laying this out, enough meandering.
 '''
 
 class GraphSearch:

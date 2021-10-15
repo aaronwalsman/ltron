@@ -16,7 +16,7 @@ class EmptySceneComponent(LtronGymComponent):
         track_snaps=False,
         collision_checker=False,
         store_configuration=False,
-        observe_configuration=False,
+        #observe_configuration=False,
     ):
         self.class_ids = class_ids
         self.color_ids = color_ids
@@ -24,7 +24,7 @@ class EmptySceneComponent(LtronGymComponent):
         self.max_edges = max_edges
         self.current_scene_path = None
         self.store_configuration = store_configuration
-        self.observe_configuration = observe_configuration
+        #self.observe_configuration = observe_configuration
         
         if render_args is None:
             render_args = {'opengl_mode':'egl', 'load_scene':'grey_cube'}
@@ -37,6 +37,7 @@ class EmptySceneComponent(LtronGymComponent):
         )
         
         observation_space = {'scene_loaded':Discrete(2)}
+        '''
         if self.observe_configuration:
             observation_space['config'] = ConfigurationSpace(
                 self.class_ids,
@@ -50,13 +51,14 @@ class EmptySceneComponent(LtronGymComponent):
                 self.max_instances,
                 self.max_edges,
             )
-            
+        '''
         self.observation_space = Dict(observation_space)
     
     def observe(self, initial=False):
         self.observation = {
             'scene_loaded' : int(self.current_scene_path is not None)
         }
+        '''
         if self.store_configuration or self.observe_configuration:
             self.config = self.brick_scene.get_configuration(
                 self.class_ids,
@@ -69,6 +71,7 @@ class EmptySceneComponent(LtronGymComponent):
             if self.observe_configuration:
                 self.observation['config'] = self.config
                 self.observation['initial_config'] = self.initial_config
+        '''
     
     def reset(self):
         self.brick_scene.clear_instances()

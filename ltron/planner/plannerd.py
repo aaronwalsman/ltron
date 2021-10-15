@@ -6,7 +6,7 @@ from bisect import insort
 
 import numpy
 
-from ltron.exceptions import LTronException
+from ltron.exceptions import LtronException
 from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.collision import build_collision_map
 from ltron.geometry.epsilon_array import EpsilonArray
@@ -20,7 +20,7 @@ from ltron.planner.edge_planner import (
     plan_add_nth_brick,
 )
 
-class PlanningException(LTronException):
+class PlanningException(LtronException):
     pass
 
 class PathNotFoundError(PlanningException):
@@ -94,7 +94,7 @@ class RoadmapPlanner:
         
         # set the env to the start state
         observation = self.roadmap.env.set_state(start_env_state)
-        self.start_config = observation['workspace_scene']['config']
+        self.start_config = observation['workspace_config']['config']
         
         # compute a matching
         matching, offset = match_configurations(
@@ -316,6 +316,7 @@ class EdgeChecker:
                     instance,
                     observation,
                     goal_to_wip,
+                    self.roadmap.class_to_brick_type,
                 )
                 goal_to_wip[instance] = next_instance
         
@@ -529,10 +530,10 @@ class EdgeChecker:
     def plan_remove_brick(self, instance):
         pass
     
+    '''
     def compute_camera_actions(self, view_space, start_position, end_position):
         return []
     
-    '''
     def replace_camera_in_state(self, state, component_name, position):
         state[component_name]['position'] = position[:3]
         if position[-1]:

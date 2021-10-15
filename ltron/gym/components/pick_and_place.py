@@ -222,6 +222,37 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
         
         workspace_view_matrix = workspace_scene.get_view_matrix()
         handspace_view_matrix = handspace_scene.get_view_matrix()
+        
+        transferred_transform = (
+            numpy.linalg.inv(workspace_view_matrix) @
+            handspace_view_matrix @
+            pick_instance.transform
+        )
+        
+        new_brick = workspace_scene.add_instance(
+            str(pick_brick_type),
+            pick_brick_color,
+            transferred_transform,
+        )
+        
+        if place_at_origin:
+            place = None
+        else:
+            place = (place_instance_id, place_snap_id)
+        
+        success = workspace_scene.pick_and_place_snap(
+            (new_brick.instance_id, pick_snap_id),
+            place,
+            check_collisions=self.check_collisions,
+        )
+        
+        if numpy.linalg.det(new_brick.transform) < 0.:
+            import pdb
+            pdb.set_trace()
+        
+        return {'success':success}, 0, False, None
+        
+        '''
         best_workspace_transform = None
         best_pseudo_angle = -float('inf')
         for i in range(4):
@@ -244,13 +275,25 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
             pseudo_angle = numpy.trace(offset[:3,:3])
             # TODO: we should maybe check collisions here first instead of later
             if pseudo_angle > best_pseudo_angle:
+                workspace_scene.move_instance(new_brick, transform)
+                
+                if self.check_collisions:
+                    collision = workspace_scene.check_snap_collision(
+                        [new_brick], new_brick.get_snap(pick_snap_id))
+                    if collision:
+                        continue
+                
                 best_pseudo_angle = pseudo_angle
                 best_workspace_transform = workspace_transform
-        new_brick = workspace_scene.add_instance(
-            str(pick_brick_type),
-            pick_brick_color,
-            best_workspace_transform,
-        )
+                
+        if best_workspace_transform is None:
+            return {'success':0}, 0, False, None
+        
+        #new_brick = workspace_scene.add_instance(
+        #    str(pick_brick_type),
+        #    pick_brick_color,
+        #    best_workspace_transform,
+        #)
         
         if place_at_origin:
             if self.check_collisions:
@@ -271,7 +314,7 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
             )
             if self.check_collisions:
                 collision = workspace_scene.check_snap_collision(
-                    [new_brick], new_brick.get_snap(pick_snap_id), dump_images='collision')
+                    [new_brick], new_brick.get_snap(pick_snap_id))
                 if collision:
                     workspace_scene.remove_instance(new_brick)
                     success = False
@@ -284,6 +327,7 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
             handspace_scene.clear_instances()
         
         return {'success':success}, 0., False, {}
+        '''
 
 class PickAndPlace(LtronGymComponent):
     def __init__(self,

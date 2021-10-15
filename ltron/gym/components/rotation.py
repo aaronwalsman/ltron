@@ -100,14 +100,17 @@ class CursorRotationAroundSnap(LtronGymComponent):
         scene_component,
         cursor_component,
         check_collisions,
+        rotation_steps = 4,
     ):
         self.scene_component = scene_component
         self.cursor_component = cursor_component
         self.check_collisions = check_collisions
-        self.action_space = Dict({
-            'activate':Discrete(2),
-            'direction':Discrete(2),
-        })
+        self.rotation_steps = rotation_steps
+        #self.action_space = Dict({
+            #'activate':Discrete(2),
+        #    'rotation':Discrete(self.rotation_steps),
+        #})
+        self.action_space = Discrete(self.rotation_steps)
 
         self.observation_space = Dict({'success': Discrete(2)})
 
@@ -115,18 +118,16 @@ class CursorRotationAroundSnap(LtronGymComponent):
         return {'success':0}
 
     def step(self, action):
-
-        if action is None: return {'rotation_suceed' : 0}, 0, False, None
-
-        activate = action['activate']
-        if not activate:
-            return {'success':0}, 0, False, None
         
-        direction = action['direction']
-        if direction:
-            degree = math.radians(90)
-        else:
-            degree = math.radians(-90)
+        if not action:
+            return {'success' : 0}, 0, False, None
+
+        #activate = action['activate']
+        #if not activate:
+        #    return {'success':0}, 0, False, None
+        
+        #discrete_rotate = action['rotation']
+        degree = action * math.pi * 2 / self.rotation_steps
         
         trans = numpy.eye(4)
         #rotate_x = numpy.copy(trans)

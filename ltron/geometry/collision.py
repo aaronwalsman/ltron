@@ -323,6 +323,7 @@ def check_collision(
             collision = numpy.any(collision)
         else:
             collision = numpy.max(offset) > max_intersection
+        
         return collision
 
 

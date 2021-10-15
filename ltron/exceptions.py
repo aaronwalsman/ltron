@@ -1,2 +1,2 @@
-class LTronException(Exception):
+class LtronException(Exception):
     pass

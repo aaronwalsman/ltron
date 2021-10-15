@@ -73,13 +73,13 @@ class Reassembly(LtronGymComponent):
         #handspace_scene = self.handspace_scene_component.brick_scene
         #workspace_space = self.observation_space['workspace_configuration']
         #workspace_configuration = workspace_space.from_scene(scene)
-        target_configuration = self.workspace_scene_component.initial_config
-        workspace_configuration = self.workspace_scene_component.config
+        #target_configuration = self.workspace_scene_component.initial_config
+        #workspace_configuration = self.workspace_scene_component.config
         
-        self.score, matching = score_configurations(
-            target_configuration,
-            workspace_configuration,
-        )
+        #self.score, matching = score_configurations(
+        #    target_configuration,
+        #    workspace_configuration,
+        #)
         
         self.observation = {'reassembling':self.reassembling}
         '''
@@ -152,9 +152,38 @@ class Reassembly(LtronGymComponent):
                 raise NotImplementedError
         
         self.observe()
-        if self.reassembling:
-            score = self.score
-        else:
-            score = 0.
+        #if self.reassembling:
+        #    score = self.score
+        #else:
+        #    score = 0.
         
-        return self.observation, score, action['end'], {}
+        return self.observation, 0., action['end'], {}
+
+class ReassemblyScoreComponent(LtronGymComponent):
+    def __init__(self,
+        initial_config_component,
+        current_config_component,
+        reassembly_component,
+    ):
+        self.initial_config_component = initial_config_component
+        self.current_config_component = current_config_component
+        self.reassembly_component = reassembly_component
+    
+    def observe(self):
+        if self.reassembly_component.reassembling:
+            initial_config = self.initial_config_component.config
+            current_config = self.current_config_component.config
+            
+            self.score, matching = score_configurations(
+                initial_config,
+                current_config,
+            )
+        else:
+            self.score = 0.
+    
+    def reset(self):
+        self.observe()
+    
+    def step(self, action):
+        self.observe()
+        return None, self.score, False, {}

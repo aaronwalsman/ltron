@@ -24,4 +24,6 @@ def unscale_transform(transform):
     transform[:3,0] /= numpy.linalg.norm(transform[:3,0])
     transform[:3,1] /= numpy.linalg.norm(transform[:3,1])
     transform[:3,2] /= numpy.linalg.norm(transform[:3,2])
+    if numpy.linalg.det(transform) < 0.:
+        transform[:3,0] *= -1
     return transform

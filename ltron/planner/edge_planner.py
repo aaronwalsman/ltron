@@ -1,12 +1,25 @@
 import random
+import math
 import copy
+from bisect import insort
 
 import numpy
+
+from splendor.image import save_image
 
 from ltron.bricks.brick_type import BrickType
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.gym.envs.reassembly_env import reassembly_template_action
+from ltron.exceptions import LtronException
 
+class NoMatchingRotationError(LtronException):
+    pass
+
+class PickAndPlaceFailure(LtronException):
+    pass
+
+class RotationFailure(LtronException):
+    pass
 
 # utilities ====================================================================
 
@@ -29,9 +42,6 @@ def snap_finder_condition(instances, snaps, pos_component, neg_component):
         matching_yxpis = numpy.concatenate(matching_yxpis, axis=1)
         
         success = bool(matching_yxpis.shape[1])
-        if success is False:
-            import pdb
-            pdb.set_trace()
         return success, matching_yxpis
     return condition
 
@@ -58,10 +68,12 @@ def search_camera_space(env, component_name, state, condition, max_steps):
         1,
     )
     
+    print('----------------------------------------------')
     while frontier:
         distance, *position = frontier.pop(0)
         position = tuple(position)
         
+        print('testing:', position)
         test_result, test_info = test_camera_position(
             env, position, component_name, state, condition
         )
@@ -78,9 +90,12 @@ def search_camera_space(env, component_name, state, condition, max_steps):
                     new_position[1:]
                 ))
                 new_distance = numpy.sum(
-                    numpy.abs(new_position[1:] - position[1:]))
+                    numpy.abs(new_position[1:] - current_position[1:]))
                 new_distance += modular_distance(
-                    new_position[0], position[0], component.azimuth_steps)
+                    new_position[0],
+                    current_position[0],
+                    component.azimuth_steps,
+                )
                 if (numpy.all(new_position >= min_position) and
                     numpy.all(new_position <= max_position) and
                     new_distance <= max_steps and
@@ -90,13 +105,17 @@ def search_camera_space(env, component_name, state, condition, max_steps):
                     explored.add(new_position)
                     new_distance_position = (new_distance,) + new_position
                     insort(frontier, new_distance_position)
-
+    
+    import pdb
+    pdb.set_trace()
+    
     return None, None
 
 def test_camera_position(env, position, component_name, state, condition):
     new_state = copy.deepcopy(state)
     replace_camera_in_state(env, new_state, component_name, position)
     observation = env.set_state(new_state)
+    save_image(observation['workspace_color_render'], './cam_%i_%i_%i_%i.png'%tuple(position))
     return condition(observation)
 
 def replace_camera_in_state(env, state, component_name, position):
@@ -135,7 +154,11 @@ def compute_camera_actions(
     end_position
 ):
     actions = []
-    steps = numpy.array(end_position) - start_position
+    try:
+        steps = numpy.array(end_position) - start_position
+    except:
+        import pdb
+        pdb.set_trace()
     frame_scene = steps[3]
     if frame_scene:
         action = reassembly_template_action()
@@ -157,26 +180,85 @@ def compute_camera_actions(
 
 def get_wip_connections(
     goal_config,
-    new_instance,
-    goal_to_start_lookup,
+    instance,
+    goal_to_wip,
 ):
-    connections = goal_config['edges'][0] == new_instance
+    connections = goal_config['edges'][0] == instance
     extant_connections = numpy.array([
-        goal_config['edges'][1,i] in goal_to_start_lookup
+        goal_config['edges'][1,i] in goal_to_wip
         for i in range(goal_config['edges'].shape[1])])
     connections = connections & extant_connections
     connected_instances = goal_config['edges'][1][connections]
-    wip_instances = [goal_to_start_lookup[i] for i in connected_instances]
+    wip_instances = [goal_to_wip[i] for i in connected_instances]
     instance_snaps = goal_config['edges'][2][connections]
     wip_snaps = goal_config['edges'][3][connections]
     new_to_wip = {
-        (i,s):(1,cs) for i, s, cs in
+        (1,iss):(wii,wss) for wii, iss, wss in
         zip(wip_instances, instance_snaps, wip_snaps)
     }
     wip_to_new = {v:k for k,v in new_to_wip.items()}
     
     return new_to_wip, wip_to_new, wip_instances, wip_snaps
 
+def compute_discrete_rotation(
+    goal_config,
+    wip_config,
+    snap,
+    goal_instance,
+    goal_connected_instance,
+    wip_instance,
+    wip_connected_instance,
+    brick_type_name,
+    rotation_steps = 4,
+):
+    
+    goal_transform = goal_config['pose'][goal_instance]
+    connected_goal_transform = goal_config['pose'][goal_connected_instance]
+    inv_connected_goal_transform = numpy.linalg.inv(connected_goal_transform)
+    goal_offset = (
+        inv_connected_goal_transform @
+        goal_transform
+    )
+    
+    wip_transform = wip_config['pose'][wip_instance]
+    connected_wip_transform = wip_config['pose'][wip_connected_instance]
+    inv_connected_wip_transform = numpy.linalg.inv(connected_wip_transform)
+    wip_offset = (
+        numpy.linalg.inv(connected_wip_transform) @
+        wip_transform
+    )
+    
+    brick_type = BrickType(brick_type_name)
+    snap_transform = brick_type.snaps[snap].transform
+    inv_snap_transform = numpy.linalg.inv(snap_transform)
+    wip_snap_transform = wip_transform @ snap_transform
+    
+    if numpy.allclose(goal_offset, wip_offset):
+        return 0
+    
+    offsets = []
+    for r in range(1, rotation_steps):
+        c = math.cos(r * math.pi * 2 / rotation_steps)
+        s = math.sin(r * math.pi * 2 / rotation_steps)
+        ry = numpy.array([
+            [ c, 0, s, 0],
+            [ 0, 1, 0, 0],
+            [-s, 0, c, 0],
+            [ 0, 0, 0, 1],
+        ])
+        offset = (
+            inv_connected_wip_transform @
+            wip_snap_transform @
+            ry @
+            inv_snap_transform
+        )
+        offsets.append(offset)
+        if numpy.allclose(offset, goal_offset):
+            return r
+    
+    import pdb
+    pdb.set_trace()
+    raise NoMatchingRotationError
 
 # action builders ==============================================================
 
@@ -197,7 +279,7 @@ def plan_add_first_brick(
     goal_config,
     instance,
     observation,
-    goal_to_start_lookup,
+    goal_to_wip,
     class_to_brick_type,
 ):
     # initialization -----------------------------------------------------------
@@ -244,35 +326,6 @@ def plan_add_first_brick(
         replace_camera_in_state(
             env, state, 'handspace_viewpoint', handspace_camera_position)
         observation = env.set_state(state)
-    
-    '''
-    snap_y = []
-    snap_x = []
-    snap_p = []
-    for snap, i in zip(upright_snaps, upright_snap_ids):
-        if snap.polarity == '+':
-            snap_map = observation['handspace_pos_snap_render']
-        else:
-            snap_map = observation['handspace_neg_snap_render']
-        y, x = numpy.where((snap_map[:,:,0] == 1) & (snap_map[:,:,1] == i))
-        snap_y.append(y)
-        snap_x.append(x)
-        snap_p.append(numpy.ones(len(y)) * (snap.polarity == '+'))
-
-    snap_y = numpy.concatenate(snap_y)
-    snap_x = numpy.concatenate(snap_x)
-    snap_p = numpy.concatenate(snap_p)
-
-    # TODO: search camera space for upright snaps
-    if not len(snap_y):
-        # TODO test other camera locations
-        return False
-    
-    i = random.randint(0, len(snap_y)-1)
-    y = snap_y[i]
-    x = snap_x[i]
-    p = snap_p[i]
-    '''
 
     # make the pick and place action -------------------------------------------
     nr = random.randint(0, new_visible_snaps.shape[1]-1)
@@ -290,7 +343,10 @@ def plan_add_first_brick(
     }
     action_seq.append(insert_action)
     observation = env.step(pick_and_place_action)
-
+    
+    env.components['workspace_scene'].brick_scene.export_ldraw(
+        './add_first.mpd')
+    
     return action_seq
 
 def plan_add_nth_brick(
@@ -298,12 +354,14 @@ def plan_add_nth_brick(
     goal_config,
     instance,
     observation,
-    goal_to_wip_lookup
+    goal_to_wip,
+    class_to_brick_type,
 ):
     
     # initialization -----------------------------------------------------------
     
     vis_obs(observation, 0)
+    wip_to_goal = {v:k for k,v in goal_to_wip.items()}
     
     # initialize the action sequence
     action_seq = []
@@ -323,7 +381,7 @@ def plan_add_nth_brick(
     # workspace camera ---------------------------------------------------------
     # find all connections between the new instance and the wip bricks
     new_to_wip, wip_to_new, wip_instances, wip_snaps = get_wip_connections(
-        goal_config, instance, goal_to_wip_lookup)
+        goal_config, instance, goal_to_wip)
     
     # compute the workspace camera motion
     state = env.get_state()
@@ -352,7 +410,11 @@ def plan_add_nth_brick(
     # find the new snaps that are connected to the wip visible snaps
     wy, wx, wp, wi, ws = wip_visible_snaps
     new_instances = numpy.ones(ws.shape[0], dtype=numpy.long)
-    new_snaps = [wip_to_new[i,s][1] for i,s in zip(wi, ws)]
+    try:
+        new_snaps = [wip_to_new[i,s][1] for i,s in zip(wi, ws)]
+    except KeyError:
+        import pdb
+        pdb.set_trace()
     
     # compute the handspace camera motion
     (handspace_camera_actions,
@@ -408,18 +470,78 @@ def plan_add_nth_brick(
     
     # take the action to generate the latest observation
     observation, reward, terminal, info = env.step(pick_and_place_action)
-
+    state = env.get_state()
+    
+    if not observation['pick_and_place']['success']:
+        import pdb
+        pdb.set_trace()
+        raise PickAndPlaceFailure
+    
     vis_obs(observation, 4)
 
     # make the rotation action -------------------------------------------------
-
-    import pdb
-    pdb.set_trace()
+    new_wip_instance = max(goal_to_wip.values())+1
+    
+    #env.components['workspace_scene'].brick_scene.export_ldraw('./tmp.mpd')
+    
+    # figure out if we need to rotate the new instance
+    discrete_rotation = compute_discrete_rotation(
+        goal_config,
+        observation['workspace_config']['config'],
+        nss,
+        instance,
+        wip_to_goal[wii],
+        new_wip_instance,
+        wii,
+        class_to_brick_type[brick_class],
+        rotation_steps = 4,
+    )
+    
+    if discrete_rotation:
+        # compute the camera motion to make sure the snap to rotate is visible
+        (workspace_camera_actions,
+         workspace_camera_position,
+         new_visible_snaps) = plan_camera_to_see_snaps(
+            env,
+            state,
+            [new_wip_instance],
+            [nss],
+            'workspace_pos_snap_render',
+            'workspace_neg_snap_render',
+            'workspace_viewpoint'
+        )
+        action_seq.extend(workspace_camera_actions)
+        
+        # update the state
+        if workspace_camera_actions:
+            replace_camera_in_state(
+                env, state, 'workspace_viewpoint', workspace_camera_position)
+            observation = env.set_state(state)
+        
+        vis_obs(observation, 5)
+        
+        rotation_action = reassembly_template_action()
+        r = random.randint(0, new_visible_snaps.shape[1]-1)
+        y, x, p, i, s = new_visible_snaps[:,r]
+        rotation_action['workspace_cursor'] = {
+            'activate' : True,
+            'position' : [y,x],
+            'polarity' : p
+        }
+        rotation_action['rotate'] = discrete_rotation
+        observation, reward, terminal, info = env.step(rotation_action)
+        
+        vis_obs(observation, 6)
+    
+    vis_obs(observation, new_wip_instance, label='step')
+    
+    env.components['workspace_scene'].brick_scene.export_ldraw(
+        './add_%i.mpd'%new_wip_instance)
     
     return action_seq
 
 
-def vis_obs(obs, i):
+def vis_obs(obs, i, label='tmp'):
     from splendor.image import save_image
     from ltron.visualization.drawing import (
         map_overlay, stack_images_horizontal)
@@ -453,7 +575,7 @@ def vis_obs(obs, i):
 
     image = stack_images_horizontal(
         (workspace_image, handspace_image), align='bottom')
-    path = './tmp_%i.png'%i
+    path = './%s_%i.png'%(label, i)
     save_image(image, path)
 
 # DETRITUS =====================================================================

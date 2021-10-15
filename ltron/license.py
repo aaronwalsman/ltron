@@ -49,7 +49,7 @@ def ldraw_license():
     license = '''LDraw
 Source: %s
 --------------------------------------------------------------------------------
-The LDraw parts library is used by LTron to describe the 3D structure of
+The LDraw parts library is used by LTRON to describe the 3D structure of
 individual bricks.  It is provided by the LDraw contributors under a
 Creative Commons license.  For more information on this license see:
 
