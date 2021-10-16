@@ -54,26 +54,27 @@ def partition(scene):
 
     return components
 
-def partition_omr(directory):
+def partition_omr(directory, outdir=None):
     path = Path(directory).expanduser()
     modelList = path.rglob('*')
-    stat = {"error": []}
 
     # Iterate through mpd files
     cnt = 0
     for model in modelList:
         model = str(model)
-        print(model)
         try:
             cur_model = LDrawMPDMainFile(model)
             scene = BrickScene(track_snaps=True)
             scene.import_ldraw(model)
         except:
-            stat['error'].append(model)
+            print("Can't open: " + model + " during connected components partition")
             continue
 
         components = partition(scene)
-        folder_name = "conn_comps/"
+        if outdir is None:
+            folder_name = "conn_comps/"
+        else:
+            folder_name = outdir
         modelname = model.split("/")[-1][:-4]
         for idx, comp in components.items():
             # temp_scene = BrickScene()
@@ -86,12 +87,7 @@ def partition_omr(directory):
             # temp_scene.export_ldraw(folder_name + modelname + "_"
             #                                                + str(count) + ".mpd")
 
-            scene.export_ldraw(folder_name + modelname + "_" + str(idx) + ".mpd", instances=comp)
-
-        cnt += 1
-        if cnt > 5:
-            exit(0)
-
+            scene.export_ldraw(folder_name + modelname + "@" + str(idx) + "." + model.split(".")[-1], instances=comp)
 
 def main():
     direc = "~/.cache/ltron/collections/omr/ldraw"
