@@ -141,6 +141,7 @@ class RoadmapPlanner:
                 raise PathNotFoundError
             
             # plan a path
+            print('planning')
             candidate_path, goal_found = self.plan_collision_free()
             if goal_found:
                 print('goal found')
@@ -268,8 +269,9 @@ class EdgeChecker:
             if b not in self.roadmap.env_states:
                 action_seq = self.check_edge(a, b, goal_to_wip)
                 self.roadmap.edges[a,b]['feasible'] = action_seq
-                if action_seq is False:
+                if action_seq is None:
                     self.roadmap.successors[a].remove(b)
+                    del self.roadmap.edges[a,b]
                     return successful_path, False
                 successful_path.append(b)
                 last_state = self.roadmap.env.get_state()
@@ -301,6 +303,7 @@ class EdgeChecker:
                     observation,
                     goal_to_wip,
                     self.roadmap.class_to_brick_type,
+                    debug=True,
                 )
                 goal_to_wip[instance] = next_instance
                 return action_seq
@@ -317,8 +320,10 @@ class EdgeChecker:
                     observation,
                     goal_to_wip,
                     self.roadmap.class_to_brick_type,
+                    debug=True,
                 )
                 goal_to_wip[instance] = next_instance
+                return action_seq
         
         elif len(b) < len(a):
             # remove a brick
