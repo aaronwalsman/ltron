@@ -23,7 +23,7 @@ import ltron.ldraw.paths as ldraw_paths
 from ltron.bricks.brick_scene import BrickScene
 
 instructions = '''
-LTron Viewer Hotkeys
+LTRON Viewer Hotkeys
 
 reload -------------------------------------------------------------------------
 l:                      reload scene

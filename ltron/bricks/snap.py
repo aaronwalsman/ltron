@@ -7,7 +7,7 @@ except ImportError:
     splendor_available = False
 
 from ltron.ldraw.commands import *
-from ltron.ldraw.exceptions import LDrawException
+from ltron.exceptions import LtronException
 from ltron.geometry.utils import close_enough
 
 gender_to_polarity = {
@@ -20,7 +20,7 @@ gender_to_polarity = {
 def str_to_bool(s):
     return s.lower() == 'true'
 
-class BadGridException(LDrawException):
+class BadGridException(LtronException):
     pass
 
 def griderate(grid, transform):
@@ -147,6 +147,9 @@ class SnapStyle(Snap):
         
         self.transform = transform
     
+    def is_upright(self):
+        return False
+    
     def groups_match(self, other):
         if self.group is None and other.group is None:
             return True
@@ -169,6 +172,15 @@ class SnapCylinder(SnapStyle):
         center_string = ('uncentered', 'centered')[self.center]
         #self.subtype_id = 'cyl|%s|%s|%s'%(self.secs, self.caps, self.polarity)
         self.subtype_id = 'cylinder(%s,%s)'%(self.secs, center_string)
+    
+    def is_upright(self):
+        axis = self.transform[:3,1]
+        if self.polarity == '+' and numpy.allclose(axis, (0,-1,0)):
+            return True
+        elif self.polarity == '-' and numpy.allclose(axis, (0,1,0)):
+            return True
+        else:
+            return False
     
     def connected(
         self,

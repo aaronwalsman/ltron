@@ -34,24 +34,6 @@ class RotationAroundSnap(LtronGymComponent):
 
     def reset(self):
         return {'success':0}
-    
-    # I moved this to brick_scene because I needed it other places as well
-    #def transform_about_snap(
-    #    self, polarity, instance_id, snap_id, transform, scene
-    #):
-    #    instance = scene.instances[instance_id]
-    #    snap_transform = instance.get_snap(snap_id).transform
-    #    prototype_transform = instance.brick_type.snaps[snap_id].transform
-    #    instance_transform = (
-    #            snap_transform @
-    #            transform @
-    #            numpy.linalg.inv(prototype_transform))
-
-    #    table = scene.instances.instances
-    #    c_polarity = '-+'[polarity]
-
-    #    scene.move_instance(instance, instance_transform)
-    #    snap_transform = instance.get_snap(snap_id).transform
 
     def step(self, action):
 
@@ -68,11 +50,11 @@ class RotationAroundSnap(LtronGymComponent):
             degree = math.radians(-90)
         (y_cord, x_cord) = action['pick']
         trans = numpy.eye(4)
-        rotate_x = numpy.copy(trans)
-        rotate_x[1,1] = math.cos(degree)
-        rotate_x[1,2] = -math.sin(degree)
-        rotate_x[2:1] = math.sin(degree)
-        rotate_x[2:2] = math.cos(degree)
+        #rotate_x = numpy.copy(trans)
+        #rotate_x[1,1] = math.cos(degree)
+        #rotate_x[1,2] = -math.sin(degree)
+        #rotate_x[2:1] = math.sin(degree)
+        #rotate_x[2:2] = math.cos(degree)
         
         rotate_y = numpy.copy(trans)
         rotate_y[0,0] = math.cos(degree)
@@ -80,11 +62,11 @@ class RotationAroundSnap(LtronGymComponent):
         rotate_y[2,0] = -math.sin(degree)
         rotate_y[2,2] = math.cos(degree)
 
-        rotate_z = numpy.copy(trans)
-        rotate_z[0,0] = math.cos(degree)
-        rotate_z[0,1] = -math.sin(degree)
-        rotate_z[1,0] = math.sin(degree)
-        rotate_z[1,1] = math.cos(degree)
+        #rotate_z = numpy.copy(trans)
+        #rotate_z[0,0] = math.cos(degree)
+        #rotate_z[0,1] = -math.sin(degree)
+        #rotate_z[1,0] = math.sin(degree)
+        #rotate_z[1,1] = math.cos(degree)
 
         if polarity == 1:
             rotate_map = self.pos_snap_render.observation
@@ -94,15 +76,15 @@ class RotationAroundSnap(LtronGymComponent):
         instance_id, snap_id = rotate_map[y_cord, x_cord]
         if instance_id == 0:
             return {'success' : 0}, 0, False, None
-        #self.transform_about_snap(polarity, instance_id, snap_id, rotate_y, self.scene_component.brick_scene)
 
         if self.check_collisions:
             instance = self.scene_component.brick_scene.instances[instance_id]
             transform = instance.transform
-            collision = self.scene_component.brick_scene.check_collision(target_instances = [instance], render_transform = rotate_y)
+            collision = self.scene_component.brick_scene.check_collision(
+                target_instances=[instance], render_transform=rotate_y)
             if collision:
-                # print("Collision!")
-                self.scene_component.brick_scene.move_instance(instance, transform)
+                self.scene_component.brick_scene.move_instance(
+                    instance, transform)
                 return {'success' : 0}, 0, False, None
         
         scene = self.scene_component.brick_scene
@@ -110,4 +92,81 @@ class RotationAroundSnap(LtronGymComponent):
         snap = instance.get_snap(snap_id)
         scene.transform_about_snap([instance], snap, rotate_y)
 
+        return {'success' : 1}, 0, False, None
+
+class CursorRotationAroundSnap(LtronGymComponent):
+    def __init__(
+        self,
+        scene_component,
+        cursor_component,
+        check_collisions,
+        rotation_steps = 4,
+    ):
+        self.scene_component = scene_component
+        self.cursor_component = cursor_component
+        self.check_collisions = check_collisions
+        self.rotation_steps = rotation_steps
+        #self.action_space = Dict({
+            #'activate':Discrete(2),
+        #    'rotation':Discrete(self.rotation_steps),
+        #})
+        self.action_space = Discrete(self.rotation_steps)
+
+        self.observation_space = Dict({'success': Discrete(2)})
+
+    def reset(self):
+        return {'success':0}
+
+    def step(self, action):
+        
+        if not action:
+            return {'success' : 0}, 0, False, None
+
+        #activate = action['activate']
+        #if not activate:
+        #    return {'success':0}, 0, False, None
+        
+        #discrete_rotate = action['rotation']
+        degree = action * math.pi * 2 / self.rotation_steps
+        
+        trans = numpy.eye(4)
+        #rotate_x = numpy.copy(trans)
+        #rotate_x[1,1] = math.cos(degree)
+        #rotate_x[1,2] = -math.sin(degree)
+        #rotate_x[2:1] = math.sin(degree)
+        #rotate_x[2:2] = math.cos(degree)
+        
+        rotate_y = numpy.copy(trans)
+        rotate_y[0,0] = math.cos(degree)
+        rotate_y[0,2] = math.sin(degree)
+        rotate_y[2,0] = -math.sin(degree)
+        rotate_y[2,2] = math.cos(degree)
+        
+        #rotate_z = numpy.copy(trans)
+        #rotate_z[0,0] = math.cos(degree)
+        #rotate_z[0,1] = -math.sin(degree)
+        #rotate_z[1,0] = math.sin(degree)
+        #rotate_z[1,1] = math.cos(degree)
+        
+        instance_id = self.cursor_component.instance_id
+        snap_id = self.cursor_component.snap_id
+        if instance_id == 0:
+            return {'success' : 0}, 0, False, None
+        
+        scene = self.scene_component.brick_scene
+        instance = scene.instances[instance_id]
+        original_instance_transform = instance.transform
+        snap = instance.get_snap(snap_id)
+        scene.transform_about_snap([instance], snap, rotate_y)
+        
+        if self.check_collisions:
+            transform = instance.transform
+            snap = instance.get_snap(snap_id)
+            collision = self.scene_component.brick_scene.check_snap_collision(
+                target_instances=[instance], snap=snap)
+            if collision:
+                self.scene_component.brick_scene.move_instance(
+                    instance, original_instance_transform)
+                return {'success' : 0}, 0, False, None
+        
         return {'success' : 1}, 0, False, None

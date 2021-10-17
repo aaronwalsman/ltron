@@ -136,12 +136,11 @@ def plan_reassembly(env):
             snap = scene.instances[instance_id].get_snap(snap_id)
             
             # check push
-            for direction in 'pull', 'push':
-                movable = scene.check_snap_collision(
-                    [instance_id], snap, direction)
-                if movable:
-                    removable_bricks.add((instance_id, snap_id, direction))
-                    break
+            #for direction in 'pull', 'push':
+            movable = scene.check_snap_collision([instance_id], snap)
+            if movable:
+                removable_bricks.add((instance_id, snap_id, direction))
+                break
         
         instance_id, snap_id, direction = random.choice(list(removable_bricks))
         brick_order.append(instance_id)

@@ -23,17 +23,20 @@ class RolloutStorage:
         self.gym_data = None
         
         self.seq_locations = {}
-        self.finished_seqs = []
+        self.finished_seqs = set()
         self.batch_seq_ids = [None for _ in range(self.batch_size)]
         self.next_seq_index = 0
         self.total_steps = 0
     
-    def save(self, path, finished_only=False):
+    def save(self, path, finished_only=False, seq_ids=None):
         path = os.path.expanduser(path)
-        if finished_only:
-            seq_ids = self.finished_seqs
-        else:
+        
+        if seq_ids is None:
             seq_ids = self.seq_locations.keys()
+        
+        if finished_only:
+            seq_ids = [s for s in seq_ids if s in self.finished_seqs]
+        
         for i, seq_id in enumerate(seq_ids):
             seq_path = os.path.join(path, 'seq_%06i.npz'%i)
             seq = self.get_seq(seq_id)
@@ -94,7 +97,7 @@ class RolloutStorage:
                 self.seq_locations[new_seq_index] = []
                 finished_seq = self.batch_seq_ids[i]
                 if finished_seq is not None:
-                    self.finished_seqs.append(finished_seq)
+                    self.finished_seqs.add(finished_seq)
                 self.batch_seq_ids[i] = new_seq_index
     
     def num_seqs(self):

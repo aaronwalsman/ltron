@@ -126,6 +126,12 @@ class BrickInstance:
         #    snaps.append(snap.transformed_copy(self.transform))
         #return snaps
     
+    def get_upright_snaps(self):
+        snaps = self.get_snaps()
+        upright_snaps = [
+            (snap, i) for i, snap in enumerate(snaps) if snap.is_upright()]
+        return tuple(zip(*upright_snaps))
+    
     def splendor_instance_args(self):
         instance_args = {
             'mesh_name' : self.brick_type.mesh_name,

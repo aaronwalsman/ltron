@@ -1,0 +1,2 @@
+class LtronException(Exception):
+    pass

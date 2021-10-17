@@ -86,7 +86,7 @@ def write_text(
 
 def map_overlay(image, overlay, opacity, convert_mask_colors=False):
     h, w = image.shape[:2]
-    if convert_map_colors:
+    if convert_mask_colors:
         overlay = color_index_to_byte(overlay)
     upsampled_overlay = block_upscale_image(overlay, w, h)
     upsampled_opacity = block_upscale_image(opacity, w, h)

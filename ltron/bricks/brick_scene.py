@@ -156,20 +156,40 @@ class BrickScene:
             
             self.add_instance(brick_type, color, instance_pose)
     
+    def make_class_ids(self):
+        brick_types = [str(bt) for bt in self.brick_library.values()]
+        class_ids = {bt:i+1 for i, bt in enumerate(brick_types)}
+        return class_ids
+    
+    def make_color_ids(self):
+        colors = [int(c) for c in self.color_library.values()]
+        color_ids = {str(c):i for i, c in enumerate(sorted(colors))}
+        return color_ids
+    
     def get_configuration(
         self,
-        class_ids,
-        color_ids,
+        class_ids=None,
+        color_ids=None,
         max_instances=None,
         max_edges=None,
         unidirectional=False,
     ):
         config = {}
         
+        if class_ids is None:
+            class_ids = self.make_class_ids()
+        if color_ids is None:
+            color_ids = self.make_color_ids()
         if max_instances is None:
-            max_instances = max(self.instances.keys())
+            if len(self.instances.keys()):
+                max_instances = max(self.instances.keys())
+            else:
+                max_instances = 0
         else:
-            assert len(self.instances) <= max_instances, 'Too many instances'
+            if len(self.instances):
+                assert max(self.instances.keys()) <= max_instances, (
+                    'Instance ids %s larger than max_instances: %i'%(
+                    list(self.instances.keys()), max_instances))
         config['class'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         config['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         config['pose'] = numpy.zeros((max_instances+1, 4, 4))
@@ -319,7 +339,6 @@ class BrickScene:
             vmin = numpy.min(vertices[:3], axis=1)
             vmax = numpy.max(vertices[:3], axis=1)
         else:
-            print('no verts')
             vmin = numpy.zeros(3)
             vmax = numpy.zeros(3)
         return vmin, vmax
@@ -480,15 +499,27 @@ class BrickScene:
         
         return unoccupied_snaps
     
-    def pick_and_place_snap_transform(self, pick, place):
+    def pick_and_place_snap_transform(self,
+        pick,
+        place,
+        check_collisions=False
+    ):
+        if check_collisions:
+            assert self.collision_checker is not None
+        
         pick_instance_id, pick_snap_id = pick
         pick_instance = self.instances[pick_instance_id]
         pick_snap = pick_instance.get_snap(pick_snap_id)
         pick_transform = unscale_transform(pick_snap.transform.copy())
-        place_instance_id, place_snap_id = place
-        place_instance = self.instances[place_instance_id]
-        place_snap = self.instances[place_instance_id].get_snap(place_snap_id)
-        place_transform = unscale_transform(place_snap.transform.copy())
+        inv_pick_transform = numpy.linalg.inv(pick_transform)
+        pick_instance_transform = pick_instance.transform.copy()
+        if place is None:
+            place_transform = self.upright
+        else:
+            place_instance_id, place_snap_id = place
+            place_instance = self.instances[place_instance_id]
+            place_snap = place_instance.get_snap(place_snap_id)
+            place_transform = unscale_transform(place_snap.transform.copy())
         
         best_transform = None
         best_pseudo_angle = -float('inf')
@@ -498,24 +529,37 @@ class BrickScene:
             candidate_transform = (
                 place_transform @
                 rotation.transformation_matrix @
-                numpy.linalg.inv(pick_transform) @
-                pick_instance.transform
+                inv_pick_transform @
+                pick_instance_transform
             )
+            
             offset = (
                 candidate_transform @
-                numpy.linalg.inv(pick_instance.transform)
+                numpy.linalg.inv(pick_instance_transform)
             )
             pseudo_angle = numpy.trace(offset[:3,:3])
             if pseudo_angle > best_pseudo_angle:
+                if check_collisions:
+                    self.move_instance(pick_instance, candidate_transform)
+                    collision = self.check_snap_collision(
+                        [pick_instance],
+                        pick_instance.get_snap(pick_snap_id),
+                    )
+                    self.move_instance(pick_instance, pick_instance_transform)
                 best_transform = candidate_transform
                 best_pseudo_angle = pseudo_angle
         
         return best_transform
     
-    def pick_and_place_snap(self, pick, place):
+    def pick_and_place_snap(self, pick, place, check_collisions=False):
         pick_instance = self.instances[pick[0]]
-        transform = self.pick_and_place_snap_transform(pick, place)
-        self.move_instance(pick_instance, transform)
+        transform = self.pick_and_place_snap_transform(
+            pick, place, check_collisions=check_collisions)
+        if transform is None:
+            return False
+        else:
+            self.move_instance(pick_instance, transform)
+            return True
     
     def transform_about_snap(self, instances, snap, local_transform):
         offset = (
@@ -587,10 +631,10 @@ class BrickScene:
             target_instances, render_transform, scene_instances=scene_instances)
     
     def check_snap_collision(
-        self, target_instances, snap, direction, *args, **kwargs
+        self, target_instances, snap, *args, **kwargs
     ):
         assert self.collision_checker is not None
         if self.render_environment.window is not None:
             self.render_environment.window.set_active()
         return self.collision_checker.check_snap_collision(
-            target_instances, snap, direction, *args, **kwargs)
+            target_instances, snap, *args, **kwargs)

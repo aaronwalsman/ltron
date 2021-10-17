@@ -850,7 +850,6 @@ def reassembly_env(
         aspect_ratio=image_width/image_height,
         start_position=start_position,
         frame_scene=True,
-        frame_border=0.,
     )
     
     # color randomization
@@ -942,8 +941,6 @@ def handspace_reassembly_env(
     color_ids = dataset_info['color_ids']
     max_instances = dataset_info['max_instances_per_scene']
     max_edges = dataset_info['max_edges_per_scene']
-    # TMP
-    max_snaps = 100
     
     # scenes
     components['workspace_scene'] = SceneComponent(
@@ -982,7 +979,6 @@ def handspace_reassembly_env(
         aspect_ratio=workspace_image_width/workspace_image_height,
         start_position=start_position,
         frame_scene=True,
-        frame_border=0.,
     )
     
     components['handspace_viewpoint'] = ControlledAzimuthalViewpointComponent(
@@ -995,7 +991,6 @@ def handspace_reassembly_env(
         aspect_ratio=handspace_image_width/handspace_image_height,
         start_position=(0,0,0),
         frame_scene=True,
-        frame_border=0.
     )
     
     # color randomization
@@ -1071,7 +1066,6 @@ def handspace_reassembly_env(
         color_ids=color_ids,
         max_instances=max_instances,
         max_edges=max_edges,
-        max_snaps_per_brick=max_snaps,
         workspace_scene_component=components['workspace_scene'],
         workspace_viewpoint_component=components['workspace_viewpoint'],
         handspace_scene_component=components['handspace_scene'],

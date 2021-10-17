@@ -54,7 +54,7 @@ class DatasetPathComponent(LtronGymComponent):
             self.observation_space = Dict(observation_space)
     
     def observe(self):
-        assert self.initialized
+        #assert self.initialized
         self.observation = {}
         if self.observe_dataset_id:
             self.observation['dataset_id'] = self.dataset_id
@@ -91,16 +91,6 @@ class DatasetPathComponent(LtronGymComponent):
         else:
             raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
         
-        '''
-        if self.dataset_id is not None:
-            self.episode_id += 1
-            self.dataset_item = index_hierarchy(
-                self.dataset_paths, self.dataset_id)
-        else:
-            self.episode_id = 0
-            self.dataset_item = x_like_hierarchy(self.dataset_paths, None)
-        '''
-        
         if not self.finished:
             self.dataset_item = index_hierarchy(
                 self.dataset_paths, self.dataset_id)
@@ -113,13 +103,20 @@ class DatasetPathComponent(LtronGymComponent):
         return self.observation, 0., False, None
     
     def get_state(self):
-        state = {'episode_id':self.episode_id, 'dataset_id':self.dataset_id}
+        state = {
+            'initialized':self.initialized,
+            'finished':self.finished,
+            'episode_id':self.episode_id,
+            'dataset_id':self.dataset_id,
+        }
+        
+        return state
        
     def set_state(self, state):
         self.initialized = state['initialized']
         self.finished = state['finished']
         self.episode_id = state['episode_id']
         self.dataset_id = state['dataset_id']
-    
-    #def get_class_id(self, class_name):
-    #    return self.dataset_info['class_ids'][class_name]
+        
+        self.observe()
+        return self.observation

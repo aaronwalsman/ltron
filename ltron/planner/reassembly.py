@@ -53,6 +53,7 @@ class ReassemblyExpert:
     ):
         num_observations = len_hierarchy(observations)
         actions = []
+        statusses = []
         for i in range(num_observations):
             try:
                 if seq_ids is None:
@@ -69,10 +70,12 @@ class ReassemblyExpert:
                     frame_id=frame_id,
                 )
                 actions.append(action)
+                statusses.append({'status':1})
             except ExpertError as e:
                 action = handspace_reassembly_template_action()
                 action['reassembly']['end'] = 1
                 actions.append(action)
+                statusses.append({'status':0})
                 
                 type_str = str(type(e))
                 if type_str not in self.broken_seqs:
@@ -81,7 +84,7 @@ class ReassemblyExpert:
                 for c, n in self.broken_seqs.items():
                     print('%s: %i'%(str(c), n))
                 
-        return actions
+        return actions, statusses
     
     def act(
         self,
