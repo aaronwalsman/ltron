@@ -18,6 +18,13 @@ from ltron.render.environment import RenderEnvironment
 from ltron.geometry.grid_bucket import GridBucket
 from ltron.geometry.collision import CollisionChecker
 from ltron.geometry.utils import unscale_transform
+from ltron.exceptions import LtronException
+
+class MissingClassError(LtronException):
+    pass
+
+class MissingColorError(LtronException):
+    pass
 
 class BrickScene:
     
@@ -140,7 +147,18 @@ class BrickScene:
         with open(path, 'w') as f:
             f.write('\n'.join(lines))
     
-    def import_configuration(self, configuration, class_ids, color_ids):
+    def set_configuration(self, configuration, class_ids, color_ids):
+        self.clear_instances()
+        self.import_configuration(
+            configuration, class_ids, color_ids, match_instance_ids=True)
+    
+    def import_configuration(
+        self,
+        configuration,
+        class_ids,
+        color_ids,
+        match_instance_ids=False,
+    ):
         for i in range(len(configuration['class'])):
             instance_class = configuration['class'][i]
             if instance_class == 0:
@@ -151,10 +169,21 @@ class BrickScene:
                 value:key for key, value in class_ids.items()}
             color_labels = {
                 value:key for key, value in color_ids.items()}
-            brick_type = class_labels[instance_class]
-            color = color_labels[instance_color]
+            try:
+                brick_type = class_labels[instance_class]
+            except KeyError:
+                raise MissingClassError
+            try:
+                color = color_labels[instance_color]
+            except KeyError:
+                raise MissingColorError
             
-            self.add_instance(brick_type, color, instance_pose)
+            if match_instance_ids:
+                instance_id = i
+            else:
+                instance_id = None
+            self.add_instance(
+                brick_type, color, instance_pose, instance_id=instance_id)
     
     def make_class_ids(self):
         brick_types = [str(bt) for bt in self.brick_library.values()]
@@ -194,8 +223,15 @@ class BrickScene:
         config['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         config['pose'] = numpy.zeros((max_instances+1, 4, 4))
         for instance_id, instance in self.instances.items():
-            config['class'][instance_id] = class_ids[str(instance.brick_type)]
-            config['color'][instance_id] = color_ids[str(instance.color)]
+            try:
+                config['class'][instance_id] = class_ids[
+                    str(instance.brick_type)]
+            except KeyError:
+                raise MissingClassError
+            try:
+                config['color'][instance_id] = color_ids[str(instance.color)]
+            except KeyError:
+                raise MissingColorError
             config['pose'][instance_id] = instance.transform
         
         all_edges = self.get_all_edges(unidirectional=unidirectional)
@@ -230,13 +266,15 @@ class BrickScene:
     
     # instances ----------------------------------------------------------------
     
-    def add_instance(self, brick_type, brick_color, transform):
+    def add_instance(
+        self, brick_type, brick_color, transform, instance_id=None
+    ):
         if self.renderable and self.render_environment.window is not None:
             self.render_environment.window.set_active()
         self.brick_library.add_type(brick_type)
         self.color_library.load_colors([brick_color])
         brick_instance = self.instances.add_instance(
-                brick_type, brick_color, transform)
+                brick_type, brick_color, transform, instance_id=instance_id)
         if self.renderable:
             self.render_environment.add_instance(brick_instance)
         if self.track_snaps:
@@ -546,6 +584,8 @@ class BrickScene:
                         pick_instance.get_snap(pick_snap_id),
                     )
                     self.move_instance(pick_instance, pick_instance_transform)
+                    if collision:
+                        continue
                 best_transform = candidate_transform
                 best_pseudo_angle = pseudo_angle
         
