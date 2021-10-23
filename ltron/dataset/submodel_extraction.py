@@ -82,11 +82,14 @@ def blacklist_computation(threshold):
     blacklist = []
     for part in partlist:
         part = str(part)
+        if "30520.dat" in part:
+            continue
         btype = BrickType(part)
         max_dim = numpy.max(btype.bbox[1] - btype.bbox[0])
         if max_dim > threshold:
             blacklist.append(btype.reference_name)
 
+    blacklist.append("30520.dat")
     return blacklist
 
 def add_brick(limit, cur_mod, comp_list, instance_id, scene):
@@ -208,14 +211,14 @@ def subcomponent_extraction(limit, num_comp):
             break
 
 # The method in use
-def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=100000, max_size=100000):
+def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size=100000, max_size=100000):
     global_count = 0
     folder_name = "subcomponents" + str(limit) + "/"
     try:
         os.stat(folder_name)
     except:
         os.mkdir(folder_name)
-    path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
+    path = Path(src).expanduser()
     mpdlist = path.rglob('*')
     stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
@@ -308,7 +311,7 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
             #temp_scene.export_ldraw(folder_name + modelname + "_"
             #                                                + str(count) + ".mpd")
             
-            scene.export_ldraw(folder_name + modelname + "_" + str(count) + ".mpd", instances=comp)
+            scene.export_ldraw(folder_name + modelname + "_" + str(count) + "." + mpd.split(".")[-1], instances=comp)
             
             count += 1
         # t_end_end = time.time()
@@ -329,14 +332,14 @@ def subcomponent_nonoverlap_extraction(limit, num_comp, blacklist, min_size=1000
     with open(folder_name + "stat_blacklist70_min200_max300_b.json", "w") as f:
         json.dump(stat, f)
 
-def subcomponent_minmax_extraction(limit, min_size, max_size, num_comp, blacklist):
+def subcomponent_minmax_extraction(src, limit, min_size, max_size, num_comp, blacklist):
     global_count = 0
     folder_name = "subcomponents" + str(limit) + "/"
     try:
         os.stat(folder_name)
     except:
         os.mkdir(folder_name)
-    path = Path("~/.cache/ltron/collections/omr/ldraw").expanduser()
+    path = Path(src).expanduser()
     mpdlist = path.rglob('*')
     stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
@@ -445,9 +448,9 @@ def render(filepath):
 def main():
     # blacklist = blacklist_computation(70)
     # # print(blacklist)
-    f = open('subcomponents8/stat_blacklist70_min200_max300.json')
-    blacklist = json.load(f)['blacklist']
-    subcomponent_nonoverlap_extraction(8, 40000, blacklist=blacklist, min_size=200, max_size=300)
+    # f = open('subcomponents8/stat_blacklist70_min200_max300.json')
+    # blacklist = json.load(f)['blacklist']
+    subcomponent_nonoverlap_extraction("omr_clean/whole/", 8, 40000, blacklist=[], min_size=200, max_size=400)
     #render("subcomponents8/6954-1 - Renegade_1.mpd")
     #render("subcomponents8/6954-1 - Renegade_2.mpd")
 
