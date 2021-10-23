@@ -1,7 +1,7 @@
 import re
 import numpy
 
-# main utility =================================================================
+# main utilities ===============================================================
 def map_hierarchies(fn, *a):
     if isinstance(a[0], dict):
         assert all(isinstance(aa, dict) for aa in a[1:])
@@ -20,6 +20,19 @@ def map_hierarchies(fn, *a):
             map_hierarchies(fn, *[aa[i] for aa in a])
             for i in range(len(a[0]))
         ]
+    
+    else:
+        return fn(*a)
+
+def map_dicts(fn, *a):
+    if isinstance(a[0], dict):
+        assert all(isinstance(aa, dict) for aa in a[1:])
+        assert all(aa.keys() == a[0].keys() for aa in a[1:]), (
+            ':'.join([str(aa.keys()) for aa in a]))
+        return {
+            key : map_dicts(fn, *[aa[key] for aa in a])
+            for key in a[0].keys()
+        }
     
     else:
         return fn(*a)
@@ -101,10 +114,18 @@ def pad_numpy_hierarchy(a, pad, axis=0):
     return map_hierarchies(fn, a)
 
 def auto_pad_stack_numpy_hierarchies(*a, pad_axis=0, stack_axis=0, **kwargs):
-    pad = numpy.array(
-        [len_hierarchy(aa) for aa in a], dtype=numpy.long)
+    pad = numpy.array([len_hierarchy(aa) for aa in a], dtype=numpy.long)
     max_len = max(pad)
     a = [pad_numpy_hierarchy(aa, max_len, axis=pad_axis) for aa in a]
     a = stack_numpy_hierarchies(*a, axis=stack_axis, **kwargs)
     
     return a, pad
+
+def concatenate_lists(a, **kwargs):
+    def fn(a):
+        if isinstance(a, (tuple, list)):
+            return numpy.concatenate(a, **kwargs)
+        else:
+            return a
+    
+    return map_dicts(fn, a)
