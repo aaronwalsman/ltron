@@ -180,8 +180,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         }
     
     def set_state(self, state):
-        self.position = state['position']
-        self.center = state['center']
+        self.position = list(state['position'])
+        self.center = list(state['center'])
         self.set_camera()
         self.observe()
         return self.observation
