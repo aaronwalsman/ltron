@@ -246,9 +246,10 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
             check_collisions=self.check_collisions,
         )
         
-        if numpy.linalg.det(new_brick.transform) < 0.:
-            import pdb
-            pdb.set_trace()
+        if success:
+            handspace_scene.clear_instances()
+        else:
+            workspace_scene.remove_instance(new_brick)
         
         return {'success':success}, 0, False, None
         
