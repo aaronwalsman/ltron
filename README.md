@@ -34,6 +34,11 @@ splendor-render
 ```
 The splendor-render package only works on Ubuntu at the moment, and requires OpenGL 4.6.  As long as you have a modern GPU with recent drivers you should be fine.
 
+You may need to install freeglut:
+```
+sudo apt-get install freeglut3-dev
+```
+
 ## File Formats
 LTRON uses the [LDraw file formats](https://www.ldraw.org/article/218) (.dat, .ldr, .mpd) to describe bricks and models.  We convert all bricks to obj files for use in splendor-render.  These are installed to `~/.cache/splendor/ltron_assets_low` or `~/.cache/splendor/ltron_assets_high`.
 
