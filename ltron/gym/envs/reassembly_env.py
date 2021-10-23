@@ -40,13 +40,13 @@ def reassembly_template_action():
         
         'workspace_cursor' : {
             'activate':False,
-            'position':[0,0],
+            'position':numpy.array([0,0]),
             'polarity':0,
         },
         
         'handspace_cursor' : {
             'activate':False,
-            'position':[0,0],
+            'position':numpy.array([0,0]),
             'polarity':0,
         },
         
@@ -89,6 +89,7 @@ def reassembly_env(
     subset=None,
     rank=0,
     size=1,
+    file_override=None,
     workspace_image_width=256,
     workspace_image_height=256,
     handspace_image_width=96,
@@ -119,15 +120,28 @@ def reassembly_env(
     max_edges = dataset_info['max_edges_per_scene']
     
     # scenes
-    components['workspace_scene'] = DatasetSceneComponent(
-        dataset_component=components['dataset'],
-        path_location=['mpd'],
-        render_args=workspace_render_args,
-        track_snaps=True,
-        collision_checker=check_collisions,
-        store_configuration=True,
-        #observe_configuration=train,
-    )
+    if file_override is not None:
+        components['workspace_scene'] = SingleSceneComponent(
+            file_override,
+            class_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            render_args=workspace_render_args,
+            track_snaps=True,
+            collision_checker=check_collisions,
+            store_configuration=True,
+        )
+    else:
+        components['workspace_scene'] = DatasetSceneComponent(
+            dataset_component=components['dataset'],
+            path_location=['mpd'],
+            render_args=workspace_render_args,
+            track_snaps=True,
+            collision_checker=check_collisions,
+            store_configuration=True,
+            #observe_configuration=train,
+        )
     components['handspace_scene'] = EmptySceneComponent(
         class_ids=class_ids,
         color_ids=color_ids,
@@ -215,6 +229,12 @@ def reassembly_env(
         components['workspace_scene'],
         polarity='-',
     )
+    if train:
+        mask_render = SegmentationRenderComponent(
+            workspace_map_width,
+            workspace_map_height,
+            components['workspace_scene'],
+        )
     
     handspace_pos_snap_render = SnapRenderComponent(
         handspace_map_width,
@@ -312,6 +332,8 @@ def reassembly_env(
     # snap render
     components['workspace_pos_snap_render'] = workspace_pos_snap_render
     components['workspace_neg_snap_render'] = workspace_neg_snap_render
+    if train:
+        components['workspace_mask_render'] = mask_render
     components['handspace_pos_snap_render'] = handspace_pos_snap_render
     components['handspace_neg_snap_render'] = handspace_neg_snap_render
     
