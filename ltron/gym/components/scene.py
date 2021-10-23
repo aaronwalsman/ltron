@@ -87,7 +87,7 @@ class EmptySceneComponent(LtronGymComponent):
     
     def set_state(self, state):
         self.brick_scene.clear_instances()
-        self.brick_scene.import_configuration(
+        self.brick_scene.set_configuration(
             state, self.class_ids, self.color_ids)
         
         self.observe()
