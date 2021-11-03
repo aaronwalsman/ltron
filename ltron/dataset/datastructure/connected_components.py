@@ -3,23 +3,6 @@ import json
 from ltron.ldraw.documents import LDrawMPDMainFile
 from ltron.bricks.brick_scene import BrickScene
 from pathlib import Path
-from ltron.gym.components.scene import SceneComponent
-from ltron.gym.components.episode import MaxEpisodeLengthComponent
-from ltron.gym.components.render import ColorRenderComponent
-from matplotlib.pyplot import imshow
-import matplotlib.pyplot as plt
-from ltron.gym.ltron_env import LtronEnv
-from ltron.gym.components.viewpoint import (
-        ControlledAzimuthalViewpointComponent,
-        RandomizedAzimuthalViewpointComponent,
-        FixedAzimuthalViewpointComponent)
-from ltron.bricks.brick_type import BrickType
-import copy
-import collections
-import math
-import os
-import numpy
-import random
 import queue
 
 def BFS(instance, connections, visited):
@@ -54,7 +37,8 @@ def partition(scene):
 
     return components
 
-def partition_omr(directory, outdir=None):
+# remove all components that contains less than or equal to the threshold
+def partition_omr(directory, outdir=None, remove_thre = 0):
     path = Path(directory).expanduser()
     modelList = path.rglob('*')
 
@@ -63,7 +47,6 @@ def partition_omr(directory, outdir=None):
     for model in modelList:
         model = str(model)
         try:
-            cur_model = LDrawMPDMainFile(model)
             scene = BrickScene(track_snaps=True)
             scene.import_ldraw(model)
         except:
@@ -76,18 +59,11 @@ def partition_omr(directory, outdir=None):
         else:
             folder_name = outdir
         modelname = model.split("/")[-1][:-4]
-        for idx, comp in components.items():
-            # temp_scene = BrickScene()
-            # temp_scene.import_ldraw(mpd)
-            # instances = copy.deepcopy(temp_scene.instances.instances)
-            # for k, v in instances.items():
-            #    if k not in comp:
-            #        temp_scene.remove_instance(v)
-
-            # temp_scene.export_ldraw(folder_name + modelname + "_"
-            #                                                + str(count) + ".mpd")
-
+        idx = 1
+        for _, comp in components.items():
+            if len(comp) <= remove_thre: continue
             scene.export_ldraw(folder_name + modelname + "@" + str(idx) + "." + model.split(".")[-1], instances=comp)
+            idx += 1
 
 def main():
     direc = "~/.cache/ltron/collections/omr/ldraw"

@@ -3,12 +3,12 @@ import json
 from ltron.ldraw.documents import LDrawMPDMainFile
 from ltron.bricks.brick_scene import BrickScene
 from pathlib import Path
-from ltron.gym.components.scene import SceneComponent
+# from ltron.gym.components.scene import SceneComponent
 from ltron.gym.components.episode import MaxEpisodeLengthComponent
 from ltron.gym.components.render import ColorRenderComponent
 from matplotlib.pyplot import imshow
 import matplotlib.pyplot as plt
-from ltron.gym.ltron_env import LtronEnv
+# from ltron.gym.ltron_env import LtronEnv
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent,
         RandomizedAzimuthalViewpointComponent,
@@ -67,9 +67,13 @@ def compute_boxsize_old(instances, scene):
     # else: return -1000
     return max(abs(max_y - min_y), abs(max_x - min_x), abs(max_z - min_z))
 
-def compute_boxsize(instance, scene):
-    all_vertices = numpy.concatenate([
-        scene.instances[i].bbox_vertices() for i in instance], axis=1)
+# The complete parameter is somehow not working
+def compute_boxsize(instance, scene, complete=False):
+    if complete:
+        all_vertices = numpy.concatenate([scene.instances[ins].bbox_vertices for ins in scene.instances])
+    else:
+        all_vertices = numpy.concatenate([
+            scene.instances[i].bbox_vertices() for i in instance], axis=1)
     bbox_min = numpy.min(all_vertices[:3], axis=1)
     bbox_max = numpy.max(all_vertices[:3], axis=1)
     offset = bbox_max - bbox_min
@@ -211,9 +215,10 @@ def subcomponent_extraction(limit, num_comp):
             break
 
 # The method in use
-def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size=100000, max_size=100000):
+def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size=100000, max_size=100000, folder_name = None):
     global_count = 0
-    folder_name = "subcomponents" + str(limit) + "/"
+    if folder_name is None:
+        folder_name = "subcomponents" + str(limit) + "/"
     try:
         os.stat(folder_name)
     except:
@@ -241,6 +246,7 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             scene.import_ldraw(mpd)
         except:
             stat['error'].append(mpd)
+            print("can't load file during extraction {}".format(mpd))
             continue
 
         num_instances = len(scene.instances.instances)
@@ -257,6 +263,8 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             not_terminate = False
             for i in range(num_instances):
                 if i in sad_instance:
+                    continue
+                if scene.instances.instances[i+1].brick_type.reference_name in blacklist:
                     continue
                 #if i in used_brick:
                 #    print('used, skipping')
@@ -311,7 +319,7 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             #temp_scene.export_ldraw(folder_name + modelname + "_"
             #                                                + str(count) + ".mpd")
             
-            scene.export_ldraw(folder_name + modelname + "_" + str(count) + "." + mpd.split(".")[-1], instances=comp)
+            scene.export_ldraw(folder_name + modelname + "_" + str(limit) + "_" + str(count) + "." + mpd.split(".")[-1], instances=comp)
             
             count += 1
         # t_end_end = time.time()
@@ -427,9 +435,9 @@ def subcomponent_minmax_extraction(src, limit, min_size, max_size, num_comp, bla
 # Render a .mpd file
 def render(filepath):
     components = collections.OrderedDict()
-    components['scene'] = SceneComponent(dataset_component=None,
-                                         initial_scene_path=filepath,
-                                         track_snaps=True)
+    # components['scene'] = SceneComponent(dataset_component=None,
+    #                                      initial_scene_path=filepath,
+    #                                      track_snaps=True)
     components['episode'] = MaxEpisodeLengthComponent(1000)
     components['camera'] = FixedAzimuthalViewpointComponent(
         components['scene'],
@@ -439,7 +447,7 @@ def render(filepath):
         distance=(2, 2))
     components['render'] = ColorRenderComponent(512, 512, components['scene'])
 
-    env = LtronEnv(components)
+    # env = LtronEnv(components)
     obs = env.reset()
     imshow(obs['render'])
     plt.show()

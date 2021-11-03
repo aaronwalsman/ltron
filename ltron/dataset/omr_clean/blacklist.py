@@ -6,14 +6,16 @@ import json
 import os
 
 
-def blacklist_out(directory, dest, blacklist=None):
+def blacklist_out(directory, dest, threshold=400, blacklist=None):
 
-    if os.path.exists('blacklist_70.json'):
-        with open('blacklist_70.json') as f:
-            blacklist = json.load(f)
+    if blacklist is None:
+        blacklist = []
+    if os.path.exists('blacklist_' + str(threshold) + '.json'):
+        with open('blacklist_' + str(threshold) + '.json') as f:
+            blacklist = blacklist + json.load(f)
     else:
-        blacklist = blacklist_computation(70)
-    with open('blacklist_70.json', 'w') as f:
+        blacklist = blacklist + blacklist_computation(threshold)
+    with open('blacklist_' + str(threshold) + '.json', 'w') as f:
         json.dump(blacklist, f)
     path = Path(directory).expanduser()
     modelList = path.rglob('*')
@@ -28,13 +30,13 @@ def blacklist_out(directory, dest, blacklist=None):
             continue
 
         model_name = model.split("/")[-1]
-        for i in range(len(scene.instances)):
-            try:
-                if scene.instances.instances[i+1].brick_type.reference_name in blacklist:
-                    scene.remove_instance(i+1)
-            except:
-                print(scene.instances.instances)
-                print(i)
-                print(scene.instances.instances[i+1].brick_type)
-                exit(0)
-        scene.export_ldraw(dest + model_name)
+        keep = [i+1 for i in range(len(scene.instances)) if scene.instances.instances[i+1].brick_type.reference_name not in blacklist]
+        # for i in range(len(scene.instances)):
+        #     try:
+        #         if scene.instances.instances[i+1].brick_type.reference_name in blacklist:
+        #             scene.remove_instance(i+1)
+        #     except:
+        #         print(scene.instances.instances)
+        #         print(i)
+        #         print(scene.instances.instances[i+1].brick_type)
+        scene.export_ldraw(dest + model_name, instances=keep)

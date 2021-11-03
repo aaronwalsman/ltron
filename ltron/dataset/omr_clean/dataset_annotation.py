@@ -5,6 +5,9 @@ from ltron.ldraw.documents import LDrawMPDMainFile
 from pathlib import Path
 from collections import OrderedDict
 import random
+import os
+import glob
+from ltron.dataset.submodel_extraction import compute_boxsize
 
 def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
 
@@ -15,7 +18,7 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
             stat = json.load(f)
 
         theme_count = stat['theme_meta']
-        annot = {"train" : [], "test": []}
+        annot = {"train" : {'mpd' : []}, "test": {'mpd' : []}}
         theme_train = {}
         theme_cum = {}
         for theme, count in theme_count.items():
@@ -40,10 +43,18 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
                 error.append(model_name)
                 continue
             if theme_cum[cur_theme] >= theme_train[cur_theme]:
-                annot['test'].append(model)
+                path_key = "{omr_raw}/"
+                if mode == "clean":
+                    path_key = "{omr_clean}/"
+                model = model.split("/")[-2] + "/" + model.split("/")[-1]
+                annot['test']['mpd'].append(path_key + model)
             else:
                 theme_cum[cur_theme] += 1
-                annot['train'].append(model)
+                path_key = "{omr_raw}/"
+                if mode == "clean":
+                    path_key = "{omr_clean}/"
+                model = model.split("/")[-2] + "/" + model.split("/")[-1]
+                annot['train']['mpd'].append(path_key + model)
 
         with open("notFoundModel_raw.json", 'w') as f:
             json.dump(error, f)
@@ -54,8 +65,8 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
         with open("omr_raw.json", 'r') as f:
             stat = json.load(f)
 
-        annot = {"train": [], "test": []}
-        train = stat['split']['train']
+        annot = {"train": {'mpd' : []}, "test": {'mpd' : []}}
+        train = stat['splits']['train']['mpd']
 
         # Extract true model name
         simp_train = []
@@ -78,9 +89,17 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
             # exit(0)
             # 0 is Train, 1 is Test
             if part_we_care not in simp_train:
-                annot['test'].append(model)
+                path_key = "{omr_raw}/"
+                if mode == "clean":
+                    path_key = "{omr_clean}/"
+                model = model.split("/")[-2] + "/" + model.split("/")[-1]
+                annot['test']['mpd'].append(path_key + model)
             else:
-                annot['train'].append(model)
+                path_key = "{omr_raw}/"
+                if mode == "clean":
+                    path_key = "{omr_clean}/"
+                model = model.split("/")[-2] + "/" + model.split("/")[-1]
+                annot['train']['mpd'].append(path_key + model)
 
         with open("notFoundModel_clean.json", 'w') as f:
             json.dump(error, f)
@@ -95,7 +114,8 @@ def category_splitter(path, mode='raw'):
 
         annot = {}
         for theme, _ in stat['theme_meta'].items():
-            annot[theme] = []
+            annot[theme.lower()] = {}
+            annot[theme.lower()]['mpd'] = []
 
         path = Path(path).expanduser()
         modelList = path.rglob('*')
@@ -111,7 +131,11 @@ def category_splitter(path, mode='raw'):
             except:
                 continue
 
-            annot[cur_theme].append(model)
+            path_key = "{omr_raw}/"
+            if mode == "clean":
+                path_key = "{omr_clean}/"
+            model = model.split("/")[-2] + "/" + model.split("/")[-1]
+            annot[cur_theme.lower()]['mpd'].append(path_key + model)
 
         return annot
 
@@ -121,7 +145,8 @@ def category_splitter(path, mode='raw'):
 
         annot = {}
         for theme, _ in stat['theme_meta'].items():
-            annot[theme] = []
+            annot[theme.lower()] = {}
+            annot[theme.lower()]['mpd'] = []
 
         path = Path(path).expanduser()
         modelList = path.rglob('*')
@@ -137,15 +162,20 @@ def category_splitter(path, mode='raw'):
             except:
                 continue
 
-            annot[cur_theme].append(model)
+            path_key = "{omr_raw}/"
+            if mode == "clean":
+                path_key = "{omr_clean}/"
+            model = model.split("/")[-2] + "/" + model.split("/")[-1]
+            annot[cur_theme.lower()]['mpd'].append(path_key + model)
 
         return annot
 
-def size_splitter(path, size_map):
+def size_splitter(path, size_map, mode="raw"):
 
     annot = {}
     for size, _ in size_map.items():
-        annot[size] = []
+        annot[size.lower()] = {}
+        annot[size.lower()]['mpd'] = []
 
     path = Path(path).expanduser()
     modelList = path.rglob('*')
@@ -160,12 +190,60 @@ def size_splitter(path, size_map):
         except:
             continue
 
+        modelSize = compute_boxsize(scene.instances, scene, complete = False);
         for size, bound in size_map.items():
+            if size.lower() != 'medium' or size.lower() != 'large':
+                if modelSize >= 400:
+                    continue
+            elif size.lower() == 'medium':
+                    if modelSize >= 800:
+                        continue
             if len(scene.instances) <= bound:
-                annot[size].append(model)
+                path_key = "{omr_raw}/"
+                if mode == "clean":
+                    path_key = "{omr_clean}/"
+                model = model.split("/")[-2] + "/" + model.split("/")[-1]
+                annot[size.lower()]['mpd'].append(path_key + model)
                 break
 
     return annot
+
+
+def build_metadata(path_root):
+    metadata = {}
+    mpds = glob.glob(os.path.join(path_root, '*.mpd'))
+
+    max_instances_per_scene = 0
+    max_edges_per_scene = 0
+    all_brick_names = set()
+    all_color_names = set()
+    for mpd in mpds:
+        scene = BrickScene(track_snaps=True)
+        scene.import_ldraw(mpd)
+        brick_names = set(scene.brick_library.keys())
+        all_brick_names |= brick_names
+        color_names = set(scene.color_library.keys())
+        all_color_names |= color_names
+
+        num_instances = len(scene.instances)
+        max_instances_per_scene = max(num_instances, max_instances_per_scene)
+
+        edges = scene.get_all_edges(unidirectional=False)
+        num_edges = edges.shape[1]
+        max_edges_per_scene = max(num_edges, max_edges_per_scene)
+
+    metadata['max_instances_per_scene'] = max_instances_per_scene
+    metadata['max_edges_per_scene'] = max_edges_per_scene
+    metadata['class_ids'] = {
+        brick_name: i
+        for i, brick_name in enumerate(all_brick_names, start=1)
+    }
+    metadata['color_ids'] = {
+        color_name: i
+        for i, color_name in enumerate(all_color_names, start=0)
+    }
+
+    return metadata
 
 def extract_stat(path):
     path = Path(path).expanduser()
@@ -184,25 +262,28 @@ def extract_stat(path):
 
 # Any raw model shouldn't contain "@"
 # ALl model name shouldn't contain "/"
-# The real model name should be extracted by model_name.split("/")[-1].split("@")[0] given its path modle_name
+# The real model name should be extracted by model_name.split("/")[-1].split("@")[0] given its path model_name
 def generate_json(model_path, dest_path, train_ratio=0.8, mode='raw'):
 
-    annot = {"split": {}}
-    annot['split'] = {**traintest_splitter(model_path, train_ratio, mode), **annot['split']}
-    annot['split'] = {**category_splitter(model_path, mode), **annot['split']}
+    annot = {"splits": {}}
+    annot['splits'] = {**traintest_splitter(model_path, train_ratio, mode), **annot['split']}
+    annot['splits'] = {**category_splitter(model_path, mode), **annot['split']}
+    annot = {**build_metadata(model_path), **annot}
 
     # Size map should be an ordered dict ranked with the upperbound increasingly, value is the upperbound
-    size_map = {'Pico' : 2, 'Micro' : 8, 'Mini' : 32, "Small" : 128, "Medium" : 512, "large" : float("inf")}
-    annot['split'] = {**size_splitter(model_path, size_map), **annot['split']}
+    size_map = {'pico' :
+                    2, 'micro' : 8, 'mini' : 32, "small" : 128, "medium" : 512, "large" : float("inf")}
+    annot['splits'] = {**size_splitter(model_path, size_map), **annot['splits']}
 
     if mode == "raw":
         with open(dest_path + "omr_raw.json", 'w') as f:
-            json.dump(annot, f)
+            json.dump(annot, f, indent=2)
     else:
         with open(dest_path + "omr_clean.json", 'w') as f:
-            json.dump(annot, f)
+            json.dump(annot, f, indent=2)
 
     print("Annotation Generation Done")
 
 if __name__ == '__main__':
-    generate_json("~/.cache/ltron/collections/omr/ldraw", "")
+    # generate_json("~/.cache/ltron/collections/omr/ldraw", "")
+    generate_json("ldraw", "temp_json/")
