@@ -22,16 +22,28 @@ class BrickInstanceTable(collections.abc.MutableMapping):
         self.next_instance_id = 1
     
     def add_instance(
-        self, brick_name, brick_color, brick_transform, mask_color=None
+        self,
+        brick_name,
+        brick_color,
+        brick_transform,
+        mask_color=None,
+        instance_id=None,
     ):
+        if instance_id is None:
+            instance_id = self.next_instance_id
+            self.next_instance_id += 1
+        else:
+            assert instance_id not in self
+            if instance_id >= self.next_instance_id:
+                self.next_instance_id = instance_id + 1
+            
         new_instance = BrickInstance(
-                self.next_instance_id,
+                instance_id,
                 self.brick_library[brick_name],
                 self.color_library[brick_color],
                 brick_transform,
                 mask_color=mask_color)
-        self[self.next_instance_id] = new_instance
-        self.next_instance_id += 1
+        self[instance_id] = new_instance
         return new_instance
     
     def import_document(self, document, transform=None, color=None):

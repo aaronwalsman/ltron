@@ -9,6 +9,7 @@ except ImportError:
 from ltron.ldraw.commands import *
 from ltron.exceptions import LtronException
 from ltron.geometry.utils import close_enough
+from ltron.geometry.epsilon_array import EpsilonArray
 
 gender_to_polarity = {
     'M':'+',
@@ -161,6 +162,20 @@ class SnapStyle(Snap):
         copied_snap.transform = numpy.dot(transform, self.transform)
         return copied_snap
     
+    def __eq__(self, other):
+        return (
+            (self.subtype_id == other.subtype_id) and
+            numpy.allclose(self.transform, other.transform)
+        )
+    
+    def __hash__(self):
+        # WARNING: Instances of this class are totally 100% mutable.
+        # This hash function is designed for 1-time deduplication using a set
+        # that will not persist.  Do not use this class in a set or as a
+        # key for a dictionary unless you know for certain that the instance
+        # will not change during the lifetime of the set/dictionary.
+        return hash((self.subtype_id, EpsilonArray(self.transform)))
+    
 class SnapCylinder(SnapStyle):
     style='cylinder'
     def __init__(self, command, transform):
@@ -203,9 +218,32 @@ class SnapCylinder(SnapStyle):
         
         # TODO: replace this with more appropriate cylinder matching ASAP
         self_center = self.transform[:3,3]
-        other_center = self.transform[:3,3]
+        other_center = self.transform[:3,3] #woops!
         if not close_enough(self_center, other_center, distance_tolerance):
             return False
+        
+        '''
+        # This is half-way correct cylinder matching.
+        # It still uses matching locations, which is bad.
+        # It just makes sure that this snap and the other share at least one
+        # common cross/section radius.
+        self_center = self.transform[:3,3]
+        other_center = other.transform[:3,3]
+        if not close_enough(self_center, other_center, distance_tolerance):
+            return False
+        
+        if isinstance(other, SnapClip):
+            other_radius_sections = {('R', other.radius)}
+        else:
+            other_sec_parts = other.get_sec_parts()
+            other_radius_sections = {
+                (sec_part[0], sec_part[1]) for sec_part in other_sec_parts}
+        self_sec_parts = self.get_sec_parts()
+        self_radius_sections = {
+            (sec_part[0], sec_part[1]) for sec_part in self_sec_parts}
+        if not len(self_radius_sections & other_radius_sections):
+            return False
+        '''
         
         return True
     

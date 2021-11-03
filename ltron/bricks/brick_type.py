@@ -167,7 +167,7 @@ class BrickType:
                             p for p in resolved_snaps
                             if p.type_id != snap.type_id]
         
-        self.snaps = resolved_snaps
+        self.snaps = list(set(resolved_snaps))
         try:
             bb = (
                 numpy.min(self.vertices[:3], axis=1),

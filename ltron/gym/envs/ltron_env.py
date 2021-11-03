@@ -95,7 +95,8 @@ class LtronEnv(gym.Env):
         observation = {}
         for component_name, component_state in state.items():
             o = self.components[component_name].set_state(component_state)
-            observation[component_name] = o
+            if component_name in self.observation_space.spaces:
+                observation[component_name] = o
         
         return observation
     

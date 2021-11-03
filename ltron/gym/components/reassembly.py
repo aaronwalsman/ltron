@@ -158,6 +158,13 @@ class Reassembly(LtronGymComponent):
         #    score = 0.
         
         return self.observation, 0., action['end'], {}
+    
+    def set_state(self, state):
+        self.reassembling = state['reassembling']
+        return self.observation
+    
+    def get_state(self):
+        return {'reassembling':self.reassembling}
 
 class ReassemblyScoreComponent(LtronGymComponent):
     def __init__(self,
@@ -187,3 +194,7 @@ class ReassemblyScoreComponent(LtronGymComponent):
     def step(self, action):
         self.observe()
         return None, self.score, False, {}
+    
+    def set_state(self, state):
+        self.observe()
+        return None

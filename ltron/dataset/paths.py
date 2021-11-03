@@ -6,7 +6,7 @@ import json
 import numpy
 
 import ltron.settings as settings
-from ltron.hierarchy import map_hierarchies
+from ltron.hierarchy import map_hierarchies, concatenate_lists
 
 def resolve_subdocument(file_path):
     if '#' in file_path:
@@ -75,7 +75,8 @@ def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
         return process_file_paths(
             file_paths, subset=subset, rank=rank, size=size)
     
-    return map_hierarchies(process_fn, split)
+    paths = map_hierarchies(process_fn, split)
+    return concatenate_lists(paths)
 
 def get_dataset_paths_old(dataset, split_name, subset=None, rank=0, size=1):
     dataset_path = os.path.expanduser(settings.datasets[dataset])
