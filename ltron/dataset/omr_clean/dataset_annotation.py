@@ -1,5 +1,7 @@
 import json
 
+import tqdm
+
 from ltron.bricks.brick_scene import BrickScene
 from ltron.ldraw.documents import LDrawMPDMainFile
 from pathlib import Path
@@ -8,13 +10,16 @@ import random
 import os
 import glob
 from ltron.dataset.submodel_extraction import compute_boxsize
+import ltron.settings as settings
 
 def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
 
     if mode == "raw":
         # This file should be within the same directory
         error = []
-        with open("theme_map.json", 'r') as f:
+        theme_path = os.path.join(
+            settings.collections['omr'], 'theme_map.json')
+        with open(theme_path, 'r') as f:
             stat = json.load(f)
 
         theme_count = stat['theme_meta']
@@ -32,7 +37,12 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
 
         print(len(modelList))
         # Iterate through models
-        for model in modelList:
+        print('='*80)
+        print('Splitting %s train/test %.02f/%.02f'%(
+            mode, train_ratio, 1. - train_ratio))
+        iterate = tqdm.tqdm(modelList)
+        for model in iterate:
+            iterate.set_description(model[:20] + '...')
             model = str(model)
             model_name = model.split("/")[-1]
 
@@ -109,7 +119,9 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
 def category_splitter(path, mode='raw'):
 
     if mode == 'raw':
-        with open("theme_map.json", 'r') as f:
+        theme_path = os.path.join(
+            settings.collections['omr'], 'theme_map.json')
+        with open(theme_path, 'r') as f:
             stat = json.load(f)
 
         annot = {}
@@ -140,7 +152,9 @@ def category_splitter(path, mode='raw'):
         return annot
 
     else:
-        with open("theme_map.json", 'r') as f:
+        theme_path = os.path.join(
+            settings.collections['omr'], 'theme_map.json')
+        with open(theme_path, 'r') as f:
             stat = json.load(f)
 
         annot = {}
@@ -266,8 +280,8 @@ def extract_stat(path):
 def generate_json(model_path, dest_path, train_ratio=0.8, mode='raw'):
 
     annot = {"splits": {}}
-    annot['splits'] = {**traintest_splitter(model_path, train_ratio, mode), **annot['split']}
-    annot['splits'] = {**category_splitter(model_path, mode), **annot['split']}
+    annot['splits'] = {**traintest_splitter(model_path, train_ratio, mode), **annot['splits']}
+    annot['splits'] = {**category_splitter(model_path, mode), **annot['splits']}
     annot = {**build_metadata(model_path), **annot}
 
     # Size map should be an ordered dict ranked with the upperbound increasingly, value is the upperbound

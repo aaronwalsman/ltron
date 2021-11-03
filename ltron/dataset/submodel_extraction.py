@@ -1,5 +1,6 @@
 import time
 import json
+import tqdm
 from ltron.ldraw.documents import LDrawMPDMainFile
 from ltron.bricks.brick_scene import BrickScene
 from pathlib import Path
@@ -224,12 +225,13 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
     except:
         os.mkdir(folder_name)
     path = Path(src).expanduser()
-    mpdlist = path.rglob('*')
+    mpdlist = list(path.rglob('*'))
     stat = {"error" : [], "blacklist" : blacklist, "total_count" : 0, "models" : {}}
 
     # Iterate through mpd files
     cnt = 0
-    for mpd in mpdlist:
+    iterate = tqdm.tqdm(mpdlist)
+    for mpd in iterate:
         # t_start = time.time()
         # t_add_total = 0.
         # t_for_total = 0.
@@ -319,7 +321,11 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             #temp_scene.export_ldraw(folder_name + modelname + "_"
             #                                                + str(count) + ".mpd")
             
-            scene.export_ldraw(folder_name + modelname + "_" + str(limit) + "_" + str(count) + "." + mpd.split(".")[-1], instances=comp)
+            _, ext = os.path.splitext(mpd)
+            model_file_name = '%s_%i_%i.%s'%(modelname, limit, count, ext)
+            model_path = os.path.join(folder_name, model_file_name)
+            scene.export_ldraw(model_path, instances=comp)
+            #scene.export_ldraw(folder_name + modelname + "_" + str(limit) + "_" + str(count) + "." + mpd.split(".")[-1], instances=comp)
             
             count += 1
         # t_end_end = time.time()
