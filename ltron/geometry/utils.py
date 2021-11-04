@@ -6,6 +6,12 @@ def squared_distance(a, b):
 def close_enough(a, b, tolerance):
     return squared_distance(a,b) <= tolerance**2
 
+default_rtol = 0.0
+default_atol = 0.01
+
+def default_allclose(a, b):
+    return numpy.allclose(a, b, rtol=0, atol=0.01)
+
 def immutable_vector(vector):
     return tuple(vector)
 
