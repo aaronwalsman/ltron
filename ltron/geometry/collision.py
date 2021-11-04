@@ -7,7 +7,7 @@ from splendor.camera import orthographic_matrix
 from splendor.image import save_image, save_depth
 from splendor.masks import color_byte_to_index
 
-from ltron.geometry.utils import unscale_transform
+from ltron.geometry.utils import unscale_transform, default_allclose
 
 def make_collision_framebuffer(resolution):
     frame_buffer = FrameBufferWrapper(
@@ -104,7 +104,7 @@ def build_collision_map(
             #axis = tuple(axis)
             feature = (tuple(axis) + (snap.polarity == '+',))
             for key in snap_groups:
-                if numpy.allclose(key, feature):
+                if default_allclose(key, feature):
                     snap_groups[key].append(snap_id)
                     break
             else:
