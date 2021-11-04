@@ -29,6 +29,9 @@ class PlanningException(LtronException):
 class PathNotFoundError(PlanningException):
     pass
 
+class FrontierError(PlanningException):
+    pass
+
 def node_connected_collision_free(
     new_brick,
     new_brick_type_name,
@@ -100,8 +103,7 @@ def node_removable_collision_free(
         try:
             frontier = [list(connectivity.keys())[0]]
         except:
-            import pdb
-            pdb.set_trace()
+            raise FrontierError
         while frontier:
             node = frontier.pop()
             if node in connected:
@@ -216,42 +218,28 @@ class RoadmapPlanner:
         return path
     
     def plan(self, max_cost=float('inf'), timeout=float('inf')):
-        #print('='*80)
-        #print('Planning')
         t_start = time.time()
         found_path = False
         while True:
             t_loop = time.time()
             if t_loop - t_start >= timeout:
-                return found_path
+                raise PathNotFoundError
             
             # plan a path
-            #print('-'*80)
-            #print('Computing high-level plan')
             candidate_path, goal_found = self.plan_collision_free()
             if goal_found:
-                #print('Goal found, checking edges')
                 (candidate_path,
                  viewpoint_changes,
                  goal_feasible) = self.edge_checker.check_path(candidate_path)
                 if goal_feasible:
-                    #print('Path feasible')
                     found_path = True
                     q = -0.05 * viewpoint_changes
                     cost = -q
                     if cost < max_cost:
-                        #print('Good enough!  Returning')
                         return found_path
                 else:
-                    #print('Path infeasible')
-                    #import pdb
-                    #pdb.set_trace()
                     q = -1
-                #print('Viewpoint changes: %i'%viewpoint_changes)
-                
             else:
-                #import pdb
-                #pdb.set_trace()
                 q = -1
             
             self.update_path_visits(candidate_path, q)
@@ -389,10 +377,8 @@ class EdgeChecker:
                 self.roadmap.env_states[b] = last_state
                 viewpoint_changes = len([
                     a for a in action_seq if (
-                        a['workspace_viewpoint']['direction'] != 0 or
-                        a['workspace_viewpoint']['frame'] != 0 or
-                        a['handspace_viewpoint']['direction'] != 0 or
-                        a['handspace_viewpoint']['frame'] != 0
+                        a['workspace_viewpoint'] != 0 or
+                        a['handspace_viewpoint'] != 0
                     )
                 ])
                 edge['viewpoint_changes'] = viewpoint_changes

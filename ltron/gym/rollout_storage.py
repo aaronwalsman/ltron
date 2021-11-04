@@ -48,6 +48,7 @@ class RolloutStorage:
         assert self.total_steps == other.total_steps
         assert self.batch_seq_ids == other.batch_seq_ids
         assert self.next_seq_index == other.next_seq_index
+        assert self.finished_seqs == other.finished_seqs
         new_storage = RolloutStorage(self.batch_size)
         new_storage.seq_locations = copy.deepcopy(self.seq_locations)
         new_storage.batch_seq_ids = copy.deepcopy(self.batch_seq_ids)
@@ -56,6 +57,7 @@ class RolloutStorage:
         new_storage.gym_data = {}
         new_storage.gym_data.update(self.gym_data)
         new_storage.gym_data.update(other.gym_data)
+        new_storage.finished_seqs = self.finished_seqs
         return new_storage
     
     def __getitem__(self, branch_keys):

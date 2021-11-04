@@ -25,18 +25,19 @@ from ltron.gym.components.viewpoint import (
 from ltron.gym.components.colors import RandomizeColorsComponent
 from ltron.gym.components.reassembly import Reassembly, ReassemblyScoreComponent
 from ltron.gym.components.config import ConfigComponent
+from ltron.gym.components.upright import UprightSceneComponent
 
 def reassembly_template_action():
     return {
-        'workspace_viewpoint' : {
-            'direction':0,
-            'frame':0,
-        },
+        'workspace_viewpoint' : 0, #{
+            #'direction':0,
+            #'frame':0,
+        #},
 
-        'handspace_viewpoint' : {
-            'direction':0,
-            'frame':0,
-        },
+        'handspace_viewpoint' : 0, #{
+            #'direction':0,
+            #'frame':0,
+        #},
         
         'workspace_cursor' : {
             'activate':False,
@@ -50,38 +51,27 @@ def reassembly_template_action():
             'polarity':0,
         },
         
-        'disassembly' : {
-            'activate':False,
-        },
+        'disassembly' : 0, #{
+            #'activate':False,
+        #},
+
+        'pick_and_place' : 0, #{
+            #'activate':False,
+            #'place_at_origin':False,
+        #},
         
         'rotate' : 0,
-
-        'pick_and_place' : {
-            'activate':False,
-            'place_at_origin':False,
-        },
 
         'insert_brick' : {
             'class_id' : 0,
             'color_id' : 0,
         },
 
-        'reassembly' : {
-            'start':False,
-            'end':False,
-        },
+        'reassembly' : 0, #{
+            #'start':False,
+            #'end':False,
+        #},
     }
-
-#def reassembly_template_state():
-#    return {
-#        'workspace_scene' : 
-#        'handspace_sceen' : 
-#        'workspace_viewpoint' : 
-#        'handspace_viewpoint' : 
-#        'workspace_cursor' : 
-#        'handspace_cursor' : 
-#        
-#    }
 
 def reassembly_env(
     dataset,
@@ -100,10 +90,12 @@ def reassembly_env(
     handspace_map_height=24,
     dataset_reset_mode='uniform',
     max_episode_length=32,
+    disassembly_score=0.,
+    skip_reassembly=False,
     workspace_render_args=None,
     handspace_render_args=None,
-    randomize_viewpoint=True,
-    randomize_colors=True,
+    randomize_viewpoint=True, # yo turn this back on too, I did bro!
+    randomize_colors=True, # yo turn this back on, I did bro!
     check_collisions=True,
     print_traceback=True,
     train=False,
@@ -154,6 +146,10 @@ def reassembly_env(
         #observe_configuration=train,
     )
     
+    # uprightify
+    components['upright'] = UprightSceneComponent(
+        scene_component = components['workspace_scene'])
+    
     # max length
     components['max_length'] = MaxEpisodeLengthComponent(
         max_episode_length, observe_step=False)
@@ -183,9 +179,9 @@ def reassembly_env(
     elevation_steps = 2
     # TODO: make this correct
     workspace_distance_steps = 1
-    workspace_distance_range=[250,250]
+    workspace_distance_range=[320,320] # was 250
     handspace_distance_steps = 1
-    handspace_distance_range=[150,150]
+    handspace_distance_range=[180,180] # was 150
     if randomize_viewpoint:
         start_position='uniform'
     else:
@@ -264,13 +260,6 @@ def reassembly_env(
     )
     
     # action spaces
-    components['disassembly'] = CursorDisassemblyComponent(
-        max_instances,
-        components['workspace_scene'],
-        components['workspace_cursor'],
-        handspace_component=components['handspace_scene'],
-        check_collisions=check_collisions,
-    )
     components['rotate'] = CursorRotationAroundSnap(
         components['workspace_scene'],
         components['workspace_cursor'],
@@ -281,6 +270,13 @@ def reassembly_env(
         components['workspace_cursor'],
         components['handspace_scene'],
         components['handspace_cursor'],
+        check_collisions=check_collisions,
+    )
+    components['disassembly'] = CursorDisassemblyComponent(
+        max_instances,
+        components['workspace_scene'],
+        components['workspace_cursor'],
+        handspace_component=components['handspace_scene'],
         check_collisions=check_collisions,
     )
     components['insert_brick'] = HandspaceBrickInserter(
@@ -302,6 +298,7 @@ def reassembly_env(
         handspace_scene_component=components['handspace_scene'],
         dataset_component=components['dataset'],
         reassembly_mode='clear',
+        skip_reassembly=skip_reassembly,
         train=train,
     )
     
@@ -363,6 +360,7 @@ def reassembly_env(
         components['initial_workspace_config'],
         components['workspace_config'],
         components['reassembly'],
+        disassembly_score=disassembly_score,
     )
     
     # build the env

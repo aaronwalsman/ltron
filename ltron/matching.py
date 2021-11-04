@@ -6,7 +6,7 @@ import tqdm
 
 from scipy.spatial import cKDTree
 
-from ltron.geometry.grid_bucket import GridBucket
+from ltron.geometry.utils import default_allclose
 
 def match_configurations(
     config_a,
@@ -155,7 +155,7 @@ def validate_matches(config_a, config_b, matches, a_to_b):
             
             transformed_pose_a = a_to_b @ config_a['pose'][a]
             pose_b = config_b['pose'][b]
-            if not numpy.allclose(transformed_pose_a, pose_b):
+            if not default_allclose(transformed_pose_a, pose_b):
                 continue
             
             valid_matches.add((a,b))

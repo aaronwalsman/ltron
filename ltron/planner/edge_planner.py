@@ -11,6 +11,7 @@ from ltron.bricks.brick_type import BrickType
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.gym.envs.reassembly_env import reassembly_template_action
 from ltron.exceptions import LtronException
+from ltron.geometry.utils import default_allclose
 
 class NoMatchingRotationError(LtronException):
     pass
@@ -25,6 +26,9 @@ class DisassemblyFailure(LtronException):
     pass
 
 class NoVisibleSnapsFailure(LtronException):
+    pass
+
+class VeryStrangeNeedToDebugFailure(LtronException):
     pass
 
 # utilities ====================================================================
@@ -182,7 +186,8 @@ def compute_camera_actions(
     frame_scene = steps[3]
     if frame_scene:
         action = reassembly_template_action()
-        action[viewpoint_component]['frame'] = True
+        #action[viewpoint_component]['frame'] = True
+        action[viewpoint_component] = 7
         actions.append(action)
     
     for directions, offset in zip(((1,2),(3,4),(5,6)), steps[:3]):
@@ -193,7 +198,8 @@ def compute_camera_actions(
             direction = directions[1]
         for step in range(steps):
             action = reassembly_template_action()
-            action[viewpoint_component]['direction'] = direction
+            #action[viewpoint_component]['direction'] = direction
+            action[viewpoint_component] = direction
             actions.append(action)
     
     return actions
@@ -283,7 +289,7 @@ def compute_discrete_rotation(
     inv_snap_transform = numpy.linalg.inv(snap_transform)
     wip_snap_transform = wip_transform @ snap_transform
     
-    if numpy.allclose(goal_offset, wip_offset):
+    if default_allclose(goal_offset, wip_offset):
         return 0
     
     offsets = []
@@ -303,7 +309,7 @@ def compute_discrete_rotation(
             inv_snap_transform
         )
         offsets.append(offset)
-        if numpy.allclose(offset, goal_offset):
+        if default_allclose(offset, goal_offset):
             return r
     
     raise NoMatchingRotationError
@@ -404,11 +410,12 @@ def plan_add_first_brick(
         'position':numpy.array([y,x]),
         'polarity':p,
     }
-    pick_and_place_action['pick_and_place'] = {
-        'activate':True,
-        'place_at_origin':True,
-    }
-    action_seq.append(insert_action)
+    #pick_and_place_action['pick_and_place'] = {
+    #    'activate':True,
+    #    'place_at_origin':True,
+    #}
+    pick_and_place_action['pick_and_place'] = 2
+    action_seq.append(pick_and_place_action)
     observation, reward, terminal, info = env.step(pick_and_place_action)
     observation_seq.append(observation)
     
@@ -498,8 +505,7 @@ def plan_add_nth_brick(
     try:
         new_snaps = [wip_to_new[i,s][1] for i,s in zip(wi, ws)]
     except:
-        import pdb
-        pdb.set_trace()
+        raise VeryStrangeNeedToDebugFailure
     
     # compute the handspace camera motion
     (handspace_camera_actions,
@@ -554,10 +560,11 @@ def plan_add_nth_brick(
         'position':numpy.array([nyy, nxx]),
         'polarity':npp,
     }
-    pick_and_place_action['pick_and_place'] = {
-        'activate':True,
-        'place_at_origin':False,
-    }
+    #pick_and_place_action['pick_and_place'] = {
+    #    'activate':True,
+    #    'place_at_origin':False,
+    #}
+    pick_and_place_action['pick_and_place'] = 1
     action_seq.append(pick_and_place_action)
     
     # take the action to generate the latest observation
@@ -723,9 +730,10 @@ def plan_remove_nth_brick(
         'position':numpy.array([wyy, wxx]),
         'polarity':wpp,
     }
-    disassembly_action['disassembly'] = {
-        'activate':True,
-    }
+    #disassembly_action['disassembly'] = {
+    #    'activate':True,
+    #}
+    disassembly_action['disassembly'] = 1
     action_seq.append(disassembly_action)
     observation, reward, terminal, info = env.step(disassembly_action)
     observation_seq.append(observation)

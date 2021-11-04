@@ -147,37 +147,29 @@ class InteractiveHandspaceReassemblyEnv:
         
         elif key == b'd' and space == 'workspace':
             action = reassembly_template_action()
-            action['disassembly']['activate'] = True
+            action['disassembly'] = 1
             self.step(action)
         
         elif key == b'p':
             action = reassembly_template_action()
-            action['pick_and_place']['activate'] = True
-            action['pick_and_place']['place_at_origin'] = False
+            action['pick_and_place'] = 1
             self.step(action)
         
         elif key == b'P' and space == 'handspace':
             action = reassembly_template_action()
-            action['pick_and_place']['activate'] = True
-            action['pick_and_place']['place_at_origin'] = True
+            action['pick_and_place'] = 2
             self.step(action)
         
         elif key == b'[' and space == 'workspace':
             print('Rotate: %i, %i'%(x,y))
             action = reassembly_template_action()
-            action['rotate'] = {
-                'activate':True,
-                'direction':0,
-            }
+            action['rotate'] = 1
             self.step(action)
         
         elif key == b']':
             print('Rotate: %i, %i'%(x,y))
             action = reassembly_template_action()
-            action['rotate'] = {
-                'activate':True,
-                'direction':1,
-            }
+            action['rotate'] = 3
             self.step(action)
         
         elif key == b'm':
@@ -229,7 +221,7 @@ class InteractiveHandspaceReassemblyEnv:
             if not self.env.components['reassembly'].reassembling:
                 print('Switching to Reassembly')
                 action = reassembly_template_action()
-                action['reassembly']['start'] = 1
+                action['reassembly'] = 1
                 self.step(action)
             else:
                 print('Already Reassembling')
@@ -262,6 +254,7 @@ class InteractiveHandspaceReassemblyEnv:
                 'position':[yy,xx],
                 'polarity':polarity,
             }
+            print(yy,xx)
         elif space == 'handspace':
             yy = y // self.handspace_height_scale
             xx = x // self.handspace_width_scale
@@ -270,8 +263,9 @@ class InteractiveHandspaceReassemblyEnv:
                 'position':[yy,xx],
                 'polarity':polarity,
             }
+            print(yy,xx)
         self.step(action)
-    
+        
     def key_release(self, key, x, y):
         '''
         if x < 255:
@@ -327,10 +321,10 @@ class InteractiveHandspaceReassemblyEnv:
 if __name__ == '__main__':
     #interactive_env = InteractiveReassemblyEnv(
     interactive_env = InteractiveHandspaceReassemblyEnv(
-        dataset='random_six',
-        split='simple_single',
-        subset=1,
-        train=True,
+        dataset='omr_split_4',
+        split='tmp',
+        subset=None,
+        train=False,
         randomize_colors=False,
         randomize_viewpoint=False)
     interactive_env.start()
