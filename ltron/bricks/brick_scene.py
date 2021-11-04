@@ -4,9 +4,13 @@ import os
 
 import numpy
 
-from pyquaternion import Quaternion
+try:
+    from pyquaternion import Quaternion
+    pyquaternion_available=True
+except ImportError:
+    pyquaternion_available=False
 
-import splendor.masks as masks
+#import splendor.masks as masks
 
 from ltron.dataset.paths import resolve_subdocument
 from ltron.ldraw.documents import LDrawDocument
@@ -14,9 +18,17 @@ from ltron.bricks.brick_type import BrickLibrary
 from ltron.bricks.brick_instance import BrickInstanceTable
 from ltron.bricks.brick_color import BrickColorLibrary
 from ltron.bricks.snap import SnapCylinder
-from ltron.render.environment import RenderEnvironment
+try:
+    from ltron.render.environment import RenderEnvironment
+    render_available = True
+except ImportError:
+    render_available = False
 from ltron.geometry.grid_bucket import GridBucket
-from ltron.geometry.collision import CollisionChecker
+try:
+    from ltron.geometry.collision import CollisionChecker
+    collision_available = True
+except ImportError:
+    collision_available = False
 from ltron.geometry.utils import unscale_transform
 from ltron.exceptions import LtronException
 
@@ -76,6 +88,7 @@ class BrickScene:
         )
     
     def make_renderable(self, **render_args):
+        assert render_available
         if not self.renderable:
             self.render_environment = RenderEnvironment(**render_args)
             self.renderable = True
@@ -86,6 +99,7 @@ class BrickScene:
             self.track_snaps = True
     
     def make_collision_checker(self, **collision_checker_args):
+        assert collision_available
         if self.collision_checker is None:
             self.collision_checker = CollisionChecker(
                 self, **collision_checker_args)
@@ -542,6 +556,8 @@ class BrickScene:
         place,
         check_collisions=False
     ):
+        assert pyquaternion_available
+        
         if check_collisions:
             assert self.collision_checker is not None
         

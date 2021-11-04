@@ -9,6 +9,7 @@ import ltron.settings as settings
 import ltron.dataset.paths as dataset_paths
 #from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_scene import BrickScene
+import splendor.assets as assets
 
 '''
 WARNING: export_all is presently incredibly slow.  An earlier version of this
@@ -70,7 +71,9 @@ Produce!  Stop throwing good time after bad.
 loadldraw.globalLightBricks = {}
 
 part_directory = os.path.join(settings.paths['ldraw'], 'parts')
-obj_directory = os.path.join(settings.paths['splendor'], 'meshes')
+#obj_directory = os.path.join(settings.paths['splendor'], 'meshes')
+ltron_assets = assets.AssetLibrary('ltron_assets')
+obj_directory = ltron_assets['meshes'].paths[0]
 
 if not os.path.exists(obj_directory):
     os.makedirs(obj_directory)

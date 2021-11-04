@@ -8,7 +8,7 @@ except ImportError:
 
 from ltron.ldraw.commands import *
 from ltron.exceptions import LtronException
-from ltron.geometry.utils import close_enough
+from ltron.geometry.utils import close_enough, default_allclose
 from ltron.geometry.epsilon_array import EpsilonArray
 
 gender_to_polarity = {
@@ -165,7 +165,8 @@ class SnapStyle(Snap):
     def __eq__(self, other):
         return (
             (self.subtype_id == other.subtype_id) and
-            numpy.allclose(self.transform, other.transform)
+            #numpy.allclose(self.transform, other.transform)
+            default_allclose(self.transform, other.transform)
         )
     
     def __hash__(self):
@@ -190,9 +191,11 @@ class SnapCylinder(SnapStyle):
     
     def is_upright(self):
         axis = self.transform[:3,1]
-        if self.polarity == '+' and numpy.allclose(axis, (0,-1,0)):
+        #if self.polarity == '+' and numpy.allclose(axis, (0,-1,0)):
+        if self.polarity == '+' and default_allclose(axis, (0,-1,0)):
             return True
-        elif self.polarity == '-' and numpy.allclose(axis, (0,1,0)):
+        #elif self.polarity == '-' and numpy.allclose(axis, (0,1,0)):
+        elif self.polarity == '-' and default_allclose(axis, (0,1,0)):
             return True
         else:
             return False
