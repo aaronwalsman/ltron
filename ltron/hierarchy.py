@@ -2,24 +2,37 @@ import re
 import numpy
 
 # main utilities ===============================================================
-def map_hierarchies(fn, *a):
-    if isinstance(a[0], dict):
+def map_hierarchies(
+    fn,
+    *a,
+    InDictClass=dict,
+    InListClass=(tuple, list),
+    OutDictClass=None,
+    OutListClass=None
+):
+    if isinstance(a[0], InDictClass):
         assert all(isinstance(aa, dict) for aa in a[1:])
         assert all(aa.keys() == a[0].keys() for aa in a[1:]), (
             ':'.join([str(aa.keys()) for aa in a]))
-        return {
+        d = {
             key : map_hierarchies(fn, *[aa[key] for aa in a])
             for key in a[0].keys()
         }
+        if OutDictClass is not None:
+            d = OutDictClass(d)
+        return d
     
-    elif isinstance(a[0], (tuple, list)):
+    elif isinstance(a[0], InListClass):
         assert all(isinstance(aa, (tuple, list)) for aa in a[1:]), (
             ':'.join([str(aa) for aa in a]))
         assert all(len(aa) == len(a[0]) for aa in a[1:])
-        return [
+        l = [
             map_hierarchies(fn, *[aa[i] for aa in a])
             for i in range(len(a[0]))
         ]
+        if OutListClass is not None:
+            l = OutListClass(l)
+        return l
     
     else:
         return fn(*a)
