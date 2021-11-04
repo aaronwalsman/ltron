@@ -181,23 +181,26 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
         self.handspace_cursor_component = handspace_cursor_component
         self.check_collisions = check_collisions
         
-        activate_space = Discrete(2)
-        polarity_space = Discrete(2)
-        place_at_origin_space = Discrete(2)
+        #activate_space = Discrete(2)
+        #polarity_space = Discrete(2)
+        #place_at_origin_space = Discrete(2)
         self.observation_space = Dict({'success':Discrete(2)})
-        self.action_space = Dict({
-            'activate':activate_space,
-            'place_at_origin':place_at_origin_space,
-        })
+        #self.action_space = Dict({
+        #    'activate':activate_space,
+        #    'place_at_origin':place_at_origin_space,
+        #})
+        self.action_space = Discrete(3)
     
     def reset(self):
         return {'success':False}
     
     def step(self, action):
-        activate = action['activate']
-        if not activate:
+        #activate = action['activate']
+        #if not activate:
+        if not action:
             return {'success':False}, 0., False, {}
-        place_at_origin = action['place_at_origin']
+        #place_at_origin = action['place_at_origin']
+        place_at_origin = action == 2
         
         pick_instance_id = self.handspace_cursor_component.instance_id
         pick_snap_id = self.handspace_cursor_component.snap_id

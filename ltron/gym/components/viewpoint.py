@@ -10,6 +10,8 @@ import splendor.camera as camera
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
+default_field_of_view = math.radians(60.)
+
 class ControlledAzimuthalViewpointComponent(LtronGymComponent):
     def __init__(self,
         scene_component,
@@ -19,7 +21,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         distance_range,
         distance_steps,
         azimuth_offset=0.,
-        field_of_view=math.radians(60.),
+        field_of_view=default_field_of_view,
         aspect_ratio=1.,
         near_clip=10.,
         far_clip=50000.,
@@ -74,12 +76,18 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         else:
             self.distance_spacing = 0
         
-        action_space = {
-            'direction':Discrete(7),
-        }
         if self.frame_button:
-            action_space['frame'] = Discrete(2)
-        self.action_space = Dict(action_space)
+            num_actions = 8
+        else:
+            num_actions = 7
+        self.action_space = Discrete(num_actions)
+        
+        #action_space = {
+        #    'direction':Discrete(7),
+        #}
+        #if self.frame_button:
+        #    action_space['frame'] = Discrete(2)
+        #self.action_space = Dict(action_space)
     
     def observe(self):
         self.observation = {}
@@ -120,6 +128,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.center = self.compute_center()
     
     def step(self, action):
+        '''
         if action['direction'] == 0:
             pass
         elif action['direction'] == 1:
@@ -140,8 +149,29 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         elif action['direction'] == 6:
             self.position[2] += 1
             self.position[2] = min(self.distance_steps-1, self.position[2])
+        '''
         
-        if 'frame' in action and action['frame'] or self.auto_frame == 'step':
+        if action == 0:
+            pass
+        elif action == 1:
+            self.position[0] -= 1
+            self.position[0] = self.position[0] % self.azimuth_steps
+        elif action == 2:
+            self.position[0] += 1
+            self.position[0] = self.position[0] % self.azimuth_steps
+        elif action == 3:
+            self.position[1] -= 1
+            self.position[1] = max(0, self.position[1])
+        elif action == 4:
+            self.position[1] += 1
+            self.position[1] = min(self.elevation_steps-1, self.position[1])
+        elif action == 5:
+            self.position[2] -= 1
+            self.position[2] = max(0, self.position[2])
+        elif action == 6:
+            self.position[2] += 1
+            self.position[2] = min(self.distance_steps-1, self.position[2])
+        elif action == 7 or self.auto_frame == 'step':
             self.frame_scene()
         
         self.set_camera()
@@ -192,7 +222,7 @@ class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
         azimuth = (0, math.pi*2),
         elevation = (math.radians(-15), math.radians(-45)),
         tilt = (math.radians(-45.), math.radians(45.)),
-        field_of_view = (math.radians(60.), math.radians(60.)),
+        field_of_view = (default_field_of_view, default_field_of_view),
         distance = (0.8, 1.2),
         aspect_ratio = 1.,
         near_clip = 10.,
@@ -282,7 +312,7 @@ class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
             azimuth,
             elevation,
             tilt = 0.,
-            field_of_view = math.radians(60.),
+            field_of_view = default_field_of_view,
             *args, **kwargs):
         
         super(FixedAzimuthalViewpointComponent, self).__init__(

@@ -46,10 +46,17 @@ class SnapCursor(LtronGymComponent):
         self.instance_id, self.snap_id = snap_map[self.position]
         
         if self.observe_instance_snap:
-            self.observation = [
-                *self.position, self.polarity, self.instance_id, self.snap_id]
+            self.observation = {
+                'position' : self.position,
+                'polarity' : self.polarity,
+                'instance_id' : self.instance_id,
+                'snap_id' : self.snap_id,
+            }
         else:
-            self.observation = [*self.position, self.polarity]
+            self.observation = {
+                'position' : self.position,
+                'polarity' : self.polarity,
+            }
     
     def reset(self):
         self.set_cursor(0,0,0)

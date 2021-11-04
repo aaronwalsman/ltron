@@ -22,6 +22,7 @@ class Reassembly(LtronGymComponent):
         handspace_scene_component=None,
         dataset_component=None,
         reassembly_mode='clear',
+        skip_reassembly=False,
         train=False,
     ):
         #self.class_ids = class_ids
@@ -32,9 +33,11 @@ class Reassembly(LtronGymComponent):
         self.handspace_scene_component = handspace_scene_component
         self.dataset_component = dataset_component
         self.reassembly_mode = reassembly_mode
+        self.skip_reassembly = skip_reassembly
         self.train = train
         
-        self.action_space = Dict({'start':Discrete(2), 'end':Discrete(2)})
+        #self.action_space = Dict({'start':Discrete(2), 'end':Discrete(2)})
+        self.action_space = Discrete(3)
         observation_space = {'reassembling':Discrete(2)}
         '''
         if self.train:
@@ -116,7 +119,8 @@ class Reassembly(LtronGymComponent):
     
     def step(self, action):
         
-        if action['start'] and not self.reassembling:
+        #if action['start'] and not self.reassembling:
+        if action == 1 and not self.reassembling:
             self.reassembling=True
             workspace_scene = self.workspace_scene_component.brick_scene
             workspace_scene.clear_instances()
@@ -157,7 +161,14 @@ class Reassembly(LtronGymComponent):
         #else:
         #    score = 0.
         
-        return self.observation, 0., action['end'], {}
+        #return self.observation, 0., action['end'], {}
+        
+        if self.skip_reassembly:
+            terminal = (action == 1) or (action == 2)
+        else:
+            terminal = (action == 2)
+        
+        return self.observation, 0., terminal, {}
     
     def set_state(self, state):
         self.reassembling = state['reassembling']
@@ -171,10 +182,13 @@ class ReassemblyScoreComponent(LtronGymComponent):
         initial_config_component,
         current_config_component,
         reassembly_component,
+        disassembly_score=0.,
     ):
         self.initial_config_component = initial_config_component
         self.current_config_component = current_config_component
         self.reassembly_component = reassembly_component
+        self.disassembly_score = disassembly_score
+        self.recent_disassembly_score = 0.
     
     def observe(self):
         if self.reassembly_component.reassembling:
@@ -185,11 +199,25 @@ class ReassemblyScoreComponent(LtronGymComponent):
                 initial_config,
                 current_config,
             )
+            self.score += self.recent_disassembly_score
         else:
-            self.score = 0.
+            if self.disassembly_score:
+                initial_config = self.initial_config_component.config
+                current_config = self.current_config_component.config
+                initial_instances = numpy.sum(initial_config['class'] != 0)
+                current_instances = numpy.sum(current_config['class'] != 0)
+                score = 1. - (current_instances/initial_instances)
+                score *= self.disassembly_score
+                self.recent_disassembly_score = score
+                self.score = score
+                
+            else:
+                self.score = 0.
     
     def reset(self):
         self.observe()
+        self.recent_disassembly_score = 0.
+        return None
     
     def step(self, action):
         self.observe()

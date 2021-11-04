@@ -181,17 +181,19 @@ class CursorDisassemblyComponent(DisassemblyComponent):
         )
         self.cursor_component = cursor_component
         
-        activate_space = Discrete(2)
+        #activate_space = Discrete(2)
         
-        self.action_space = Dict({
-            'activate':activate_space,
-        })
+        #self.action_space = Dict({
+        #    'activate':activate_space,
+        #})
+        self.action_space = Discrete(2)
     
     def step(self, action):
-        activate = action['activate']
+        #activate = action['activate']
         success = False
         instance_id = 0
-        if activate:
+        #if activate:
+        if action:
             instance_id = self.cursor_component.instance_id
             snap_id = self.cursor_component.snap_id
             if instance_id != 0:
