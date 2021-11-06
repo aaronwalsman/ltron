@@ -4,6 +4,7 @@ from ltron.ldraw.documents import LDrawMPDMainFile
 from ltron.bricks.brick_scene import BrickScene
 from pathlib import Path
 import queue
+import tqdm
 
 def BFS(instance, connections, visited):
     cum_list = [instance]
@@ -40,11 +41,11 @@ def partition(scene):
 # remove all components that contains less than or equal to the threshold
 def partition_omr(directory, outdir=None, remove_thre = 0):
     path = Path(directory).expanduser()
-    modelList = path.rglob('*')
+    modelList = list(path.rglob('*'))
 
     # Iterate through mpd files
     cnt = 0
-    for model in modelList:
+    for model in tqdm.tqdm(modelList):
         model = str(model)
         try:
             scene = BrickScene(track_snaps=True)

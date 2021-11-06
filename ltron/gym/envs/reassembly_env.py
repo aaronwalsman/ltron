@@ -96,6 +96,7 @@ def reassembly_env(
     handspace_render_args=None,
     randomize_viewpoint=True, # yo turn this back on too, I did bro!
     randomize_colors=True, # yo turn this back on, I did bro!
+    include_score=True,
     check_collisions=True,
     print_traceback=True,
     train=False,
@@ -356,12 +357,13 @@ def reassembly_env(
     )
     
     # score
-    components['reassembly_score'] = ReassemblyScoreComponent(
-        components['initial_workspace_config'],
-        components['workspace_config'],
-        components['reassembly'],
-        disassembly_score=disassembly_score,
-    )
+    if include_score:
+        components['reassembly_score'] = ReassemblyScoreComponent(
+            components['initial_workspace_config'],
+            components['workspace_config'],
+            components['reassembly'],
+            disassembly_score=disassembly_score,
+        )
     
     # build the env
     env = LtronEnv(components, print_traceback=print_traceback)

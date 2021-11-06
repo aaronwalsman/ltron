@@ -26,7 +26,9 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
         annot = {"train" : {'mpd' : []}, "test": {'mpd' : []}}
         theme_train = {}
         theme_cum = {}
-        for theme, count in theme_count.items():
+        print('-')
+        print('Generating Theme Train Counts')
+        for theme, count in tqdm.tqdm(theme_count.items()):
             theme_train[theme] = int(count*train_ratio)
             theme_cum[theme] = 0
 
@@ -37,12 +39,11 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
 
         print(len(modelList))
         # Iterate through models
-        print('='*80)
+        print('-'*80)
         print('Splitting %s train/test %.02f/%.02f'%(
             mode, train_ratio, 1. - train_ratio))
         iterate = tqdm.tqdm(modelList)
         for model in iterate:
-            iterate.set_description(model[:20] + '...')
             model = str(model)
             model_name = model.split("/")[-1]
 
@@ -80,14 +81,17 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
 
         # Extract true model name
         simp_train = []
-        for t in train:
+        print('-'*80)
+        print('Getting Train Files')
+        for t in tqdm.tqdm(train):
             simp_train.append(t.split("/")[-1])
         path = Path(path).expanduser()
         modelList = list(path.rglob('*'))
-
-        print(len(modelList))
+        
+        print('-'*80)
+        print('Allocating Into Train/Test')
         # Iterate through models
-        for model in modelList:
+        for model in tqdm.tqdm(modelList):
             model = str(model)
             model_name = model.split("/")[-1]
 
@@ -130,10 +134,12 @@ def category_splitter(path, mode='raw'):
             annot[theme.lower()]['mpd'] = []
 
         path = Path(path).expanduser()
-        modelList = path.rglob('*')
+        modelList = list(path.rglob('*'))
 
         # Iterate through models
-        for model in modelList:
+        print('-'*80)
+        print('Splitting Into Themes')
+        for model in tqdm.tqdm(modelList):
             model = str(model)
             model_name = model.split("/")[-1]
 
@@ -163,12 +169,15 @@ def category_splitter(path, mode='raw'):
             annot[theme.lower()]['mpd'] = []
 
         path = Path(path).expanduser()
-        modelList = path.rglob('*')
+        modelList = list(path.rglob('*'))
 
         # Iterate through models
-        for model in modelList:
+        print('-'*80)
+        print('Splitting Into Themes')
+        for model in tqdm.tqdm(modelList):
             model = str(model)
-            model_name = model.split("/")[-1].split("@")[0] + "." + model.split(".")[-1]
+            model_name = (
+                model.split("/")[-1].split("@")[0] + "." + model.split(".")[-1])
 
             # 0 is Train, 1 is Test
             try:
@@ -192,10 +201,12 @@ def size_splitter(path, size_map, mode="raw"):
         annot[size.lower()]['mpd'] = []
 
     path = Path(path).expanduser()
-    modelList = path.rglob('*')
+    modelList = list(path.rglob('*'))
 
     # Iterate through models
-    for model in modelList:
+    print('-'*80)
+    print('Splitting Into Size Categories')
+    for model in tqdm.tqdm(modelList):
         model = str(model)
 
         try:
@@ -225,13 +236,15 @@ def size_splitter(path, size_map, mode="raw"):
 
 def build_metadata(path_root):
     metadata = {}
-    mpds = glob.glob(os.path.join(path_root, '*.mpd'))
+    mpds = list(glob.glob(os.path.join(path_root, '*')))
 
     max_instances_per_scene = 0
     max_edges_per_scene = 0
     all_brick_names = set()
     all_color_names = set()
-    for mpd in mpds:
+    print('-'*80)
+    print('Building Metadata')
+    for mpd in tqdm.tqdm(mpds):
         scene = BrickScene(track_snaps=True)
         scene.import_ldraw(mpd)
         brick_names = set(scene.brick_library.keys())
@@ -261,10 +274,12 @@ def build_metadata(path_root):
 
 def extract_stat(path):
     path = Path(path).expanduser()
-    modelList = path.rglob('*')
+    modelList = list(path.rglob('*'))
 
     # Iterate through models
-    for model in modelList:
+    print('-'*80)
+    print('Extracting Stats')
+    for model in tqdm.tqdm(modelList):
         model = str(model)
         try:
             cur_model = LDrawMPDMainFile(model)

@@ -5,22 +5,27 @@ from ltron.dataset.submodel_extraction import blacklist_computation
 import json
 import os
 
+import tqdm
 
-def blacklist_out(directory, dest, threshold=400, blacklist=None):
-
+def blacklist_out(
+    directory, dest, blacklist_dest, threshold=400, blacklist=None):
+    
     if blacklist is None:
         blacklist = []
-    if os.path.exists('blacklist_' + str(threshold) + '.json'):
-        with open('blacklist_' + str(threshold) + '.json') as f:
+    
+    blacklist_path = os.path.join(blacklist_dest, 'blacklist_%i.json'%threshold)
+    if os.path.exists(blacklist_path):
+        with open(blacklist_path) as f:
             blacklist = blacklist + json.load(f)
     else:
         blacklist = blacklist + blacklist_computation(threshold)
-    with open('blacklist_' + str(threshold) + '.json', 'w') as f:
+    with open(blacklist_path, 'w') as f:
         json.dump(blacklist, f)
     path = Path(directory).expanduser()
-    modelList = path.rglob('*')
-
-    for model in modelList:
+    modelList = list(path.rglob('*'))
+    print('-'*80)
+    print('Removing Blacklisted Bricks From Scenes')
+    for model in tqdm.tqdm(modelList):
         model = str(model)
         try:
             scene = BrickScene(track_snaps=False)

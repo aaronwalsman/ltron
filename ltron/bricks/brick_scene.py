@@ -186,7 +186,7 @@ class BrickScene:
             try:
                 brick_type = class_labels[instance_class]
             except KeyError:
-                raise MissingClassError
+                raise MissingClassError(instance_class)
             try:
                 color = color_labels[instance_color]
             except KeyError:
@@ -241,7 +241,9 @@ class BrickScene:
                 config['class'][instance_id] = class_ids[
                     str(instance.brick_type)]
             except KeyError:
-                raise MissingClassError
+                import pdb
+                pdb.set_trace()
+                raise MissingClassError(instance_id)
             try:
                 config['color'][instance_id] = color_ids[str(instance.color)]
             except KeyError:

@@ -179,10 +179,30 @@ def compute_camera_actions(
     env,
     viewpoint_component,
     start_position,
-    end_position
+    end_position,
 ):
     actions = []
-    steps = numpy.array(end_position) - start_position
+    
+    a = env.components[viewpoint_component].azimuth_steps
+    azimuth_a = end_position[0] + a - start_position[0]
+    azimuth_b = end_position[0] - start_position[0]
+    azimuth_c = end_position[0] - a - start_position[0]
+    if abs(azimuth_a) < abs(azimuth_b) and abs(azimuth_a) < abs(azimuth_c):
+        azimuth_steps = azimuth_a
+    elif abs(azimuth_b) < abs(azimuth_c):
+        azimuth_steps = azimuth_b
+    else:
+        azimuth_steps = azimuth_c
+    
+    #print(
+    #    start_position[0], end_position[0], '|',
+    #    azimuth_a, azimuth_b, azimuth_c, '|',
+    #    azimuth_steps
+    #)
+    
+    other_steps = numpy.array(end_position)[1:] - start_position[1:]
+    steps = numpy.concatenate([[azimuth_steps], other_steps])
+    
     frame_scene = steps[3]
     if frame_scene:
         action = reassembly_template_action()
@@ -191,12 +211,12 @@ def compute_camera_actions(
         actions.append(action)
     
     for directions, offset in zip(((1,2),(3,4),(5,6)), steps[:3]):
-        steps = abs(offset)
+        repeat = abs(offset)
         if offset < 0:
             direction = directions[0]
         else:
             direction = directions[1]
-        for step in range(steps):
+        for step in range(repeat):
             action = reassembly_template_action()
             #action[viewpoint_component]['direction'] = direction
             action[viewpoint_component] = direction

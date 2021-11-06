@@ -213,7 +213,7 @@ class ReassemblyScoreComponent(LtronGymComponent):
                 
             else:
                 self.score = 0.
-    
+        
     def reset(self):
         self.observe()
         self.recent_disassembly_score = 0.

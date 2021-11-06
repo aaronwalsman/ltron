@@ -21,6 +21,7 @@ import math
 import os
 import numpy
 import random
+import tqdm
 
 def compute_boxsize_old(instances, scene):
     instance_tran = {}
@@ -82,10 +83,12 @@ def compute_boxsize(instance, scene, complete=False):
 
 def blacklist_computation(threshold):
     path = Path("~/.cache/ltron/ldraw/parts").expanduser()
-    partlist = path.glob("*.dat")
+    partlist = list(path.glob("*.dat"))
 
     blacklist = []
-    for part in partlist:
+    print('-'*80)
+    print('Finding Large Bricks to Blacklist')
+    for part in tqdm.tqdm(partlist):
         part = str(part)
         if "30520.dat" in part:
             continue
@@ -184,6 +187,9 @@ def subcomponent_extraction(limit, num_comp):
             continue
 
         num_instances = len(scene.instances.instances)
+        if num_instances < limit:
+            continue
+        
         components = []
         for i in range(num_instances):
             cur_list = []
@@ -232,6 +238,12 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
     cnt = 0
     iterate = tqdm.tqdm(mpdlist)
     for mpd in iterate:
+        description = os.path.basename(str(mpd))
+        if len(description) > 30:
+            description = description[:27] + '...'
+        elif len(description) < 30:
+            description = description + ' ' * (30 - len(description))
+        iterate.set_description(description)
         # t_start = time.time()
         # t_add_total = 0.
         # t_for_total = 0.
@@ -252,6 +264,8 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             continue
 
         num_instances = len(scene.instances.instances)
+        if num_instances < limit:
+            continue
         # print(num_instances)
         components = []
         used_brick = []
@@ -322,7 +336,7 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             #                                                + str(count) + ".mpd")
             
             _, ext = os.path.splitext(mpd)
-            model_file_name = '%s_%i_%i.%s'%(modelname, limit, count, ext)
+            model_file_name = '%s_%i_%i%s'%(modelname, limit, count, ext)
             model_path = os.path.join(folder_name, model_file_name)
             scene.export_ldraw(model_path, instances=comp)
             #scene.export_ldraw(folder_name + modelname + "_" + str(limit) + "_" + str(count) + "." + mpd.split(".")[-1], instances=comp)
