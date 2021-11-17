@@ -11,6 +11,7 @@ class NoUprightableSnaps(LtronException):
 class UprightSceneComponent(LtronGymComponent):
     def __init__(self, scene_component, fail_mode='ignore'):
         self.scene_component = scene_component
+        self.fail_mode = fail_mode
     
     def reset(self):
         scene = self.scene_component.brick_scene

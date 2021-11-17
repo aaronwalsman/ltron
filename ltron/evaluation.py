@@ -17,11 +17,19 @@ def tp_fp_fn(prediction, ground_truth, axis = -1):
     return true_positives, false_positives, false_negatives
 
 def precision_recall(true_positives, false_positives, false_negatives):
-    precision = true_positives / (true_positives + false_positives)
-    recall = true_positives / (true_positives + false_negatives)
+    if true_positives + false_positives == 0:
+        precision = 0.
+    else:
+        precision = true_positives / (true_positives + false_positives)
+    if true_positives + false_negatives == 0:
+        recall = 0.
+    else:
+        recall = true_positives / (true_positives + false_negatives)
     return precision, recall
 
 def f1(precision, recall):
+    if (precision + recall) == 0:
+        return 0.
     return 2 * (precision * recall) / (precision + recall)
 
 def ap(scores, ground_truth, false_negatives):

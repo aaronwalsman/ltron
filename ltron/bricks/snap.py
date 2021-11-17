@@ -148,8 +148,20 @@ class SnapStyle(Snap):
         
         self.transform = transform
     
+    def raw_data(self):
+        return {
+            'center' : self.center,
+            'mirror' : self.mirror,
+            'scale' : self.scale,
+            'group' : self.group,
+            'transform' : self.transform,
+        }
+    
     def is_upright(self):
         return False
+    
+    def connected2(self, other):
+        return True
     
     def groups_match(self, other):
         if self.group is None and other.group is None:
@@ -183,11 +195,29 @@ class SnapCylinder(SnapStyle):
         super(SnapCylinder, self).__init__(command, transform)
         self.polarity = gender_to_polarity[command.flags['gender']]
         self.secs = command.flags['secs']
+        sec_parts = self.secs.split()
+        self.sec_type = sec_parts[0::3]
+        self.sec_radius = [float(r) for r in sec_parts[1::3]]
+        self.sec_length = [float(h) for h in sec_parts[2::3]]
+        
         self.caps = command.flags.get('caps', 'one')
         self.slide = str_to_bool(command.flags.get('slide', 'false'))
         center_string = ('uncentered', 'centered')[self.center]
         #self.subtype_id = 'cyl|%s|%s|%s'%(self.secs, self.caps, self.polarity)
         self.subtype_id = 'cylinder(%s,%s)'%(self.secs, center_string)
+    
+    def raw_data(self):
+        raw_data = {
+            'snap_type' : 'cylinder',
+            'polarity' : self.polarity,
+            'sec_type' : self.sec_type,
+            'sec_radius' : self.sec_radius,
+            'sec_length' : self.sec_length,
+            'caps' : self.caps,
+            'slide' : self.slide,
+        }
+        raw_data.update(super(SnapCylinder, self).raw_data())
+        return raw_data
     
     def is_upright(self):
         axis = self.transform[:3,1]
@@ -199,6 +229,32 @@ class SnapCylinder(SnapStyle):
             return True
         else:
             return False
+    
+    def bbox(self):
+        r = max(self.sec_radii)
+        h = sum(self.sec_heights)
+        
+        if self.center:
+            half_h = h/2.
+            y_h = self.transform[:3,1] * half_h
+            # slightly faster than a matrix multiply
+            p0 = -y_h + self.transform[:3,3]
+            p1 = y_h + self.transform[:3,3]
+        else:
+            # slightly faster than a matrix multiply
+            p0 = numpy.array([0,0,0])
+            p1 = self.transform[:3,1] * h + self.transform[:3,3]
+        
+        # slightly slower than what I'm doing above
+        #p0 = (self.transform @ p0)[:3]
+        #p1 = (self.transform @ p1)[:3]
+        box_min = numpy.min([p0, p1], axis=0) - r
+        box_max = numpy.max([p0, p1], axis=0) + r
+        
+        #box_min = numpy.zeros(3)
+        #box_max = numpy.ones(3)
+        
+        return box_min, box_max
     
     def connected(
         self,
@@ -287,6 +343,36 @@ class SnapClip(SnapStyle):
         self.subtype_id = 'clip(%s,%s,%s)'%(
             self.radius, self.length, center_string)
     
+    def raw_data(self):
+        raw_data = {
+            'snap_type' : 'clip',
+            'polarity' : self.polarity,
+            'radius' : self.radius,
+            'length' : self.length,
+            'slide' : self.slide,
+        }
+        raw_data.update(super(SnapClip, self).raw_data())
+        return raw_data
+    
+    def bbox(self):
+        r = self.radius
+        h = self.length
+        
+        if self.center:
+            p0 = numpy.array([0,-h/2.,0, 1])
+            p1 = numpy.array([0, h/2.,0, 1])
+        else:
+            p0 = numpy.array([0,0,0,1])
+            p1 = numpy.array([0,h,0,1])
+        
+        p0 = (self.transform @ p0)[:3]
+        p1 = (self.transform @ p1)[:3]
+        
+        box_min = numpy.min([p0, p1], axis=0) - r
+        box_max = numpy.max([p0, p1], axis=0) + r
+        
+        return box_min, box_max
+    
     def connected(
         self,
         other,
@@ -343,6 +429,35 @@ class SnapFinger(SnapStyle):
         self.subtype_id = 'finger(%s,%i,%s)'%(
             self.radius, sum(self.seq), center_string)
     
+    def raw_data(self):
+        raw_data = {
+            'snap_type' : 'finger',
+            'polarity' : self.polarity,
+            'seq' : self.seq,
+            'radius' : self.radius,
+        }
+        raw_data.update(super(SnapFinger, self).raw_data())
+        return raw_data
+    
+    def bbox(self):
+        r = self.radius
+        h = sum(self.seq)
+        
+        if self.center:
+            p0 = numpy.array([0,-h/2.,0, 1])
+            p1 = numpy.array([0, h/2.,0, 1])
+        else:
+            p0 = numpy.array([0,0,0,1])
+            p1 = numpy.array([0,h,0,1])
+        
+        p0 = (self.transform @ p0)[:3]
+        p1 = (self.transform @ p1)[:3]
+        
+        box_min = numpy.min([p0, p1], axis=0) - r
+        box_max = numpy.max([p0, p1], axis=0) + r
+        
+        return box_min, box_max
+    
     def connected(
         self,
         other,
@@ -398,6 +513,18 @@ class SnapGeneric(SnapStyle):
         bounding = command.flags['bounding'].split()
         self.bounding = (bounding[0],) + tuple(float(b) for b in bounding[1:])
         self.subtype_id = 'generic(%s)'%command.flags['bounding']
+    
+    def raw_data(self):
+        raw_data = {
+            'snap_type' : 'generic',
+            'polarity' : self.polarity,
+            'bounding' : self.bounding,
+        }
+        raw_data.update(super(SnapGeneric, self).raw_data())
+        return raw_data
+    
+    def bbox(self):
+        raise NotImplementedError
     
     def connected(
         self,
@@ -466,6 +593,25 @@ class SnapSphere(SnapStyle):
         self.radius = command.flags['radius']
         self.subtype_id = 'sphere(%s)'%self.radius
         assert self.scale in ('none', 'ROnly')
+    
+    def raw_data(self):
+        raw_data = {
+            'snap_type' : 'sphere',
+            'polarity' : self.polarity,
+            'radius' : self.radius,
+        }
+        raw_data.update(super(SnapSphere, self).raw_data())
+        return raw_data
+    
+    def bbox(self):
+        r = self.radius
+        
+        p0 = self.transform[:3,3]
+        
+        box_min = p0 - r
+        box_max = p0 + r
+        
+        return box_min, box_max
     
     def connected(
         self,

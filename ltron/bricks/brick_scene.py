@@ -109,28 +109,42 @@ class BrickScene:
     # ldraw i/o ----------------------------------------------------------------
     
     def import_ldraw(self, path):
+        #import time
+        #a = time.time()
         # convert the path to a path and subdocument
         path, subdocument = resolve_subdocument(path)
         
+        #b = time.time()
         # read the document and pull out the subdocument
         document = LDrawDocument.parse_document(path)
         if subdocument is not None:
             document = document.reference_table['ldraw'][subdocument]
         
+        #c = time.time()
         # load brick types, instances and colors
         new_types = self.brick_library.import_document(document)
         new_colors = self.color_library.import_document(document)
         new_instances = self.instances.import_document(
                 document, transform=self.upright)
         
+        #d = time.time()
         if self.renderable:
             # adding instances will automatically load the appropriate assets
             for new_instance in new_instances:
                 self.render_environment.add_instance(new_instance)
         
+        #e = time.time()
         if self.track_snaps:
             for brick_instance in new_instances:
                 self.update_instance_snaps(brick_instance)
+        
+        #f = time.time()
+        #print('ab', b-a)
+        #print('bc', c-b)
+        #print('cd', d-c)
+        #print('de', e-d)
+        #print('ef', f-e)
+        #print('total', f-a)
     
     def export_ldraw(self, path, instances=None):
         if instances is None:
