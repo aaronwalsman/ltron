@@ -9,6 +9,8 @@ from splendor.masks import color_byte_to_index
 
 from ltron.geometry.utils import unscale_transform, default_allclose
 
+from ltron.exceptions import ThisShouldNeverHappen
+
 def make_collision_framebuffer(resolution):
     frame_buffer = FrameBufferWrapper(
         resolution[0],
@@ -143,6 +145,8 @@ def build_collision_map(
                 )
                 if len(colliders):
                     colliders = set(int(i) for i in colliders)
+                    if 0 in colliders:
+                        raise ThisShouldNeverHappen
                     #for s_id in snap_ids:
                     #    collision_map[instance_id][s_id] |= (
                     #        colliders)
