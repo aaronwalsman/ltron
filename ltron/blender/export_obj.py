@@ -199,6 +199,7 @@ def export_carbon_star(**kwargs):
         export_brick(brick, **kwargs)
 
 def export_n(n, **kwargs):
+    raise Exception('Deprecated, use batch_export instead')
     bricks = sorted(os.listdir(part_directory))[-n:]
     import random
     random.shuffle(bricks)
@@ -209,6 +210,7 @@ def export_n(n, **kwargs):
         export_brick(brick, **kwargs)
 
 def export_all(**kwargs):
+    raise Exception('Deprecated, use batch_export instead')
     bricks = sorted(os.listdir(part_directory))
     for brick in bricks:
         import_brick_path = os.path.join(part_directory, brick)
