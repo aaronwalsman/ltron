@@ -1,4 +1,5 @@
 class LtronException(Exception):
     pass
 
-class ThisShouldNeverHappen(LtronException)
+class ThisShouldNeverHappen(LtronException):
+    pass
