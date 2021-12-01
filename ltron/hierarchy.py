@@ -15,7 +15,13 @@ def map_hierarchies(
         assert all(aa.keys() == a[0].keys() for aa in a[1:]), (
             ':'.join([str(aa.keys()) for aa in a]))
         d = {
-            key : map_hierarchies(fn, *[aa[key] for aa in a])
+            key : map_hierarchies(
+                fn, *[aa[key] for aa in a],
+                InDictClass=InDictClass,
+                InListClass=InListClass,
+                OutDictClass=OutDictClass,
+                OutListClass=OutListClass,
+            )
             for key in a[0].keys()
         }
         if OutDictClass is not None:
@@ -27,7 +33,13 @@ def map_hierarchies(
             ':'.join([str(aa) for aa in a]))
         assert all(len(aa) == len(a[0]) for aa in a[1:])
         l = [
-            map_hierarchies(fn, *[aa[i] for aa in a])
+            map_hierarchies(
+                fn, *[aa[i] for aa in a],
+                InDictClass=InDictClass,
+                InListClass=InListClass,
+                OutDictClass=OutDictClass,
+                OutListClass=OutListClass,
+            )
             for i in range(len(a[0]))
         ]
         if OutListClass is not None:
@@ -142,3 +154,7 @@ def concatenate_lists(a, **kwargs):
             return a
     
     return map_dicts(fn, a)
+
+# conversion ===================================================================
+def deep_list_to_tuple(a):
+    return map_hierarchies(lambda aa : aa, a, OutListClass=tuple)

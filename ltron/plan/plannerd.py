@@ -182,7 +182,6 @@ class RoadmapPlanner:
             frozenset(self.goal_to_wip.keys()) |
             frozenset(self.false_positive_lookup.keys())
         )
-        #self.roadmap.nodes.add(self.start_state)
         assert self.start_state not in self.roadmap.env_states
         self.roadmap.env_states[self.start_state] = start_env_state
         
@@ -278,8 +277,8 @@ class RoadmapPlanner:
         # if there are any false positives, remove them first
         if false_positives:
             for false_positive in false_positives:
-                false_positive_class = self.start_config['class'][
-                    false_positive]
+                false_positive_class = (
+                    self.start_config['class'][false_positive])
                 if node_removable_collision_free(
                     false_positive,
                     self.roadmap.class_to_brick_type[false_positive_class],
