@@ -3,13 +3,13 @@ import numpy
 from scipy.optimize import linear_sum_assignment
 
 from ltron.symmetry import symmetry_table
-from ltron.matching import match_configurations, match_lookup
+from ltron.matching import match_assemblies, match_lookup
 
 def f1(tp, fp, fn):
     return tp / (tp + 0.5 * (fp + fn))
 
-def score_configurations(proposal, target):
-    matching, offset = match_configurations(proposal, target)
+def score_assemblies(proposal, target):
+    matching, offset = match_assemblies(proposal, target)
     true_positives, _, false_positives, false_negatives = match_lookup(
         matching, proposal, target)
     '''
@@ -119,28 +119,24 @@ def score_brick_assignment(
     pf1 = pseudo_f1(x_scores, y_scores)
     return pf1
 
-def get_max_configuration_instance(configuration):
+def get_max_assembly_instance(assembly):
     try:
-        return numpy.max(numpy.where(configuration['class'] != 0))
+        return numpy.max(numpy.where(assembly['class'] != 0))
     except ValueError:
         return 0
 
-def get_neighbors(configuration):
+def get_neighbors(assembly):
     neighbors = []
-    #edges = configuration['edges']['edge_index']
-    edges = configuration['edges']
-    #for i in range(1, configuration['num_instances']+1):
-    #print(numpy.unique(edges[0]))
-    #for i in numpy.unique(edges[0]):
-    max_x = get_max_configuration_instance(configuration)
+    edges = assembly['edges']
+    max_x = get_max_assembly_instance(assembly)
     for i in range(1, max_x+1):
         edge_locations = numpy.where(edges[0] == i)[0]
         neighbor_ids = edges[1,edge_locations]
         if len(neighbor_ids):
-            neighbor_brick_type = configuration['class'][neighbor_ids]
-            neighbor_color = configuration['color'][neighbor_ids]
-            neighbor_poses = configuration['pose'][neighbor_ids]
-            i_pose = configuration['pose'][i]
+            neighbor_brick_type = assembly['class'][neighbor_ids]
+            neighbor_color = assembly['color'][neighbor_ids]
+            neighbor_poses = assembly['pose'][neighbor_ids]
+            i_pose = assembly['pose'][i]
             neighbor_offset = [
                 numpy.linalg.inv(i_pose) @ neighbor_pose
                 for neighbor_pose in neighbor_poses
