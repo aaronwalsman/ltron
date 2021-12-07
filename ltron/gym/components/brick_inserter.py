@@ -47,3 +47,6 @@ class HandspaceBrickInserter(LtronGymComponent):
             success = False
         
         return {'success' : success}, 0, False, {}
+    
+    def no_op_action(self):
+        return {'class_id':0, 'color_id':0}

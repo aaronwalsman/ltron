@@ -1,3 +1,5 @@
+import numpy
+
 from gym.spaces import Dict, Discrete, MultiDiscrete
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
@@ -79,3 +81,6 @@ class SnapCursor(LtronGymComponent):
         self.polarity = state['polarity']
         self.observe()
         return self.observation
+    
+    def no_op_action(self):
+        return {'activate' : 0, 'position' : numpy.array([0,0]), 'polarity':0}

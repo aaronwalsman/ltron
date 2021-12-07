@@ -23,62 +23,45 @@ from ltron.gym.components.brick_inserter import HandspaceBrickInserter
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
 from ltron.gym.components.colors import RandomizeColorsComponent
-from ltron.gym.components.reassembly import Reassembly, ReassemblyScoreComponent
-from ltron.gym.components.config import ConfigComponent
+from ltron.gym.components.break_and_make import (
+        BreakAndMakePhaseSwitch, BreakAndMakeScore
+)
+from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
 
-def reassembly_template_action():
+'''
+def break_and_make_template_action():
     return {
-        'workspace_viewpoint' : 0, #{
-            #'direction':0,
-            #'frame':0,
-        #},
-
-        'handspace_viewpoint' : 0, #{
-            #'direction':0,
-            #'frame':0,
-        #},
-        
+        'workspace_viewpoint' : 0,
+        'handspace_viewpoint' : 0,
         'workspace_cursor' : {
             'activate':False,
             'position':numpy.array([0,0]),
             'polarity':0,
         },
-        
         'handspace_cursor' : {
             'activate':False,
             'position':numpy.array([0,0]),
             'polarity':0,
         },
-        
-        'disassembly' : 0, #{
-            #'activate':False,
-        #},
-
-        'pick_and_place' : 0, #{
-            #'activate':False,
-            #'place_at_origin':False,
-        #},
-        
+        'disassembly' : 0,
+        'pick_and_place' : 0,
         'rotate' : 0,
-
         'insert_brick' : {
             'class_id' : 0,
             'color_id' : 0,
         },
-
-        'reassembly' : 0, #{
-            #'start':False,
-            #'end':False,
-        #},
+        'phase_switch' : 0,
     }
+'''
 
-def reassembly_env(
+def break_and_make_env(
     dataset,
     split,
     subset=None,
     rank=0,
     size=1,
+    task='break_and_make',
     file_override=None,
     workspace_image_width=256,
     workspace_image_height=256,
@@ -90,12 +73,10 @@ def reassembly_env(
     handspace_map_height=24,
     dataset_reset_mode='uniform',
     max_episode_length=32,
-    disassembly_score=0.,
-    skip_reassembly=False,
     workspace_render_args=None,
     handspace_render_args=None,
-    randomize_viewpoint=True, # yo turn this back on too, I did bro!
-    randomize_colors=True, # yo turn this back on, I did bro!
+    randomize_viewpoint=True,
+    randomize_colors=True,
     include_score=True,
     check_collisions=True,
     print_traceback=True,
@@ -123,7 +104,7 @@ def reassembly_env(
             render_args=workspace_render_args,
             track_snaps=True,
             collision_checker=check_collisions,
-            store_configuration=True,
+            #store_configuration=True,
         )
     else:
         components['workspace_scene'] = DatasetSceneComponent(
@@ -132,8 +113,7 @@ def reassembly_env(
             render_args=workspace_render_args,
             track_snaps=True,
             collision_checker=check_collisions,
-            store_configuration=True,
-            #observe_configuration=train,
+            #store_configuration=True,
         )
     components['handspace_scene'] = EmptySceneComponent(
         class_ids=class_ids,
@@ -143,8 +123,7 @@ def reassembly_env(
         render_args=handspace_render_args,
         track_snaps=True,
         collision_checker=False,
-        store_configuration=True,
-        #observe_configuration=train,
+        #store_configuration=True,
     )
     
     # uprightify
@@ -163,15 +142,15 @@ def reassembly_env(
             randomize_frequency='reset',
         )
     
-    # initial config
-    components['initial_workspace_config'] = ConfigComponent(
+    # initial assembly
+    components['initial_workspace_assembly'] = AssemblyComponent(
         components['workspace_scene'],
         class_ids,
         color_ids,
         max_instances,
         max_edges,
         update_frequency='reset',
-        observe_config=train,
+        observe_assembly=train,
     )
     
     # viewpoint
@@ -288,18 +267,14 @@ def reassembly_env(
         max_instances,
     )
     
-    # reassembly
-    components['reassembly'] = Reassembly(
-        #class_ids=class_ids,
-        #color_ids=color_ids,
-        #max_instances=max_instances,
-        #max_edges=max_edges,
+    # phase_switch
+    components['phase_switch'] = BreakAndMakePhaseSwitch(
+        task=task,
         workspace_scene_component=components['workspace_scene'],
         workspace_viewpoint_component=components['workspace_viewpoint'],
         handspace_scene_component=components['handspace_scene'],
         dataset_component=components['dataset'],
-        reassembly_mode='clear',
-        skip_reassembly=skip_reassembly,
+        start_make_mode='clear',
         train=train,
     )
     
@@ -318,15 +293,6 @@ def reassembly_env(
         anti_alias=True,
     )
     
-    #if train:
-    #    components['workspace_segmentation_render'] = (
-    #         SegmentationRenderComponent(
-    #            workspace_map_width,
-    #            workspace_map_height,
-    #            components['workspace_scene'],
-    #        )
-    #    )
-    
     # snap render
     components['workspace_pos_snap_render'] = workspace_pos_snap_render
     components['workspace_neg_snap_render'] = workspace_neg_snap_render
@@ -335,34 +301,33 @@ def reassembly_env(
     components['handspace_pos_snap_render'] = handspace_pos_snap_render
     components['handspace_neg_snap_render'] = handspace_neg_snap_render
     
-    # current config
-    components['workspace_config'] = ConfigComponent(
+    # current assembly
+    components['workspace_assembly'] = AssemblyComponent(
         components['workspace_scene'],
         class_ids,
         color_ids,
         max_instances,
         max_edges,
         update_frequency = 'step',
-        observe_config = train,
+        observe_assembly = train,
     )
     
-    components['handspace_config'] = ConfigComponent(
+    components['handspace_assembly'] = AssemblyComponent(
         components['handspace_scene'],
         class_ids,
         color_ids,
         max_instances,
         max_edges,
         update_frequency = 'step',
-        observe_config = train,
+        observe_assembly = train,
     )
     
     # score
     if include_score:
-        components['reassembly_score'] = ReassemblyScoreComponent(
-            components['initial_workspace_config'],
-            components['workspace_config'],
-            components['reassembly'],
-            disassembly_score=disassembly_score,
+        components['score'] = BreakAndMakeScore(
+            components['initial_workspace_assembly'],
+            components['workspace_assembly'],
+            components['phase_switch'],
         )
     
     # build the env

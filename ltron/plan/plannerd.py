@@ -12,12 +12,11 @@ from ltron.exceptions import LtronException
 from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.collision import build_collision_map
 from ltron.geometry.epsilon_array import EpsilonArray
-from ltron.matching import match_configurations, match_lookup
+from ltron.matching import match_assemblies, match_lookup
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.bricks.brick_type import BrickType
-from ltron.gym.envs.reassembly_env import reassembly_template_action
 
-from ltron.planner.edge_planner import (
+from ltron.plan.edge_planner import (
     plan_add_first_brick,
     plan_add_nth_brick,
     plan_remove_nth_brick,
@@ -38,19 +37,19 @@ def node_connected_collision_free(
     existing_bricks,
     goal_state,
     collision_map,
-    goal_configuration,
+    goal_assembly,
 ):
     if not len(existing_bricks):
         brick_type = BrickType(new_brick_type_name)
-        brick_transform = goal_configuration['pose'][new_brick]
+        brick_transform = goal_assembly['pose'][new_brick]
         brick_instance = BrickInstance(0, brick_type, 0, brick_transform)
         upright_snaps = brick_instance.get_upright_snaps()
         return bool(len(upright_snaps))
     
     else:
         # there must be a connection to a new brick
-        new_edges = numpy.where(goal_configuration['edges'][0] == new_brick)[0]
-        connected_bricks = goal_configuration['edges'][1, new_edges]
+        new_edges = numpy.where(goal_assembly['edges'][0] == new_brick)[0]
+        connected_bricks = goal_assembly['edges'][1, new_edges]
         connected_bricks = frozenset(connected_bricks)
         if not len(connected_bricks & existing_bricks):
             return False
@@ -76,12 +75,12 @@ def node_removable_collision_free(
     remove_brick_type_name,
     existing_bricks,
     collision_map,
-    start_configuration,
+    start_assembly,
     maintain_connectivity=False,
 ):
     if maintain_connectivity and len(existing_bricks) > 1:
         # this is not efficient, but I don't care yet
-        edges = start_configuration['edges']
+        edges = start_assembly['edges']
         connectivity = {}
         for i in range(edges.shape[1]):
             if edges[0,i] == 0:
@@ -127,10 +126,10 @@ def node_removable_collision_free(
     return True
 
 class Roadmap:
-    def __init__(self, env, goal_config, class_ids, color_ids):
+    def __init__(self, env, goal_assembly, class_ids, color_ids):
         self.env = env
-        self.goal_config = goal_config
-        self.goal_state = frozenset(numpy.where(goal_config['class'])[0])
+        self.goal_assembly = goal_assembly
+        self.goal_state = frozenset(numpy.where(goal_assembly['class'])[0])
         # removing nodes, they are not used for anything
         #self.nodes = set()
         #self.nodes.add(self.goal_state)
@@ -144,8 +143,8 @@ class Roadmap:
         self.color_ids = color_ids
         
         goal_scene = BrickScene(renderable=True, track_snaps=True)
-        goal_scene.import_configuration(
-            self.goal_config, self.brick_type_to_class, self.color_ids)
+        goal_scene.import_assembly(
+            self.goal_assembly, self.brick_type_to_class, self.color_ids)
         self.goal_collision_map = build_collision_map(goal_scene)
     
     def get_observation_action_seq(self, path):
@@ -168,13 +167,13 @@ class RoadmapPlanner:
         
         # set the env to the start state
         observation = self.roadmap.env.set_state(start_env_state)
-        self.start_config = observation['workspace_config']['config']
+        self.start_assembly = observation['workspace_assembly']
         
         # compute a matching
-        matching, offset = match_configurations(
-            self.start_config, roadmap.goal_config)
+        matching, offset = match_assemblies(
+            self.start_assembly, roadmap.goal_assembly)
         self.wip_to_goal, self.goal_to_wip, fp, fn = match_lookup(
-            matching, self.start_config, roadmap.goal_config)
+            matching, self.start_assembly, roadmap.goal_assembly)
         
         self.false_positive_lookup = self.make_false_positive_labels(fp)
         
@@ -189,8 +188,8 @@ class RoadmapPlanner:
         
         # build start collision map
         start_scene = BrickScene(renderable=True, track_snaps=True)
-        start_scene.import_configuration(
-            self.start_config,
+        start_scene.import_assembly(
+            self.start_assembly,
             self.roadmap.brick_type_to_class,
             self.roadmap.color_ids,
         )
@@ -278,13 +277,13 @@ class RoadmapPlanner:
         if false_positives:
             for false_positive in false_positives:
                 false_positive_class = (
-                    self.start_config['class'][false_positive])
+                    self.start_assembly['class'][false_positive])
                 if node_removable_collision_free(
                     false_positive,
                     self.roadmap.class_to_brick_type[false_positive_class],
                     state,
                     self.start_collision_map,
-                    self.start_config,
+                    self.start_assembly,
                     maintain_connectivity=True,
                 ):
                     successor = state - frozenset((false_positive,))
@@ -294,7 +293,7 @@ class RoadmapPlanner:
         elif false_negatives:
             for false_negative in false_negatives:
                 # check if false_negative can be added
-                false_negative_class = self.roadmap.goal_config['class'][
+                false_negative_class = self.roadmap.goal_assembly['class'][
                     false_negative]
                 if node_connected_collision_free(
                     false_negative,
@@ -302,7 +301,7 @@ class RoadmapPlanner:
                     state,
                     self.roadmap.goal_state,
                     self.roadmap.goal_collision_map,
-                    self.roadmap.goal_config,
+                    self.roadmap.goal_assembly,
                 ):
                     successor = state | frozenset((false_negative,))
                     successors.add(successor)
@@ -405,7 +404,7 @@ class EdgeChecker:
                 instance = next(iter(b))
                 observation_seq, action_seq = plan_add_first_brick(
                     self.roadmap.env,
-                    self.roadmap.goal_config,
+                    self.roadmap.goal_assembly,
                     instance,
                     observation,
                     goal_to_wip,
@@ -420,7 +419,7 @@ class EdgeChecker:
                 instance = next(iter(b-a))
                 observation_seq, action_seq = plan_add_nth_brick(
                     self.roadmap.env,
-                    self.roadmap.goal_config,
+                    self.roadmap.goal_assembly,
                     instance,
                     observation,
                     goal_to_wip,
@@ -435,7 +434,7 @@ class EdgeChecker:
             instance = next(iter(a-b))
             return plan_remove_nth_brick(
                 self.roadmap.env,
-                self.roadmap.goal_config,
+                self.roadmap.goal_assembly,
                 instance,
                 observation,
                 #goal_to_wip,

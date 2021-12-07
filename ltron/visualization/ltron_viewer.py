@@ -19,7 +19,6 @@ from splendor.image import save_image
 
 import ltron.settings as settings
 from ltron.dataset.paths import resolve_subdocument
-import ltron.ldraw.paths as ldraw_paths
 from ltron.bricks.brick_scene import BrickScene
 
 instructions = '''

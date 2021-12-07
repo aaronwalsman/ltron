@@ -2,7 +2,8 @@ import re
 
 import numpy
 from ltron.ldraw.exceptions import LDrawException
-import ltron.ldraw.paths as ldraw_paths
+#import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.reference import get_reference_name
 
 class InvalidLDrawCommand(LDrawException):
     pass
@@ -147,7 +148,7 @@ class LDrawFileComment(LDrawComment):
     def __init__(self, file_name):
         self.comment = 'FILE ' + file_name
         self.file_name = file_name
-        self.reference_name = ldraw_paths.get_reference_name(file_name)
+        self.reference_name = get_reference_name(file_name)
 
 class LDrawAuthorComment(LDrawComment):
     def __init__(self, author):
@@ -183,7 +184,7 @@ class LDCadCommand(LDrawComment):
 class LDCadSnapInclCommand(LDCadCommand):
     def __init__(self, ldcad_command, flags):
         super(LDCadSnapInclCommand, self).__init__(ldcad_command, flags)
-        self.reference_name = ldraw_paths.get_reference_name(flags['ref'])
+        self.reference_name = get_reference_name(flags['ref'])
         self.transform = matrix_ldcad_to_numpy(flags)
 
 class LDCadSnapClearCommand(LDCadCommand):
@@ -218,7 +219,7 @@ class LDrawImportCommand(LDrawCommand):
         (self.color,
          *matrix_elements,
          reference_name) = arguments.split(None, 13)
-        self.reference_name = ldraw_paths.get_reference_name(reference_name)
+        self.reference_name = get_reference_name(reference_name)
         self.transform = matrix_ldraw_to_numpy(matrix_elements)
     
     def __str__(self):

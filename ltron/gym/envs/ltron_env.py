@@ -85,7 +85,6 @@ class LtronEnv(gym.Env):
         state = {}
         for component_name, component in self.components.items():
             s = component.get_state()
-            #if s is not None:
             state[component_name] = s
         
         return state
@@ -99,6 +98,15 @@ class LtronEnv(gym.Env):
                 observation[component_name] = o
         
         return observation
+    
+    @traceback_decorator
+    def no_op_action(self):
+        action = {}
+        for component_name, component in self.components.items():
+            if hasattr(component, 'action_space'):
+                action[component_name] = component.no_op_action()
+        
+        return action
     
     @traceback_decorator
     def close(self):

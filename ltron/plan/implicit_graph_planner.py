@@ -6,11 +6,12 @@ from ltron.geometry.epsilon_array import EpsilonArray
 from ltron.plan.planner import Planner
 
 class GridPlanner(Planner):
-    def __init__(self, dimension, goal):
+    def __init__(self, dimension, goal, obstacles):
         super(GridPlanner, self).__init__()
         self.dimension = dimension
         self.goal = goal
         self.graph = {}
+        self.obstacles = obstacles
     
     def sample_initial_state(self):
         return tuple([0] * self.dimension)
@@ -19,12 +20,12 @@ class GridPlanner(Planner):
         if state not in self.graph:
             actions = []
             for d in range(self.dimension):
-                s = list(state)
-                s[d] += 1
-                actions.append(tuple(s))
-                s = list(state)
-                s[d] -= 1
-                actions.append(tuple(s))
+                for direction in 1, -1:
+                    s = list(state)
+                    s[d] += direction
+                    s = tuple(s)
+                    if s not in self.obstacles:
+                        actions.append(s)
             
             random.shuffle(actions)
             self.graph[state] = actions
@@ -45,8 +46,18 @@ class GridPlanner(Planner):
         return best_distance / distance
 
 if __name__ == '__main__':
-    planner = GridPlanner(5, (3,3,3,3,3))
+    obstacles = [
+        (0,1),
+        (1,0),
+        (1,1),
+        (2,0),
+        (2,1),
+        (2,2),
+        (1,2),
+        (0,2),
+    ]
+    planner = GridPlanner(2, (3,3), obstacles)
     
-    rollouts = planner.rollout_until_duration(30, max_steps=20)
+    rollouts = planner.rollout_until_duration(10, max_steps=10)
     import pdb
     pdb.set_trace()

@@ -9,7 +9,6 @@ from splendor.image import save_image
 
 from ltron.bricks.brick_type import BrickType
 from ltron.bricks.brick_instance import BrickInstance
-from ltron.gym.envs.reassembly_env import reassembly_template_action
 from ltron.exceptions import LtronException
 from ltron.geometry.utils import default_allclose
 
@@ -205,7 +204,7 @@ def compute_camera_actions(
     
     frame_scene = steps[3]
     if frame_scene:
-        action = reassembly_template_action()
+        action = env.no_op_action()
         #action[viewpoint_component]['frame'] = True
         action[viewpoint_component] = 7
         actions.append(action)
@@ -217,7 +216,7 @@ def compute_camera_actions(
         else:
             direction = directions[1]
         for step in range(repeat):
-            action = reassembly_template_action()
+            action = env.no_op_action()
             #action[viewpoint_component]['direction'] = direction
             action[viewpoint_component] = direction
             actions.append(action)
@@ -225,26 +224,26 @@ def compute_camera_actions(
     return actions
 
 def get_new_to_wip_connections(
-    goal_config,
+    goal_assembly,
     instance,
     goal_to_wip,
 ):
     # get connections
-    connections = goal_config['edges'][0] == instance
+    connections = goal_assembly['edges'][0] == instance
     
     # fitler for what actually exists in the scene
     extant_connections = numpy.array([
-        goal_config['edges'][1,i] in goal_to_wip
-        for i in range(goal_config['edges'].shape[1])])
+        goal_assembly['edges'][1,i] in goal_to_wip
+        for i in range(goal_assembly['edges'].shape[1])])
     connections = connections & extant_connections
     
     # get the connected instances
-    connected_instances = goal_config['edges'][1][connections]
+    connected_instances = goal_assembly['edges'][1][connections]
     wip_instances = [goal_to_wip[i] for i in connected_instances]
     
     # get the connected snaps
-    instance_snaps = goal_config['edges'][2][connections]
-    wip_snaps = goal_config['edges'][3][connections]
+    instance_snaps = goal_assembly['edges'][2][connections]
+    wip_snaps = goal_assembly['edges'][3][connections]
     
     # make the new_to_wip and wip_to_new lookups
     new_to_wip = {
@@ -256,13 +255,13 @@ def get_new_to_wip_connections(
     return new_to_wip, wip_to_new, wip_instances, wip_snaps
 
 def get_wip_to_wip_connections(
-    wip_config,
+    wip_assembly,
     instance,
 ):
-    connections = wip_config['edges'][0] == instance
-    connected_instances = wip_config['edges'][1][connections]
-    instance_snaps = wip_config['edges'][2][connections]
-    connected_snaps = wip_config['edges'][3][connections]
+    connections = wip_assembly['edges'][0] == instance
+    connected_instances = wip_assembly['edges'][1][connections]
+    instance_snaps = wip_assembly['edges'][2][connections]
+    connected_snaps = wip_assembly['edges'][3][connections]
     instance_to_wip = {
         (instance, iss):(wii,wss) for wii, iss, wss in
         zip(connected_instances, instance_snaps, connected_snaps)
@@ -277,8 +276,8 @@ def get_wip_to_wip_connections(
         instance_snaps)
 
 def compute_discrete_rotation(
-    goal_config,
-    wip_config,
+    goal_assembly,
+    wip_assembly,
     snap,
     goal_instance,
     goal_connected_instance,
@@ -288,16 +287,16 @@ def compute_discrete_rotation(
     rotation_steps = 4,
 ):
     
-    goal_transform = goal_config['pose'][goal_instance]
-    connected_goal_transform = goal_config['pose'][goal_connected_instance]
+    goal_transform = goal_assembly['pose'][goal_instance]
+    connected_goal_transform = goal_assembly['pose'][goal_connected_instance]
     inv_connected_goal_transform = numpy.linalg.inv(connected_goal_transform)
     goal_offset = (
         inv_connected_goal_transform @
         goal_transform
     )
     
-    wip_transform = wip_config['pose'][wip_instance]
-    connected_wip_transform = wip_config['pose'][wip_connected_instance]
+    wip_transform = wip_assembly['pose'][wip_instance]
+    connected_wip_transform = wip_assembly['pose'][wip_connected_instance]
     inv_connected_wip_transform = numpy.linalg.inv(connected_wip_transform)
     wip_offset = (
         numpy.linalg.inv(connected_wip_transform) @
@@ -336,8 +335,8 @@ def compute_discrete_rotation(
 
 # action builders ==============================================================
 
-def make_insert_action(brick_class, brick_color):
-    insert_action = reassembly_template_action()
+def make_insert_action(env, brick_class, brick_color):
+    insert_action = env.no_op_action()
     insert_action['insert_brick'] = {
         'class_id' : brick_class,
         'color_id' : brick_color,
@@ -350,7 +349,7 @@ def make_insert_action(brick_class, brick_color):
 
 def plan_add_first_brick(
     env,
-    goal_config,
+    goal_assembly,
     instance,
     observation,
     goal_to_wip,
@@ -366,10 +365,10 @@ def plan_add_first_brick(
     observation_seq = [observation]
     action_seq = []
     
-    # pull class, color and transform information out of the goal configuration
-    brick_class = goal_config['class'][instance]
-    brick_color = goal_config['color'][instance]
-    brick_transform = goal_config['pose'][instance]
+    # pull class, color and transform information out of the goal assembly
+    brick_class = goal_assembly['class'][instance]
+    brick_color = goal_assembly['color'][instance]
+    brick_transform = goal_assembly['pose'][instance]
     
     # find the upright snaps ---------------------------------------------------
     brick_type = BrickType(class_to_brick_type[brick_class])
@@ -381,7 +380,7 @@ def plan_add_first_brick(
         return None
 
     # make the insert action ---------------------------------------------------
-    insert_action = make_insert_action(brick_class, brick_color)
+    insert_action = make_insert_action(env, brick_class, brick_color)
     action_seq.append(insert_action)
     observation, reward, terminal, info = env.step(insert_action)
     observation_seq.append(observation)
@@ -424,7 +423,7 @@ def plan_add_first_brick(
     nr = random.randint(0, new_visible_snaps.shape[1]-1)
     y, x, p, i, s = new_visible_snaps[:,nr]
     
-    pick_and_place_action = reassembly_template_action()
+    pick_and_place_action = env.no_op_action()
     pick_and_place_action['handspace_cursor'] = {
         'activate':True,
         'position':numpy.array([y,x]),
@@ -450,7 +449,7 @@ def plan_add_first_brick(
 
 def plan_add_nth_brick(
     env,
-    goal_config,
+    goal_assembly,
     instance,
     observation,
     goal_to_wip,
@@ -466,13 +465,13 @@ def plan_add_nth_brick(
     observation_seq = [observation]
     action_seq = []
     
-    # pull class, color and transform information out of the goal configuration
-    brick_class = goal_config['class'][instance]
-    brick_color = goal_config['color'][instance]
-    brick_transform = goal_config['pose'][instance]
+    # pull class, color and transform information out of the goal assembly
+    brick_class = goal_assembly['class'][instance]
+    brick_color = goal_assembly['color'][instance]
+    brick_transform = goal_assembly['pose'][instance]
     
     # make the insert action ---------------------------------------------------
-    insert_action = make_insert_action(brick_class, brick_color)
+    insert_action = make_insert_action(env, brick_class, brick_color)
     action_seq.append(insert_action)
     observation, reward, terminal, info = env.step(insert_action)
     observation_seq.append(observation)
@@ -485,7 +484,8 @@ def plan_add_nth_brick(
     (new_to_wip,
      wip_to_new,
      wip_instances,
-     wip_snaps) = get_new_to_wip_connections(goal_config, instance, goal_to_wip)
+     wip_snaps) = get_new_to_wip_connections(
+        goal_assembly, instance, goal_to_wip)
     
     # compute the workspace camera motion
     state = env.get_state()
@@ -569,7 +569,7 @@ def plan_add_nth_brick(
     wyy, wxx, wpp, wii, wss = wip_visible_snaps[:,wr]
 
     # make the pick and place action
-    pick_and_place_action = reassembly_template_action()
+    pick_and_place_action = env.no_op_action()
     pick_and_place_action['workspace_cursor'] = {
         'activate':True,
         'position':numpy.array([wyy, wxx]),
@@ -602,8 +602,8 @@ def plan_add_nth_brick(
     
     # figure out if we need to rotate the new instance
     discrete_rotation = compute_discrete_rotation(
-        goal_config,
-        observation['workspace_config']['config'],
+        goal_assembly,
+        observation['workspace_assembly'],
         nss,
         instance,
         wip_to_goal[wii],
@@ -644,7 +644,7 @@ def plan_add_nth_brick(
             if debug:
                 vis_obs(observation, new_wip_instance, 4)
         
-        rotation_action = reassembly_template_action()
+        rotation_action = env.no_op_action()
         r = random.randint(0, new_visible_snaps.shape[1]-1)
         y, x, p, i, s = new_visible_snaps[:,r]
         rotation_action['workspace_cursor'] = {
@@ -671,7 +671,7 @@ def plan_add_nth_brick(
 
 def plan_remove_nth_brick(
     env,
-    goal_config,
+    goal_assembly,
     instance,
     observation,
     false_positive_to_wip,
@@ -680,12 +680,13 @@ def plan_remove_nth_brick(
 ):
     
     # intialization ------------------------------------------------------------
-    wip_config = observation['workspace_config']['config']
+    wip_assembly = observation['workspace_assembly']
     wip_instance = false_positive_to_wip[instance]
     
     if debug:
         debug_index = (
-            wip_config['class'].shape[0] - numpy.sum(wip_config['class'] != 0))
+            wip_assembly['class'].shape[0] -
+            numpy.sum(wip_assembly['class'] != 0))
     
     # initialize the action sequence
     observation_seq = [observation]
@@ -699,10 +700,10 @@ def plan_remove_nth_brick(
      wip_to_instance,
      wip_instances,
      wip_snaps,
-     instance_snaps) = get_wip_to_wip_connections(wip_config, wip_instance)
+     instance_snaps) = get_wip_to_wip_connections(wip_assembly, wip_instance)
     
     if not len(wip_instances):
-        brick_class = wip_config['class'][wip_instance]
+        brick_class = wip_assembly['class'][wip_instance]
         brick_type = BrickType(class_to_brick_type[brick_class])
         instance_snaps = numpy.array(range(len(brick_type.snaps)))
     
@@ -744,7 +745,7 @@ def plan_remove_nth_brick(
     wyy, wxx, wpp, wii, wss = visible_snaps[:,wr]
     
     # make the pick and place action
-    disassembly_action = reassembly_template_action()
+    disassembly_action = env.no_op_action()
     disassembly_action['workspace_cursor'] = {
         'activate':True,
         'position':numpy.array([wyy, wxx]),

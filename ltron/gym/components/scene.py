@@ -1,5 +1,5 @@
 from gym.spaces import Dict, Discrete
-from ltron.gym.spaces import ConfigurationSpace
+from ltron.gym.spaces import AssemblySpace
 
 from ltron.hierarchy import hierarchy_branch
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
@@ -15,16 +15,12 @@ class EmptySceneComponent(LtronGymComponent):
         render_args=None,
         track_snaps=False,
         collision_checker=False,
-        store_configuration=False,
-        #observe_configuration=False,
     ):
         self.class_ids = class_ids
         self.color_ids = color_ids
         self.max_instances = max_instances
         self.max_edges = max_edges
         self.current_scene_path = None
-        self.store_configuration = store_configuration
-        #self.observe_configuration = observe_configuration
         
         if render_args is None:
             render_args = {'opengl_mode':'egl', 'load_scene':'grey_cube'}
@@ -37,41 +33,12 @@ class EmptySceneComponent(LtronGymComponent):
         )
         
         observation_space = {'scene_loaded':Discrete(2)}
-        '''
-        if self.observe_configuration:
-            observation_space['config'] = ConfigurationSpace(
-                self.class_ids,
-                self.color_ids,
-                self.max_instances,
-                self.max_edges,
-            )
-            observation_space['initial_config'] = ConfigurationSpace(
-                self.class_ids,
-                self.color_ids,
-                self.max_instances,
-                self.max_edges,
-            )
-        '''
         self.observation_space = Dict(observation_space)
     
     def observe(self, initial=False):
         self.observation = {
             'scene_loaded' : int(self.current_scene_path is not None)
         }
-        '''
-        if self.store_configuration or self.observe_configuration:
-            self.config = self.brick_scene.get_configuration(
-                self.class_ids,
-                self.color_ids,
-                self.max_instances,
-                self.max_edges,
-            )
-            if initial:
-                self.initial_config = self.config
-            if self.observe_configuration:
-                self.observation['config'] = self.config
-                self.observation['initial_config'] = self.initial_config
-        '''
     
     def reset(self):
         self.brick_scene.clear_instances()
@@ -87,14 +54,14 @@ class EmptySceneComponent(LtronGymComponent):
     
     def set_state(self, state):
         self.brick_scene.clear_instances()
-        self.brick_scene.set_configuration(
+        self.brick_scene.set_assembly(
             state, self.class_ids, self.color_ids)
         
         self.observe()
         return self.observation
     
     def get_state(self):
-        state = self.brick_scene.get_configuration(
+        state = self.brick_scene.get_assembly(
             self.class_ids, self.color_ids, self.max_instances, self.max_edges)
         
         return state

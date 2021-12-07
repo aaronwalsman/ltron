@@ -81,13 +81,6 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         else:
             num_actions = 7
         self.action_space = Discrete(num_actions)
-        
-        #action_space = {
-        #    'direction':Discrete(7),
-        #}
-        #if self.frame_button:
-        #    action_space['frame'] = Discrete(2)
-        #self.action_space = Dict(action_space)
     
     def observe(self):
         self.observation = {}
@@ -215,6 +208,9 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.set_camera()
         self.observe()
         return self.observation
+    
+    def no_op_action(self):
+        return 0
 
 class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
     def __init__(self,

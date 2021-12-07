@@ -1,9 +1,9 @@
 from gym.spaces import Dict
 
-from ltron.gym.spaces import ConfigurationSpace
+from ltron.gym.spaces import AssemblySpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class ConfigComponent(LtronGymComponent):
+class AssemblyComponent(LtronGymComponent):
     def __init__(self,
         scene_component,
         class_ids,
@@ -11,7 +11,7 @@ class ConfigComponent(LtronGymComponent):
         max_instances,
         max_edges,
         update_frequency,
-        observe_config,
+        observe_assembly,
     ):
         self.scene_component = scene_component
         self.class_ids = class_ids
@@ -19,31 +19,29 @@ class ConfigComponent(LtronGymComponent):
         self.max_instances = max_instances
         self.max_edges = max_edges
         self.update_frequency = update_frequency
-        self.observe_config = observe_config
+        self.observe_assembly = observe_assembly
         
-        if self.observe_config:
-            self.observation_space = Dict({
-                'config' : ConfigurationSpace(
-                    self.class_ids,
-                    self.color_ids,
-                    self.max_instances,
-                    self.max_edges,
-                ),
-            })
-        
-    def observe(self, initial=False):
-        if self.update_frequency == 'step' or initial:
-            self.config = self.scene_component.brick_scene.get_configuration(
+        if self.observe_assembly:
+            self.observation_space = AssemblySpace(
                 self.class_ids,
                 self.color_ids,
                 self.max_instances,
                 self.max_edges,
             )
         
-        if self.observe_config:
-            self.observation = {
-                'config' : self.config,
-            }
+    def observe(self, initial=False):
+        if self.update_frequency == 'step' or initial:
+            #self.assembly = self.scene_component.brick_scene.get_assembly(
+            #    self.class_ids,
+            #    self.color_ids,
+            #    self.max_instances,
+            #    self.max_edges,
+            #)
+            self.assembly = self.observation_space.from_scene(
+                self.scene_component.brick_scene)
+        
+        if self.observe_assembly:
+            self.observation = self.assembly
         else:
             self.observation = None
     
@@ -56,9 +54,9 @@ class ConfigComponent(LtronGymComponent):
         return self.observation, 0., False, None
     
     def set_state(self, state):
-        self.config = state
+        self.assembly = state
         self.observe()
         return self.observation
     
     def get_state(self):
-        return self.config
+        return self.assembly

@@ -93,6 +93,14 @@ class RotationAroundSnap(LtronGymComponent):
         scene.transform_about_snap([instance], snap, rotate_y)
 
         return {'success' : 1}, 0, False, None
+    
+    def no_op_action(self):
+        return {
+            'activate':0,
+            'polarity':0,
+            'direction':0,
+            'pick':numpy.array([0,0]),
+        }
 
 class CursorRotationAroundSnap(LtronGymComponent):
     def __init__(
@@ -170,3 +178,6 @@ class CursorRotationAroundSnap(LtronGymComponent):
                 return {'success' : 0}, 0, False, None
         
         return {'success' : 1}, 0, False, None
+    
+    def no_op_action(self):
+        return 0

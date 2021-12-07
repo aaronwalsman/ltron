@@ -87,6 +87,9 @@ class IndexDisassemblyComponent(DisassemblyComponent):
             success, instance_id = self.disassemble(instance_index)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
+    
+    def no_op_action(self):
+        return (0, 0)
 
 class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
     def __init__(self,
@@ -99,8 +102,7 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
         
         activate_space = Discrete(2)
         index_snap_space = bg_spaces.SingleSnapIndexSpace(self.max_snaps)
-        self.action_space = Tuple(
-            activate_space, index_snap_space)
+        self.action_space = Tuple(activate_space, index_snap_space)
         
     def step(self, action):
         activate, (instance_index, snap_index) = action
@@ -110,6 +112,9 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
             success, instance_id = self.disassemble(instance_index, snap_index)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
+    
+    def no_op_action(self):
+        return (0, 0)
 
 class PixelDisassemblyComponent(DisassemblyComponent):
     def __init__(self,
@@ -164,6 +169,9 @@ class PixelDisassemblyComponent(DisassemblyComponent):
                     instance_index, snap_index)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
+    
+    def no_op_action(self):
+        return {'activate':0, 'polarity':0, 'pick':numpy.array([0,0])}
 
 class CursorDisassemblyComponent(DisassemblyComponent):
     def __init__(self,
@@ -181,18 +189,11 @@ class CursorDisassemblyComponent(DisassemblyComponent):
         )
         self.cursor_component = cursor_component
         
-        #activate_space = Discrete(2)
-        
-        #self.action_space = Dict({
-        #    'activate':activate_space,
-        #})
         self.action_space = Discrete(2)
     
     def step(self, action):
-        #activate = action['activate']
         success = False
         instance_id = 0
-        #if activate:
         if action:
             instance_id = self.cursor_component.instance_id
             snap_id = self.cursor_component.snap_id
@@ -200,3 +201,6 @@ class CursorDisassemblyComponent(DisassemblyComponent):
                 success, instance_id = self.disassemble(instance_id, snap_id)
         
         return {'success':success, 'instance_id':instance_id}, 0., False, None
+    
+    def no_op_action(self):
+        return 0

@@ -1,36 +1,36 @@
 from ltron.plan.planner import Planner
-from ltron.gym.envs.reassembly_env import reassembly_template_action
 
-class BreakAndMakePlanner(Planner):
+class BuildPlanner(Planner):
     def __init__(
         self,
         env,
         start_assembly,
         start_camera_pose,
+        goal_assembly,
         camera_motion_penalty=-0.1
     ):
-        super(BreakAndMakePlanner, self).__init__()
+        super(BuildPlanner, self).__init__()
         self.env = env
-        self.start_state = self.make_state(
-            start_assembly, start_camera_pose, False)
-        self.goal_assembly = start_assembly
+        self.start_state = self.make_state(start_assembly, start_camera_pose)
+        self.goal_assembly = goal_assembly
         self.camera_move_penalty=camera_motion_penalty
+        
+        matches, offset = match_assemblies(start_assembly, goal_assembly)
     
-    def make_state(self, assembly, camera_pose, reassembling):
+    def make_state(self, assembly, camera_pose):
         return (
             self.make_frozen_assembly(assembly),
             EpsilonArray(camera_pose),
-            reassembling
         )
     
     def make_frozen_assembly(self, assembly):
         return frozenset(numpy.where(assembly['class_id'])[0])
     
-    def start_rollout(self):
+    def sample_initial_state(self):
         return self.start_state()
     
     def action_space(self, state):
-        assembly, camera_pose, reassembling = state
+        assembly, camera_pose = state
         
         if not reassembling:
             if len(assembly):
@@ -40,7 +40,7 @@ class BreakAndMakePlanner(Planner):
             
             else:
                 # switch to reassembly
-                action = reassembly_template_action()
+                action = self.env.no_op_action()
                 action['reassembly'] = 1
                 actions = [action]
                 successors = [(assembly, camera_pose, True)]

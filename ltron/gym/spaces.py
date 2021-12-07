@@ -153,7 +153,7 @@ class ClassDistributionSpace(spaces.Box):
             shape=(max_instances+1, num_classes),
         )
 
-class ConfigurationSpace(spaces.Dict):
+class AssemblySpace(spaces.Dict):
     '''
     A variable length vector of instances, each with a class-label,
     color and pose, along with a list of edges connections.
@@ -196,10 +196,10 @@ class ConfigurationSpace(spaces.Dict):
             'edges' : EdgeSpace(max_instances, max_edges),
         }
         
-        super(ConfigurationSpace, self).__init__(self.space_dict)
+        super(AssemblySpace, self).__init__(self.space_dict)
     
     def from_scene(self, scene):
-        return scene.get_configuration(
+        return scene.get_assembly(
             self.class_ids,
             self.color_ids,
             self.max_instances,

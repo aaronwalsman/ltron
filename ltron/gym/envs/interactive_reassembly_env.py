@@ -14,8 +14,8 @@ import numpy
 import splendor.contexts.glut as glut
 
 from ltron.gym.envs.ltron_env import LtronEnv
-from ltron.gym.envs.reassembly_env import (
-    reassembly_env, reassembly_template_action)
+from ltron.gym.envs.break_and_make_env import (
+    break_and_make_env)
 
 class InteractiveHandspaceReassemblyEnv:
     def __init__(self, **kwargs):
@@ -36,7 +36,7 @@ class InteractiveHandspaceReassemblyEnv:
             'load_scene':'grey_cube',
         }
         
-        self.env = reassembly_env(
+        self.env = break_and_make_env(
             workspace_render_args=workspace_render_args,
             handspace_render_args=handspace_render_args,
             **kwargs,
@@ -146,29 +146,29 @@ class InteractiveHandspaceReassemblyEnv:
             observation = self.env.reset()
         
         elif key == b'd' and space == 'workspace':
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['disassembly'] = 1
             self.step(action)
         
         elif key == b'p':
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['pick_and_place'] = 1
             self.step(action)
         
         elif key == b'P' and space == 'handspace':
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['pick_and_place'] = 2
             self.step(action)
         
         elif key == b'[' and space == 'workspace':
             print('Rotate: %i, %i'%(x,y))
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['rotate'] = 1
             self.step(action)
         
         elif key == b']':
             print('Rotate: %i, %i'%(x,y))
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['rotate'] = 3
             self.step(action)
         
@@ -209,7 +209,7 @@ class InteractiveHandspaceReassemblyEnv:
                 insert_color_id = int(self.insert_color_id)
             except ValueError:
                 insert_color_id = 0
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['insert_brick'] = {
                 'class_id':insert_class_id,
                 'color_id':insert_color_id,
@@ -220,7 +220,7 @@ class InteractiveHandspaceReassemblyEnv:
         elif key == b'|':
             if not self.env.components['reassembly'].reassembling:
                 print('Switching to Reassembly')
-                action = reassembly_template_action()
+                action = self.env.no_op_action()
                 action['reassembly'] = 1
                 self.step(action)
             else:
@@ -245,7 +245,7 @@ class InteractiveHandspaceReassemblyEnv:
             y = y-256+96
         
         
-        action = reassembly_template_action()
+        action = self.env.no_op_action()
         if space == 'workspace':
             yy = y // self.workspace_height_scale
             xx = x // self.workspace_width_scale
@@ -267,6 +267,7 @@ class InteractiveHandspaceReassemblyEnv:
         self.step(action)
         
     def key_release(self, key, x, y):
+        pass
         '''
         if x < 255:
             space = 'workspace'
@@ -277,7 +278,7 @@ class InteractiveHandspaceReassemblyEnv:
             workspace, pick_y, pick_x = self.pick
             place_x = x // self.workspace_width_scale
             place_y = y // self.workspace_height_scale
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action['pick_and_place'] = {
                 'activate':True,
                 'polarity':'-+'.index(self.polarity),
@@ -296,22 +297,22 @@ class InteractiveHandspaceReassemblyEnv:
             viewpoint = 'handspace_viewpoint'
         if key == glut.GLUT.GLUT_KEY_LEFT:
             print('Camera Left')
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action[viewpoint] = 1
             self.step(action)
         elif key == glut.GLUT.GLUT_KEY_RIGHT:
             print('Camera Right')
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action[viewpoint] = 2
             self.step(action)
         elif key == glut.GLUT.GLUT_KEY_UP:
             print('Camera Up')
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action[viewpoint] = 3
             self.step(action)
         elif key == glut.GLUT.GLUT_KEY_DOWN:
             print('Camera Down')
-            action = reassembly_template_action()
+            action = self.env.no_op_action()
             action[viewpoint] = 4
             self.step(action)
     
@@ -319,7 +320,6 @@ class InteractiveHandspaceReassemblyEnv:
         glut.start_main_loop()
 
 if __name__ == '__main__':
-    #interactive_env = InteractiveReassemblyEnv(
     interactive_env = InteractiveHandspaceReassemblyEnv(
         dataset='omr_split_4',
         split='tmp',
