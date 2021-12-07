@@ -1,14 +1,14 @@
 import tqdm
 
-from ltron.ldraw.paths import LDRAW_FILES, SHADOW_FILES
+from ltron.ldraw.reference import LDRAW, SHADOW
 from ltron.ldraw.documents import LDrawDocument
 from ltron.ldraw.commands import LDrawAuthorComment
 
 def get_all_ldraw_authorship():
     library_authors = {}
     for library_name, part_files in (
-        ('shadow', SHADOW_FILES.values()),
-        ('ldraw', LDRAW_FILES.values()),
+        ('shadow', SHADOW.keys()),
+        ('ldraw', LDRAW.keys()),
     ):
         library_authors[library_name] = get_ldraw_authorship(part_files)
     

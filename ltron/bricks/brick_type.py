@@ -9,8 +9,16 @@ from ltron.ldraw.commands import (
     LDCadSnapClearCommand,
     LDrawContentCommand,
 )
-    
-from ltron.ldraw.documents import *
+
+#import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.reference import LDRAW_PARTS
+from ltron.ldraw.documents import (
+    LDrawDocument,
+    LDrawMPDMainFile,
+    LDrawMPDInternalFile,
+    LDrawLDR,
+    LDrawDAT,
+)
 from ltron.bricks.snap import Snap, SnapStyle, SnapClear
 
 class BrickLibrary(collections.abc.MutableMapping):
@@ -36,7 +44,7 @@ class BrickLibrary(collections.abc.MutableMapping):
                 reference_document = (
                         document.reference_table['ldraw'][reference_name])
                 if isinstance(reference_document, LDrawDAT):
-                    if reference_name in ldraw_paths.LDRAW_PARTS:
+                    if reference_name in LDRAW_PARTS:
                         new_types.append(self.add_type(reference_document))
                 elif isinstance(
                     reference_document, 
@@ -169,10 +177,10 @@ class BrickType:
         
         self.snaps = list(set(resolved_snaps))
         try:
-            bb = (
+            bb = numpy.array([
                 numpy.min(self.vertices[:3], axis=1),
                 numpy.max(self.vertices[:3], axis=1),
-            )
+            ])
         except ValueError:
             bb = numpy.array([[0,0,0], [0,0,0]])
             # print(self.reference_name)

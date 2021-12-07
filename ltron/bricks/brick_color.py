@@ -3,7 +3,8 @@ import collections
 import numpy
 
 import ltron.ldraw.colors as ldraw_colors
-import ltron.ldraw.paths as ldraw_paths
+#import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.reference import LDRAW_PARTS
 from ltron.ldraw.commands import LDrawImportCommand
 from ltron.ldraw.documents import (
     LDrawMPDMainFile,
@@ -26,7 +27,7 @@ class BrickColorLibrary(collections.abc.MutableMapping):
                 reference_document = (
                         document.reference_table['ldraw'][reference_name])
                 if isinstance(reference_document, LDrawDAT):
-                    if reference_name in ldraw_paths.LDRAW_PARTS:
+                    if reference_name in LDRAW_PARTS:
                         new_colors.extend(self.load_colors([command.color]))
                 elif isinstance(
                     reference_document,

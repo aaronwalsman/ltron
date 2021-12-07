@@ -15,16 +15,6 @@ def hex_to_rgb(rgb):
 def rgb_to_hex(rgb):
     return '#' + ''.join(['0'*(c <= 16) + hex(c)[2:] for c in rgb]).upper()
 
-'''
-def ldraw_color_to_rgb(color, mapping='ldraw'):
-    if color[0] == '#' or color[:2] = '0x':
-        return hex_to_rgb(color)
-    else:
-        index = int(color)
-        if mapping == 'ldraw':
-            return color_index_to_rgb[index]
-'''
-
 ldsettings_path = os.path.join(settings.paths['ldraw'], 'LDConfig.ldr')
 color_name_to_index = {}
 color_index_to_name = {}

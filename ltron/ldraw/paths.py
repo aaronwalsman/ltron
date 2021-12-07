@@ -1,9 +1,11 @@
 import os
 import ltron.settings as settings
 
-from ltron.ldraw.exceptions import *
+from ltron.ldraw.exceptions import LDrawException
 
 ldraw_subdirectories = ('models', 'parts', 'p')
+
+raise Exception('Deprecated')
 
 def get_reference_name(path):
     '''
@@ -12,7 +14,7 @@ def get_reference_name(path):
     an actual system file path or a reference from an LDraw file and produce
     a consistent string that be used to tell if they match.
     
-    If an explicit file path was given, this also check if it is a known ldraw
+    If an explicit file path was given, this also checks if it is a known ldraw
     part, and if so returns the reference name rather than the file path.
     '''
     reference_name = path.lower().replace('\\', '/')
@@ -34,7 +36,7 @@ def get_reference_paths(root_directory):
     reference_paths = {}
     for root, dirs, files in os.walk(root_directory):
         local_root = get_reference_name(
-                os.path.relpath(root, start = root_directory))
+            os.path.relpath(root, start=root_directory))
         if local_root == '.':
             local_root = ''
         reference_paths.update({
@@ -45,7 +47,7 @@ def get_reference_paths(root_directory):
 
 def get_ldraw_reference_paths(
         root_directory,
-        reference_subdirectories = ldraw_subdirectories):
+        reference_subdirectories=ldraw_subdirectories):
     reference_paths = {}
     for reference_subdirectory in reference_subdirectories:
         reference_directory = os.path.join(

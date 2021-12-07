@@ -7,9 +7,11 @@ import ltron.settings as settings
 #import ltron.ldraw.paths as ldraw_paths
 from ltron.ldraw.reference import (
     LDRAW_PARTS,
+    LDRAW,
     SHADOW,
     get_reference_name,
-    resolve_reference_path,
+    get_reference_path,
+    LtronReferenceException,
 )
 from ltron.ldraw.commands import (
     LDrawCommand,
@@ -73,7 +75,12 @@ class LDrawDocument:
             self.reference_table['ldraw'][self.reference_name] = self
     
     def resolve_file_path(self, file_path):
-        self.resolved_file_path = resolve_reference_path(file_path, self.shadow)
+        try:
+            self.resolved_file_path = get_reference_path(file_path, self.shadow)
+        except LtronReferenceException as e:
+            import pdb
+            pdb.set_trace()
+            raise LtronReferenceException
         #if self.shadow:
             #self.resolved_file_path = ldraw_paths.resolve_shadow_path(
             #    file_path)
@@ -200,7 +207,8 @@ class LDrawMPDInternalFile(LDrawDocument):
         
         # store commands
         self.commands = commands
-        
+
+'''
 class LDrawLDR(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
         
@@ -219,8 +227,9 @@ class LDrawLDR(LDrawDocument):
             raise
         
         self.import_references()
+'''
 
-class LDrawDAT(LDrawLDR):
+class LDrawLDR(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
         
         # initialize reference table
@@ -230,21 +239,32 @@ class LDrawDAT(LDrawLDR):
         self.set_reference_table(reference_table)
         
         # resolve the file path and parse all commands in this file
+        '''
         if shadow:
             #lines = open(
             #    self.resolved_file_path, encoding='latin-1').readlines()
-            relevant_part = self.resolved_file_path.split('offLibShadow/')[-1]
-            lines = offlib_csl.open(relevant_part).readlines()
+            #relevant_part = self.resolved_file_path.split('offLibShadow/')[-1]
+            #lines = offlib_csl.open(relevant_part).readlines()
+            lines = offlib_csl.open(self.resolved_file_path).readlines()
             lines = [line.decode('latin-1') for line in lines]
         
         else:
-            try:
-                lines = ldraw_zip.open(
-                        'ldraw/parts/' + file_path).readlines()
-            except KeyError:
-                lines = ldraw_zip.open(
-                        'ldraw/p/' + file_path).readlines()
-            lines = [str(line) for line in lines]
+            lines = ldraw_zip.open(self.resolved_file_path).readlines()
+            lines = [line.decode('latin-1') for line in lines]
+        '''
+        
+        if shadow:
+            zipped = self.reference_name in SHADOW
+            z = offlib_csl
+        else:
+            zipped = self.reference_name in LDRAW
+            z = ldraw_zip
+        if zipped:
+            lines = z.open(self.resolved_file_path).readlines()
+            lines = [line.decode('latin-1') for line in lines]
+        else:
+            lines = open(
+                self.resolved_file_path, encoding='latin-1').readlines()
         
         try:
             self.commands = LDrawCommand.parse_commands(lines)
@@ -253,4 +273,6 @@ class LDrawDAT(LDrawLDR):
             raise
         
         self.import_references()
-    
+
+class LDrawDAT(LDrawLDR):
+    pass

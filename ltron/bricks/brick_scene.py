@@ -157,7 +157,6 @@ class BrickScene:
                 '0 Name: %s'%file_name,
                 '0 Author: LTRON',
         ]
-        #for instance in self.instances.values():
         for instance in instances:
             instance = self.instances[int(instance)]
             color = instance.color
@@ -175,24 +174,24 @@ class BrickScene:
         with open(path, 'w') as f:
             f.write('\n'.join(lines))
     
-    def set_configuration(self, configuration, class_ids, color_ids):
+    def set_assembly(self, assembly, class_ids, color_ids):
         self.clear_instances()
-        self.import_configuration(
-            configuration, class_ids, color_ids, match_instance_ids=True)
+        self.import_assembly(
+            assembly, class_ids, color_ids, match_instance_ids=True)
     
-    def import_configuration(
+    def import_assembly(
         self,
-        configuration,
+        assembly,
         class_ids,
         color_ids,
         match_instance_ids=False,
     ):
-        for i in range(len(configuration['class'])):
-            instance_class = configuration['class'][i]
+        for i in range(len(assembly['class'])):
+            instance_class = assembly['class'][i]
             if instance_class == 0:
                 continue
-            instance_color = configuration['color'][i]
-            instance_pose = configuration['pose'][i]
+            instance_color = assembly['color'][i]
+            instance_pose = assembly['pose'][i]
             class_labels = {
                 value:key for key, value in class_ids.items()}
             color_labels = {
@@ -223,7 +222,7 @@ class BrickScene:
         color_ids = {str(c):i for i, c in enumerate(sorted(colors))}
         return color_ids
     
-    def get_configuration(
+    def get_assembly(
         self,
         class_ids=None,
         color_ids=None,
@@ -231,7 +230,7 @@ class BrickScene:
         max_edges=None,
         unidirectional=False,
     ):
-        config = {}
+        assembly = {}
         
         if class_ids is None:
             class_ids = self.make_class_ids()
@@ -247,22 +246,22 @@ class BrickScene:
                 assert max(self.instances.keys()) <= max_instances, (
                     'Instance ids %s larger than max_instances: %i'%(
                     list(self.instances.keys()), max_instances))
-        config['class'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
-        config['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
-        config['pose'] = numpy.zeros((max_instances+1, 4, 4))
+        assembly['class'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        assembly['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        assembly['pose'] = numpy.zeros((max_instances+1, 4, 4))
         for instance_id, instance in self.instances.items():
             try:
-                config['class'][instance_id] = class_ids[
+                assembly['class'][instance_id] = class_ids[
                     str(instance.brick_type)]
             except KeyError:
                 import pdb
                 pdb.set_trace()
                 raise MissingClassError(instance_id)
             try:
-                config['color'][instance_id] = color_ids[str(instance.color)]
+                assembly['color'][instance_id] = color_ids[str(instance.color)]
             except KeyError:
                 raise MissingColorError
-            config['pose'][instance_id] = instance.transform
+            assembly['pose'][instance_id] = instance.transform
         
         all_edges = self.get_all_edges(unidirectional=unidirectional)
         num_edges = all_edges.shape[1]
@@ -271,12 +270,12 @@ class BrickScene:
             extra_edges = numpy.zeros(
                 (4, max_edges - num_edges), dtype=numpy.long)
             all_edges = numpy.concatenate((all_edges, extra_edges), axis=1)
-        config['edges'] = all_edges
+        assembly['edges'] = all_edges
         
-        return config
+        return assembly
+    
     
     # assets -------------------------------------------------------------------
-    
     def clear_assets(self):
         self.clear_instances()
         self.brick_library.clear()
@@ -286,19 +285,20 @@ class BrickScene:
             self.render_environment.clear_materials()
             self.render_environment.clear_image_lights()
     
-    # brick types --------------------------------------------------------------
     
+    # brick types --------------------------------------------------------------
     def add_brick_type(self, brick_type):
         new_type = self.brick_library.add_type(brick_type)
         if self.renderable:
             self.render_environment.load_brick_mesh(new_type)
         return new_type
     
-    # instances ----------------------------------------------------------------
     
+    # instances ----------------------------------------------------------------
     def add_instance(
         self, brick_type, brick_color, transform, instance_id=None
     ):
+        # TODO: what is this about?
         if self.renderable and self.render_environment.window is not None:
             self.render_environment.window.set_active()
         self.brick_library.add_type(brick_type)
@@ -333,6 +333,7 @@ class BrickScene:
         if self.renderable:
             self.render_environment.clear_instances()
     
+    '''
     def is_instance_removable(
             self, instance, direction_space='scene', radius=1):
         assert self.track_snaps
@@ -371,6 +372,7 @@ class BrickScene:
             return False, None
         
         return True, snap_axes[0]
+    '''
     
     def set_instance_color(self, instance, new_color):
         self.load_colors([new_color])
@@ -395,7 +397,6 @@ class BrickScene:
             for i, snap in enumerate(instance.get_snaps()):
                 snap_id = (str(instance), i)
                 self.snap_tracker.remove(snap_id)
-            
         del(self.instances[instance])
     
     def get_scene_bbox(self):
@@ -411,8 +412,8 @@ class BrickScene:
             vmax = numpy.zeros(3)
         return vmin, vmax
     
-    # instance snaps -----------------------------------------------------------
     
+    # instance snaps -----------------------------------------------------------
     def update_instance_snaps(self, instance):
         assert self.track_snaps
         for i, snap in enumerate(instance.get_snaps()):
@@ -440,8 +441,6 @@ class BrickScene:
                     continue
                 if style is not None and snap.style not in style:
                     continue
-                #if renderable and not self.renderable_snap(snap):
-                #    continue
                 matching_snaps.append((str(instance), i))
         
         return matching_snaps
@@ -465,11 +464,6 @@ class BrickScene:
                     if j != str(instance)
                     and snap.connected(self.instances[j].get_snap(s))])
             
-            '''
-            other_snaps.extend(
-                    [s + (i,) for s in snaps_in_radius
-                        if s[0] != str(instance)])
-            '''
         return other_snaps
     
     def get_all_snap_connections(self, instances=None):
@@ -534,15 +528,6 @@ class BrickScene:
     def get_unoccupied_snaps(self):
         assert self.track_snaps
         
-        '''
-        # get all snaps
-        all_scene_snaps = set()
-        for instance_id, instance in self.instances.items():
-            brick_type = instance.brick_type
-            all_scene_snaps |= set(
-                    (instance_id, i)
-                    for i in range(len(brick_type.snaps)))
-        '''
         all_snaps = self.get_all_snaps()
         
         # build a list of occupied snaps
@@ -557,13 +542,6 @@ class BrickScene:
         unoccupied_snaps = [
                 self.instances[instance_id].get_snap(snap_id)
                 for instance_id, snap_id in unoccupied_snaps]
-        '''
-        # filter for studs
-        unoccupied_snaps = [
-                snap for snap in unoccupied_snaps
-                if (isinstance(snap, SnapCylinder) and
-                        snap.contains_stud_radius())]
-        '''
         
         return unoccupied_snaps
     
@@ -642,8 +620,8 @@ class BrickScene:
         for instance in instances:
             self.move_instance(instance, offset @ instance.transform)
     
-    # materials ----------------------------------------------------------------
     
+    # materials ----------------------------------------------------------------
     def load_colors(self, colors):
         new_colors = self.color_library.load_colors(colors)
         if self.renderable:
@@ -651,16 +629,8 @@ class BrickScene:
                 self.render_environment.load_color_material(new_color)
         return new_colors
     
+    
     # rendering ----------------------------------------------------------------
-    '''
-    def load_default_image_light(self):
-        self.renderer.load_image_light(
-                'default',
-                diffuse_texture = self.default_image_light + '_dif.png',
-                reflect_texture = self.default_image_light + '_ref.png')
-                #texture_directory = self.default_image_light)
-        self.renderer.set_active_image_light('default')
-    '''
     def removable_render(self, *args, **kwargs):
         # needs update
         raise NotImplementedError

@@ -8,6 +8,8 @@ try:
 except:
     splendor_available = False
 
+#import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.reference import LDRAW_PARTS
 from ltron.ldraw.commands import *
 from ltron.ldraw.documents import *
 from ltron.bricks.snap import Snap, SnapStyle, SnapClear
@@ -61,7 +63,7 @@ class BrickInstanceTable(collections.abc.MutableMapping):
                             transform, command.transform)
                     reference_color = command.color
                     if isinstance(reference_document, LDrawDAT):
-                        if reference_name in ldraw_paths.LDRAW_PARTS:
+                        if reference_name in LDRAW_PARTS:
                             new_instance = self.add_instance(
                                     reference_name,
                                     reference_color,
