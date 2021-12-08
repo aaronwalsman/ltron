@@ -9,7 +9,7 @@ except:
     splendor_available = False
 
 #import ltron.ldraw.paths as ldraw_paths
-from ltron.ldraw.reference import LDRAW_PARTS
+from ltron.ldraw.parts import LDRAW_PARTS
 from ltron.ldraw.commands import *
 from ltron.ldraw.documents import *
 from ltron.bricks.snap import Snap, SnapStyle, SnapClear

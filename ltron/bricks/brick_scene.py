@@ -54,7 +54,8 @@ class BrickScene:
             render_args=None,
             track_snaps=False,
             collision_checker=False,
-            collision_checker_args=None):
+            collision_checker_args=None,
+            brick_library=None):
         
         #self.default_image_light = default_image_light
         
@@ -80,7 +81,9 @@ class BrickScene:
             self.make_collision_checker(**collision_checker_args)
         
         # bricks
-        self.brick_library = BrickLibrary()
+        if brick_library is None:
+            brick_library = BrickLibrary()
+        self.brick_library = brick_library
         self.color_library = BrickColorLibrary()
         self.instances = BrickInstanceTable(
                 self.brick_library,
@@ -254,9 +257,7 @@ class BrickScene:
                 assembly['class'][instance_id] = class_ids[
                     str(instance.brick_type)]
             except KeyError:
-                import pdb
-                pdb.set_trace()
-                raise MissingClassError(instance_id)
+                raise MissingClassError(instance.brick_type)
             try:
                 assembly['color'][instance_id] = color_ids[str(instance.color)]
             except KeyError:

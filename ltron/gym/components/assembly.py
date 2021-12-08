@@ -31,14 +31,14 @@ class AssemblyComponent(LtronGymComponent):
         
     def observe(self, initial=False):
         if self.update_frequency == 'step' or initial:
-            #self.assembly = self.scene_component.brick_scene.get_assembly(
-            #    self.class_ids,
-            #    self.color_ids,
-            #    self.max_instances,
-            #    self.max_edges,
-            #)
-            self.assembly = self.observation_space.from_scene(
-                self.scene_component.brick_scene)
+            self.assembly = self.scene_component.brick_scene.get_assembly(
+                self.class_ids,
+                self.color_ids,
+                self.max_instances,
+                self.max_edges,
+            )
+            #self.assembly = self.observation_space.from_scene(
+            #    self.scene_component.brick_scene)
         
         if self.observe_assembly:
             self.observation = self.assembly

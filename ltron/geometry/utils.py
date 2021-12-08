@@ -1,10 +1,25 @@
+import math
 import numpy
 
 def squared_distance(a, b):
     return sum((aa-bb)**2 for aa,bb in zip(a,b))
 
-def close_enough(a, b, tolerance):
+def metric_close_enough(a, b, tolerance):
     return squared_distance(a,b) <= tolerance**2
+
+def matrix_angle_close_enough(a, b, max_angular_distance):
+    trace_threshold = 1. + 2. * math.cos(max_angular_distance)
+    r = a @ b.T
+    t = numpy.trace(r)
+    return t > trace_threshold
+
+def vector_angle_close_enough(a, b, max_angular_distance, allow_negative=False):
+    dot_threshold = math.cos(max_angular_distance)
+    dot = a @ b
+    if allow_negative:
+        return dot > dot_threshold or -dot > dot_threshold
+    else:
+        return dot > dot_threshold
 
 default_rtol = 0.0
 default_atol = 0.01
@@ -17,13 +32,6 @@ def immutable_vector(vector):
 
 def matrix_is_mirrored(matrix):
     return numpy.linalg.det(matrix) < 0.
-
-def uniform_unit_quaternion():
-    l22 = 2
-    while l22 > 1:
-        q = [random.rand() for _ in range(4)]
-        l22 = squared_distance(q, [0,0,0,0])
-    return q / (l22**0.5)
 
 def unscale_transform(transform):
     transform = transform.copy()

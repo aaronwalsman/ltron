@@ -3,6 +3,8 @@ import itertools
 
 import numpy
 
+raise LtronDeprecatedException
+
 def best_first_total_alignment(scene):
     
     # build a list of initial islands

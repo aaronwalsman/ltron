@@ -11,7 +11,7 @@ from ltron.ldraw.commands import (
 )
 
 #import ltron.ldraw.paths as ldraw_paths
-from ltron.ldraw.reference import LDRAW_PARTS
+from ltron.ldraw.parts import LDRAW_PARTS
 from ltron.ldraw.documents import (
     LDrawDocument,
     LDrawMPDMainFile,
@@ -19,7 +19,7 @@ from ltron.ldraw.documents import (
     LDrawLDR,
     LDrawDAT,
 )
-from ltron.bricks.snap import Snap, SnapStyle, SnapClear
+from ltron.bricks.snap import Snap, SnapStyle, SnapClear, deduplicate_snaps
 
 class BrickLibrary(collections.abc.MutableMapping):
     def __init__(self, brick_types=None):
@@ -175,15 +175,18 @@ class BrickType:
                             p for p in resolved_snaps
                             if p.type_id != snap.type_id]
         
-        self.snaps = list(set(resolved_snaps))
+        #self.snaps = list(set(resolved_snaps))
+        self.snaps = deduplicate_snaps(resolved_snaps)
+        
         try:
             bb = numpy.array([
                 numpy.min(self.vertices[:3], axis=1),
                 numpy.max(self.vertices[:3], axis=1),
             ])
+            self.empty_shape=False
         except ValueError:
             bb = numpy.array([[0,0,0], [0,0,0]])
-            # print(self.reference_name)
+            self.empty_shape=True
         self.bbox = bb
         self.bbox_vertices = numpy.array([
             [bb[0][0], bb[0][0], bb[0][0], bb[0][0],

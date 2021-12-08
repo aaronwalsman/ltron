@@ -9,7 +9,7 @@ import numpy
 
 from ltron.gym.envs.ltron_env import LtronEnv
 from ltron.gym.components.scene import (
-    EmptySceneComponent, DatasetSceneComponent)
+    EmptySceneComponent, DatasetSceneComponent, SingleSceneComponent)
 from ltron.gym.components.episode import MaxEpisodeLengthComponent
 from ltron.gym.components.dataset import DatasetPathComponent
 from ltron.gym.components.render import (

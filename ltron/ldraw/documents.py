@@ -5,10 +5,10 @@ import zipfile
 from ltron.home import get_ltron_home
 import ltron.settings as settings
 #import ltron.ldraw.paths as ldraw_paths
-from ltron.ldraw.reference import (
+from ltron.ldraw.parts import (
     LDRAW_PARTS,
-    LDRAW,
-    SHADOW,
+    LDRAW_PATHS,
+    SHADOW_PATHS,
     get_reference_name,
     get_reference_path,
     LtronReferenceException,
@@ -32,17 +32,17 @@ offlib_csl_path = 'offLib/offLibShadow.csl'
 offlib_csl = zipfile.ZipFile(
     io.BytesIO(shadow_zip.open(offlib_csl_path).read()))
 
-#import pdb
-#pdb.set_trace()
-
-dat_cache = {}
+#dat_cache = {}
+shared_reference_table = {'ldraw':{}, 'shadow':{}}
 
 class LDrawMissingFileComment(LDrawException):
     pass
 
 class LDrawDocument:
     @staticmethod
-    def parse_document(file_path, reference_table=None, shadow = False):
+    def parse_document(
+        file_path, reference_table=shared_reference_table, shadow = False
+    ):
         file_name, ext = os.path.splitext(file_path)
         if ext == '.mpd' or ext == '.ldr' or ext == '.l3b':
             try:
@@ -54,14 +54,18 @@ class LDrawDocument:
         #elif ext == '.ldr':
         #    return LDrawLDR(file_path, reference_table, shadow)
         elif ext == '.dat':
+            '''
             if file_path in dat_cache:
-                return dat_cache[file_path]
+                dat = dat_cache[file_path]
+                dat.set_reference_table(reference_table)
+                return dat
             else:
                 dat = LDrawDAT(file_path, reference_table, shadow)
                 if dat.reference_name in LDRAW_PARTS:
                     dat_cache[file_path] = dat
                 return dat
-            #return LDrawDAT(file_path, reference_table, shadow)
+            '''
+            return LDrawDAT(file_path, reference_table, shadow)
         else:
             raise ValueError('Unknown extension: %s (%s)'%(file_path, ext))
     
@@ -109,15 +113,15 @@ class LDrawDocument:
         if not self.shadow:
             if self.reference_name not in self.reference_table['shadow']:
                 #if self.reference_name in ldraw_paths.SHADOW_FILES:
-                if self.reference_name in SHADOW:
+                if self.reference_name in SHADOW_PATHS:
                     try:
                         LDrawDocument.parse_document(
-                                self.reference_name,
-                                self.reference_table,
-                                shadow=True)
+                            self.reference_name,
+                            self.reference_table,
+                            shadow=True)
                     except:
                         print('Error when importing shadow: %s'%
-                                self.reference_name)
+                            self.reference_name)
                         raise
     
     def get_all_vertices(self):
@@ -127,7 +131,7 @@ class LDrawDocument:
                 vertices.append(command.vertices)
             elif isinstance(command, LDrawImportCommand):
                 child_doc = (
-                        self.reference_table['ldraw'][command.reference_name])
+                    self.reference_table['ldraw'][command.reference_name])
                 child_vertices = child_doc.get_all_vertices()
                 child_transform = command.transform
                 child_vertices = numpy.dot(child_transform, child_vertices)
@@ -231,13 +235,11 @@ class LDrawLDR(LDrawDocument):
 
 class LDrawLDR(LDrawDocument):
     def __init__(self, file_path, reference_table = None, shadow = False):
-        
         # initialize reference table
         self.shadow = shadow
         self.resolve_file_path(file_path)
         self.reference_name = get_reference_name(file_path)
         self.set_reference_table(reference_table)
-        
         # resolve the file path and parse all commands in this file
         '''
         if shadow:
@@ -254,10 +256,10 @@ class LDrawLDR(LDrawDocument):
         '''
         
         if shadow:
-            zipped = self.reference_name in SHADOW
+            zipped = self.reference_name in SHADOW_PATHS
             z = offlib_csl
         else:
-            zipped = self.reference_name in LDRAW
+            zipped = self.reference_name in LDRAW_PATHS
             z = ldraw_zip
         if zipped:
             lines = z.open(self.resolved_file_path).readlines()

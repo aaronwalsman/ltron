@@ -2,10 +2,7 @@ import random
 import time
 
 class Planner:
-    '''
-    State:
-    tuple(frozenset(assembly_bricks), EpsilonArray(camera_pose))
-    '''
+    
     def __init__(self, c=1.):
         self.stats = {}
         self.successors = {}

@@ -1,7 +1,7 @@
 import math
 import itertools
 
-from ltron.geometry.utils import close_enough, immutable_vector
+from ltron.geometry.utils import metric_close_enough, immutable_vector
 
 class GridBucket:
     def __init__(self, cell_size):
@@ -57,7 +57,7 @@ class GridBucket:
                 for cell in cells))
         values_in_radius = set(
                 value for value, value_position in cell_contents
-                if close_enough(position, value_position, radius))
+                if metric_close_enough(position, value_position, radius))
         return values_in_radius
     
     def lookup_many(self, positions, radius):

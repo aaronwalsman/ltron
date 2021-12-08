@@ -11,7 +11,6 @@ import numpy
 from ltron.exceptions import LtronException
 from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.collision import build_collision_map
-from ltron.geometry.epsilon_array import EpsilonArray
 from ltron.matching import match_assemblies, match_lookup
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.bricks.brick_type import BrickType

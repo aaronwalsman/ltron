@@ -1,3 +1,6 @@
+import numpy
+
+from ltron.matching import match_assemblies, match_lookup
 from ltron.plan.planner import Planner
 
 class BuildPlanner(Planner):
@@ -5,26 +8,35 @@ class BuildPlanner(Planner):
         self,
         env,
         start_assembly,
-        start_camera_pose,
+        start_camera,
         goal_assembly,
         camera_motion_penalty=-0.1
     ):
         super(BuildPlanner, self).__init__()
         self.env = env
-        self.start_state = self.make_state(start_assembly, start_camera_pose)
+        self.start_state = self.make_state(start_assembly, start_camera)
         self.goal_assembly = goal_assembly
         self.camera_move_penalty=camera_motion_penalty
         
-        matches, offset = match_assemblies(start_assembly, goal_assembly)
+        matching, offset = match_assemblies(start_assembly, goal_assembly)
+        
+        # work out a labelling for false negatives here
+        (self.start_to_state,
+         self.state_to_start,
+         self.fp,
+         self.fn) = match_lookup(
+            matching, start_assembly, goal_assembly)
+        m = numpy.max(numpy.where(self.goal_assembly['class']))
+        for i, f in enumerate(fp):
+            self.start_to_state[f] = m+i
+            self.state_to_start[m+i] = f
     
-    def make_state(self, assembly, camera_pose):
-        return (
-            self.make_frozen_assembly(assembly),
-            EpsilonArray(camera_pose),
-        )
+    def make_state(self, assembly, camera):
+        return (self.make_frozen_assembly(assembly), camera)
     
     def make_frozen_assembly(self, assembly):
-        return frozenset(numpy.where(assembly['class_id'])[0])
+        ip_labels = numpy.where(assembly['class'])[0]
+        goal_labels = 
     
     def sample_initial_state(self):
         return self.start_state()
@@ -32,6 +44,16 @@ class BuildPlanner(Planner):
     def action_space(self, state):
         assembly, camera_pose = state
         
+        if false_positives:
+            pass
+            # remove something visible
+        
+        elif false_negatives:
+            pass
+            # add something to a visible brick
+            # need collision map here
+        
+        '''
         if not reassembling:
             if len(assembly):
                 observation = self.set_state(state)
@@ -51,6 +73,7 @@ class BuildPlanner(Planner):
             
             else:
                 # find nth brick to add
+        '''
         
         predictions = [1./len(actions) for _ in actions]
         return actions, successors, predictions

@@ -2,7 +2,6 @@ import random
 
 import numpy
 
-from ltron.geometry.epsilon_array import EpsilonArray
 from ltron.plan.planner import Planner
 
 class GridPlanner(Planner):

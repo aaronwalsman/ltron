@@ -8,8 +8,10 @@ except ImportError:
 
 from ltron.ldraw.commands import *
 from ltron.exceptions import LtronException
-from ltron.geometry.utils import close_enough, default_allclose
-from ltron.geometry.epsilon_array import EpsilonArray
+from ltron.geometry.utils import metric_close_enough, default_allclose
+#from ltron.geometry.epsilon_array import EpsilonArray
+from ltron.geometry.deduplicate_spatial import (
+    deduplicate, rotation_doublecheck_function)
 
 gender_to_polarity = {
     'M':'+',
@@ -174,13 +176,9 @@ class SnapStyle(Snap):
         copied_snap.transform = numpy.dot(transform, self.transform)
         return copied_snap
     
-    def __eq__(self, other):
-        return (
-            (self.subtype_id == other.subtype_id) and
-            #numpy.allclose(self.transform, other.transform)
-            default_allclose(self.transform, other.transform)
-        )
-    
+    # you know when people tell you something is a bad idea and you're like,
+    # "no, it's cool man, I know what I'm doing, I got this."
+    '''
     def __hash__(self):
         # WARNING: Instances of this class are totally 100% mutable.
         # This hash function is designed for 1-time deduplication using a set
@@ -188,6 +186,14 @@ class SnapStyle(Snap):
         # key for a dictionary unless you know for certain that the instance
         # will not change during the lifetime of the set/dictionary.
         return hash((self.subtype_id, EpsilonArray(self.transform)))
+    
+    def __eq__(self, other):
+        return (
+            (self.subtype_id == other.subtype_id) and
+            #numpy.allclose(self.transform, other.transform)
+            default_allclose(self.transform, other.transform)
+        )
+    '''
     
 class SnapCylinder(SnapStyle):
     style='cylinder'
@@ -278,7 +284,9 @@ class SnapCylinder(SnapStyle):
         # TODO: replace this with more appropriate cylinder matching ASAP
         self_center = self.transform[:3,3]
         other_center = self.transform[:3,3] #woops!
-        if not close_enough(self_center, other_center, distance_tolerance):
+        if not metric_close_enough(
+            self_center, other_center, distance_tolerance
+        ):
             return False
         
         '''
@@ -288,7 +296,9 @@ class SnapCylinder(SnapStyle):
         # common cross/section radius.
         self_center = self.transform[:3,3]
         other_center = other.transform[:3,3]
-        if not close_enough(self_center, other_center, distance_tolerance):
+        if not metric_close_enough(
+            self_center, other_center, distance_tolerance
+        ):
             return False
         
         if isinstance(other, SnapClip):
@@ -395,7 +405,9 @@ class SnapClip(SnapStyle):
         # TODO: replace with proper cylinder matching
         self_center = self.transform[:3,3]
         other_center = self.transform[:3,3]
-        if not close_enough(self_center, other_center, distance_tolerance):
+        if not metric_close_enough(
+            self_center, other_center, distance_tolerance
+        ):
             return False
         
         return True
@@ -482,7 +494,9 @@ class SnapFinger(SnapStyle):
         
         self_center = self.transform[:3,3]
         other_center = self.transform[:3,3]
-        if not close_enough(self_center, other_center, distance_tolerance):
+        if not metric_close_enough(
+            self_center, other_center, distance_tolerance
+        ):
             return False
         
         return True
@@ -543,7 +557,9 @@ class SnapGeneric(SnapStyle):
         
         self_center = self.transform[:3,3]
         other_center = self.transform[:3,3]
-        if not close_enough(self_center, other_center, distance_tolerance):
+        if not metric_close_enough(
+            self_center, other_center, distance_tolerance
+        ):
             return False
         
         return True
@@ -633,7 +649,9 @@ class SnapSphere(SnapStyle):
         
         self_center = self.transform[:3,3]
         other_center = self.transform[:3,3]
-        if not close_enough(self_center, other_center, distance_tolerance):
+        if not metric_close_enough(
+            self_center, other_center, distance_tolerance
+        ):
             return False
         
         return True
@@ -656,3 +674,24 @@ def filter_snaps(snaps, polarity=None, style=None):
         return True
     
     return filter(f, snaps)
+
+def deduplicate_snaps(
+    snaps,
+    max_metric_distance=1.,
+    max_angular_distance=0.08,
+):
+    points = [snap.transform[:3,3] for snap in snaps]
+    rdf = rotation_doublecheck_function(max_angular_distance)
+    def doublecheck_function(a, b):
+        if a.subtype_id != b.subtype_id:
+            return False
+        return rdf(a.transform,b.transform)
+    
+    deduplicate_indices = deduplicate(
+        points,
+        max_metric_distance,
+        doublecheck_values=snaps,
+        doublecheck_function=doublecheck_function,
+    )
+    
+    return [snaps[i] for i in deduplicate_indices]

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import argparse
 
 import ltron.visualization.ltron_viewer as ltron_viewer

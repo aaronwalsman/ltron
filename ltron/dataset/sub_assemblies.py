@@ -8,7 +8,7 @@ from ltron.bricks.brick_scene import BrickScene
 from ltron.ldraw.documents import LDrawDocument, LDrawMPDMainFile
 from ltron.ldraw.commands import LDrawImportCommand
 #from ltron.ldraw.paths import LDRAW_FILES
-from ltron.ldraw.reference import LDRAW
+from ltron.ldraw.parts import LDRAW_PATHS
 
 omr_directory = os.path.join(settings.paths['omr'], 'ldraw')
 model_files = os.listdir(omr_directory)
@@ -29,7 +29,7 @@ for model_file in tqdm.tqdm(model_files):
             part_references = 0
             for command in internal_file.commands:
                 if isinstance(command, LDrawImportCommand):
-                    if command.reference_name in LDRAW:
+                    if command.reference_name in LDRAW_PATHS:
                         part_references += 1
                         if part_references >= min_parts:
                             good_internal_files += 1

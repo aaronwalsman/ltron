@@ -3,7 +3,7 @@ import random
 
 import numpy
 
-from gym.spaces import Dict, Discrete
+from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from ltron.gym.spaces import SingleSE3Space
 
 import splendor.camera as camera
@@ -53,14 +53,21 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         
         self.center = (0,0,0)
         
-        observation_space = {}
-        if self.observe_camera_parameters:
-            observation_space['azimuth'] = Discrete(azimuth_steps)
-            observation_space['elevation'] = Discrete(elevation_steps)
-            observation_space['distance'] = Discrete(distance_steps)
-        if self.observe_view_matrix:
-            observation_space['view_matrix'] = SingleSE3Space(
-                scene_min, scene_max)
+        #observation_space = {}
+        #if self.observe_camera_parameters:
+        #    observation_space['azimuth'] = Discrete(azimuth_steps)
+        #    observation_space['elevation'] = Discrete(elevation_steps)
+        #    observation_space['distance'] = Discrete(distance_steps)
+        #if self.observe_view_matrix:
+        #    observation_space['view_matrix'] = SingleSE3Space(
+        #        scene_min, scene_max)
+        center_min = numpy.array([scene_min] * 3)
+        center_max = numpy.array([scene_max] * 3)
+        observation_space = {
+            'position' : MultiDiscrete(
+                (azimuth_steps, elevation_steps, distance_steps)),
+            'center' : Box(center_min, center_max),
+        }
         if len(observation_space):
             self.observation_space = Dict(observation_space)
         
@@ -84,6 +91,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
     
     def observe(self):
         self.observation = {}
+        '''
         if self.observe_camera_parameters:
             self.observation['azimuth'] = self.position[0]
             self.observation['elevation'] = self.position[1]
@@ -93,6 +101,9 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         
         if not len(self.observation):
             self.observation = None
+        '''
+        self.observation['position'] = self.position
+        self.observation['center'] = self.center
     
     def reset(self):
         if self.start_position == 'uniform':
@@ -118,7 +129,9 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         return center
     
     def frame_scene(self):
-        self.center = self.compute_center()
+        # this value is rounded to the nearest LDU in order to produce
+        # a tidier discrete state space
+        self.center = numpy.around(self.compute_center())
     
     def step(self, action):
         '''

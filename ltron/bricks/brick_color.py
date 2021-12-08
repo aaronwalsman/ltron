@@ -4,7 +4,7 @@ import numpy
 
 import ltron.ldraw.colors as ldraw_colors
 #import ltron.ldraw.paths as ldraw_paths
-from ltron.ldraw.reference import LDRAW_PARTS
+from ltron.ldraw.parts import LDRAW_PARTS
 from ltron.ldraw.commands import LDrawImportCommand
 from ltron.ldraw.documents import (
     LDrawMPDMainFile,
