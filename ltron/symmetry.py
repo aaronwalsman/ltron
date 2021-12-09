@@ -1,1 +1,0 @@
-symmetry_table = {}
