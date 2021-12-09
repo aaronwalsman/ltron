@@ -350,12 +350,12 @@ def pose_match_under_symmetries(
     return False
 
 def brick_pose_match_under_symmetry(
-    brick_type,
+    part_name,
     pose_a,
     pose_b,
     metric_tolerance=1.,
     angular_tolerance=0.08,
 ):
-    symmetries = LDRAW_SYMMETRY[brick_type]
+    symmetries = LDRAW_SYMMETRY[part_name]
     return pose_match_under_symmetries(
         symmetries, pose_a, pose_b, metric_tolerance, angular_tolerance)

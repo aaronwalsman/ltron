@@ -328,6 +328,7 @@ def break_and_make_env(
             components['initial_workspace_assembly'],
             components['workspace_assembly'],
             components['phase_switch'],
+            class_ids,
         )
     
     # build the env

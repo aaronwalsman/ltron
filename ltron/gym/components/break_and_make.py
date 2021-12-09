@@ -102,10 +102,12 @@ class BreakAndMakeScore(LtronGymComponent):
         initial_assembly_component,
         current_assembly_component,
         phase_switch_component,
+        class_ids,
     ):
         self.initial_assembly_component = initial_assembly_component
         self.current_assembly_component = current_assembly_component
         self.phase_switch_component = phase_switch_component
+        self.part_names = {value:key for key, value in class_ids.items()}
     
     def observe(self):
         if self.phase_switch_component.phase:
@@ -115,6 +117,7 @@ class BreakAndMakeScore(LtronGymComponent):
             self.score, matching = score_assemblies(
                 initial_assembly,
                 current_assembly,
+                self.part_names,
             )
         else:
             #if self.disassembly_score:

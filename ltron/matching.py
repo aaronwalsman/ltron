@@ -6,11 +6,13 @@ import tqdm
 
 from scipy.spatial import cKDTree
 
-from ltron.geometry.utils import default_allclose
+#from ltron.geometry.utils import default_allclose
+from ltron.geometry.symmetry import brick_pose_match_under_symmetry
 
 def match_assemblies(
     assembly_a,
     assembly_b,
+    part_names,
     kdtree=None,
     radius=0.01,
 ):
@@ -98,7 +100,7 @@ def match_assemblies(
                     
                     # Validate the matches.
                     valid_matches = validate_matches(
-                        assembly_a, assembly_b, matches, a_to_b)
+                        assembly_a, assembly_b, matches, a_to_b, part_names)
                     
                     # Update the set of tested matches with everything that was
                     # matched in this comparison, this avoids reconsidering the
@@ -138,7 +140,7 @@ def match_assemblies(
     # Return.
     return best_matches, best_offset
 
-def validate_matches(assembly_a, assembly_b, matches, a_to_b):
+def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
     # Ensure that classes match, colors match, poses match and that each brick
     # is only matched to one other.
     valid_matches = set()
@@ -156,7 +158,10 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b):
             
             transformed_pose_a = a_to_b @ assembly_a['pose'][a]
             pose_b = assembly_b['pose'][b]
-            if not default_allclose(transformed_pose_a, pose_b):
+            #if not default_allclose(transformed_pose_a, pose_b):
+            if not brick_pose_match_under_symmetry(
+                part_names[class_a], transformed_pose_a, pose_b
+            ):
                 continue
             
             valid_matches.add((a,b))
