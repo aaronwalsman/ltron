@@ -80,14 +80,11 @@ class Config:
         inheritance.append(self.__class__)
         applied_methods = set()
         for BaseClass in inheritance:
-            try:
+            if hasattr(BaseClass, 'set_dependents'):
                 method = getattr(BaseClass, 'set_dependents')
-            except AttributeError:
-                continue
-            
-            if method not in applied_methods:
-                method(self)
-                applied_methods.add(method)
+                if method not in applied_methods:
+                    method(self)
+                    applied_methods.add(method)
         
         self.kwargs = kwargs
     
@@ -122,7 +119,7 @@ class Config:
         config_path = args.config
         config_section = args.config_section
         
-        parser = ConfigParser()
+        parser = ConfigParser(allow_no_value=True)
         if config_path is not None:
             parser.read_file(open(os.path.expanduser(config_path)))
         
@@ -155,7 +152,7 @@ class Config:
         if isinstance(cfg, ConfigParser):
             parser = cfg
         else:
-            parser = ConfigParser()
+            parser = ConfigParser(allow_no_value=True)
             parser.read_file(open(os.path.expanduser(cfg)))
         for name in parser[section]:
             try:
@@ -209,7 +206,7 @@ class Config:
     
     def write_config(self, file_path, section='CONFIG'):
         file_path = os.path.expanduser(file_path)
-        parser = ConfigParser()
+        parser = ConfigParser(allow_no_value=True)
         try:
             parser.read_file(open(file_path))
         except FileNotFoundError:
