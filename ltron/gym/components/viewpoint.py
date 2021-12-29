@@ -61,8 +61,8 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         #if self.observe_view_matrix:
         #    observation_space['view_matrix'] = SingleSE3Space(
         #        scene_min, scene_max)
-        center_min = numpy.array([scene_min] * 3)
-        center_max = numpy.array([scene_max] * 3)
+        center_min = numpy.array([scene_min] * 3, dtype=numpy.float32)
+        center_max = numpy.array([scene_max] * 3, dtype=numpy.float32)
         observation_space = {
             'position' : MultiDiscrete(
                 (azimuth_steps, elevation_steps, distance_steps)),
