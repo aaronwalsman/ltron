@@ -34,7 +34,6 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
         self.phase = 0
     
     def observe(self):
-        
         self.observation = self.phase
     
     def reset(self):
