@@ -1,5 +1,3 @@
-from functools import reduce
-
 import numpy
 
 def tile_frame(frame, tile_height, tile_width):
@@ -22,8 +20,9 @@ def deduplicate_tiled_seq(frames, tile_height, tile_width, background=0):
     seq = []
     coords = []
     
-    previous_frame = numpy.zeros((n, th, tw, *c), dtype=frames[0].dtype)
-    previous_frame[:,:,:] = background
+    #previous_frame = numpy.zeros((n, th, tw, *c), dtype=frames[0].dtype)
+    #previous_frame[:,:,:] = background
+    previous_frame = background
     for i, frame in enumerate(frames):
         match = frame == previous_frame
         match = match.reshape(n, -1)
@@ -83,6 +82,72 @@ def batch_deduplicate_tiled_seqs_old(seqs, *args, s_start = 0, **kwargs):
     
     return padded_seqs, padded_coords, padding_mask
 
+def batch_deduplicate_from_masks(
+    frames,
+    masks,
+    t,
+    pad,
+):
+    s, b, h, w, c = frames.shape
+    sm, bm, hh, ww = masks.shape
+    assert sm == s
+    assert bm == b
+    tile_height = h // hh
+    tile_width = w // ww
+    
+    seq_tiles = frames.reshape(s, b, hh, tile_height, ww, tile_width, c)
+    seq_tiles = seq_tiles.transpose(1, 0, 2, 4, 3, 5, 6)
+    seq_tiles = seq_tiles.reshape(b, s, hh, ww, -1)
+    
+    nonstatic_tiles = masks.transpose(1, 0, 2, 3)
+    
+    # below copied from batch_deduplicate_tiles_seqs below
+    
+    # get indices of changing tiles
+    b_coord, s_coord, h_coord, w_coord = numpy.where(nonstatic_tiles)
+    max_lengths = pad[b_coord]
+    nonpadded_indices = s_coord < max_lengths
+    b_coord = b_coord[nonpadded_indices]
+    s_coord = s_coord[nonpadded_indices]
+    h_coord = h_coord[nonpadded_indices]
+    w_coord = w_coord[nonpadded_indices]
+    
+    # extract the changing tiles
+    compressed_len = len(b_coord)
+    compressed_tiles = seq_tiles[b_coord, s_coord, h_coord, w_coord]
+    compressed_tiles = compressed_tiles.reshape(
+        compressed_len, tile_height, tile_width, c)
+    
+    # compute the coordinates for the tiles on the new padded grid
+    # this time the padding is not based on the original frame sequences,
+    # but on the lengths of the newly computed tile sequences
+    # the reason why the batch dimension must come first above, is so that
+    # b_coord will align properly with i_coord below
+    batch_pad = numpy.bincount(b_coord, minlength=b)
+    max_len = numpy.max(batch_pad)
+    i_coord = numpy.concatenate([numpy.arange(cc) for cc in batch_pad])
+    
+    # place the tiles in the padded grid and swap the batch and time axes
+    batch_padded_tiles = numpy.zeros(
+        (b, max_len, tile_height, tile_width, c), dtype=compressed_tiles.dtype)
+    batch_padded_tiles[b_coord, i_coord] = compressed_tiles
+    batch_padded_tiles = batch_padded_tiles.transpose(1,0,2,3,4)
+    
+    # place the coordinates in a padded grid and swap the batch and time axes
+    batch_padded_coords = numpy.zeros((b, max_len, 3), dtype=s_coord.dtype)
+    t_coord = t[s_coord, b_coord]
+    shw_coord = numpy.stack((t_coord, h_coord, w_coord), axis=-1)
+    batch_padded_coords[b_coord, i_coord] = shw_coord
+    #if s_start is not None:
+    #    batch_padded_coords[:,:,0] += s_start.reshape(b, 1)
+    batch_padded_coords = batch_padded_coords.transpose(1,0,2)
+    
+    return (
+        batch_padded_tiles,
+        batch_padded_coords,
+        batch_pad,
+    )
+    
 
 def batch_deduplicate_tiled_seqs(
     seqs,
