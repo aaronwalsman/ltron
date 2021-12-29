@@ -131,8 +131,8 @@ def break_and_make_env(
         scene_component = components['workspace_scene'])
     
     # max length
-    components['max_length'] = MaxEpisodeLengthComponent(
-        max_episode_length, observe_step=False)
+    components['step'] = MaxEpisodeLengthComponent(
+        max_episode_length, observe_step=True)
     
     # color randomization
     if randomize_colors:
