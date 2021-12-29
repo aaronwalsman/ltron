@@ -19,7 +19,8 @@ from ltron.ldraw.documents import (
     LDrawLDR,
     LDrawDAT,
 )
-from ltron.bricks.snap import Snap, SnapStyle, SnapClear, deduplicate_snaps
+from ltron.bricks.snap import (
+    Snap, SnapStyle, SnapClear, deduplicate_snaps, griderate)
 
 class BrickLibrary(collections.abc.MutableMapping):
     def __init__(self, brick_types=None):
@@ -123,12 +124,20 @@ class BrickType:
                         print('Could not find shadow file %s'%
                             reference_name)
                         raise
-                    reference_transform = transform @ command.transform
+                    #reference_transform = transform @ command.transform
+                    if 'grid' in command.flags:
+                        reference_transforms = griderate(
+                            command.flags['grid'],
+                            transform @ command.transform
+                        )
+                    else:
+                        reference_transforms = [transform @ command.transform]
                     try:
-                        s, v = snaps_and_vertices_from_nested_document(
-                                reference_document, reference_transform)
-                        snaps.extend(s)
-                        vertices.append(v)
+                        for reference_transform in reference_transforms:
+                            s, v = snaps_and_vertices_from_nested_document(
+                                    reference_document, reference_transform)
+                            snaps.extend(s)
+                            vertices.append(v)
                     except:
                         print('Error while importing: %s'%reference_name)
                         raise
