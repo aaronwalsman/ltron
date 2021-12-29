@@ -163,3 +163,19 @@ color_index_to_alt_rgb[496]= (163, 162, 164)
 color_index_to_alt_rgb[503]= (199, 193, 183)
 color_index_to_alt_rgb[504]= (137, 135, 136)
 color_index_to_alt_rgb[511]= (250, 250, 250)
+
+def get_color_rgb(index, default=None):
+    if settings.render['color_scheme'] == 'ldraw':
+        if default is None:
+            return color_index_to_rgb[index]
+        else:
+            return color_index_to_rgb.get(index, default)
+    elif settings.render['color_scheme'] == 'alt':
+        if default is None:
+            return color_index_to_alt_rgb[index]
+        else:
+            return color_index_to_alt_rgb.get(index, default)
+    else:
+        raise ValueError(
+            'color_scheme (%s) setting must be "ldraw" or "alt"'%
+            settings.render['color_scheme'])
