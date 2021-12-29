@@ -27,6 +27,13 @@ class SegmentationSpace(spaces.Box):
                 low=0, high=max_instances, shape=(height, width),
                 dtype=numpy.long)
 
+class MaskSpace(spaces.Box):
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        super(MaskSpace, self).__init__(
+            low=0, high=1, shape=(height, width), dtype=numpy.bool)
+
 class SnapSegmentationSpace(spaces.Box):
     '''
     A height x width x 2 array, where each pixel contains a long refering to
