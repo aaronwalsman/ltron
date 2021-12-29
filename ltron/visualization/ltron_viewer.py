@@ -33,9 +33,12 @@ Right-Click and drag :  pan camera
 scroll :                dolly camera in-and-out
 
 rendering ----------------------------------------------------------------------
-m :                     toggle mask render
-s :                     toggle negative snap render
-S :                     toggle positive snap render
+l :                     color render
+m :                     mask render
+s :                     snap render instance id
+S :                     render snap id
+- :                     set snap rendering to -
++ :                     set snap rendering to +
 
 info ---------------------------------------------------------------------------
 i :                     print brick instance id, part name and transform
@@ -136,6 +139,8 @@ def start_viewer(
     
     state = {
         'render_mode' : 'color',
+        'snap_id_mode' : 'instance',
+        'snap_polarity' : '+',
         'steps' : 0,
         'recent_file_change_time' : -1,
         'part_mask' : None,
@@ -196,14 +201,23 @@ def start_viewer(
             scene.removable_render(flip_y=False)
         elif state['render_mode'] == 'mask':
             scene.mask_render(flip_y=False, instances=brick_instances)
-        elif state['render_mode'] == 'snap+':
-            snap_instances = scene.get_snaps(polarity='+')
+        
+        #elif state['render_mode'] == 'snap+':
+        #    snap_instances = scene.get_snaps(polarity='+')
+        #    snap_names = scene.get_snap_names(snap_instances)
+        #    scene.snap_render_instance_id(snap_names, flip_y=False)
+        #elif state['render_mode'] == 'snap-':
+        #    snap_instances = scene.get_snaps(polarity='-')
+        #    snap_names = scene.get_snap_names(snap_instances)
+        #    scene.snap_render_instance_id(snap_names, flip_y=False)
+        
+        elif state['render_mode'] == 'snap':
+            snap_instances = scene.get_snaps(polarity=state['snap_polarity'])
             snap_names = scene.get_snap_names(snap_instances)
-            scene.snap_render_instance_id(snap_names, flip_y=False)
-        elif state['render_mode'] == 'snap-':
-            snap_instances = scene.get_snaps(polarity='-')
-            snap_names = scene.get_snap_names(snap_instances)
-            scene.snap_render_instance_id(snap_names, flip_y=False)
+            if state['snap_id_mode'] == 'instance':
+                scene.snap_render_instance_id(snap_names, flip_y=False)
+            elif state['snap_id_mode'] == 'snap':
+                scene.snap_render_snap_id(snap_names, flip_y=False)
     
     def get_instance_at_location(x, y):
         brick_instances = list(scene.instances.keys())
@@ -225,11 +239,14 @@ def start_viewer(
         return instance_id
     
     def key_press(key, x, y):
-        if key == b'm':
-            if state['render_mode'] != 'mask':
-                state['render_mode'] = 'mask'
-            else:
-                state['render_mode'] = 'color'
+        if key == b'l':
+            state['render_mode'] = 'color'
+        elif key == b'm':
+            #if state['render_mode'] != 'mask':
+            #    state['render_mode'] = 'mask'
+            #else:
+            #    state['render_mode'] = 'color'
+            state['render_mode'] = 'mask'
         
         #if key == b'r':
         #    if state['render_mode'] != 'removable':
@@ -238,10 +255,11 @@ def start_viewer(
         #        state['render_mode'] = 'color'
         
         elif key == b'i':
-            if state['render_mode'] == 'snap+':
-                instance_id, snap_id = get_snap_under_mouse(x, y, '+')
-            elif state['render_mode'] == 'snap-':
-                instance_id, snap_id = get_snap_under_mouse(x, y, '-')
+            if state['render_mode'] == 'snap':
+                instance_id, snap_id = get_snap_under_mouse(
+                    x, y, state['snap_polarity'])
+            #elif state['render_mode'] == 'snap':
+            #    instance_id, snap_id = get_snap_under_mouse(x, y, '-')
             else:
                 instance_id = get_instance_at_location(x, y)
                 snap_id = None
@@ -314,10 +332,15 @@ def start_viewer(
             Image.fromarray(depth_map[...,0]).save(image_path)
         
         elif key == b's':
-            if state['render_mode'] == 'snap-':
-                state['render_mode'] = 'color'
-            else:
-                state['render_mode'] = 'snap-'
+            state['render_mode'] = 'snap'
+            state['snap_id_mode'] = 'instance'
+            #if (state['render_mode'] == 'snap' and
+            #    state['snap_index_mode'] == 'instance'
+            #):
+            #    state['render_mode'] = 'color'
+            #else:
+            #    state['render_mode'] = 'snap'
+            #    state['snap_index_mode'] = 'instance'
             #if state['snap_mode'] == 'none':
                 #state['snap_mode'] = 'all'
                 #scene.show_all_snap_instances()
@@ -325,11 +348,21 @@ def start_viewer(
                 #state['snap_mode'] = 'none'
                 #scene.hide_all_snap_instances()
         
+        elif key == b'-' or key == b'_':
+            state['snap_polarity'] = '-'
+        
+        elif key == b'=' or key == b'+':
+            state['snap_polarity'] = '+'
+        
         elif key == b'S':
-            if state['render_mode'] == 'snap+':
-                state['render_mode'] = 'color'
-            else:
-                state['render_mode'] = 'snap+'
+            state['render_mode'] = 'snap'
+            state['snap_id_mode'] = 'snap'
+            #if (state['render_mode'] == 'snap' and
+            #    state['snap_index_mode'] == 'snap'
+            #):
+            #    state['render_mode'] = 'color'
+            #else:
+            #    state['render_mode'] = 'snap+'
         
         elif key == b'c':
             instance_id = get_instance_at_location(x, y)
