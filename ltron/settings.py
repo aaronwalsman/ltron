@@ -16,6 +16,7 @@ paths = {}
 datasets = {}
 collections = {}
 urls = {}
+render = {}
 
 def reload_settings():
     if os.path.exists(settings_cfg_path):
@@ -46,6 +47,13 @@ def reload_settings():
         urls.update({
             key : url
             for key, url in dict(setup_parser['urls']).items()
+            if key not in setup_parser['DEFAULT']
+        })
+        
+        render.clear()
+        render.update({
+            key : value
+            for key, value in dict(setup_parser['render']).items()
             if key not in setup_parser['DEFAULT']
         })
 
