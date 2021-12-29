@@ -329,6 +329,7 @@ class SnapCylinder(SnapStyle):
         if self.center:
             previous_length += sum(
                     float(sec_part[-1]) for sec_part in sec_parts)/2.
+        start_height = previous_length
         for cross_section, radius, length in sec_parts:
             radius = float(radius)
             length = -float(length)
@@ -336,6 +337,7 @@ class SnapCylinder(SnapStyle):
             previous_length += length
         
         return primitives.multi_cylinder(
+                start_height=start_height,
                 sections=sections,
                 radial_resolution=16,
                 start_cap=True,
