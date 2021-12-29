@@ -68,8 +68,8 @@ class BrickColor:
     def __init__(self, color):
         self.color_index = int(color)
         self.color_name = str(color)
-        self.color_byte = ldraw_colors.color_index_to_alt_rgb.get(
-                self.color_index, (128,128,128))
+        self.color_byte = ldraw_colors.get_color_rgb(
+            self.color_index, (128,128,128))
     
     def splendor_material_args(self):
         material_args = {
