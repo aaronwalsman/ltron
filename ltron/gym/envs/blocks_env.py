@@ -132,7 +132,7 @@ def render_state(state, config):
     return table_map, table_image, hand_map, hand_image
 
 class BlocksEnv(Env):
-    def __init__(self, config):
+    def __init__(self, config, rank=0, size=1):
         self.config = config
         
         self.observation_space = Dict({
@@ -283,6 +283,19 @@ class BlocksEnv(Env):
             'shape':0,
         }
 
+'''
+class BlocksVectorEnvConfig(BlocksEnvConfig):
+    envs = 4
+
+def blocks_vector_env(config):
+    def constructor():
+        return BlocksEnv(config)
+    constructors = [constructor for i in range(config.envs)]
+    vector_env = AsyncVectorEnv(constructors, context='spawn')
+    
+    return vector_env
+'''
+
 class BlockPlannerConfig(BlocksEnvConfig):
     output_directory = '.'
     num_episodes = 50000
@@ -345,9 +358,6 @@ def block_planner(config):
             actions.append(act)
             obs, reward, terminal, info = env.step(act)
             observations.append(obs)
-            #dump_obs(obs, j+2+2*k+2)
-            
-            #print(reward)
         
         act = env.no_op_action()
         act['mode'] = 4

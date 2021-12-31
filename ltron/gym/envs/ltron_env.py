@@ -7,6 +7,7 @@ from gym.vector.async_vector_env import AsyncVectorEnv
 from gym.vector.sync_vector_env import SyncVectorEnv
 from gym import spaces
 
+from ltron.config import Config
 from ltron.bricks.brick_scene import BrickScene
 
 def traceback_decorator(f):

@@ -29,32 +29,6 @@ from ltron.gym.components.break_and_make import (
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
 
-'''
-def break_and_make_template_action():
-    return {
-        'workspace_viewpoint' : 0,
-        'handspace_viewpoint' : 0,
-        'workspace_cursor' : {
-            'activate':False,
-            'position':numpy.array([0,0]),
-            'polarity':0,
-        },
-        'handspace_cursor' : {
-            'activate':False,
-            'position':numpy.array([0,0]),
-            'polarity':0,
-        },
-        'disassembly' : 0,
-        'pick_and_place' : 0,
-        'rotate' : 0,
-        'insert_brick' : {
-            'class_id' : 0,
-            'color_id' : 0,
-        },
-        'phase_switch' : 0,
-    }
-'''
-
 def break_and_make_env(
     dataset,
     split,
