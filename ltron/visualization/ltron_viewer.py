@@ -128,7 +128,8 @@ def start_viewer(
     scene.set_ambient_color((0.3,0.3,0.3))
     
     #scene.set_background_color((0.65,0.65,0.65))
-    scene.set_background_color((1.0, 1.0, 1.0))
+    #scene.set_background_color((1.0, 1.0, 1.0))
+    scene.set_background_color((0.4,0.4,0.4))
     
     window.set_active()
     window.enable_window()

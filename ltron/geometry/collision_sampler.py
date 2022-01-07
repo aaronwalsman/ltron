@@ -20,18 +20,22 @@ def get_all_snap_rotations(snap):
 
 def get_all_transformed_snaps(snaps):
     """
-    Returns a list of all male snaps with quarter rotations about y
-    and return a list of female snaps (no rotations applied) because
+    Returns a list of all positive snaps with quarter rotations about y
+    and return a list of negative snaps (no rotations applied) because
     only one piece needs to rotate
+    
+    For now restricts snaps to the stud radius (6)
     """
-    male = [s for s in snaps if s.polarity == '+']
-    all_male = []
-    for snap in male:
-        all_male.extend(get_all_snap_rotations(snap))
-    female = [s for s in snaps if s.polarity == '-']
+    positives = [s for s in snaps
+        if s.polarity == '+' and s.style == 'cylinder' and s.sec_radius[0] == 6]
+    all_positives = []
+    for snap in positives:
+        all_positives.extend(get_all_snap_rotations(snap))
+    negatives = [s for s in snaps
+        if s.polarity == '-' and s.style == 'cylinder' and s.sec_radius[0] == 6]
     return {
-        'male': all_male,
-        'female': female,
+        '+': all_positives,
+        '-': negatives,
     }
 
 
@@ -39,8 +43,8 @@ def get_all_transformed_snap_pairs(instance1_snaps, instance2_snaps):
     snaps1 = get_all_transformed_snaps(instance1_snaps)
     snaps2 = get_all_transformed_snaps(instance2_snaps)
     return chain(
-        product(snaps1['male'], snaps2['female']),
-        product(snaps1['female'], snaps2['male']),
+        product(snaps1['+'], snaps2['-']),
+        product(snaps1['-'], snaps2['+']),
     )
 
 

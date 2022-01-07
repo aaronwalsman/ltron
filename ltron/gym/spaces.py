@@ -169,7 +169,7 @@ class AssemblySpace(spaces.Dict):
         self,
         #num_classes,
         #num_colors,
-        class_ids,
+        shape_ids,
         color_ids,
         max_instances,
         max_edges,
@@ -178,8 +178,8 @@ class AssemblySpace(spaces.Dict):
     ):
         #self.num_classes = num_classes
         #self.num_colors = num_colors
-        self.class_ids = class_ids
-        num_classes = max(self.class_ids.values())
+        self.shape_ids = shape_ids
+        num_shapes = max(self.shape_ids.values())
         self.color_ids = color_ids
         num_colors = max(self.color_ids.values())
         self.max_instances = max_instances
@@ -187,9 +187,9 @@ class AssemblySpace(spaces.Dict):
         
         self.space_dict = {
             #'num_instances' : SingleInstanceIndexSpace(max_instances),
-            'class' : spaces.Box(
+            'shape' : spaces.Box(
                 low=0,
-                high=num_classes,
+                high=num_shapes,
                 shape=(max_instances+1,),
                 dtype=numpy.long,
             ),
@@ -207,14 +207,14 @@ class AssemblySpace(spaces.Dict):
     
     def from_scene(self, scene):
         return scene.get_assembly(
-            self.class_ids,
+            self.shape_ids,
             self.color_ids,
             self.max_instances,
             self.max_edges,
         )
     
     '''
-    def from_scene(self, scene, class_ids, color_ids):
+    def from_scene(self, scene, shape_ids, color_ids):
         result = {}
         result['num_instances'] = len(scene.instances)
         result['class'] = numpy.zeros(
@@ -226,8 +226,8 @@ class AssemblySpace(spaces.Dict):
         
         for instance_id, instance in scene.instances.items():
             brick_type_name = str(instance.brick_type)
-            class_id = class_ids[brick_type_name]
-            result['class'][instance_id] = class_id
+            shape_id = shape_ids[brick_type_name]
+            result['class'][instance_id] = shape_id
             color_name = str(instance.color)
             color_id = color_ids[color_name]
             result['color'][instance_id] = color_id
@@ -274,10 +274,9 @@ class InstanceMatchingSpace(spaces.Box):
             dtype=numpy.long,
         )
 
+'''
 class InstanceListSpace(spaces.Dict):
-    '''
-    A variable length vector of instances
-    '''
+    #A variable length vector of instances
     def __init__(self, num_classes, max_instances, include_score=False):
         self.num_classes = num_classes
         self.max_instances = max_instances
@@ -300,21 +299,22 @@ class InstanceListSpace(spaces.Dict):
         
         super(InstanceListSpace, self).__init__(space_dict)
     
-    def from_scene(self, scene, class_lookup, score=None):
+    def from_scene(self, scene, shape_lookup, score=None):
         result = {}
         result['num_instances'] = len(scene.instances)
         result['label'] = numpy.zeros(
             (self.max_instances+1,), dtype=numpy.long)
         for instance_id, instance in scene.instances.items():
             brick_type_name = str(instance.brick_type)
-            class_id = class_lookup[brick_type_name]
-            result['label'][instance_id] = class_id
+            shape_id = shape_lookup[brick_type_name]
+            result['label'][instance_id] = shape_id
         
         if score is not None:
             assert self.include_score
             result['score'] = score
         
         return result
+'''
 
 class EdgeSpace(spaces.Box):
     MAX_SNAPS_PER_BRICK = 4096
@@ -421,13 +421,13 @@ class InstanceGraphSpace(spaces.Dict):
     def from_scene(
         self,
         scene,
-        class_lookup,
+        shape_lookup,
         instance_score=None,
         edge_score=None,
     ):
         result = {}
         result['instances'] = self['instances'].from_scene(
-            scene, class_lookup, score=instance_score)
+            scene, shape_lookup, score=instance_score)
         result['edges'] = self['edges'].from_scene(
             scene, score=edge_score)
         

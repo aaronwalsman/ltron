@@ -34,11 +34,11 @@ def match_assemblies(
     # Initialize the set of matches that have been tested already.
     ab_tested_matches = set()
     
-    # Order the classes from least common to common.
+    # Order the shapes from least common to common.
     # This makes it more likely that we will find a good match sooner.
-    unique_a, count_a = numpy.unique(assembly_a['class'], return_counts=True)
+    unique_a, count_a = numpy.unique(assembly_a['shape'], return_counts=True)
     sort_order = numpy.argsort(count_a)
-    class_order = unique_a[sort_order]
+    shape_order = unique_a[sort_order]
     
     best_alignment = None
     best_matches = set()
@@ -50,15 +50,15 @@ def match_assemblies(
     finished = False
     while not finished:
         finished = True
-        for c in class_order:
-            if c == 0:
+        for s in shape_order:
+            if s == 0:
                 continue
             
-            instance_indices_b = numpy.where(assembly_b['class'] == c)[0]
+            instance_indices_b = numpy.where(assembly_b['shape'] == s)[0]
             if not len(instance_indices_b):
                 continue
             
-            instance_indices_a = numpy.where(assembly_a['class'] == c)[0]
+            instance_indices_a = numpy.where(assembly_a['shape'] == s)[0]
             
             for a in instance_indices_a:
                 color_a = assembly_a['color'][a]
@@ -82,30 +82,40 @@ def match_assemblies(
                     # Compute the offset between a and b.
                     pose_a = assembly_a['pose'][a]
                     pose_b = assembly_b['pose'][b]
-                    a_to_b = pose_b @ numpy.linalg.inv(pose_a)
-                    transformed_a = numpy.matmul(a_to_b, assembly_a['pose'])
                     
-                    # Compute the closeset points.
-                    pos_a = transformed_a[:,:3,3]
-                    matches = kdtree.query_ball_point(pos_a, radius)
-                    
-                    # If the number of matches is less than the current best
-                    # skip the validation step.
-                    potential_matches = sum(
-                        1 for c, m in zip(assembly_a['class'], matches)
-                        if len(m) and c != 0
-                    )
-                    if potential_matches <= len(best_matches):
-                        continue
-                    
-                    # Validate the matches.
-                    valid_matches = validate_matches(
-                        assembly_a, assembly_b, matches, a_to_b, part_names)
-                    
-                    # Update the set of tested matches with everything that was
-                    # matched in this comparison, this avoids reconsidering the
-                    # same offset again later.
-                    ab_tested_matches.update(valid_matches)
+                    # test the offset to each symmetric pose
+                    #symmetry_poses = brick_symmetry_poses(
+                    #    part_names[s], pose_a)
+                    symmetry_poses = [pose_a]
+                    best_sym_matches = []
+                    for symmetry_pose in symmetry_poses:
+                        a_to_b = pose_b @ numpy.linalg.inv(symmetry_pose)
+                        transformed_a = numpy.matmul(a_to_b, assembly_a['pose'])
+                        
+                        # Compute the closeset points.
+                        pos_a = transformed_a[:,:3,3]
+                        matches = kdtree.query_ball_point(pos_a, radius)
+                        
+                        # If the number of matches is less than the current best
+                        # skip the validation step.
+                        potential_matches = sum(
+                            1 for s, m in zip(assembly_a['shape'], matches)
+                            if len(m) and s != 0
+                        )
+                        if potential_matches <= len(best_matches):
+                            continue
+                        
+                        # Validate the matches.
+                        valid_matches = validate_matches(
+                            assembly_a, assembly_b, matches, a_to_b, part_names)
+                        
+                        # Update the set of tested matches with everything
+                        # that was matched in this comparison, this avoids
+                        # reconsidering the same offset again later.
+                        ab_tested_matches.update(valid_matches)
+                        
+                        if len(valid_matches) > len(best_sym_matches):
+                            best_sym_matches = valid_matches
                     
                     # If the number of valid matches is the best so far, update
                     # and break.  Breaking will exit all the way out to the
@@ -117,15 +127,15 @@ def match_assemblies(
                     # not be connected after this better alignment, so now we
                     # need to consider them again.  As convoluted as this is,
                     # it saves a ton of computation.
-                    if len(valid_matches) > len(best_matches):
+                    if len(best_sym_matches) > len(best_matches):
                         best_alignment = (a,b)
                         best_matches.clear()
-                        best_matches.update(valid_matches)
+                        best_matches.update(best_sym_matches)
                         best_offset = a_to_b
                         matched_a.clear()
                         matched_b.clear()
-                        matched_a.update(set(a for a,b in valid_matches))
-                        matched_b.update(set(b for a,b in valid_matches))
+                        matched_a.update(set(a for a,b in best_sym_matches))
+                        matched_b.update(set(b for a,b in best_sym_matches))
                         finished = False
                         break
                 
@@ -141,26 +151,25 @@ def match_assemblies(
     return best_matches, best_offset
 
 def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
-    # Ensure that classes match, colors match, poses match and that each brick
+    # Ensure that shapes match, colors match, poses match and that each brick
     # is only matched to one other.
     valid_matches = set()
     for a, a_matches in enumerate(matches):
         for b in a_matches:
-            class_a = assembly_a['class'][a]
-            class_b = assembly_b['class'][b]
-            if class_a != class_b or class_a == 0 or class_b == 0:
+            shape_a = assembly_a['shape'][a]
+            shape_b = assembly_b['shape'][b]
+            if shape_a != shape_b or shape_a == 0 or shape_b == 0:
                 continue
             
             color_a = assembly_a['color'][a]
             color_b = assembly_b['color'][b]
-            if color_a != color_b:
+            if color_a != color_b or color_a == 0 or color_b == 0:
                 continue
             
             transformed_pose_a = a_to_b @ assembly_a['pose'][a]
             pose_b = assembly_b['pose'][b]
-            #if not default_allclose(transformed_pose_a, pose_b):
             if not brick_pose_match_under_symmetry(
-                part_names[class_a], transformed_pose_a, pose_b
+                part_names[shape_a], transformed_pose_a, pose_b
             ):
                 continue
             
@@ -172,9 +181,9 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
 def match_lookup(matching, assembly_a, assembly_b):
     a_to_b = {a:b for a, b in matching}
     b_to_a = {b:a for a, b in matching}
-    a_instances = numpy.where(assembly_a['class'] != 0)[0]
+    a_instances = numpy.where(assembly_a['shape'] != 0)[0]
     miss_a = set(a for a in a_instances if a not in a_to_b)
-    b_instances = numpy.where(assembly_b['class'] != 0)[0]
+    b_instances = numpy.where(assembly_b['shape'] != 0)[0]
     miss_b = set(b for b in b_instances if b not in b_to_a)
     
     return a_to_b, b_to_a, miss_a, miss_b

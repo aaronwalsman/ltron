@@ -6,7 +6,7 @@ from ltron.gym.components.ltron_gym_component import LtronGymComponent
 class AssemblyComponent(LtronGymComponent):
     def __init__(self,
         scene_component,
-        class_ids,
+        shape_ids,
         color_ids,
         max_instances,
         max_edges,
@@ -14,7 +14,7 @@ class AssemblyComponent(LtronGymComponent):
         observe_assembly,
     ):
         self.scene_component = scene_component
-        self.class_ids = class_ids
+        self.shape_ids = shape_ids
         self.color_ids = color_ids
         self.max_instances = max_instances
         self.max_edges = max_edges
@@ -23,7 +23,7 @@ class AssemblyComponent(LtronGymComponent):
         
         if self.observe_assembly:
             self.observation_space = AssemblySpace(
-                self.class_ids,
+                self.shape_ids,
                 self.color_ids,
                 self.max_instances,
                 self.max_edges,
@@ -31,12 +31,15 @@ class AssemblyComponent(LtronGymComponent):
         
     def observe(self, initial=False):
         if self.update_frequency == 'step' or initial:
-            self.assembly = self.scene_component.brick_scene.get_assembly(
-                self.class_ids,
-                self.color_ids,
-                self.max_instances,
-                self.max_edges,
-            )
+            try:
+                self.assembly = self.scene_component.brick_scene.get_assembly(
+                    self.shape_ids,
+                    self.color_ids,
+                    self.max_instances,
+                    self.max_edges,
+                )
+            except:
+                self.scene_component.brick_scene.export_ldraw('./woops.mpd')
             #self.assembly = self.observation_space.from_scene(
             #    self.scene_component.brick_scene)
         

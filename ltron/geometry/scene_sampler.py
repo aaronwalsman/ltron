@@ -13,7 +13,7 @@ from ltron.dataset.paths import get_dataset_info
 from ltron.bricks.brick_scene import BrickScene
 from ltron.bricks.snap import SnapCylinder
 from ltron.geometry.collision_sampler import get_all_transformed_snap_pairs
-from ltron.geometry.collision import check_collision
+from ltron.geometry.collision import check_snap_collision
 
 class SubAssemblySampler:
     pass
@@ -157,6 +157,7 @@ WideAxleWheelSampler = AxleWheelSubAssemblySampler(
         
 
 def sample_scene(
+        scene,
         sub_assembly_samplers,
         parts_per_scene,
         colors,
@@ -167,11 +168,11 @@ def sample_scene(
     
     t_start = time.time()
     
-    #manager = buffer_manager_egl.initialize_shared_buffer_manager()
-    egl.initialize_plugin()
-    egl.initialize_device()
-    frame_buffer = FrameBufferWrapper(
-            collision_resolution[0], collision_resolution[1], anti_alias=False)
+    ##manager = buffer_manager_egl.initialize_shared_buffer_manager()
+    #egl.initialize_plugin()
+    #egl.initialize_device()
+    #frame_buffer = FrameBufferWrapper(
+    #        collision_resolution[0], collision_resolution[1], anti_alias=False)
     
     try:
         len(parts_per_scene)
@@ -180,7 +181,7 @@ def sample_scene(
     
     num_parts = random.randint(*parts_per_scene)
     
-    scene = BrickScene(renderable=True, track_snaps=True)
+    #scene = BrickScene(renderable=True, track_snaps=True)
     scene.load_colors(colors)
     
     for i in range(num_parts):
@@ -286,14 +287,23 @@ def sample_scene(
                         dump_images = '%i_%i'%(i,j)
                     else:
                         dump_images = None
-                    collision = check_collision(
-                            scene,
-                            new_instances,
-                            scene_snap.transform,
-                            sub_assembly_snap.polarity,
-                            frame_buffer=frame_buffer,
-                            dump_images=dump_images,
-                    )
+                    #collision = check_collision(
+                    #        scene,
+                    #        new_instances,
+                    #        scene_snap.transform,
+                    #        sub_assembly_snap.polarity,
+                    #        frame_buffer=frame_buffer,
+                    #        dump_images=dump_images,
+                    #)
+                    #collision = check_snap_collision(
+                    #    scene,
+                    #    new_instances,
+                    #    sub_assembly_snap,
+                    #    frame_buffer=frame_buffer,
+                    #    dump_images=dump_images,
+                    #)
+                    collision = scene.check_snap_collision(
+                        new_instances, sub_assembly_snap)
                     if debug:
                         scene.export_ldraw('%i_%s.ldr'%(i,j))
                     if not collision:
@@ -305,6 +315,7 @@ def sample_scene(
                                 str(instance),
                                 transform,
                             )
+                
                 #---------------------------------------------------------------
                 # if we tried many times and didn't find a good connection,
                 # loop back and try a new sub-assembly
@@ -343,4 +354,4 @@ def sample_scene(
                     for instance in new_instances:
                         scene.remove_instance(instance)
     
-    return scene
+    #return scene

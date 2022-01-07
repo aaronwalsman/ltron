@@ -7,7 +7,7 @@ from ltron.bricks.brick_scene import BrickScene
 
 class EmptySceneComponent(LtronGymComponent):
     def __init__(self,
-        class_ids,
+        shape_ids,
         color_ids,
         max_instances,
         max_edges,
@@ -16,7 +16,7 @@ class EmptySceneComponent(LtronGymComponent):
         track_snaps=False,
         collision_checker=False,
     ):
-        self.class_ids = class_ids
+        self.shape_ids = shape_ids
         self.color_ids = color_ids
         self.max_instances = max_instances
         self.max_edges = max_edges
@@ -55,14 +55,14 @@ class EmptySceneComponent(LtronGymComponent):
     def set_state(self, state):
         self.brick_scene.clear_instances()
         self.brick_scene.set_assembly(
-            state, self.class_ids, self.color_ids)
+            state, self.shape_ids, self.color_ids)
         
         self.observe()
         return self.observation
     
     def get_state(self):
         state = self.brick_scene.get_assembly(
-            self.class_ids, self.color_ids, self.max_instances, self.max_edges)
+            self.shape_ids, self.color_ids, self.max_instances, self.max_edges)
         
         return state
 
@@ -89,7 +89,7 @@ class DatasetSceneComponent(EmptySceneComponent):
         
         dataset_info = self.dataset_component.dataset_info
         super(DatasetSceneComponent, self).__init__(
-            class_ids=dataset_info['class_ids'],
+            shape_ids=dataset_info['shape_ids'],
             color_ids=dataset_info['color_ids'],
             max_instances=dataset_info['max_instances_per_scene'],
             max_edges=dataset_info['max_edges_per_scene'],

@@ -13,18 +13,18 @@ from ltron.gym.spaces import AssemblySpace, InstanceMatchingSpace
 
 class BreakAndMakePhaseSwitch(LtronGymComponent):
     def __init__(self,
-        workspace_scene_component,
+        table_scene_component,
         task='break_and_make',
-        workspace_viewpoint_component=None,
-        handspace_scene_component=None,
+        table_viewpoint_component=None,
+        hand_scene_component=None,
         dataset_component=None,
         start_make_mode='clear',
         train=False,
     ):
         self.task = task
-        self.workspace_scene_component = workspace_scene_component
-        self.workspace_viewpoint_component = workspace_viewpoint_component
-        self.handspace_scene_component = handspace_scene_component
+        self.table_scene_component = table_scene_component
+        self.table_viewpoint_component = table_viewpoint_component
+        self.hand_scene_component = hand_scene_component
         self.dataset_component = dataset_component
         self.start_make_mode = start_make_mode
         self.train = train
@@ -44,15 +44,15 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
     def step(self, action):
         if action == 1 and not self.phase:
             self.phase = 1
-            workspace_scene = self.workspace_scene_component.brick_scene
-            workspace_scene.clear_instances()
+            table_scene = self.table_scene_component.brick_scene
+            table_scene.clear_instances()
             
-            if self.workspace_viewpoint_component is not None:
-                self.workspace_viewpoint_component.center = (0,0,0)
+            if self.table_viewpoint_component is not None:
+                self.table_viewpoint_component.center = (0,0,0)
             
-            if self.handspace_scene_component is not None:
-                handspace_scene = self.handspace_scene_component.brick_scene
-                handspace_scene.clear_instances()
+            if self.hand_scene_component is not None:
+                hand_scene = self.hand_scene_component.brick_scene
+                hand_scene.clear_instances()
             
             if self.start_make_mode == 'clear':
                 pass
@@ -100,16 +100,16 @@ class BreakAndMakeScore(LtronGymComponent):
     def __init__(self,
         initial_assembly_component,
         current_assembly_component,
-        phase_switch_component,
-        class_ids,
+        phase_component,
+        shape_ids,
     ):
         self.initial_assembly_component = initial_assembly_component
         self.current_assembly_component = current_assembly_component
-        self.phase_switch_component = phase_switch_component
-        self.part_names = {value:key for key, value in class_ids.items()}
+        self.phase_component = phase_component
+        self.part_names = {value:key for key, value in shape_ids.items()}
     
     def observe(self):
-        if self.phase_switch_component.phase:
+        if self.phase_component.phase:
             initial_assembly = self.initial_assembly_component.assembly
             current_assembly = self.current_assembly_component.assembly
             
@@ -119,23 +119,11 @@ class BreakAndMakeScore(LtronGymComponent):
                 self.part_names,
             )
         else:
-            #if self.disassembly_score:
-            #    initial_assembly = self.initial_assembly_component.assembly
-            #    current_assembly = self.current_assembly_component.assembly
-            #    initial_instances = numpy.sum(initial_assembly['class'] != 0)
-            #    current_instances = numpy.sum(current_assembly['class'] != 0)
-            #    score = 1. - (current_instances/initial_instances)
-            #    score *= self.disassembly_score
-            #    self.recent_disassembly_score = score
-            #    self.score = score
-            #
-            #else:
-            #    self.score = 0.
             self.score = 0.
         
     def reset(self):
         self.observe()
-        self.recent_disassembly_score = 0.
+        #self.recent_disassembly_score = 0.
         return None
     
     def step(self, action):

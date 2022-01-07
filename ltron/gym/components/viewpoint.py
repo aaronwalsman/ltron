@@ -51,7 +51,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         self.auto_frame = auto_frame
         self.frame_button = frame_button
         
-        self.center = (0,0,0)
+        self.center = [0.,0.,0.]
         
         #observation_space = {}
         #if self.observe_camera_parameters:
@@ -126,12 +126,12 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         scene = self.scene_component.brick_scene
         bbox_min, bbox_max = scene.get_scene_bbox()
         center = (bbox_min + bbox_max) / 2.
-        return center
+        return list(center)
     
     def frame_scene(self):
         # this value is rounded to the nearest LDU in order to produce
         # a tidier discrete state space
-        self.center = numpy.around(self.compute_center())
+        self.center = list(numpy.around(self.compute_center()))
     
     def step(self, action):
         '''
@@ -286,7 +286,7 @@ class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
         bbox = scene.get_instance_center_bbox()
         bbox_min, bbox_max = bbox
         bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
-        center = bbox_min + bbox_range * 0.5
+        center = list(bbox_min + bbox_range * 0.5)
         distance = distance_scale * camera.framing_distance_for_bbox(
                 bbox, self.projection, self.bbox_distance_scale)
         self.view_matrix = numpy.linalg.inv(

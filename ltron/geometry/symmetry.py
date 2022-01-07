@@ -144,6 +144,7 @@ def check_single_symmetry(
     cleanup_scene()
     return True
 
+'''
 symmetry_offsets = {
     'rx90':numpy.array([
         [ 1, 0, 0, 0],
@@ -176,6 +177,44 @@ symmetry_offsets = {
         [ 0, 0, 1, 0],
         [ 0, 0, 0, 1]]),
 }
+'''
+
+symmetry_tests = {
+    'rx90':([1,0,0], math.radians(90.)),
+    'rx180':([1,0,0], math.radians(180.)),
+    'ry90':([0,1,0], math.radians(90.)),
+    'ry180':([0,1,0], math.radians(180.)),
+    'rz90':([0,0,1], math.radians(90.)),
+    'rz180':([0,0,1], math.radians(180.)),
+}
+
+symmetry_dominance = set([
+    ('rx90', 'rx180'),
+    ('ry90', 'ry180'),
+    ('rz90', 'rz180'),
+])
+
+symmetry_offsets = {}
+for symmetry_name, (axis, angle) in symmetry_tests.items():
+    a = angle
+    symmetry_offsets[symmetry_name] = []
+    while a < math.pi * 2 - 0.001:
+        symmetry_offsets[symmetry_name].append(
+            Quaternion(axis=axis, angle=a).transformation_matrix)
+        a += angle
+
+def brick_symmetry_offsets(brick_type):
+    symmetries = LDRAW_SYMMETRY[str(brick_type)]
+    offsets = [numpy.eye(4)]
+    for symmetry_name in symmetries:
+        offsets.extend(symmetry_offsets[symmetry_name])
+    
+    return offsets
+
+def brick_symmetry_poses(brick_type, pose):
+    symmetry_offsets = brick_symmetry_offsets(brick_type)
+    symmetry_poses = [pose @ offset for offset in symmetry_offsets]
+    return symmetry_poses
 
 def check_bricktype_symmetry(
     brick_type,
@@ -240,11 +279,11 @@ def check_bricktype_symmetry(
         translate[:3,3] = -centroid[:3]
         default_pose = translate @ default_pose
         
-        symmetries = []
+        symmetries = set()
         
         try:
-            for name, symmetry_offset in symmetry_offsets.items():
-                test_pose = symmetry_offset @ default_pose
+            for name, offsets in symmetry_offsets.items():
+                test_pose = offsets[0] @ default_pose
                 if check_single_symmetry(
                     brick_type,
                     scene,
@@ -254,11 +293,15 @@ def check_bricktype_symmetry(
                     tolerance,
                     label = name,
                 ):
-                    symmetries.append(name)
+                    symmetries.add(name)
         except SplendorEmptyMeshException:
             pass
         
-        return symmetries
+        for keep, remove in symmetry_dominance:
+            if keep in symmetries and remove in symmetries:
+                symmetries.remove(remove)
+        
+        return list(symmetries)
     
     except:
         raise
@@ -312,15 +355,6 @@ def build_symmetry_table(
     symmetry_table_path = os.path.join(get_ltron_home(), 'symmetry_table.json')
     with open(symmetry_table_path, 'w') as f:
         json.dump(symmetry_table, f, indent=2)
-
-symmetry_tests = {
-    'rx90':([1,0,0], math.radians(90.)),
-    'rx180':([1,0,0], math.radians(180.)),
-    'ry90':([0,1,0], math.radians(90.)),
-    'ry180':([0,1,0], math.radians(180.)),
-    'rz90':([0,0,1], math.radians(90.)),
-    'rz180':([0,0,1], math.radians(180.)),
-}
 
 def pose_match_under_symmetries(
     symmetries,

@@ -28,6 +28,8 @@ setuptools.setup(
             'ltron_viewer=ltron.scripts.ltron_viewer:main',
             'ltron_asset_installer=ltron.scripts.ltron_asset_installer:main',
             'ltron_make_license=ltron.scripts.ltron_make_license:main',
+            'ltron_make_symmetry_table=ltron.scripts.ltron_make_symmetry_table:'
+                'main',
         ]
     },
     classifiers = [

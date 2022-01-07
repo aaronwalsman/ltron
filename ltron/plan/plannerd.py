@@ -125,10 +125,10 @@ def node_removable_collision_free(
     return True
 
 class Roadmap:
-    def __init__(self, env, goal_assembly, class_ids, color_ids):
+    def __init__(self, env, goal_assembly, shape_ids, color_ids):
         self.env = env
         self.goal_assembly = goal_assembly
-        self.goal_state = frozenset(numpy.where(goal_assembly['class'])[0])
+        self.goal_state = frozenset(numpy.where(goal_assembly['shape'])[0])
         # removing nodes, they are not used for anything
         #self.nodes = set()
         #self.nodes.add(self.goal_state)
@@ -136,14 +136,14 @@ class Roadmap:
         self.edges = {}
         self.successors = {}
         self.env_states = {}
-        self.brick_type_to_class = class_ids
-        self.class_to_brick_type = {
-            value:key for key, value in self.brick_type_to_class.items()}
+        self.brick_type_to_shape = shape_ids
+        self.shape_to_brick_type = {
+            value:key for key, value in self.brick_type_to_shape.items()}
         self.color_ids = color_ids
         
         goal_scene = BrickScene(renderable=True, track_snaps=True)
         goal_scene.import_assembly(
-            self.goal_assembly, self.brick_type_to_class, self.color_ids)
+            self.goal_assembly, self.brick_type_to_shape, self.color_ids)
         self.goal_collision_map = build_collision_map(goal_scene)
     
     def get_observation_action_seq(self, path):
@@ -166,11 +166,14 @@ class RoadmapPlanner:
         
         # set the env to the start state
         observation = self.roadmap.env.set_state(start_env_state)
-        self.start_assembly = observation['workspace_assembly']
+        self.start_assembly = observation['table_assembly']
         
         # compute a matching
         matching, offset = match_assemblies(
-            self.start_assembly, roadmap.goal_assembly)
+            self.start_assembly,
+            roadmap.goal_assembly,
+            roadmap.shape_to_brick_type,
+        )
         self.wip_to_goal, self.goal_to_wip, fp, fn = match_lookup(
             matching, self.start_assembly, roadmap.goal_assembly)
         
@@ -189,7 +192,7 @@ class RoadmapPlanner:
         start_scene = BrickScene(renderable=True, track_snaps=True)
         start_scene.import_assembly(
             self.start_assembly,
-            self.roadmap.brick_type_to_class,
+            self.roadmap.brick_type_to_shape,
             self.roadmap.color_ids,
         )
         self.start_collision_map = build_collision_map(start_scene)
@@ -275,11 +278,11 @@ class RoadmapPlanner:
         # if there are any false positives, remove them first
         if false_positives:
             for false_positive in false_positives:
-                false_positive_class = (
-                    self.start_assembly['class'][false_positive])
+                false_positive_shape = (
+                    self.start_assembly['shape'][false_positive])
                 if node_removable_collision_free(
                     false_positive,
-                    self.roadmap.class_to_brick_type[false_positive_class],
+                    self.roadmap.shape_to_brick_type[false_positive_shape],
                     state,
                     self.start_collision_map,
                     self.start_assembly,
@@ -292,11 +295,11 @@ class RoadmapPlanner:
         elif false_negatives:
             for false_negative in false_negatives:
                 # check if false_negative can be added
-                false_negative_class = self.roadmap.goal_assembly['class'][
+                false_negative_shape = self.roadmap.goal_assembly['shape'][
                     false_negative]
                 if node_connected_collision_free(
                     false_negative,
-                    self.roadmap.class_to_brick_type[false_negative_class],
+                    self.roadmap.shape_to_brick_type[false_negative_shape],
                     state,
                     self.roadmap.goal_state,
                     self.roadmap.goal_collision_map,
@@ -374,8 +377,8 @@ class EdgeChecker:
                 self.roadmap.env_states[b] = last_state
                 viewpoint_changes = len([
                     a for a in action_seq if (
-                        a['workspace_viewpoint'] != 0 or
-                        a['handspace_viewpoint'] != 0
+                        a['table_viewpoint'] != 0 or
+                        a['hand_viewpoint'] != 0
                     )
                 ])
                 edge['viewpoint_changes'] = viewpoint_changes
@@ -407,7 +410,7 @@ class EdgeChecker:
                     instance,
                     observation,
                     goal_to_wip,
-                    self.roadmap.class_to_brick_type,
+                    self.roadmap.shape_to_brick_type,
                     debug=False,
                 )
                 goal_to_wip[instance] = next_instance
@@ -422,7 +425,7 @@ class EdgeChecker:
                     instance,
                     observation,
                     goal_to_wip,
-                    self.roadmap.class_to_brick_type,
+                    self.roadmap.shape_to_brick_type,
                     debug=False,
                 )
                 goal_to_wip[instance] = next_instance
@@ -438,7 +441,7 @@ class EdgeChecker:
                 observation,
                 #goal_to_wip,
                 self.planner.false_positive_lookup,
-                self.roadmap.class_to_brick_type,
+                self.roadmap.shape_to_brick_type,
             )
 
 def upper_confidence_bound(q, n_action, n_state, c=2**0.5):

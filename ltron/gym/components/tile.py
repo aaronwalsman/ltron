@@ -1,3 +1,5 @@
+import numpy
+
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from ltron.gym.spaces import SegmentationSpace
 
@@ -11,7 +13,6 @@ class DeduplicateTileMaskComponent(LtronGymComponent):
         self.tile_width = tile_width
         self.tile_height = tile_height
         self.render_component = render_component
-        self.step_component = step_component
         
         assert self.render_component.width % self.tile_width == 0
         assert self.render_component.height % self.tile_height == 0
@@ -24,13 +25,16 @@ class DeduplicateTileMaskComponent(LtronGymComponent):
     def observe(self):
         frame = self.render_component.observation
         h, w, c = frame.shape
-        match = frame != self.previous_frame
-        match = match.reshape(
+        modified_channels = frame != self.previous_frame
+        modified_tiles = modified_channels.reshape(
             self.height, self.tile_height, self.width, self.tile_width, c)
-        match = numpy.moveaxis(match, 2, 1)
-        match = match.reshape(self.height, self.width, -1)
-        self.observation = numpy.all(match, axis=-1).reshape(
-            self.height, self.width)
+        modified_tiles = numpy.moveaxis(modified_tiles, 2, 1)
+        modified_tiles = modified_tiles.reshape(self.height, self.width, -1)
+        self.observation = numpy.any(modified_tiles, axis=-1).reshape(
+            self.height, self.width).astype(numpy.long)
+        
+        #import pdb
+        #pdb.set_trace()
         
         self.previous_frame = frame
     
@@ -42,3 +46,10 @@ class DeduplicateTileMaskComponent(LtronGymComponent):
     def step(self, action):
         self.observe()
         return self.observation, 0., False, None
+    
+    def get_state(self):
+        return self.observation
+    
+    def set_state(self, state):
+        self.observation = state
+        return self.observation

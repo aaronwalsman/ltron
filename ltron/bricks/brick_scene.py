@@ -177,32 +177,32 @@ class BrickScene:
         with open(path, 'w') as f:
             f.write('\n'.join(lines))
     
-    def set_assembly(self, assembly, class_ids, color_ids):
+    def set_assembly(self, assembly, shape_ids, color_ids):
         self.clear_instances()
         self.import_assembly(
-            assembly, class_ids, color_ids, match_instance_ids=True)
+            assembly, shape_ids, color_ids, match_instance_ids=True)
     
     def import_assembly(
         self,
         assembly,
-        class_ids,
+        shape_ids,
         color_ids,
         match_instance_ids=False,
     ):
-        for i in range(len(assembly['class'])):
-            instance_class = assembly['class'][i]
-            if instance_class == 0:
+        for i in range(len(assembly['shape'])):
+            instance_shape = assembly['shape'][i]
+            if instance_shape == 0:
                 continue
             instance_color = assembly['color'][i]
             instance_pose = assembly['pose'][i]
-            class_labels = {
-                value:key for key, value in class_ids.items()}
+            shape_labels = {
+                value:key for key, value in shape_ids.items()}
             color_labels = {
                 value:key for key, value in color_ids.items()}
             try:
-                brick_type = class_labels[instance_class]
+                brick_type = shape_labels[instance_shape]
             except KeyError:
-                raise MissingClassError(instance_class)
+                raise MissingClassError(instance_shape)
             try:
                 color = color_labels[instance_color]
             except KeyError:
@@ -215,10 +215,10 @@ class BrickScene:
             self.add_instance(
                 brick_type, color, instance_pose, instance_id=instance_id)
     
-    def make_class_ids(self):
+    def make_shape_ids(self):
         brick_types = [str(bt) for bt in self.brick_library.values()]
-        class_ids = {bt:i+1 for i, bt in enumerate(brick_types)}
-        return class_ids
+        shape_ids = {bt:i+1 for i, bt in enumerate(brick_types)}
+        return shape_ids
     
     def make_color_ids(self):
         colors = [int(c) for c in self.color_library.values()]
@@ -227,7 +227,7 @@ class BrickScene:
     
     def get_assembly(
         self,
-        class_ids=None,
+        shape_ids=None,
         color_ids=None,
         max_instances=None,
         max_edges=None,
@@ -235,8 +235,8 @@ class BrickScene:
     ):
         assembly = {}
         
-        if class_ids is None:
-            class_ids = self.make_class_ids()
+        if shape_ids is None:
+            shape_ids = self.make_shape_ids()
         if color_ids is None:
             color_ids = self.make_color_ids()
         if max_instances is None:
@@ -249,12 +249,12 @@ class BrickScene:
                 assert max(self.instances.keys()) <= max_instances, (
                     'Instance ids %s larger than max_instances: %i'%(
                     list(self.instances.keys()), max_instances))
-        assembly['class'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        assembly['shape'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         assembly['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         assembly['pose'] = numpy.zeros((max_instances+1, 4, 4))
         for instance_id, instance in self.instances.items():
             try:
-                assembly['class'][instance_id] = class_ids[
+                assembly['shape'][instance_id] = shape_ids[
                     str(instance.brick_type)]
             except KeyError:
                 raise MissingClassError(instance.brick_type)
