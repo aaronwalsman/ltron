@@ -62,7 +62,7 @@ class BreakAndMakeEnvConfig(Config):
     check_collisions = True
     train = True
     
-    tile_color_render = False
+    tile_color_render = True
     tile_width = 16
     tile_height = 16
 
