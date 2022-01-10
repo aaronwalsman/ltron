@@ -11,13 +11,13 @@ import ltron.ldraw.documents as documents
 def make_dataset_metadata(dataset, split):
     directory = settings.datasets[dataset]
     dataset_info = get_dataset_info(dataset)
-    class_ids = dataset_info['class_ids']
+    shape_ids = dataset_info['shape_ids']
     file_paths = get_dataset_paths(dataset, split)
     for file_path in tqdm.tqdm(file_paths):
         document = documents.LDrawDocument.parse_document(file_path)
         parts = document.get_all_parts()
         metadata = {
-            'class_labels' : {i+1 : class_ids[part[0]]
+            'class_labels' : {i+1 : shape_ids[part[0]]
                 for i, part in enumerate(parts)}
         }
         

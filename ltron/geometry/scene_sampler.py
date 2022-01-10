@@ -19,25 +19,25 @@ class SubAssemblySampler:
     pass
 
 class SingleSubAssemblySampler(SubAssemblySampler):
-    def __init__(self, brick_type, transform=BrickScene.upright):
-        self.brick_type = brick_type
+    def __init__(self, brick_shape, transform=BrickScene.upright):
+        self.brick_shape = brick_shape
         self.transform = transform
     
     def sample(self):
-        return [(self.brick_type, self.transform)]
+        return [(self.brick_shape, self.transform)]
 
 class MultiSubAssemblySampler(SubAssemblySampler):
     def __init__(self,
-            brick_types,
+            brick_shapes,
             transforms,
             global_transform=BrickScene.upright):
-        self.brick_types = brick_types
+        self.brick_shapes = brick_shapes
         self.transforms = transforms
         self.global_transform = global_transform
     
     def sample(self):
         transforms = [self.global_transform @ t for t in self.transforms]
-        return list(zip(self.brick_types, transforms))
+        return list(zip(self.brick_shapes, transforms))
 
 class RotatorSubAssemblySampler(SubAssemblySampler):
     def __init__(self,
@@ -168,12 +168,6 @@ def sample_scene(
     
     t_start = time.time()
     
-    ##manager = buffer_manager_egl.initialize_shared_buffer_manager()
-    #egl.initialize_plugin()
-    #egl.initialize_device()
-    #frame_buffer = FrameBufferWrapper(
-    #        collision_resolution[0], collision_resolution[1], anti_alias=False)
-    
     try:
         len(parts_per_scene)
     except TypeError:
@@ -181,7 +175,6 @@ def sample_scene(
     
     num_parts = random.randint(*parts_per_scene)
     
-    #scene = BrickScene(renderable=True, track_snaps=True)
     scene.load_colors(colors)
     
     for i in range(num_parts):
@@ -197,10 +190,10 @@ def sample_scene(
             # get all snaps
             all_scene_snaps = set()
             for instance_id, instance in scene.instances.items():
-                brick_type = instance.brick_type
+                brick_shape = instance.brick_shape
                 all_scene_snaps |= set(
                         (instance_id, i)
-                        for i in range(len(brick_type.snaps)))
+                        for i in range(len(brick_shape.snaps)))
             #---------------------------------------------------------------
             # build a list of occupied snaps
             all_snap_connections = scene.get_all_snap_connections()
@@ -234,11 +227,11 @@ def sample_scene(
                 sub_assembly = sub_assembly_sampler.sample()
                 sub_assembly_snaps = []
                 new_instances = []
-                for brick_type, transform in sub_assembly:
+                for brick_shape, transform in sub_assembly:
                     color = random.choice(colors)
-                    scene.add_brick_type(brick_type)
+                    scene.add_brick_shape(brick_shape)
                     new_instance = scene.add_instance(
-                            brick_type, color, transform)
+                            brick_shape, color, transform)
                     new_instances.append(new_instance)
                     new_snaps = new_instance.get_snaps()
                     new_good_snaps = [
@@ -269,7 +262,8 @@ def sample_scene(
                 #---------------------------------------------------------------
                 # try to find a pair that is not in collision
                 for j in range(retries):
-                    scene_snap, sub_assembly_snap = random.choice(pairs)
+                    ((i_scene, scene_snap),
+                     (i_new, sub_assembly_snap)) = random.choice(pairs)
                     offset_transform = (
                             scene_snap.transform @
                             numpy.linalg.inv(sub_assembly_snap.transform))
@@ -280,6 +274,7 @@ def sample_scene(
                     if abs(det-1) > 0.1:
                         continue
                     
+                    sub_assembly_snap.transform = scene_snap.transform
                     for instance in new_instances:
                         new_transform = offset_transform @ instance.transform
                         scene.set_instance_transform(instance, new_transform)
@@ -303,8 +298,9 @@ def sample_scene(
                     #    dump_images=dump_images,
                     #)
                     collision = scene.check_snap_collision(
-                        new_instances, sub_assembly_snap)
+                        new_instances, sub_assembly_snap, dump_images=dump_images)
                     if debug:
+                        print(i,j, ':', i_scene, i_new)
                         scene.export_ldraw('%i_%s.ldr'%(i,j))
                     if not collision:
                         break
@@ -335,11 +331,11 @@ def sample_scene(
                 sub_assembly = sub_assembly_sampler.sample()
                 new_instances = []
                 sub_assembly_snaps = []
-                for brick_type, transform in sub_assembly:
+                for brick_shape, transform in sub_assembly:
                     color = random.choice(colors)
-                    scene.add_brick_type(brick_type)
+                    scene.add_brick_shape(brick_shape)
                     new_instance = scene.add_instance(
-                            brick_type, color, transform)
+                            brick_shape, color, transform)
                     new_instances.append(new_instance)
                     new_snaps = new_instance.get_snaps()
                     new_good_snaps = [

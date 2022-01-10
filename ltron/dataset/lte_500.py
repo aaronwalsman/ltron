@@ -15,7 +15,7 @@ lte_500_path = settings.datasets['lte_500']
 omr_ldraw = os.path.join(os.path.dirname(lte_500_path), 'ldraw')
 all_sets = sorted(os.listdir(omr_ldraw))
 good_sets = []
-class_ids = {}
+shape_ids = {}
 max_edges = 0
 all_colors = set()
 for set_name in tqdm.tqdm(all_sets):
@@ -29,9 +29,9 @@ for set_name in tqdm.tqdm(all_sets):
     num_parts = len(scene.instances)
     if num_parts <= 500:
         good_sets.append('ldraw/' + set_name)
-        for brick_type in scene.brick_library:
-            if str(brick_type) not in class_ids:
-                class_ids[str(brick_type)] = len(class_ids)+1
+        for brick_shape in scene.shape_library:
+            if str(brick_shape) not in shape_ids:
+                shape_ids[str(brick_shape)] = len(shape_ids)+1
         
         edges = scene.get_all_edges()
         try:
@@ -53,7 +53,7 @@ dataset_info = {
     },
     'max_instances_per_scene' : 500,
     'max_edges_per_scene' : max_edges,
-    'class_ids' : class_ids,
+    'shape_ids' : shape_ids,
     'colors' : sorted(list(all_colors))
 }
 

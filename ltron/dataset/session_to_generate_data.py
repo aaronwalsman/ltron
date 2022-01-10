@@ -21,7 +21,7 @@ for f in tqdm.tqdm(files):
         print(f"Failed to load {f}")
         continue
     instances = len(scene.instances.instances)
-    unique = len(scene.brick_library.keys())
+    unique = len(scene.shape_library.keys())
     cleaned_files.append((f, instances, unique))
 
 cleaned_files.sort(key=lambda x: x[1], reverse=False)
@@ -44,7 +44,7 @@ for f, count, _ in tqdm(subset):
     except Exception as e:
         print(f"Failed to load {f}")
         continue
-    unique = set(scene.brick_library.keys())
+    unique = set(scene.shape_library.keys())
     subsets.append((f, count, unique))
 
 subsets = [s for s in subsets if len(s[2]) > 10]
@@ -89,10 +89,10 @@ for f in tqdm(names):
     scene.import_ldraw(str(f))
     instances_per_scene.append(len(scene.instances))
     for instance_id, instance in scene.instances.items():
-        brick_type = instance.brick_type
-        if str(brick_type) not in instance_counts:
-            instance_counts[str(brick_type)] = 0
-        instance_counts[str(brick_type)] += 1
+        brick_shape = instance.brick_shape
+        if str(brick_shape) not in instance_counts:
+            instance_counts[str(brick_shape)] = 0
+        instance_counts[str(brick_shape)] += 1
         all_colors.add(instance.color)
     try:
         edges = scene.get_all_edges(unidirectional=True)
@@ -103,7 +103,7 @@ for f in tqdm(names):
 
 data['max_instances_per_scene'] = max(instances_per_scene)
 data['max_edges_per_scene'] = max(edges_per_scene)
-data['class_ids'] = dict(zip(sorted(instance_counts.keys()), range(1, len(instance_counts) + 1)))
+data['shape_ids'] = dict(zip(sorted(instance_counts.keys()), range(1, len(instance_counts) + 1)))
 data['all_colors'] = list(sorted(all_colors, key=int))
 
 import json

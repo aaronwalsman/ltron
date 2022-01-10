@@ -135,7 +135,7 @@ def export_scene_bricks(scene_path, **kwargs):
     #scene_document = LDrawDocument.parse_document(scene_path)
     brick_scene = BrickScene()
     brick_scene.import_ldraw(scene_path)
-    for brick_name, brick_type in brick_scene.brick_library.items():
+    for brick_name, brick_shape in brick_scene.shape_library.items():
         print(brick_name)
         export_brick(brick_name, **kwargs)
     #parts = scene_document.get_all_parts()
@@ -146,7 +146,7 @@ def export_scene_bricks(scene_path, **kwargs):
 
 def export_dataset_bricks(dataset, **kwargs):
     info = dataset_paths.get_dataset_info(dataset)
-    bricks = info['class_ids'].keys()
+    bricks = info['shape_ids'].keys()
     for brick in bricks:
         print(brick)
         export_brick(brick, **kwargs)

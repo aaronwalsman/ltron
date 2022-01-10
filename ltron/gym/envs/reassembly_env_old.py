@@ -90,7 +90,7 @@ def handspace_reassembly_template_action():
         },
         
         'insert_brick' : {
-            'class_id' : 0,
+            'shape_id' : 0,
             'color_id' : 0,
         },
         
@@ -133,7 +133,7 @@ class HandspaceReassemblyWrapper(gym.Env):
         )
 
         insertion = self.env.components['insert_brick']
-        max_id = max(insertion.id_to_brick_type.keys())+1
+        max_id = max(insertion.id_to_brick_shape.keys())+1
         max_color = len(insertion.colors)
 
         self.action_space = spaces.MultiDiscrete(
@@ -207,7 +207,7 @@ class HandspaceReassemblyWrapper(gym.Env):
         # brick insertion
         if mode != 15: classid = -1
         dict_action['insert_brick'] = {
-            'class_id': classid,
+            'shape_id': classid,
             'color': color,
         }
 
@@ -560,7 +560,7 @@ class InteractiveHandspaceReassemblyEnv:
         self.direction = 'pull'
         self.render_mode = 'color'
         self.pick = (0,0)
-        self.insert_class_id = ''
+        self.insert_shape_id = ''
         self.insert_color_id = 0
         
         self.color_ids = self.env.components['insert_brick'].color_name_to_id
@@ -716,29 +716,29 @@ class InteractiveHandspaceReassemblyEnv:
             print('Color: %i'%self.insert_color_id)
         
         elif key in b'0123456789':
-            self.insert_class_id += key.decode("utf-8")
-            print('Class ID: %s'%self.insert_class_id)
+            self.insert_shape_id += key.decode("utf-8")
+            print('Class ID: %s'%self.insert_shape_id)
         
         elif key == b'\x08':
-            self.insert_class_id = self.insert_class_id[:-1]
-            print('Class ID: %s'%self.insert_class_id)
+            self.insert_shape_id = self.insert_shape_id[:-1]
+            print('Class ID: %s'%self.insert_shape_id)
         
         elif key == b'\r':
             try:
-                insert_class_id = int(self.insert_class_id)
+                insert_shape_id = int(self.insert_shape_id)
             except ValueError:
-                insert_class_id = 0
+                insert_shape_id = 0
             try:
                 insert_color_id = int(self.insert_color_id)
             except ValueError:
                 insert_color_id = 0
             action = handspace_reassembly_template_action()
             action['insert_brick'] = {
-                'class_id':insert_class_id,
+                'shape_id':insert_shape_id,
                 'color_id':insert_color_id,
             }
             self.step(action)
-            self.insert_class_id = ''
+            self.insert_shape_id = ''
         
         elif key == b'|':
             if not self.env.components['reassembly'].reassembling:
@@ -937,7 +937,7 @@ def handspace_reassembly_env(
     components['dataset'] = DatasetPathComponent(
         dataset, split, subset, rank, size, reset_mode=dataset_reset_mode)
     dataset_info = components['dataset'].dataset_info
-    class_ids = dataset_info['class_ids']
+    shape_ids = dataset_info['shape_ids']
     color_ids = dataset_info['color_ids']
     max_instances = dataset_info['max_instances_per_scene']
     max_edges = dataset_info['max_edges_per_scene']
@@ -1055,14 +1055,14 @@ def handspace_reassembly_env(
     components['insert_brick'] = HandspaceBrickInserter(
         components['handspace_scene'],
         components['workspace_scene'],
-        class_ids,
+        shape_ids,
         color_ids,
         max_instances,
     )
     
     # reassembly
     components['reassembly'] = Reassembly(
-        class_ids=class_ids,
+        shape_ids=shape_ids,
         color_ids=color_ids,
         max_instances=max_instances,
         max_edges=max_edges,

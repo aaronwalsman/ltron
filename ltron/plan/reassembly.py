@@ -4,7 +4,7 @@ import numpy
 
 from PIL import Image
 
-from ltron.bricks.brick_type import BrickType
+from ltron.bricks.brick_shape import BrickShape
 from ltron.gym.reassembly_env import handspace_reassembly_template_action
 from ltron.matching import match_configurations, match_lookup
 from ltron.hierarchy import len_hierarchy, index_hierarchy
@@ -35,10 +35,10 @@ class TooManyRotatableSnapsError(ExpertError):
     pass
 
 class ReassemblyExpert:
-    def __init__(self, batch_size, class_ids, color_ids):
+    def __init__(self, batch_size, shape_ids, color_ids):
         self.batch_size = batch_size
-        self.class_ids = class_ids
-        self.class_names = {value:key for key, value in class_ids.items()}
+        self.shape_ids = shape_ids
+        self.class_names = {value:key for key, value in shape_ids.items()}
         self.color_ids = color_ids
         self.color_names = {value:key for key, value in color_ids.items()}
         self.broken_seqs = {}
@@ -282,9 +282,9 @@ class ReassemblyExpert:
             connected_workspace_id = target_to_workspace[connected_target_id]
             
             misplaced_class = workspace_config['class'][misplaced_instance]
-            brick_type = BrickType(self.class_names[misplaced_class])
+            brick_shape = BrickShape(self.class_names[misplaced_class])
             pose_to_fix = workspace_config['pose'][instance_to_fix]
-            snap_transform = brick_type.snaps[snap_to_rotate].transform
+            snap_transform = brick_shape.snaps[snap_to_rotate].transform
             inv_snap_transform = numpy.linalg.inv(snap_transform)
             instance_snap_transform = pose_to_fix @ snap_transform
             
@@ -412,16 +412,16 @@ class ReassemblyExpert:
         else:
             all_target_instances = numpy.where(target_config['class'] != 0)[0]
             placeable_target_instances = []
-            brick_types = {}
+            brick_shapes = {}
             for target_instance in all_target_instances:
                 instance_class = target_config['class'][target_instance]
                 instance_class_name = self.class_names[instance_class]
-                if instance_class_name not in brick_types:
-                    brick_types[instance_class_name] = BrickType(
+                if instance_class_name not in brick_shapes:
+                    brick_shapes[instance_class_name] = BrickShape(
                         instance_class_name)
-                brick_type = brick_types[instance_class_name]
+                brick_shape = brick_shapes[instance_class_name]
                 pose = target_config['pose'][target_instance]
-                upright_snaps = self.upright_snaps(brick_type, pose)
+                upright_snaps = self.upright_snaps(brick_shape, pose)
                 if len(upright_snaps):
                     placeable_target_instances.append(target_instance)
             
@@ -531,7 +531,7 @@ class ReassemblyExpert:
         class_to_pick = target_config['class'][instance_to_pick]
         color_to_pick = target_config['color'][instance_to_pick]
         action = handspace_reassembly_template_action()
-        action['insert_brick']['class_id'] = class_to_pick
+        action['insert_brick']['shape_id'] = class_to_pick
         action['insert_brick']['color_id'] = color_to_pick
         return action
     
@@ -549,13 +549,13 @@ class ReassemblyExpert:
         # placed in the scene.
         brick_class = handspace_config['class'][1]
         class_name = self.class_names[brick_class]
-        brick_type = BrickType(class_name)
+        brick_shape = BrickShape(class_name)
         matching_target_instances = numpy.where(
             target_config['class'] == brick_class)[0]
         target_poses = target_config['pose'][matching_target_instances]
         potential_instances = []
         for instance, pose in zip(matching_target_instances, target_poses):
-            upright_snaps = self.upright_snaps(brick_type, pose)
+            upright_snaps = self.upright_snaps(brick_shape, pose)
             if len(upright_snaps):
                 potential_instances.append((instance, upright_snaps))
         
@@ -686,15 +686,15 @@ class ReassemblyExpert:
         
         return action
     
-    def upright_snaps(self, brick_type, pose):
+    def upright_snaps(self, brick_shape, pose):
         # Get the up (+y) direction for each snap and compare it against the
         # up (-y) direction of the pose.  Any of these 
-        snap_ys = [snap.transform[:3,1] for snap in brick_type.snaps]
+        snap_ys = [snap.transform[:3,1] for snap in brick_shape.snaps]
         # I think this is wrong
         # pose_y = pose[:3,1]
         # I think this is right
         pose_y = pose[1,:3]
-        snap_ys = [snap.transform[1,:3] for snap in brick_type.snaps]
+        snap_ys = [snap.transform[1,:3] for snap in brick_shape.snaps]
         alignment = [-snap_y @ pose_y for snap_y in snap_ys]
         upright_snaps = [i for i, a in enumerate(alignment) if a > 0.99]
         

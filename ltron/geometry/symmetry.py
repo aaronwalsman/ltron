@@ -24,7 +24,7 @@ from splendor.exceptions import (
 import ltron.settings as settings
 from ltron.home import get_ltron_home
 from ltron.bricks.brick_scene import BrickScene
-from ltron.bricks.brick_type import BrickType
+from ltron.bricks.brick_shape import BrickShape
 from ltron.ldraw.parts import LDRAW_PARTS, LDRAW_BLACKLIST_ALL
 from ltron.geometry.utils import metric_close_enough, vector_angle_close_enough
 
@@ -39,7 +39,7 @@ default_resolution = 512
 default_tolerance = 1
 
 def check_single_symmetry(
-    brick_type,
+    brick_shape,
     scene,
     frame_buffer,
     pose_a,
@@ -51,7 +51,7 @@ def check_single_symmetry(
     original_projection = scene.get_projection()
     
     # add new instance
-    instance = scene.add_instance(brick_type, 1, pose_a)
+    instance = scene.add_instance(brick_shape, 1, pose_a)
     
     def cleanup_scene():
         scene.remove_instance(instance)
@@ -203,30 +203,30 @@ for symmetry_name, (axis, angle) in symmetry_tests.items():
             Quaternion(axis=axis, angle=a).transformation_matrix)
         a += angle
 
-def brick_symmetry_offsets(brick_type):
-    symmetries = LDRAW_SYMMETRY[str(brick_type)]
+def brick_symmetry_offsets(brick_shape):
+    symmetries = LDRAW_SYMMETRY[str(brick_shape)]
     offsets = [numpy.eye(4)]
     for symmetry_name in symmetries:
         offsets.extend(symmetry_offsets[symmetry_name])
     
     return offsets
 
-def brick_symmetry_poses(brick_type, pose):
-    symmetry_offsets = brick_symmetry_offsets(brick_type)
+def brick_symmetry_poses(brick_shape, pose):
+    symmetry_offsets = brick_symmetry_offsets(brick_shape)
     symmetry_poses = [pose @ offset for offset in symmetry_offsets]
     return symmetry_poses
 
-def check_bricktype_symmetry(
-    brick_type,
+def check_brickshape_symmetry(
+    brick_shape,
     scene,
     framebuffer,
     tolerance=default_tolerance
 ):
-    if isinstance(brick_type, str):
-        brick_type = BrickType(brick_type)
+    if isinstance(brick_shape, str):
+        brick_shape = BrickShape(brick_shape)
     
     # if the brick has no shape, return nothing
-    if brick_type.empty_shape:
+    if brick_shape.empty_shape:
         return []
     
     try:
@@ -234,7 +234,7 @@ def check_bricktype_symmetry(
         # ever-so-slightly wrong with how it handles gaps
         # TODO: I should probably go in and fix all the obj files to compensate
         # for this instead of this hack.
-        bbox_min, bbox_max = brick_type.bbox
+        bbox_min, bbox_max = brick_shape.bbox
         bbox_range = bbox_max - bbox_min
         
         xyz_scale = []
@@ -274,7 +274,7 @@ def check_bricktype_symmetry(
         scale[2,2] = xyz_scale[2] #z_scale
         default_pose = scale
         
-        centroid = numpy.mean(brick_type.bbox_vertices, axis=1)
+        centroid = numpy.mean(brick_shape.bbox_vertices, axis=1)
         translate = numpy.eye(4)
         translate[:3,3] = -centroid[:3]
         default_pose = translate @ default_pose
@@ -285,7 +285,7 @@ def check_bricktype_symmetry(
             for name, offsets in symmetry_offsets.items():
                 test_pose = offsets[0] @ default_pose
                 if check_single_symmetry(
-                    brick_type,
+                    brick_shape,
                     scene,
                     framebuffer,
                     default_pose,
@@ -314,7 +314,7 @@ def build_symmetry_table(
     tolerance=default_tolerance,
     error_handling='raise',
 ):
-    #all_brick_types = glob.glob(
+    #all_brick_shapes = glob.glob(
     #    os.path.join(settings.paths['ldraw'], 'parts', '*.dat'))
     
     if bricks is None:
@@ -326,26 +326,26 @@ def build_symmetry_table(
     framebuffer = FrameBufferWrapper(
         resolution, resolution, anti_alias=False)
     iterate = tqdm.tqdm(bricks)
-    for brick_type in iterate:
-        brick_name = os.path.split(brick_type)[-1]
+    for brick_shape in iterate:
+        brick_name = os.path.split(brick_shape)[-1]
         iterate.set_description(brick_name.ljust(20))
-        brick_type = os.path.split(brick_type)[-1]
+        brick_shape = os.path.split(brick_shape)[-1]
         if error_handling == 'skip':
             try:
-                symmetry_table[brick_type] = check_bricktype_symmetry(
-                    brick_type, scene, framebuffer, tolerance)
+                symmetry_table[brick_shape] = check_brickshape_symmetry(
+                    brick_shape, scene, framebuffer, tolerance)
             except SplendorAssetException:
-                print('Could not find brick "%s"'%brick_type)
+                print('Could not find brick "%s"'%brick_shape)
             except KeyboardInterrupt:
                 break
             except:
-                print('Error for brick "%s"'%brick_type)
+                print('Error for brick "%s"'%brick_shape)
         elif error_handling == 'raise':
             try:
-                symmetry_table[brick_type] = check_bricktype_symmetry(
-                    brick_type, scene, framebuffer, tolerance)
+                symmetry_table[brick_shape] = check_brickshape_symmetry(
+                    brick_shape, scene, framebuffer, tolerance)
             except:
-                print('Error for brick "%s"'%brick_type)
+                print('Error for brick "%s"'%brick_shape)
                 raise
         else:
             raise ValueError('"error_handling" must be "skip" or "raise"')

@@ -121,7 +121,7 @@ def make_connection2d_dataset(
             'test' : ['test/mask*.png']
     }
     dataset_info['max_instances_per_scene'] = max_bricks
-    dataset_info['class_ids'] = {
+    dataset_info['shape_ids'] = {
             str(shape) : value
             for shape, value in class_labels.items()
     }

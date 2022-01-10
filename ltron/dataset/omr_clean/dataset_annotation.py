@@ -247,7 +247,7 @@ def build_metadata(path_root):
     for mpd in tqdm.tqdm(mpds):
         scene = BrickScene(track_snaps=True)
         scene.import_ldraw(mpd)
-        brick_names = set(scene.brick_library.keys())
+        brick_names = set(scene.shape_library.keys())
         all_brick_names |= brick_names
         color_names = set(scene.color_library.keys())
         all_color_names |= color_names
@@ -261,7 +261,7 @@ def build_metadata(path_root):
 
     metadata['max_instances_per_scene'] = max_instances_per_scene
     metadata['max_edges_per_scene'] = max_edges_per_scene
-    metadata['class_ids'] = {
+    metadata['shape_ids'] = {
         brick_name: i
         for i, brick_name in enumerate(all_brick_names, start=1)
     }

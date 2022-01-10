@@ -17,7 +17,7 @@ def get_all_snap_rotations(snap):
         cloned_snaps.append(snap.transformed_copy(transform))
     return cloned_snaps
 
-
+'''
 def get_all_transformed_snaps(snaps):
     """
     Returns a list of all positive snaps with quarter rotations about y
@@ -38,7 +38,6 @@ def get_all_transformed_snaps(snaps):
         '-': negatives,
     }
 
-
 def get_all_transformed_snap_pairs(instance1_snaps, instance2_snaps):
     snaps1 = get_all_transformed_snaps(instance1_snaps)
     snaps2 = get_all_transformed_snaps(instance2_snaps)
@@ -46,7 +45,28 @@ def get_all_transformed_snap_pairs(instance1_snaps, instance2_snaps):
         product(snaps1['+'], snaps2['-']),
         product(snaps1['-'], snaps2['+']),
     )
+'''
 
+def get_all_transformed_snaps(snaps):
+    rotated_snaps = []
+    for snap in snaps:
+        rotated_snaps.extend(get_all_snap_rotations(snap))
+    return rotated_snaps
+
+def get_all_transformed_snap_pairs(instance1_snaps, instance2_snaps):
+    #instance2_snaps = get_all_transformed_snaps(instance2_snaps)
+    pos_snaps1 = [(i,s) for i,s in enumerate(instance1_snaps)
+        if s.style == 'cylinder' and s.polarity == '+' and s.sec_radius[0] == 6]
+    neg_snaps1 = [(i,s) for i,s in enumerate(instance1_snaps)
+        if s.style == 'cylinder' and s.polarity == '-' and s.sec_radius[0] == 6]
+    pos_snaps2 = [(i,s) for i,s in enumerate(instance2_snaps)
+        if s.style == 'cylinder' and s.polarity == '+' and s.sec_radius[0] == 6]
+    neg_snaps2 = [(i,s) for i,s in enumerate(instance2_snaps)
+        if s.style == 'cylinder' and s.polarity == '-' and s.sec_radius[0] == 6]
+    return chain(
+        product(pos_snaps1, neg_snaps2),
+        product(neg_snaps1, pos_snaps2),
+    )
 
 def closest_transform(snap_cands1, snap_cands2):
     min_dist = None

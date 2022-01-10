@@ -14,7 +14,7 @@ from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent,
         RandomizedAzimuthalViewpointComponent,
         FixedAzimuthalViewpointComponent)
-from ltron.bricks.brick_type import BrickType
+from ltron.bricks.brick_shape import BrickShape
 import copy
 import collections
 import math
@@ -30,7 +30,7 @@ def compute_boxsize_old(instances, scene):
 
     instance_pos = {}
     for k in instances:
-        instance_pos[k] = scene.instances.instances[k].brick_type.bbox
+        instance_pos[k] = scene.instances.instances[k].brick_shape.bbox
 
     point = []
     for ins, bbox in instance_pos.items():
@@ -92,10 +92,10 @@ def blacklist_computation(threshold):
         part = str(part)
         if "30520.dat" in part:
             continue
-        btype = BrickType(part)
-        max_dim = numpy.max(btype.bbox[1] - btype.bbox[0])
+        bshape = BrickShape(part)
+        max_dim = numpy.max(bshape.bbox[1] - bshape.bbox[0])
         if max_dim > threshold:
-            blacklist.append(btype.reference_name)
+            blacklist.append(bshape.reference_name)
 
     blacklist.append("30520.dat")
     return blacklist
@@ -129,7 +129,7 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
         for conn in connection:
             temp = copy.deepcopy(cur_mod)
             target = int(conn[0])
-            if scene.instances.instances[target].brick_type.reference_name in blacklist:
+            if scene.instances.instances[target].brick_shape.reference_name in blacklist:
                 continue
             if target in cur_mod:
                 continue
@@ -280,7 +280,7 @@ def subcomponent_nonoverlap_extraction(src, limit, num_comp, blacklist, min_size
             for i in range(num_instances):
                 if i in sad_instance:
                     continue
-                if scene.instances.instances[i+1].brick_type.reference_name in blacklist:
+                if scene.instances.instances[i+1].brick_shape.reference_name in blacklist:
                     continue
                 #if i in used_brick:
                 #    print('used, skipping')

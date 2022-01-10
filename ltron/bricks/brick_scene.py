@@ -14,7 +14,7 @@ except ImportError:
 
 from ltron.dataset.paths import resolve_subdocument
 from ltron.ldraw.documents import LDrawDocument
-from ltron.bricks.brick_type import BrickLibrary
+from ltron.bricks.brick_shape import BrickShapeLibrary
 from ltron.bricks.brick_instance import BrickInstanceTable
 from ltron.bricks.brick_color import BrickColorLibrary
 from ltron.bricks.snap import SnapCylinder
@@ -55,7 +55,7 @@ class BrickScene:
             track_snaps=False,
             collision_checker=False,
             collision_checker_args=None,
-            brick_library=None):
+            shape_library=None):
         
         #self.default_image_light = default_image_light
         
@@ -81,12 +81,12 @@ class BrickScene:
             self.make_collision_checker(**collision_checker_args)
         
         # bricks
-        if brick_library is None:
-            brick_library = BrickLibrary()
-        self.brick_library = brick_library
+        if shape_library is None:
+            shape_library = BrickShapeLibrary()
+        self.shape_library = shape_library
         self.color_library = BrickColorLibrary()
         self.instances = BrickInstanceTable(
-                self.brick_library,
+                self.shape_library,
                 self.color_library,
         )
     
@@ -124,8 +124,8 @@ class BrickScene:
             document = document.reference_table['ldraw'][subdocument]
         
         #c = time.time()
-        # load brick types, instances and colors
-        new_types = self.brick_library.import_document(document)
+        # load brick shapes, instances and colors
+        new_shapes = self.shape_library.import_document(document)
         new_colors = self.color_library.import_document(document)
         new_instances = self.instances.import_document(
                 document, transform=self.upright)
@@ -170,8 +170,8 @@ class BrickScene:
                     t[1,0], t[1,1], t[1,2],
                     t[2,0], t[2,1], t[2,2])
                     
-            brick_type_name = str(instance.brick_type)
-            line = '1 %s %s %s'%(color, str_transform, brick_type_name)
+            brick_shape_name = str(instance.brick_shape)
+            line = '1 %s %s %s'%(color, str_transform, brick_shape_name)
             lines.append(line)
         
         with open(path, 'w') as f:
@@ -200,7 +200,7 @@ class BrickScene:
             color_labels = {
                 value:key for key, value in color_ids.items()}
             try:
-                brick_type = shape_labels[instance_shape]
+                brick_shape = shape_labels[instance_shape]
             except KeyError:
                 raise MissingClassError(instance_shape)
             try:
@@ -213,11 +213,11 @@ class BrickScene:
             else:
                 instance_id = None
             self.add_instance(
-                brick_type, color, instance_pose, instance_id=instance_id)
+                brick_shape, color, instance_pose, instance_id=instance_id)
     
     def make_shape_ids(self):
-        brick_types = [str(bt) for bt in self.brick_library.values()]
-        shape_ids = {bt:i+1 for i, bt in enumerate(brick_types)}
+        brick_shapes = [str(bt) for bt in self.shape_library.values()]
+        shape_ids = {bt:i+1 for i, bt in enumerate(brick_shapes)}
         return shape_ids
     
     def make_color_ids(self):
@@ -255,9 +255,9 @@ class BrickScene:
         for instance_id, instance in self.instances.items():
             try:
                 assembly['shape'][instance_id] = shape_ids[
-                    str(instance.brick_type)]
+                    str(instance.brick_shape)]
             except KeyError:
-                raise MissingClassError(instance.brick_type)
+                raise MissingClassError(instance.brick_shape)
             try:
                 assembly['color'][instance_id] = color_ids[str(instance.color)]
             except KeyError:
@@ -279,7 +279,7 @@ class BrickScene:
     # assets -------------------------------------------------------------------
     def clear_assets(self):
         self.clear_instances()
-        self.brick_library.clear()
+        self.shape_library.clear()
         self.color_library.clear()
         if self.renderable:
             self.render_environment.clear_meshes()
@@ -287,25 +287,25 @@ class BrickScene:
             self.render_environment.clear_image_lights()
     
     
-    # brick types --------------------------------------------------------------
-    def add_brick_type(self, brick_type):
-        new_type = self.brick_library.add_type(brick_type)
+    # brick shapes -------------------------------------------------------------
+    def add_brick_shape(self, brick_shape):
+        new_shape = self.shape_library.add_shape(brick_shape)
         if self.renderable:
-            self.render_environment.load_brick_mesh(new_type)
-        return new_type
+            self.render_environment.load_brick_mesh(new_shape)
+        return new_shape
     
     
     # instances ----------------------------------------------------------------
     def add_instance(
-        self, brick_type, brick_color, transform, instance_id=None
+        self, brick_shape, brick_color, transform, instance_id=None
     ):
         # TODO: what is this about?
         if self.renderable and self.render_environment.window is not None:
             self.render_environment.window.set_active()
-        self.brick_library.add_type(brick_type)
+        self.shape_library.add_shape(brick_shape)
         self.color_library.load_colors([brick_color])
         brick_instance = self.instances.add_instance(
-                brick_type, brick_color, transform, instance_id=instance_id)
+                brick_shape, brick_color, transform, instance_id=instance_id)
         if self.renderable:
             self.render_environment.add_instance(brick_instance)
         if self.track_snaps:
@@ -519,10 +519,10 @@ class BrickScene:
         
         all_snaps = set()
         for instance_id, instance in self.instances.items():
-            brick_type = instance.brick_type
+            brick_shape = instance.brick_shape
             all_snaps |= set(
                 (instance_id, i)
-                for i in range(len(brick_type.snaps)))
+                for i in range(len(brick_shape.snaps)))
         
         return all_snaps
     

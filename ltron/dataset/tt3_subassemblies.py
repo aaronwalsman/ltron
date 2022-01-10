@@ -60,14 +60,14 @@ spacing = 100
 if __name__ == '__main__':
     scene = BrickScene(renderable=False)
     info = get_dataset_info('tiny_turbos3')
-    for i, name in enumerate(sorted(info['class_ids'])):
-        brick_type = scene.add_brick_type(name)
+    for i, name in enumerate(sorted(info['shape_ids'])):
+        brick_shape = scene.add_brick_shape(name)
         t = numpy.eye(4)
         t[1,1] = -1.0
         t[2,2] = -1.0
         t[0,3] = i % 20 * spacing
         t[2,3] = i // 20 * spacing
-        scene.add_instance(brick_type, 4, t)
+        scene.add_instance(brick_shape, 4, t)
     
     scene.export_ldraw('./tmp.ldr')
 '''
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     scene = BrickScene(renderable=False)
     info = get_dataset_info('tiny_turbos3')
     samplers = [SingleSubAssemblySampler(class_name)
-            for class_name in info['class_ids']]
+            for class_name in info['shape_ids']]
     
     ldraw_path = os.path.join(
             settings.paths['data'], 'rando_tt3', 'ldraw')

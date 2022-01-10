@@ -95,12 +95,12 @@ class HandspacePickAndPlace(LtronGymComponent):
         workspace_scene = self.workspace_scene_component.brick_scene
         handspace_scene = self.handspace_scene_component.brick_scene
         pick_instance = handspace_scene.instances[pick_instance_id]
-        pick_brick_type = pick_instance.brick_type
+        pick_brick_shape = pick_instance.brick_shape
         pick_brick_color = pick_instance.color
-        brick_type_snap = pick_brick_type.snaps[pick_snap_id]
-        brick_type_snap_transform = brick_type_snap.transform
-        if matrix_is_mirrored(brick_type_snap_transform):
-            brick_type_snap_transform[0:3,0] *= -1
+        brick_shape_snap = pick_brick_shape.snaps[pick_snap_id]
+        brick_shape_snap_transform = brick_shape_snap.transform
+        if matrix_is_mirrored(brick_shape_snap_transform):
+            brick_shape_snap_transform[0:3,0] *= -1
         
         workspace_view_matrix = workspace_scene.get_view_matrix()
         handspace_view_matrix = handspace_scene.get_view_matrix()
@@ -112,7 +112,7 @@ class HandspacePickAndPlace(LtronGymComponent):
             workspace_transform = (
                 workspace_scene.upright @
                 rotation.transformation_matrix @
-                numpy.linalg.inv(brick_type_snap_transform)
+                numpy.linalg.inv(brick_shape_snap_transform)
             )
             handspace_camera_local = (
                 handspace_view_matrix @ pick_instance.transform)
@@ -128,7 +128,7 @@ class HandspacePickAndPlace(LtronGymComponent):
                 best_pseudo_angle = pseudo_angle
                 best_workspace_transform = workspace_transform
         new_brick = workspace_scene.add_instance(
-            str(pick_brick_type),
+            str(pick_brick_shape),
             pick_brick_color,
             best_workspace_transform,
         )
@@ -215,12 +215,12 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
         workspace_scene = self.workspace_scene_component.brick_scene
         handspace_scene = self.handspace_scene_component.brick_scene
         pick_instance = handspace_scene.instances[pick_instance_id]
-        pick_brick_type = pick_instance.brick_type
+        pick_brick_shape = pick_instance.brick_shape
         pick_brick_color = pick_instance.color
-        brick_type_snap = pick_brick_type.snaps[pick_snap_id]
-        brick_type_snap_transform = brick_type_snap.transform
-        if matrix_is_mirrored(brick_type_snap_transform):
-            brick_type_snap_transform[0:3,0] *= -1
+        brick_shape_snap = pick_brick_shape.snaps[pick_snap_id]
+        brick_shape_snap_transform = brick_shape_snap.transform
+        if matrix_is_mirrored(brick_shape_snap_transform):
+            brick_shape_snap_transform[0:3,0] *= -1
         
         workspace_view_matrix = workspace_scene.get_view_matrix()
         handspace_view_matrix = handspace_scene.get_view_matrix()
@@ -232,7 +232,7 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
         )
         
         new_brick = workspace_scene.add_instance(
-            str(pick_brick_type),
+            str(pick_brick_shape),
             pick_brick_color,
             transferred_transform,
         )

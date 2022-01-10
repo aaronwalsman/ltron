@@ -225,8 +225,8 @@ class AssemblySpace(spaces.Dict):
             (self.max_instances+1, 4, 4))
         
         for instance_id, instance in scene.instances.items():
-            brick_type_name = str(instance.brick_type)
-            shape_id = shape_ids[brick_type_name]
+            brick_shape_name = str(instance.brick_shape)
+            shape_id = shape_ids[brick_shape_name]
             result['class'][instance_id] = shape_id
             color_name = str(instance.color)
             color_id = color_ids[color_name]
@@ -305,8 +305,8 @@ class InstanceListSpace(spaces.Dict):
         result['label'] = numpy.zeros(
             (self.max_instances+1,), dtype=numpy.long)
         for instance_id, instance in scene.instances.items():
-            brick_type_name = str(instance.brick_type)
-            shape_id = shape_lookup[brick_type_name]
+            brick_shape_name = str(instance.brick_shape)
+            shape_id = shape_lookup[brick_shape_name]
             result['label'][instance_id] = shape_id
         
         if score is not None:

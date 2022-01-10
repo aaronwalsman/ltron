@@ -12,7 +12,7 @@ class
 def planner(
     start_config,
     goal_config,
-    class_ids,
+    shape_ids,
     color_ids,
     goal_collision_map = None,
 ):
@@ -38,14 +38,14 @@ def planner(
 def planner_old(
     start_config,
     goal_config,
-    class_ids,
+    shape_ids,
     color_ids,
     goal_collision_map = None,
 ):
     
     if goal_collision_map is None:
         goal_scene = BrickScene(renderable=True, track_snaps=True)
-        goal_scene.import_configuration(goal_config, class_ids, color_ids)
+        goal_scene.import_configuration(goal_config, shape_ids, color_ids)
         
         goal_collision_map = build_collision_map(goal_scene)
     

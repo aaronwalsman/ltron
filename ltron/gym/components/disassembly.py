@@ -57,12 +57,12 @@ class DisassemblyComponent(LtronGymComponent):
         
         if self.hand_scene_component is not None:
             instance = scene.instances[instance_index]
-            brick_type = str(instance.brick_type)
+            brick_shape = str(instance.brick_shape)
             color = instance.color
             handspace_scene = self.hand_scene_component.brick_scene
             handspace_scene.clear_instances()
             handspace_scene.add_instance(
-                brick_type, color, handspace_scene.upright)
+                brick_shape, color, handspace_scene.upright)
         
         scene.remove_instance(instance_index)
 

@@ -16,7 +16,7 @@ class TallestTower(LtronGymComponent):
 
         instance_pos = {}
         for k, v in self.scenecomponent.brick_scene.instances.instances.items():
-            instance_pos[k] = v.brick_type.bbox
+            instance_pos[k] = v.brick_shape.bbox
 
         point = []
         for ins, bbox in instance_pos.items():

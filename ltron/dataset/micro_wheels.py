@@ -21,21 +21,21 @@ dataset_paths = [
 from ltron.bricks.brick_scene import BrickScene
 import os
 import random
-part_types = {}
+brick_shapes = {}
 for path in dataset_paths:
     scene = BrickScene()
     scene.import_ldraw(os.path.join(settings.paths['omr'], 'ldraw', path))
-    part_types[path] = set()
+    brick_shapes[path] = set()
     for instance_id, instance in scene.instances.items():
-        brick_type = str(instance.brick_type)
-        part_types[path].add(brick_type)
+        brick_shape = str(instance.brick_shape)
+        brick_shapes[path].add(brick_shape)
 
 while True:
     test_set = random.sample(dataset_paths, 5)
     train_set = set(dataset_paths) - set(test_set)
     
-    test_parts = set.union(*[part_types[path] for path in test_set])
-    train_parts = set.union(*[part_types[path] for path in train_set])
+    test_parts = set.union(*[brick_shapes[path] for path in test_set])
+    train_parts = set.union(*[brick_shapes[path] for path in train_set])
     
     if not len(test_parts - train_parts):
         print('Train:')

@@ -95,18 +95,18 @@ class RenderEnvironment:
     
     # meshes ===================================================================
     
-    def load_brick_mesh(self, brick_type):
-        if not self.renderer.mesh_exists(brick_type.mesh_name):
+    def load_brick_mesh(self, brick_shape):
+        if not self.renderer.mesh_exists(brick_shape.mesh_name):
             self.renderer.load_mesh(
-                brick_type.mesh_name,
-                **brick_type.splendor_mesh_args(),
+                brick_shape.mesh_name,
+                **brick_shape.splendor_mesh_args(),
             )    
     
     # instances ================================================================
     
     def add_instance(self, brick_instance):
         # load mesh if necessary
-        self.load_brick_mesh(brick_instance.brick_type)
+        self.load_brick_mesh(brick_instance.brick_shape)
         
         # load the color material if necessary
         self.load_color_material(brick_instance.color)
@@ -163,7 +163,7 @@ class RenderEnvironment:
         )
         self.renderer.set_instance_mesh(
             str(brick_instance.instance_id),
-            brick_instance.brick_type.mesh_name,
+            brick_instance.brick_shape.mesh_name,
         )
         for i, snap in enumerate(brick_instance.get_snaps()):
             self.renderer.set_instance_transform(

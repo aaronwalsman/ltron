@@ -45,7 +45,7 @@ def segmentation_supervision_env(
             dataset, split, subset, rank, size, reset_mode=dataset_reset_mode)
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
-    num_classes = max(dataset_info['class_ids'].values()) + 1
+    num_classes = max(dataset_info['shape_ids'].values()) + 1
     
     # scene
     components['scene'] = SceneComponent(dataset_component = components['dataset'])
@@ -70,7 +70,7 @@ def segmentation_supervision_env(
     if random_floating_bricks:
         components['random_floating_bricks'] = RandomFloatingBricks(
                 components['scene'],
-                list(dataset_info['class_ids'].keys()),
+                list(dataset_info['shape_ids'].keys()),
                 dataset_info['all_colors'])
         max_instances += (
                 components['random_floating_bricks'].bricks_per_scene[-1])
@@ -164,7 +164,7 @@ def graph_supervision_env(
         max_edges = max(
                 max_edges, augment_info['max_edges_per_scene'])
     
-    num_classes = max(dataset_info['class_ids'].values()) + 1
+    num_classes = max(dataset_info['shape_ids'].values()) + 1
     
     # scene
     if load_scenes:
@@ -177,10 +177,10 @@ def graph_supervision_env(
     # random floating bricks
     if random_floating_bricks:
         if random_bricks_subset is None:
-            random_bricks = list(dataset_info['class_ids'].keys())
+            random_bricks = list(dataset_info['shape_ids'].keys())
         else:
             random_bricks = list(
-                    dataset_info['class_ids'].keys())[:random_bricks_subset]
+                    dataset_info['shape_ids'].keys())[:random_bricks_subset]
         components['random_floating_bricks'] = RandomFloatingBricks(
                 components['scene'],
                 random_bricks,
@@ -338,7 +338,7 @@ def graph_env(
             dataset, split, subset, rank, size, reset_mode='uniform')
     dataset_info = components['dataset'].dataset_info
     max_instances = dataset_info['max_instances_per_scene']
-    num_classes = max(dataset_info['class_ids'].values()) + 1
+    num_classes = max(dataset_info['shape_ids'].values()) + 1
     
     # scene
     components['scene'] = SceneComponent(dataset_component = components['dataset'])

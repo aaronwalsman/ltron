@@ -194,7 +194,7 @@ json_data = {
     },
     'max_instances_per_scene':3,
     'max_edges_per_scene':3,
-    'class_ids':{
+    'shape_ids':{
         '41770.dat':1,
         '3040.dat':2,
     }

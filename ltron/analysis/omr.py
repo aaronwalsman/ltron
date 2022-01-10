@@ -16,14 +16,14 @@ omr_composition_path = os.path.join(
 with open(omr_composition_path, 'r') as f:
     composition = json.load(f)
 
-all_types = set(
+all_shapes = set(
         sum([list(value.keys()) for value in composition.values()], []))
-print('Number of part types in all sets: %i'%len(all_types))
+print('Number of part shapes in all sets: %i'%len(all_shapes))
 
-type_counts = {key:len(value) for key, value in composition.items()}
+shape_counts = {key:len(value) for key, value in composition.items()}
 
-pyplot.hist(type_counts.values(), bins=20, rwidth=0.8)
-pyplot.savefig(os.path.join(output_path, 'type_hist.png'))
+pyplot.hist(shape_counts.values(), bins=20, rwidth=0.8)
+pyplot.savefig(os.path.join(output_path, 'shape_hist.png'))
 pyplot.clf()
 
 instance_counts = {
@@ -76,6 +76,6 @@ small_composition = {
         key:value for key, value in composition.items()
         if key in clipped_instance_counts_1c}
 
-small_types = set(
+small_shapes = set(
         sum([list(value.keys()) for value in small_composition.values()], []))
-print('Number of parts in <= 100 instance sets: %i'%len(small_types))
+print('Number of parts in <= 100 instance sets: %i'%len(small_shapes))

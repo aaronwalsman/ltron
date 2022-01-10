@@ -69,7 +69,7 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
                     transform[0,3] = (x-square/2.) * spacing
                     transform[2,3] = (z-square/2.) * spacing
                     scene.add_instance(
-                        target_brick.brick_type,
+                        target_brick.brick_shape,
                         target_brick.color,
                         transform,
                     )

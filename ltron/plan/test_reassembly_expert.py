@@ -13,9 +13,9 @@ scene.import_ldraw(
 )
 print('loaded')
 
-class_ids = {
-    str(brick_type) : i
-    for i, brick_type in enumerate(scene.brick_library.values(), start=1)
+shape_ids = {
+    str(brick_shape) : i
+    for i, brick_shape in enumerate(scene.shape_library.values(), start=1)
 }
 
 color_ids = {
@@ -23,7 +23,7 @@ color_ids = {
     for i, color in enumerate(scene.color_library.values(), start=0)
 }
 
-target_config = scene.get_configuration(class_ids, color_ids)
+target_config = scene.get_configuration(shape_ids, color_ids)
 #scene.remove_instance(23)
 n = len(scene.instances)
 remove = set(random.randint(1, n) for _ in range(10))
@@ -33,7 +33,7 @@ for r in remove:
     transform[1,3] += random.randint(-5,5)*8
     transform[2,3] += random.randint(-5,5)*20
     scene.move_instance(r, transform)
-workspace_config = scene.get_configuration(class_ids, color_ids)
+workspace_config = scene.get_configuration(shape_ids, color_ids)
 
 t0 = time.time()
 matches = match_configurations(workspace_config, target_config)
@@ -41,13 +41,13 @@ t1 = time.time()
 print('t: %.06f'%(t1-t0))
 
 '''
-expert = ReassemblyExpert(1, class_ids)
+expert = ReassemblyExpert(1, shape_ids)
 
-target_config = scene.get_configuration(class_ids, color_ids)
+target_config = scene.get_configuration(shape_ids, color_ids)
 
 scene.remove_instance(23)
 
-workspace_config = scene.get_configuration(class_ids, color_ids)
+workspace_config = scene.get_configuration(shape_ids, color_ids)
 
 expert.add_remove_brick(workspace_config, target_config)
 '''

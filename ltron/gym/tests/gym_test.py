@@ -21,7 +21,7 @@ components['dataset'] = DatasetPathComponent('random_six', 'all')
 dataset_info = components['dataset'].dataset_info
 print(dataset_info)
 max_instances = dataset_info['max_instances_per_scene']
-num_classes = max(dataset_info['class_ids'].values()) + 1
+num_classes = max(dataset_info['shape_ids'].values()) + 1
 # obser = dataset.observe()
 # print(obser)
 # print(dataset.dataset_info)
@@ -62,7 +62,7 @@ brickscene = components['scene'].brick_scene
 print(brickscene.instances.instances)
 instance_pos = {}
 for k, v in brickscene.instances.instances.items():
-    instance_pos[k] = v.brick_type.bbox
+    instance_pos[k] = v.brick_shape.bbox
 print(instance_pos)
 instance_tran = {}
 for k, v in brickscene.instances.instances.items():
@@ -102,7 +102,7 @@ components['scene'].brick_scene.add_instance('3003.dat', 128, numpy.eye(4))
 print(brickscene.instances.instances)
 instance_pos = {}
 for k, v in brickscene.instances.instances.items():
-    instance_pos[k] = v.brick_type.bbox
+    instance_pos[k] = v.brick_shape.bbox
 print(instance_pos)
 instance_tran = {}
 for k, v in brickscene.instances.instances.items():
@@ -117,7 +117,7 @@ snap = components['scene'].brick_scene.get_all_snaps()
 obs, reward, term, info = env.step({'pick' : [1, [128, 128], [142, 142]]})
 instance_pos = {}
 for k, v in components['scene'].brick_scene.instances.instances.items():
-    instance_pos[k] = v.brick_type.bbox
+    instance_pos[k] = v.brick_shape.bbox
 print(instance_pos)
 point = []
 for ins, bbox in instance_pos.items():
@@ -185,7 +185,7 @@ for k, v in brickscene.instances.instances.items():
 print(instance_tran)
 
 for k, v in components['scene'].brick_scene.instances.instances.items():
-    instance_pos[k] = v.brick_type.bbox
+    instance_pos[k] = v.brick_shape.bbox
 
 for ins, bbox in instance_pos.items():
     minb = bbox[0]

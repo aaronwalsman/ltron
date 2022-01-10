@@ -20,18 +20,19 @@ from ltron.geometry.scene_sampler import (
 micro_wheels_info = get_dataset_info('micro_wheels')
 colors = [int(c) for c in micro_wheels_info['all_colors']]
 
-part_types = micro_wheels_info['class_ids'].keys()
-#samplers = [SingleSubAssemblySampler(part_type) for part_type in part_types]
+brick_shapes = micro_wheels_info['shape_ids'].keys()
+#samplers = [
+#    SingleSubAssemblySampler(brick_shape) for brick_shape in brick_shapes]
 
 samplers = [
     AntennaSampler,
     SpinnerPlateSampler,
     FolderSampler,
-    # three different wheel types, so repeating three times
+    # three different wheel shapes, so repeating three times
     RegularAxleWheelSampler,
     RegularAxleWheelSampler,
     RegularAxleWheelSampler,
-    # three different wheel types, so repeating three times
+    # three different wheel shapes, so repeating three times
     WideAxleWheelSampler,
     WideAxleWheelSampler,
     WideAxleWheelSampler,

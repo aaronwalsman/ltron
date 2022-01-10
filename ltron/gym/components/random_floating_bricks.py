@@ -98,14 +98,13 @@ class RandomFloatingBricks(LtronGymComponent):
                     q = Quaternion.random()
                     new_brick_transform = q.transformation_matrix
             
-            brick_type = random.choice(self.bricks)
-            if brick_type not in brick_scene.brick_library:
-                #brick_scene.brick_library.add_type(brick_type)
-                brick_scene.add_brick_type(brick_type)
+            brick_shape = random.choice(self.bricks)
+            if brick_shape not in brick_scene.shape_library:
+                brick_scene.add_brick_shape(brick_shape)
             brick_color = random.choice(self.colors)
             if brick_color not in brick_scene.color_library:
                 brick_scene.load_colors([brick_color])
             brick_scene.add_instance(
-                    brick_type, brick_color, new_brick_transform)
+                    brick_shape, brick_color, new_brick_transform)
         
         return None

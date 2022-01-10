@@ -142,9 +142,9 @@ class RandomStackSegmentationDataset(Dataset):
         
         model_id = self.image_index_to_model_index[index]
         max_bricks_per_model = self.bricks.shape[2]
-        brick_type_lookup = torch.cat(
+        brick_shape_lookup = torch.cat(
                 (torch.LongTensor([0]), self.bricks[model_id, 0]))
-        target = brick_type_lookup[occluded_brick_indices]
+        target = brick_shape_lookup[occluded_brick_indices]
         
         return image, target
     

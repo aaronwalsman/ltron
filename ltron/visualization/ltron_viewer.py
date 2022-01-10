@@ -171,9 +171,9 @@ def start_viewer(
                     t_end_load = time.time()
                     print('Loaded: %s'%file_path)
                     print('Elapsed: %f'%(t_end_load-t_start_load))
-                    print('Brick Types: %i'%len(scene.brick_library))
-                    print('Brick Instances: %i'%len(scene.instances))
+                    print('Shapes: %i'%len(scene.shape_library))
                     print('Colors: %i'%len(scene.color_library))
+                    print('Brick Instances: %i'%len(scene.instances))
             except:
                 print('Unable to load file: %s'%file_path)
                 raise
@@ -272,7 +272,7 @@ def start_viewer(
                 print('Instance ID: %i'%instance_id)
                 instance = scene.instances[instance_id]
                 transform = instance.transform
-                type_name = instance.brick_type.reference_name
+                type_name = instance.brick_shape.reference_name
                 print('Part Name: %s'%type_name)
                 #print('Translation: %f, %f, %f'%(
                 #        transform[0,3],
@@ -598,7 +598,7 @@ def start_viewer(
     def transform_about_snap(instance_id, snap_id, transform):
         instance = scene.instances[instance_id]
         snap_transform = instance.get_snap(snap_id).transform
-        prototype_transform = instance.brick_type.snaps[snap_id].transform
+        prototype_transform = instance.brick_shape.snaps[snap_id].transform
         instance_transform = (
                 snap_transform @
                 transform @

@@ -15,8 +15,8 @@ from ltron.ldraw.documents import *
 from ltron.bricks.snap import Snap, SnapStyle, SnapClear
 
 class BrickInstanceTable(collections.abc.MutableMapping):
-    def __init__(self, brick_library, color_library, instances = None):
-        self.brick_library = brick_library
+    def __init__(self, shape_library, color_library, instances = None):
+        self.shape_library = shape_library
         self.color_library = color_library
         if instances is None:
             instances = {}
@@ -41,7 +41,7 @@ class BrickInstanceTable(collections.abc.MutableMapping):
             
         new_instance = BrickInstance(
                 instance_id,
-                self.brick_library[brick_name],
+                self.shape_library[brick_name],
                 self.color_library[brick_color],
                 brick_transform,
                 mask_color=mask_color)
@@ -107,10 +107,10 @@ class BrickInstanceTable(collections.abc.MutableMapping):
         
 class BrickInstance:
     def __init__(self,
-            instance_id, brick_type, color, transform, mask_color=None):
+            instance_id, brick_shape, color, transform, mask_color=None):
         self.instance_id = instance_id
         self.instance_name = str(self.instance_id)
-        self.brick_type = brick_type
+        self.brick_shape = brick_shape
         self.color = color
         self.transform = transform
         self.mask_color = mask_color
@@ -118,7 +118,7 @@ class BrickInstance:
     def clone(self):
         return BrickInstance(
             self.instance_id,
-            self.brick_type,
+            self.brick_shape,
             self.color,
             numpy.copy(self.transform),
             self.mask_color,
@@ -131,14 +131,10 @@ class BrickInstance:
         return self.instance_name
     
     def get_snap(self, i):
-        return self.brick_type.snaps[i].transformed_copy(self.transform)
+        return self.brick_shape.snaps[i].transformed_copy(self.transform)
     
     def get_snaps(self):
-        return [self.get_snap(i) for i in range(len(self.brick_type.snaps))]
-        #snaps = []
-        #for snap in self.brick_type.snaps:
-        #    snaps.append(snap.transformed_copy(self.transform))
-        #return snaps
+        return [self.get_snap(i) for i in range(len(self.brick_shape.snaps))]
     
     def get_upright_snaps(self):
         snaps = self.get_snaps()
@@ -148,7 +144,7 @@ class BrickInstance:
     
     def splendor_instance_args(self):
         instance_args = {
-            'mesh_name' : self.brick_type.mesh_name,
+            'mesh_name' : self.brick_shape.mesh_name,
             'material_name' : self.color.color_name,
             'transform' : self.transform,
         }
@@ -161,4 +157,4 @@ class BrickInstance:
         return instance_args
     
     def bbox_vertices(self):
-        return self.transform @ self.brick_type.bbox_vertices
+        return self.transform @ self.brick_shape.bbox_vertices

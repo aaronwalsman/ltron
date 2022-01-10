@@ -97,16 +97,15 @@ class RandomFloatingPairs(LtronGymComponent):
                 elif self.rotation_mode == 'uniform':
                     q = Quaternion.random()
                     new_brick_transform = q.transformation_matrix
-            brick_type_a = random.choice(list(self.augmentations.keys()))
-            brick_type_b = random.choice(
-                    list(self.augmentations[brick_type_a].keys()))
+            brick_shape_a = random.choice(list(self.augmentations.keys()))
+            brick_shape_b = random.choice(
+                    list(self.augmentations[brick_shape_a].keys()))
             offset_transform = random.choice(
-                    self.augmentations[brick_type_a][brick_type_b])
+                    self.augmentations[brick_shape_a][brick_shape_b])
             
-            for brick_type in brick_type_a, brick_type_b:
-                if brick_type not in brick_scene.brick_library:
-                    #brick_scene.brick_library.add_type(brick_type)
-                    brick_scene.add_brick_type(brick_type)
+            for brick_shape in brick_shape_a, brick_shape_b:
+                if brick_shape not in brick_scene.shape_library:
+                    brick_scene.add_brick_shape(brick_shape)
             
             brick_color_a = random.choice(self.colors)
             brick_color_b = random.choice(self.colors)
@@ -115,9 +114,9 @@ class RandomFloatingPairs(LtronGymComponent):
                     brick_scene.load_colors([brick_color])
             
             brick_scene.add_instance(
-                    brick_type_a, brick_color_b, new_brick_transform)
+                    brick_shape_a, brick_color_b, new_brick_transform)
             brick_scene.add_instance(
-                    brick_type_b,
+                    brick_shape_b,
                     brick_color_b,
                     numpy.dot(new_brick_transform, offset_transform))
         

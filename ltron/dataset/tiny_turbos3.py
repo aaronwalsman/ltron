@@ -221,15 +221,15 @@ for set_number, set_list in existing_sets.items():
             instances_per_scene.append(len(scene.instances))
             set_signature = {}
             for instance_id, instance in scene.instances.items():
-                brick_type = instance.brick_type
-                if str(brick_type) not in instance_counts:
-                    instance_counts[str(brick_type)] = 0
-                instance_counts[str(brick_type)] += 1
+                brick_shape = instance.brick_shape
+                if str(brick_shape) not in instance_counts:
+                    instance_counts[str(brick_shape)] = 0
+                instance_counts[str(brick_shape)] += 1
                 all_colors.add(instance.color)
                 
-                if str(brick_type) not in set_signature:
-                    set_signature[brick_type] = 0
-                set_signature[brick_type] += 1
+                if str(brick_shape) not in set_signature:
+                    set_signature[brick_shape] = 0
+                set_signature[brick_shape] += 1
             set_signature = ','.join('%s:%i'%(key, value)
                     for key, value in set_signature.items())
             if set_signature not in set_signatures:
@@ -265,10 +265,10 @@ sorted_instance_counts = reversed(sorted(
         (value, key) for key, value in instance_counts.items()))
 
 print('Part usage statistics:')
-for count, brick_type in sorted_instance_counts:
-    print('%s: %i'%(brick_type, count))
+for count, brick_shape in sorted_instance_counts:
+    print('%s: %i'%(brick_shape, count))
 
-print('%i total brick types'%len(instance_counts))
+print('%i total brick shapes'%len(instance_counts))
 
 random.seed(1234)
 breakout_paths = list(sorted(breakout_paths))
@@ -286,7 +286,7 @@ dataset_info = {
     },
     'max_instances_per_scene' : max(instances_per_scene),
     'max_edges_per_scene' : max(edges_per_scene),
-    'class_ids':dict(
+    'shape_ids':dict(
             zip(sorted(instance_counts.keys()),
             range(1, len(instance_counts)+1))),
     'all_colors':list(sorted(all_colors, key=int))

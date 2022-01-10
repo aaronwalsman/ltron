@@ -10,34 +10,34 @@ import ltron.settings as settings
 
 from ltron.bricks.brick_scene import BrickScene
 
-def is_variant(brick_type):
-    name, ext = brick_type.split('.')
+def is_variant(brick_shape):
+    name, ext = brick_shape.split('.')
     return not name.isdigit()
 
-def non_variant(brick_type, all_brick_types):
-    #nv = re.sub('[a-z].*', '', brick_type).replace('.', '') + '.dat'
+def non_variant(brick_shape, all_brick_shapes):
+    #nv = re.sub('[a-z].*', '', brick_shape).replace('.', '') + '.dat'
     try:
-        nv  = re.search('[a-z]*[0-9]+', brick_type)[0] + '.dat'
+        nv  = re.search('[a-z]*[0-9]+', brick_shape)[0] + '.dat'
     except TypeError:
-        return brick_type
-    if nv in all_brick_types:
+        return brick_shape
+    if nv in all_brick_shapes:
         return nv
     else:
-        return brick_type
+        return brick_shape
 
 def make_brick_variant_tables():
     # get all parts
     parts_path = os.path.join(settings.paths['ldraw'], 'parts', '*.dat')
-    all_brick_types = set(os.path.split(p)[-1] for p in glob.glob(parts_path))
+    all_brick_shapes = set(os.path.split(p)[-1] for p in glob.glob(parts_path))
     
     # build the tables
     non_variant_to_variant = {}
     variant_to_non_variant = {}
-    for brick_type in all_brick_types:
-        non_variant_type = non_variant(brick_type, all_brick_types)
-        non_variant_to_variant.setdefault(non_variant_type, [])
-        non_variant_to_variant[non_variant_type].append(brick_type)
-        variant_to_non_variant[brick_type] = non_variant_type
+    for brick_shape in all_brick_shapes:
+        non_variant_shape = non_variant(brick_shape, all_brick_shapes)
+        non_variant_to_variant.setdefault(non_variant_shape, [])
+        non_variant_to_variant[non_variant_shape].append(brick_shape)
+        variant_to_non_variant[brick_shape] = non_variant_shape
     
     variant_tables = {
         'non_variant_to_variant':non_variant_to_variant,
@@ -52,11 +52,11 @@ def make_brick_variant_tables():
 def remap_variants(original_scene, variant_tables):
     remapped_scene = BrickScene()
     for i, instance in original_scene.instances.items():
-        brick_type = str(instance.brick_type)
-        remapped_brick_type = variant_tables[
-            'variant_to_non_variant'][brick_type]
+        brick_shape = str(instance.brick_shape)
+        remapped_brick_shape = variant_tables[
+            'variant_to_non_variant'][brick_shape]
         remapped_scene.add_instance(
-            remapped_brick_type, instance.color, instance.transform)
+            remapped_brick_shape, instance.color, instance.transform)
     
     return remapped_scene
 

@@ -27,9 +27,9 @@ class InstanceListComponent(LtronGymComponent):
         for instance_id, instance in brick_scene.instances.items():
             if self.filter_hidden and brick_scene.instance_hidden(instance):
                 continue
-            brick_type_name = str(instance.brick_type)
-            class_id = self.dataset_component.get_class_id(brick_type_name)
-            instance_labels[instance_id, 0] = class_id
+            brick_shape_name = str(instance.brick_shape)
+            shape_id = self.dataset_component.get_shape_id(brick_shape_name)
+            instance_labels[instance_id, 0] = shape_id
         self.observation = instance_labels
     
     def reset(self):
@@ -67,7 +67,7 @@ class InstanceGraphComponent(LtronGymComponent):
         brick_scene = self.scene_component.brick_scene
         return self.observation_space.from_scene(
             brick_scene,
-            self.dataset_component.dataset_info['class_ids'],
+            self.dataset_component.dataset_info['shape_ids'],
         )
         '''
         snap_connections = brick_scene.get_all_snap_connections()

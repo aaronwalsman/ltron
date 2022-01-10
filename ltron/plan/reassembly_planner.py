@@ -175,6 +175,6 @@ def get_all_viewpoints(env):
 def set_configuration(scene, bricks):
     scene.clear_instances()
     for brick in bricks:
-        scene.add_instance(brick.brick_type, brick.color, brick.transform)
+        scene.add_instance(brick.brick_shape, brick.color, brick.transform)
 
 

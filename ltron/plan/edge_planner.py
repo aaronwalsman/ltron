@@ -7,7 +7,7 @@ import numpy
 
 from splendor.image import save_image
 
-from ltron.bricks.brick_type import BrickType
+from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.exceptions import LtronException
 from ltron.geometry.utils import default_allclose
@@ -283,7 +283,7 @@ def compute_discrete_rotation(
     goal_connected_instance,
     wip_instance,
     wip_connected_instance,
-    brick_type_name,
+    brick_shape_name,
     rotation_steps = 4,
 ):
     
@@ -303,8 +303,8 @@ def compute_discrete_rotation(
         wip_transform
     )
     
-    brick_type = BrickType(brick_type_name)
-    snap_transform = brick_type.snaps[snap].transform
+    brick_shape = BrickShape(brick_shape_name)
+    snap_transform = brick_shape.snaps[snap].transform
     inv_snap_transform = numpy.linalg.inv(snap_transform)
     wip_snap_transform = wip_transform @ snap_transform
     
@@ -353,7 +353,7 @@ def plan_add_first_brick(
     instance,
     observation,
     goal_to_wip,
-    shape_to_brick_type,
+    shape_id_to_brick_shape,
     debug=False
 ):
     
@@ -371,8 +371,8 @@ def plan_add_first_brick(
     brick_transform = goal_assembly['pose'][instance]
     
     # find the upright snaps ---------------------------------------------------
-    brick_type = BrickType(shape_to_brick_type[brick_shape])
-    brick_instance = BrickInstance(0, brick_type, brick_color, brick_transform)
+    brick_shape = BrickShape(shape_id_to_brick_shape[brick_shape])
+    brick_instance = BrickInstance(0, brick_shape, brick_color, brick_transform)
     upright_snaps, upright_snap_ids = brick_instance.get_upright_snaps()
     
     # if there are no upright snaps this brick cannot be added as a first brick
@@ -453,7 +453,7 @@ def plan_add_nth_brick(
     instance,
     observation,
     goal_to_wip,
-    shape_to_brick_type,
+    shape_id_to_brick_shape,
     debug=False,
 ):
     
@@ -609,7 +609,7 @@ def plan_add_nth_brick(
         wip_to_goal[wii],
         new_wip_instance,
         wii,
-        shape_to_brick_type[brick_shape],
+        shape_id_to_brick_shape[brick_shape],
         rotation_steps = 4,
     )
     
@@ -675,7 +675,7 @@ def plan_remove_nth_brick(
     instance,
     observation,
     false_positive_to_wip,
-    shape_to_brick_type,
+    shape_id_to_brick_shape,
     debug=False
 ):
     
@@ -704,8 +704,8 @@ def plan_remove_nth_brick(
     
     if not len(wip_instances):
         brick_shape = wip_assembly['shape'][wip_instance]
-        brick_type = BrickType(shape_to_brick_type[brick_shape])
-        instance_snaps = numpy.array(range(len(brick_type.snaps)))
+        brick_shape = BrickShape(shape_id_to_brick_shape[brick_shape])
+        instance_snaps = numpy.array(range(len(brick_shape.snaps)))
     
     # compute the table camera motion
     state = env.get_state()

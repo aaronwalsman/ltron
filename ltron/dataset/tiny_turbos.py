@@ -118,10 +118,10 @@ for existing_set in existing_sets:
     instances_per_scene.append(len(scene.instances))
     print('%s has %i instances'%(existing_set, len(scene.instances)))
     for instance_id, instance in scene.instances.items():
-        brick_type = instance.brick_type
-        if str(brick_type) not in instance_counts:
-            instance_counts[str(brick_type)] = 0
-        instance_counts[str(brick_type)] += 1
+        brick_shape = instance.brick_shape
+        if str(brick_shape) not in instance_counts:
+            instance_counts[str(brick_shape)] = 0
+        instance_counts[str(brick_shape)] += 1
         all_colors.add(instance.color)
 
 print('Average instances per model: %f'%(
@@ -133,10 +133,10 @@ sorted_instance_counts = reversed(sorted(
         (value, key) for key, value in instance_counts.items()))
 
 print('Part usage statistics:')
-for count, brick_type in sorted_instance_counts:
-    print('%s: %i'%(brick_type, count))
+for count, brick_shape in sorted_instance_counts:
+    print('%s: %i'%(brick_shape, count))
 
-print('%i total brick types'%len(instance_counts))
+print('%i total brick shapes'%len(instance_counts))
 
 random.seed(1234)
 existing_sets = list(sorted(existing_sets))
@@ -154,7 +154,7 @@ dataset_info = {
         'test' : test_tiny_turbos
     },
     'max_instances_per_scene' : max(instances_per_scene),
-    'class_ids':dict(
+    'shape_ids':dict(
             zip(sorted(instance_counts.keys()),
             range(1, len(instance_counts)+1))),
     'all_colors':list(sorted(all_colors, key=int))

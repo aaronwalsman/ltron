@@ -22,23 +22,23 @@ from ltron.ldraw.documents import (
 from ltron.bricks.snap import (
     Snap, SnapStyle, SnapClear, deduplicate_snaps, griderate)
 
-class BrickLibrary(collections.abc.MutableMapping):
-    def __init__(self, brick_types=None):
-        if brick_types is None:
-            brick_types = {}
-        self.brick_types = brick_types
+class BrickShapeLibrary(collections.abc.MutableMapping):
+    def __init__(self, brick_shapes=None):
+        if brick_shapes is None:
+            brick_shapes = {}
+        self.brick_shapes = brick_shapes
     
-    def add_type(self, new_type):
-        if new_type in self:
-            return self[new_type]
+    def add_shape(self, new_shape):
+        if new_shape in self:
+            return self[new_shape]
         
-        if not isinstance(new_type, BrickType):
-            new_type = BrickType(new_type)
-        self[new_type.reference_name] = new_type
-        return new_type
+        if not isinstance(new_shape, BrickShape):
+            new_shape = BrickShape(new_shape)
+        self[new_shape.reference_name] = new_shape
+        return new_shape
     
     def import_document(self, document):
-        new_types = []
+        new_shapes = []
         for command in document.commands:
             if isinstance(command, LDrawImportCommand):
                 reference_name = command.reference_name
@@ -46,32 +46,32 @@ class BrickLibrary(collections.abc.MutableMapping):
                         document.reference_table['ldraw'][reference_name])
                 if isinstance(reference_document, LDrawDAT):
                     if reference_name in LDRAW_PARTS:
-                        new_types.append(self.add_type(reference_document))
+                        new_shapes.append(self.add_shape(reference_document))
                 elif isinstance(
                     reference_document, 
                     (LDrawMPDMainFile, LDrawMPDInternalFile, LDrawLDR),
                 ):
-                    new_types.extend(self.import_document(reference_document))
+                    new_shapes.extend(self.import_document(reference_document))
                     
-        return new_types
+        return new_shapes
     
     def __getitem__(self, key):
-        return self.brick_types[str(key)]
+        return self.brick_shapes[str(key)]
    
     def __setitem__(self, key, value):
-        assert isinstance(value, BrickType)
-        self.brick_types[str(key)] = value
+        assert isinstance(value, BrickShape)
+        self.brick_shapes[str(key)] = value
     
     def __delitem__(self, key):
-        del(self.brick_types[str(key)])
+        del(self.brick_shapes[str(key)])
     
     def __iter__(self):
-        return iter(self.brick_types)
+        return iter(self.brick_shapes)
     
     def __len__(self):
-        return len(self.brick_types)
+        return len(self.brick_shapes)
 
-class BrickType:
+class BrickShape:
     def __init__(self, document):
         if isinstance(document, str):
             document = LDrawDocument.parse_document(document)

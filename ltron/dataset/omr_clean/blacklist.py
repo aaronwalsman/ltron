@@ -35,13 +35,13 @@ def blacklist_out(
             continue
 
         model_name = model.split("/")[-1]
-        keep = [i+1 for i in range(len(scene.instances)) if scene.instances.instances[i+1].brick_type.reference_name not in blacklist]
+        keep = [i+1 for i in range(len(scene.instances)) if scene.instances.instances[i+1].brick_shape.reference_name not in blacklist]
         # for i in range(len(scene.instances)):
         #     try:
-        #         if scene.instances.instances[i+1].brick_type.reference_name in blacklist:
+        #         if scene.instances.instances[i+1].brick_shape.reference_name in blacklist:
         #             scene.remove_instance(i+1)
         #     except:
         #         print(scene.instances.instances)
         #         print(i)
-        #         print(scene.instances.instances[i+1].brick_type)
+        #         print(scene.instances.instances[i+1].brick_shape)
         scene.export_ldraw(dest + model_name, instances=keep)

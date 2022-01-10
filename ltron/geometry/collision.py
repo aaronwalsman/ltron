@@ -26,18 +26,17 @@ class CollisionChecker:
         scene,
         resolution=(64,64),
         max_intersection=4,
-        return_colliding_instances=False
     ):
         self.scene = scene
         self.frame_buffer = make_collision_framebuffer(resolution)
         self.max_intersection = max_intersection
-        self.return_colliding_instances=False
     
     def check_collision(
         self,
         target_instances,
         render_transform,
-        scene_instances=None
+        scene_instances=None,
+        **kwargs,
     ):
         return check_collision(
             self.scene,
@@ -45,23 +44,20 @@ class CollisionChecker:
             render_transform,
             frame_buffer=self.frame_buffer,
             max_intersection=self.max_intersection,
-            return_colliding_instances=self.return_colliding_instances
+            **kwargs,
         )
     
     def check_snap_collision(
         self,
         target_instances,
         snap,
-        *args,
         **kwargs,
     ):
         return check_snap_collision(
             self.scene,
             target_instances,
             snap,
-            *args,
             frame_buffer=self.frame_buffer,
-            return_colliding_instances=self.return_colliding_instances,
             **kwargs,
         )
 
@@ -234,7 +230,7 @@ def check_collision(
     local_target_vertices = []
     inv_camera_transform = numpy.linalg.inv(camera_transform)
     for target_instance in target_instances:
-        vertices = target_instance.brick_type.bbox_vertices
+        vertices = target_instance.brick_shape.bbox_vertices
         transform = inv_camera_transform @ target_instance.transform
         local_target_vertices.append(transform @ vertices)
     local_target_vertices = numpy.concatenate(local_target_vertices, axis=1)
@@ -409,7 +405,7 @@ def check_collision_old(
     # this could be done by transforming the bounding box corners
     # (bbox of transformed bbox)
     for target_instance in target_instances:
-        vertices = target_instance.brick_type.vertices
+        vertices = target_instance.brick_shape.vertices
         transform = inv_snap_transform @ target_instance.transform
         local_vertices.append(transform @ vertices)
     local_vertices = numpy.concatenate(local_vertices, axis=1)

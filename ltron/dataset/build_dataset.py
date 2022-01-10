@@ -27,7 +27,7 @@ def build_metadata(name, path_root, test_percent):
     for mpd in tqdm.tqdm(mpds):
         scene = BrickScene(track_snaps=True)
         scene.import_ldraw(mpd)
-        brick_names = set(scene.brick_library.keys())
+        brick_names = set(scene.shape_library.keys())
         all_brick_names |= brick_names
         color_names = set(scene.color_library.keys())
         all_color_names |= color_names
@@ -41,7 +41,7 @@ def build_metadata(name, path_root, test_percent):
     
     metadata['max_instances_per_scene'] = max_instances_per_scene
     metadata['max_edges_per_scene'] = max_edges_per_scene
-    metadata['class_ids'] = {
+    metadata['shape_ids'] = {
         brick_name : i
         for i, brick_name in enumerate(all_brick_names, start=1)
     }
@@ -84,7 +84,7 @@ def build_dataset_old(name, path_root, paths, test_set):
     for path in tqdm.tqdm(absolute_paths):
         scene = BrickScene(track_snaps=True)
         scene.import_ldraw(path)
-        brick_names = set(scene.brick_library.keys())
+        brick_names = set(scene.shape_library.keys())
         all_brick_names |= brick_names
         
         num_instances = len(scene.instances)
@@ -97,14 +97,14 @@ def build_dataset_old(name, path_root, paths, test_set):
         all_colors |= colors
         
         for instance_id, instance in scene.instances.items():
-            brick_name = str(instance.brick_type)
+            brick_name = str(instance.brick_shape)
             if brick_name not in instance_counts:
                 instance_counts[brick_name] = 0
             instance_counts[brick_name] += 1
     
     data['max_instances_per_scene'] = max_instances_per_scene
     data['max_edges_per_scene'] = max_edges_per_scene
-    data['class_ids'] = dict(zip(
+    data['shape_ids'] = dict(zip(
             sorted(instance_counts.keys()),
             range(1, len(instance_counts)+1)))
     data['all_colors'] = list(sorted(all_colors, key=int))

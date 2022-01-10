@@ -35,15 +35,15 @@ class InstanceGraphConstructionTask(LtronGymComponent):
         
         brick_scene = self.scene_component.brick_scene
         scene_connections = brick_scene.get_all_snap_connections()
-        class_lookup = self.dataset_component.dataset_info['class_ids']
+        class_lookup = self.dataset_component.dataset_info['shape_ids']
         for instance_a in scene_connections:
             brick_instance_a = brick_scene.instances[instance_a]
-            class_a = class_lookup[str(brick_instance_a.brick_type)]
+            class_a = class_lookup[str(brick_instance_a.brick_shape)]
             for instance_b, snap_id, _ in scene_connections[instance_a]:
                 brick_instance_b = brick_scene.instances[instance_b]
                 id_a = int(instance_a)
                 id_b = int(instance_b)
-                class_b = class_lookup[str(brick_instance_b.brick_type)]
+                class_b = class_lookup[str(brick_instance_b.brick_shape)]
                 if id_a < id_b:
                     #self.true_edges[(id_a, id_b, class_a, class_b)] = 1.0
                     self.true_edges[(id_a, id_b)] = 1.0
@@ -52,7 +52,7 @@ class InstanceGraphConstructionTask(LtronGymComponent):
         for instance in brick_scene.instances:
             instance_id = int(instance)
             brick_instance = brick_scene.instances[instance]
-            class_label = class_lookup[str(brick_instance.brick_type)]
+            class_label = class_lookup[str(brick_instance.brick_shape)]
             self.true_instances[(instance_id, class_label)] = 1.0
         
         return None
