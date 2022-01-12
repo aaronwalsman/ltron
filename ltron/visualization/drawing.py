@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 try:
     from skimage.draw import line
     skimage_available = True
-else:
+except ImportError:
     skimage_available = False
 
 from splendor.masks import color_index_to_byte
