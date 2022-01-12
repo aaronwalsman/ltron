@@ -2,7 +2,11 @@ import numpy
 
 from PIL import Image, ImageDraw, ImageFont
 
-from skimage.draw import line
+try:
+    from skimage.draw import line
+    skimage_available = True
+else:
+    skimage_available = False
 
 from splendor.masks import color_index_to_byte
 
@@ -14,6 +18,7 @@ def draw_box(image, min_x, min_y, max_x, max_y, color):
     image[min_y:max_y+1, max_x] = color
 
 def draw_vector_field(image, vector_field, weight, color):
+    assert skimage_available
     image_height, image_width = image.shape[:2]
     field_height, field_width = vector_field.shape[:2]
     
