@@ -73,12 +73,11 @@ class Config:
     
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            assert hasattr(self, key), 'Invalid Config Argument: %s'%key
+            assert hasattr(self.__class__, key), (
+                'Invalid Config Argument: %s'%key)
             setattr(self, key, value)
         
         self.set_all_dependents()
-        
-        self.kwargs = kwargs
     
     def set_all_dependents(self):
         inheritance = list(reversed(self.__class__.mro()))
@@ -186,6 +185,9 @@ class Config:
         
         return cls(**args)
     
+    def as_dict(self):
+        return {attr : getattr(self, attr) for attr in self.primary_attrs()}
+    
     def write_config(self, file_path, section='CONFIG'):
         file_path = os.path.expanduser(file_path)
         parser = ConfigParser(allow_no_value=True)
@@ -193,6 +195,6 @@ class Config:
             parser.read_file(open(file_path))
         except FileNotFoundError:
             pass
-        parser[section] = self.kwargs
+        parser[section] = self.as_dict()
         with open(file_path, 'w') as f:
             parser.write(f)
