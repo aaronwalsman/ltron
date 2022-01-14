@@ -101,12 +101,14 @@ def start_viewer(
         render_args={
             'opengl_mode':'glut',
             'window_width':width,
-            'window_height':height},
+            'window_height':height,
+            'load_scene':'grey_cube'},
         track_snaps=True)
     
     window = scene.render_environment.window
     renderer = scene.render_environment.renderer
     
+    '''
     scene.add_direction_light(
             'front',
             direction=(0,-0.707,-0.707),
@@ -126,7 +128,7 @@ def start_viewer(
     )
     
     scene.set_ambient_color((0.3,0.3,0.3))
-    
+    '''
     #scene.set_background_color((0.65,0.65,0.65))
     #scene.set_background_color((1.0, 1.0, 1.0))
     scene.set_background_color((0.4,0.4,0.4))
