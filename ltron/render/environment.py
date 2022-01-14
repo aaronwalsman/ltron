@@ -221,7 +221,11 @@ class RenderEnvironment:
     def mask_render(self, instances=None, **kwargs):
         if instances is None:
             instances = self.get_all_brick_instances()
+        
+        background_color = self.renderer.get_background_color()
+        self.renderer.set_background_color((0,0,0))
         self.renderer.mask_render(instances=instances, **kwargs)
+        self.renderer.set_background_color(background_color)
     
     def get_snap_names(self, snaps):
         return [
@@ -232,16 +236,24 @@ class RenderEnvironment:
     def snap_render_instance_id(self, snaps=None, **kwargs):
         if snaps is None:
             snaps = self.get_all_snap_instances()
+        
+        background_color = self.renderer.get_background_color()
+        self.renderer.set_background_color((0,0,0))
             
         self.set_snap_masks_to_instance_id(snaps)
         self.renderer.mask_render(instances=snaps, **kwargs)
+        self.renderer.set_background_color(background_color)
     
     def snap_render_snap_id(self, snaps=None, **kwargs):
         if snaps is None:
             snaps = self.get_all_snap_instances()
         
+        background_color = self.renderer.get_background_color()
+        self.renderer.set_background_color((0,0,0))
+        
         self.set_snap_masks_to_snap_id(snaps)
         self.renderer.mask_render(instances=snaps, **kwargs)
+        self.renderer.set_background_color(background_color)
     
     def set_snap_masks_to_instance_id(self, snaps):
         if snaps is None:
