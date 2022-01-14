@@ -366,13 +366,13 @@ def plan_add_first_brick(
     action_seq = []
     
     # pull shape, color and transform information out of the goal assembly
-    brick_shape = goal_assembly['shape'][instance]
-    brick_color = goal_assembly['color'][instance]
+    shape_index = goal_assembly['shape'][instance]
+    color_index = goal_assembly['color'][instance]
     brick_transform = goal_assembly['pose'][instance]
     
     # find the upright snaps ---------------------------------------------------
-    brick_shape = BrickShape(shape_id_to_brick_shape[brick_shape])
-    brick_instance = BrickInstance(0, brick_shape, brick_color, brick_transform)
+    brick_shape = BrickShape(shape_id_to_brick_shape[shape_index])
+    brick_instance = BrickInstance(0, brick_shape, color_index, brick_transform)
     upright_snaps, upright_snap_ids = brick_instance.get_upright_snaps()
     
     # if there are no upright snaps this brick cannot be added as a first brick
@@ -380,7 +380,7 @@ def plan_add_first_brick(
         return None
 
     # make the insert action ---------------------------------------------------
-    insert_action = make_insert_action(env, brick_shape, brick_color)
+    insert_action = make_insert_action(env, shape_index, color_index)
     action_seq.append(insert_action)
     observation, reward, terminal, info = env.step(insert_action)
     observation_seq.append(observation)
