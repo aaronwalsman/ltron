@@ -40,6 +40,7 @@ class AssemblyComponent(LtronGymComponent):
                 )
             except:
                 self.scene_component.brick_scene.export_ldraw('./woops.mpd')
+                raise
             #self.assembly = self.observation_space.from_scene(
             #    self.scene_component.brick_scene)
         
