@@ -25,7 +25,10 @@ from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
 from ltron.gym.components.colors import RandomizeColorsComponent
 from ltron.gym.components.break_and_make import (
-        BreakAndMakePhaseSwitch, BreakAndMakeScore
+        BreakAndMakePhaseSwitch,
+        BreakOnlyPhaseSwitch,
+        BreakAndMakeScore,
+        BreakOnlyScore,
 )
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
@@ -38,6 +41,7 @@ class BreakAndMakeEnvConfig(Config):
     ldraw_file = None
     split = 'train'
     subset = None
+    
     task = 'break_and_make'
     
     table_image_height = 256
@@ -284,15 +288,17 @@ class BreakAndMakeEnv(LtronEnv):
         )
         
         # phase
-        components['phase'] = BreakAndMakePhaseSwitch(
-            task=config.task,
-            table_scene_component=components['table_scene'],
-            table_viewpoint_component=components['table_viewpoint'],
-            hand_scene_component=components['hand_scene'],
-            dataset_component=components['dataset'],
-            start_make_mode='clear',
-            train=config.train,
-        )
+        if config.task == 'break_and_make':
+            components['phase'] = BreakAndMakePhaseSwitch(
+                table_scene_component=components['table_scene'],
+                table_viewpoint_component=components['table_viewpoint'],
+                hand_scene_component=components['hand_scene'],
+                dataset_component=components['dataset'],
+                start_make_mode='clear',
+                train=config.train,
+            )
+        elif config.task == 'break_only':
+            components['phase'] = BreakOnlyPhaseSwitch()
         
         # color render
         components['table_color_render'] = ColorRenderComponent(
@@ -354,12 +360,18 @@ class BreakAndMakeEnv(LtronEnv):
         
         # score
         if config.include_score:
-            components['score'] = BreakAndMakeScore(
-                components['initial_table_assembly'],
-                components['table_assembly'],
-                components['phase'],
-                shape_ids,
-            )
+            if config.task == 'break_and_make':
+                components['score'] = BreakAndMakeScore(
+                    components['initial_table_assembly'],
+                    components['table_assembly'],
+                    components['phase'],
+                    shape_ids,
+                )
+            else:
+                components['score'] = BreakOnlyScore(
+                    components['initial_table_assembly'],
+                    components['table_assembly'],
+                )
         
         # build the env
         #env = LtronEnv(components, print_traceback=print_traceback)

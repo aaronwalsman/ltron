@@ -14,14 +14,14 @@ from ltron.gym.spaces import AssemblySpace, InstanceMatchingSpace
 class BreakAndMakePhaseSwitch(LtronGymComponent):
     def __init__(self,
         table_scene_component,
-        task='break_and_make',
+        #task='break_and_make',
         table_viewpoint_component=None,
         hand_scene_component=None,
         dataset_component=None,
         start_make_mode='clear',
         train=False,
     ):
-        self.task = task
+        #self.task = task
         self.table_scene_component = table_scene_component
         self.table_viewpoint_component = table_viewpoint_component
         self.hand_scene_component = hand_scene_component
@@ -40,6 +40,9 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
         self.phase = 0
         self.observe()
         return self.observation
+    
+    def no_op_action(self):
+        return 0
     
     def step(self, action):
         if action == 1 and not self.phase:
@@ -79,12 +82,12 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
         
         self.observe()
         
-        if self.task == 'break_only':
-            terminal = (action == 1) or (action == 2)
-        else:
-            terminal = (action == 2)
+        #if self.task == 'break_only':
+        #    terminal = (action == 1) or (action == 2)
+        #else:
+        #    terminal = (action == 2)
         
-        return self.observation, 0., terminal, {}
+        return self.observation, 0., (action == 2), {}
     
     def set_state(self, state):
         self.phase = state['phase']
@@ -92,6 +95,17 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
     
     def get_state(self):
         return {'phase':self.phase}
+
+class BreakOnlyPhaseSwitch(LtronGymComponent):
+    def __init__(self):
+        self.action_space = Discrete(3)
+        self.observation_space = Discrete(2)
+    
+    def reset(self):
+        return 0
+    
+    def step(self, action):
+        return 0, 0., (action != 0), {}
     
     def no_op_action(self):
         return 0
@@ -141,4 +155,22 @@ class BreakOnlyScore(LtronGymComponent):
     
     def observe(self):
         initial_assembly = self.initial_assembly_component.assembly
-        FINISH_THIS_UP
+        current_assembly = self.current_assembly_component.assembly
+        initial_count = numpy.sum(initial_assembly['shape'] != 0)
+        current_count = numpy.sum(current_assembly['shape'] != 0)
+        if initial_count:
+            self.score = 1. - (current_count / initial_count)
+        else:
+            self.score = 0.
+    
+    def reset(self):
+        self.observe()
+        return None
+    
+    def step(self, action):
+        self.observe()
+        return None, self.score, False, {}
+    
+    def set_state(self, state):
+        self.observe()
+        return None
