@@ -38,6 +38,17 @@ class MissingClassError(LtronException):
 class MissingColorError(LtronException):
     pass
 
+class TooManyInstancesError(LtronException):
+    pass
+
+def make_empty_assembly(max_instances, max_edges):
+    return {
+        'shape' : numpy.zeros((max_instances+1), dtype=numpy.long),
+        'color' : numpy.zeros((max_instances+1), dtype=numpy.long),
+        'pose' : numpy.zeros((max_instances+1, 4, 4)),
+        'edges' : numpy.zeros((4, max_edges), dtype=numpy.long),
+    }
+
 class BrickScene:
     
     upright = numpy.array([
@@ -246,9 +257,13 @@ class BrickScene:
                 max_instances = 0
         else:
             if len(self.instances):
-                assert max(self.instances.keys()) <= max_instances, (
-                    'Instance ids %s larger than max_instances: %i'%(
-                    list(self.instances.keys()), max_instances))
+                #assert max(self.instances.keys()) <= max_instances, (
+                #    'Instance ids %s larger than max_instances: %i'%(
+                #    list(self.instances.keys()), max_instances))
+                if max(self.instances.keys()) > max_instances:
+                    raise TooManyInstancesError(
+                        'Instance ids %s larger than max_instances: %i'%(
+                        list(self.instances.keys()), max_instances))
         assembly['shape'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         assembly['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         assembly['pose'] = numpy.zeros((max_instances+1, 4, 4))

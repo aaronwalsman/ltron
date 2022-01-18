@@ -1,5 +1,6 @@
 from gym.spaces import Dict
 
+from ltron.bricks.brick_scene import TooManyInstancesError, make_empty_assembly
 from ltron.gym.spaces import AssemblySpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
@@ -38,11 +39,10 @@ class AssemblyComponent(LtronGymComponent):
                     self.max_instances,
                     self.max_edges,
                 )
-            except:
-                self.scene_component.brick_scene.export_ldraw('./woops.mpd')
-                raise
-            #self.assembly = self.observation_space.from_scene(
-            #    self.scene_component.brick_scene)
+            except TooManyInstancesError:
+                self.terminal = True
+                self.assembly = make_empty_assembly(
+                    self.max_instances, self.max_edges)
         
         if self.observe_assembly:
             self.observation = self.assembly
@@ -50,12 +50,13 @@ class AssemblyComponent(LtronGymComponent):
             self.observation = None
     
     def reset(self):
+        self.terminal = False
         self.observe(initial=True)
         return self.observation
     
     def step(self, action):
         self.observe()
-        return self.observation, 0., False, None
+        return self.observation, 0., self.terminal, None
     
     def set_state(self, state):
         self.assembly = state
