@@ -12,6 +12,11 @@ from splendor.masks import color_index_to_byte
 
 def draw_box(image, min_x, min_y, max_x, max_y, color):
     # expects numpy image hxwx3
+    h, w = image.shape[:2]
+    min_x = max(min_x, 0)
+    min_y = max(min_y, 0)
+    max_x = min(max_x, w)
+    max_y = min(max_y, h)
     image[min_y, min_x:max_x+1] = color
     image[max_y, min_x:max_x+1] = color
     image[min_y:max_y+1, min_x] = color

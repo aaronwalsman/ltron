@@ -68,6 +68,14 @@ def index_hierarchy(a, index):
         return a[index]
     return map_hierarchies(fn, a)
 
+def set_index_hierarchy(a, b, index):
+    def fn(a, b):
+        a[index] = b
+        return None
+    
+    map_hierarchies(fn, a, b)
+    return None
+
 def hierarchy_branch(a, branch_keys):
     for key in branch_keys:
         a = a[key]
@@ -154,6 +162,15 @@ def concatenate_lists(a, **kwargs):
             return a
     
     return map_dicts(fn, a)
+
+def increase_capacity(a, factor=2):
+    def fn(a):
+        new_shape = (int(a.shape[0] * factor), *a.shape[1:])
+        new_storage = numpy.zeros(new_shape, dtype=a.dtype)
+        new_storage[:a.shape[0]] = a
+        return new_storage
+    
+    return map_hierarchies(fn, a)
 
 # conversion ===================================================================
 def deep_list_to_tuple(a):

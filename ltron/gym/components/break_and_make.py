@@ -148,6 +148,47 @@ class BreakAndMakeScore(LtronGymComponent):
         self.observe()
         return None
 
+'''
+class BreakAndCountScore(LtronGymComponent):
+    def __init__(self,
+        initial_assembly_component,
+        hand_scene_component,
+        phase_component,
+    ):
+        self.initial_assembly_component = initial_assembly_component
+        self.hand_scene_component = hand_scene_component
+        self.phase_component = phase_component
+    
+    def observe(self):
+        if self.phase_component.phase:
+            # THIS IS ALL WRONG, YOU HAVE TO DO IT ONCE WHEN THE ITEM IS ADDED
+            # NOT EVERY FRAME
+            hand_assembly = self.hand_scene_component.brick_scene.get_assembly(
+                shape_ids = self.initial_assembly_component.shape_ids,
+                color_ids = self.initial_assembly_component.color_ids,
+            )
+            instance_id = numpy.where(hand_assembly['shape'] != 0)[0]
+            shape_id = hand_assembly['shape'][instance_id]
+            color_id = hand_assembly['color'][instance_id]
+            if (shape_id)
+            
+        else:
+            self.score = 0.
+    
+    def reset(self):
+        # lists are dumb for this, but we won't have big enough ones to matter
+        # sets do not allow for multisets which is what we need, and I don't
+        # want to deal with making a dictionary multiset thing
+        self.true_positive_instances = []
+        self.false_positive_instances = []
+        initial_assembly = self.initial_assembly_component.assembly
+        instance_ids = numpy.where(initial_assembly['shape'] != 0)[0]
+        self.false_negative_instances = [
+            (initial_assembly['shape'][i], initial_assembly['color'][i]
+            for i in instance_ids
+        ]
+'''
+
 class BreakOnlyScore(LtronGymComponent):
     def __init__(self, initial_assembly_component, current_assembly_component):
         self.initial_assembly_component = initial_assembly_component

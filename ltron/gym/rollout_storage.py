@@ -15,6 +15,8 @@ from ltron.hierarchy import (
     stack_numpy_hierarchies,
     pad_numpy_hierarchy,
     hierarchy_branch,
+    increase_capacity,
+    set_index_hierarchy,
 )
 
 class RolloutStorage:
@@ -27,6 +29,7 @@ class RolloutStorage:
         self.batch_seq_ids = [None for _ in range(self.batch_size)]
         self.next_seq_index = 0
         self.total_steps = 0
+        self.batch_index = 0
     
     def save(self, path, finished_only=False, seq_ids=None):
         path = os.path.expanduser(path)
@@ -54,6 +57,7 @@ class RolloutStorage:
         new_storage.batch_seq_ids = copy.deepcopy(self.batch_seq_ids)
         new_storage.next_seq_index = self.next_seq_index
         new_storage.total_steps = self.total_steps
+        # THIS IS WRONG, SHOULD JUST USE SOME HIERARCHY CONCAT THING
         new_storage.gym_data = {}
         new_storage.gym_data.update(self.gym_data)
         new_storage.gym_data.update(other.gym_data)
@@ -77,12 +81,21 @@ class RolloutStorage:
         
         if self.gym_data is None:
             self.gym_data = kwargs
+            self.batch_index += self.batch_size
         else:
-            self.gym_data = concatenate_numpy_hierarchies(self.gym_data, kwargs)
+            #self.gym_data = concatenate_numpy_hierarchies(
+            #    self.gym_data, kwargs)
+            if self.batch_index >= len_hierarchy(self.gym_data):
+                self.gym_data = increase_capacity(self.gym_data, factor=2)
+            set_index_hierarchy(
+                self.gym_data, kwargs,
+                range(self.batch_index, self.batch_index+self.batch_size),
+            )
+            self.batch_index += self.batch_size
         
         for i, v in enumerate(valid):
+            step_index = self.total_steps + i
             if v:
-                step_index = self.total_steps + i
                 if self.batch_seq_ids[i] not in self.seq_locations:
                     self.seq_locations[self.batch_seq_ids[i]] = []
                 self.seq_locations[self.batch_seq_ids[i]].append(step_index)
@@ -118,6 +131,7 @@ class RolloutStorage:
         return self.seq_locations[seq][step]
     
     def get_batch_from_storage_ids(self, storage_ids):
+        # WHY IS THIS IF/ELSE NECESSARY?  Can't index_hierarchy handle this?
         if isinstance(self.gym_data, dict):
             gym_data = {}
             for key, value in self.gym_data.items():
