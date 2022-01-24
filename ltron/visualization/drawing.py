@@ -10,6 +10,8 @@ except ImportError:
 
 from splendor.masks import color_index_to_byte
 
+import ltron.settings as settings
+
 def draw_box(image, min_x, min_y, max_x, max_y, color):
     # expects numpy image hxwx3
     h, w = image.shape[:2]
@@ -88,7 +90,8 @@ def write_text(
 ):
     image = Image.fromarray(image)
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(font, size)
+    font_path = settings.paths['font']
+    font = ImageFont.truetype(font_path, size)
     #color = 'rgb(%i, %i, %i)'%color
     draw.text(location, text, color, font)
     
