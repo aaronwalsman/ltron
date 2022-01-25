@@ -91,6 +91,7 @@ def start_viewer(
         width = 512,
         height = 512,
         image_light = 'grey_cube',
+        background_color = (102, 102, 102),
         poll_frequency = 8,
         print_fps = False):
     
@@ -131,7 +132,7 @@ def start_viewer(
     '''
     #scene.set_background_color((0.65,0.65,0.65))
     #scene.set_background_color((1.0, 1.0, 1.0))
-    scene.set_background_color((0.4,0.4,0.4))
+    scene.set_background_color(tuple([b/255 for b in background_color]))
     
     window.set_active()
     window.enable_window()
