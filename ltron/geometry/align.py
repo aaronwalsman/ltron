@@ -11,7 +11,7 @@ def best_first_total_alignment(scene):
     islands = [
         set([instance_id])
         for instance_id, instance in scene.instances.items()
-        #if len(instance.get_snaps())
+        #if len(instance.snaps)
     ]
     #existing_connections = scene.get_all_snap_connections()
     #consumed_instances = set()
@@ -29,12 +29,12 @@ def best_first_total_alignment(scene):
         best_distance = float('inf')
         for instance_i in island_i:
             instance_i = scene.instances[instance_i]
-            for i, snap_i in enumerate(instance_i.get_snaps()):
+            for i, snap_i in enumerate(instance_i.snaps):
                 position_i = numpy.dot(snap_i.transform, [0,0,0,1])[:3]
                 axis_i = numpy.dot(snap_i.transform, [0,1,0,0])[:3]
                 for instance_j in island_j:
                     instance_j = scene.instances[instance_j]
-                    for j, snap_j in enumerate(instance_j.get_snaps()):
+                    for j, snap_j in enumerate(instance_j.snaps):
                         position_j = numpy.dot(snap_j.transform, [0,0,0,1])[:3]
                         axis_j = numpy.dot(snap_j.transform, [0,1,0,0])[:3]
                         distance = numpy.linalg.norm(position_i - position_j)
@@ -70,8 +70,8 @@ def best_first_total_alignment(scene):
         
         (instance_i, i), (instance_j, j) = best_snaps
         
-        snap_i = scene.instances[instance_i].get_snap(i)
-        snap_j = scene.instances[instance_j].get_snap(j)
+        snap_i = scene.instances[instance_i].snaps[i]
+        snap_j = scene.instances[instance_j].snaps[j]
         
         best_offset = best_alignment(snap_i.transform, snap_j.transform)
         
@@ -80,7 +80,7 @@ def best_first_total_alignment(scene):
         for inst_j in island_j:
             existing_transform = scene.instances[inst_j].transform
             new_transform = best_offset @ existing_transform
-            scene.set_instance_transform(inst_j, new_transform)
+            scene.move_instance(inst_j, new_transform)
         
         # merge the islands
         i,j = best_islands
