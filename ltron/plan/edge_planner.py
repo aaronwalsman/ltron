@@ -168,7 +168,7 @@ def plan_camera_to_see_snaps(
     if end_camera_position is None or visible_snaps is None:
         return None, None, None
     
-    # convert the hand camera motion to camera actions
+    # convert the camera motion to camera actions
     camera_actions = compute_camera_actions(
         env, viewpoint_component, start_camera_position, end_camera_position)
     
@@ -192,12 +192,6 @@ def compute_camera_actions(
         azimuth_steps = azimuth_b
     else:
         azimuth_steps = azimuth_c
-    
-    #print(
-    #    start_position[0], end_position[0], '|',
-    #    azimuth_a, azimuth_b, azimuth_c, '|',
-    #    azimuth_steps
-    #)
     
     other_steps = numpy.array(end_position)[1:] - start_position[1:]
     steps = numpy.concatenate([[azimuth_steps], other_steps])
@@ -354,6 +348,7 @@ def plan_add_first_brick(
     observation,
     goal_to_wip,
     shape_id_to_brick_shape,
+    split_cursor_actions=False,
     debug=False
 ):
     
@@ -373,7 +368,8 @@ def plan_add_first_brick(
     # find the upright snaps ---------------------------------------------------
     brick_shape = BrickShape(shape_id_to_brick_shape[shape_index])
     brick_instance = BrickInstance(0, brick_shape, color_index, brick_transform)
-    upright_snaps, upright_snap_ids = brick_instance.get_upright_snaps()
+    #upright_snaps, upright_snap_ids = brick_instance.get_upright_snaps()
+    upright_snaps = brick_instance.get_upright_snaps()
     
     # if there are no upright snaps this brick cannot be added as a first brick
     if not len(upright_snaps):
@@ -396,8 +392,10 @@ def plan_add_first_brick(
      new_visible_snaps) = plan_camera_to_see_snaps(
         env,
         state,
-        numpy.ones(len(upright_snap_ids), dtype=numpy.long),
-        upright_snap_ids,
+        #numpy.ones(len(upright_snap_ids), dtype=numpy.long),
+        numpy.ones(len(upright_snaps), dtype=numpy.long),
+        #upright_snap_ids,
+        [int(snap.snap_style) for snap in upright_snaps],
         'hand_pos_snap_render',
         'hand_neg_snap_render',
         'hand_viewpoint',
@@ -423,20 +421,38 @@ def plan_add_first_brick(
     nr = random.randint(0, new_visible_snaps.shape[1]-1)
     y, x, p, i, s = new_visible_snaps[:,nr]
     
-    pick_and_place_action = env.no_op_action()
-    pick_and_place_action['hand_cursor'] = {
-        'activate':True,
-        'position':numpy.array([y,x]),
-        'polarity':p,
-    }
-    #pick_and_place_action['pick_and_place'] = {
-    #    'activate':True,
-    #    'place_at_origin':True,
-    #}
-    pick_and_place_action['pick_and_place'] = 2
-    action_seq.append(pick_and_place_action)
-    observation, reward, terminal, info = env.step(pick_and_place_action)
-    observation_seq.append(observation)
+    if split_cursor_actions:
+        # hand cursor
+        hand_cursor_action = env.no_op_action()
+        hand_cursor_action['hand_cursor'] = {
+            'activate':True,
+            'position':numpy.array([y,x]),
+            'polarity':p,
+        }
+        
+        action_seq.append(hand_cursor_action)
+        observation, reward, terminal, info = env.step(hand_cursor_action)
+        observation_seq.append(observation)
+        
+        # pick and place
+        pick_and_place_action = env.no_op_action()
+        pick_and_place_action['pick_and_place'] = 2
+        
+        action_seq.append(pick_and_place_action)
+        observation, reward, terminal, info = env.step(pick_and_place_action)
+        observation_seq.append(observation)
+    
+    else:
+        pick_and_place_action = env.no_op_action()
+        pick_and_place_action['hand_cursor'] = {
+            'activate':True,
+            'position':numpy.array([y,x]),
+            'polarity':p,
+        }
+        pick_and_place_action['pick_and_place'] = 2
+        action_seq.append(pick_and_place_action)
+        observation, reward, terminal, info = env.step(pick_and_place_action)
+        observation_seq.append(observation)
     
     if debug:
         vis_obs(observation, 1, 3)
@@ -454,6 +470,7 @@ def plan_add_nth_brick(
     observation,
     goal_to_wip,
     shape_id_to_brick_shape,
+    split_cursor_actions=False,
     debug=False,
 ):
     
@@ -502,7 +519,7 @@ def plan_add_nth_brick(
         'table_mask_render',
     )
     if wip_visible_snaps is None:
-        return None
+        return None, None
     
     # update the state
     if table_camera_actions:
@@ -540,7 +557,7 @@ def plan_add_nth_brick(
         'hand_viewpoint',
     )
     if new_visible_snaps is None:
-        return None
+        return None, None
     
     # update the state
     if hand_camera_actions:
@@ -569,31 +586,69 @@ def plan_add_nth_brick(
     wyy, wxx, wpp, wii, wss = wip_visible_snaps[:,wr]
 
     # make the pick and place action
-    pick_and_place_action = env.no_op_action()
-    pick_and_place_action['table_cursor'] = {
-        'activate':True,
-        'position':numpy.array([wyy, wxx]),
-        'polarity':wpp,
-    }
-    pick_and_place_action['hand_cursor'] = {
-        'activate':True,
-        'position':numpy.array([nyy, nxx]),
-        'polarity':npp,
-    }
-    #pick_and_place_action['pick_and_place'] = {
-    #    'activate':True,
-    #    'place_at_origin':False,
-    #}
-    pick_and_place_action['pick_and_place'] = 1
-    action_seq.append(pick_and_place_action)
+    if split_cursor_actions:
+        # hand cursor
+        hand_cursor_action = env.no_op_action()
+        hand_cursor_action['hand_cursor'] = {
+            'activate':True,
+            'position':numpy.array([nyy, nxx]),
+            'polarity':npp,
+        }
+        
+        action_seq.append(hand_cursor_action)
+        observation, reward, terminal, info = env.step(hand_cursor_action)
+        observation_seq.append(observation)
+        
+        # table cursor
+        table_cursor_action = env.no_op_action()
+        table_cursor_action['table_cursor'] = {
+            'activate':True,
+            'position':numpy.array([wyy, wxx]),
+            'polarity':wpp,
+        }
+        
+        action_seq.append(table_cursor_action)
+        observation, reward, terminal, info = env.step(table_cursor_action)
+        observation_seq.append(observation)
+        
+        # pick and place
+        pick_and_place_action = env.no_op_action()
+        pick_and_place_action['pick_and_place'] = 1
+        
+        action_seq.append(pick_and_place_action)
+        observation, reward, terminal, info = env.step(pick_and_place_action)
+        observation_seq.append(observation)
+        
+        if not observation['pick_and_place']['success']:
+            raise PickAndPlaceFailure
     
-    # take the action to generate the latest observation
-    observation, reward, terminal, info = env.step(pick_and_place_action)
-    observation_seq.append(observation)
+    else:
+        pick_and_place_action = env.no_op_action()
+        pick_and_place_action['table_cursor'] = {
+            'activate':True,
+            'position':numpy.array([wyy, wxx]),
+            'polarity':wpp,
+        }
+        pick_and_place_action['hand_cursor'] = {
+            'activate':True,
+            'position':numpy.array([nyy, nxx]),
+            'polarity':npp,
+        }
+        #pick_and_place_action['pick_and_place'] = {
+        #    'activate':True,
+        #    'place_at_origin':False,
+        #}
+        pick_and_place_action['pick_and_place'] = 1
+        action_seq.append(pick_and_place_action)
+        
+        # take the action to generate the latest observation
+        observation, reward, terminal, info = env.step(pick_and_place_action)
+        observation_seq.append(observation)
+        
+        if not observation['pick_and_place']['success']:
+            raise PickAndPlaceFailure
+    
     state = env.get_state()
-    
-    if not observation['pick_and_place']['success']:
-        raise PickAndPlaceFailure
     
     if debug:
         vis_obs(observation, new_wip_instance, 3)
@@ -628,7 +683,7 @@ def plan_add_nth_brick(
             'table_mask_render',
         )
         if new_visible_snaps is None:
-            return None
+            return None, None
         
         # update the state
         if table_camera_actions:
@@ -644,18 +699,42 @@ def plan_add_nth_brick(
             if debug:
                 vis_obs(observation, new_wip_instance, 4)
         
-        rotation_action = env.no_op_action()
         r = random.randint(0, new_visible_snaps.shape[1]-1)
         y, x, p, i, s = new_visible_snaps[:,r]
-        rotation_action['table_cursor'] = {
-            'activate' : True,
-            'position' : numpy.array([y,x]),
-            'polarity' : p
-        }
-        rotation_action['rotate'] = discrete_rotation
-        action_seq.append(rotation_action)
-        observation, reward, terminal, info = env.step(rotation_action)
-        observation_seq.append(observation)
+        if split_cursor_actions:
+            # cursor
+            table_cursor_action = env.no_op_action()
+            table_cursor_action['table_cursor'] = {
+                'activate' : True,
+                'position' : numpy.array([y,x]),
+                'polarity' : p,
+            }
+            
+            action_seq.append(table_cursor_action)
+            observation, reward, terminal, info = env.step(table_cursor_action)
+            observation_seq.append(observation)
+            
+            # rotation
+            rotation_action = env.no_op_action()
+            rotation_action['rotate'] = discrete_rotation
+            
+            action_seq.append(rotation_action)
+            observation, reward, terminal, info = env.step(rotation_action)
+            observation_seq.append(observation)
+        
+        else:
+            # cursor/rotate action
+            rotation_action = env.no_op_action()
+            rotation_action['table_cursor'] = {
+                'activate' : True,
+                'position' : numpy.array([y,x]),
+                'polarity' : p,
+            }
+            rotation_action['rotate'] = discrete_rotation
+            
+            action_seq.append(rotation_action)
+            observation, reward, terminal, info = env.step(rotation_action)
+            observation_seq.append(observation)
         
         if debug:
             vis_obs(observation, new_wip_instance, 5)
@@ -676,7 +755,9 @@ def plan_remove_nth_brick(
     observation,
     false_positive_to_wip,
     shape_id_to_brick_shape,
-    debug=False
+    use_mask=True,
+    split_cursor_actions=False,
+    debug=False,
 ):
     
     # intialization ------------------------------------------------------------
@@ -696,11 +777,30 @@ def plan_remove_nth_brick(
     # find all connections between the instance and the rest of the scene
     # if there are any connections, we need to remove the brick using the
     # connected snaps, otherwise we can use any snaps
+    # (Note to future self: this seems a little strange, this is used as a
+    # second check after we have used a collision map to figure out a good
+    # ordering for removing bricks.  That collision map reasons in terms of
+    # groups of snaps with the same polarity that point in the same direction,
+    # but here, we just find all the connected snaps, and search for the first
+    # one we can find.  This seemed wrong because maybe there are more than
+    # one group of connected snaps, and maybe we can remove along one direction
+    # but not another.  This objection kind of goes away if we only allow
+    # bricks to be removed if they are only connected via one "group" of snaps,
+    # which is maybe not strictly enforced (but could be) but is loosely
+    # enforced via the collision checking.  The second objection is that this
+    # is only looking at connected snaps, but maybe there are visible snaps
+    # FROM THE SAME GROUP that we don't need to move the camera to see and that
+    # we could use to disassemble the object.  But this also only buys
+    # us anything for disassembly, not reassembly, since we have to find
+    # connected snaps for reassembly.
+    
     (instance_to_wip,
      wip_to_instance,
      wip_instances,
      wip_snaps,
      instance_snaps) = get_wip_to_wip_connections(wip_assembly, wip_instance)
+    
+    #print('ll', set(instance_to_wip.keys()))
     
     if not len(wip_instances):
         brick_shape = wip_assembly['shape'][wip_instance]
@@ -719,13 +819,14 @@ def plan_remove_nth_brick(
         'table_pos_snap_render',
         'table_neg_snap_render',
         'table_viewpoint',
-        'table_mask_render',
+        'table_mask_render' if use_mask else None,
     )
     if visible_snaps is None:
         raise NoVisibleSnapsFailure
     
     # update the state
     if table_camera_actions:
+        print('MOVE')
         action_seq.extend(table_camera_actions)
         _ = env.set_state(state)
         for action in table_camera_actions:
@@ -745,22 +846,47 @@ def plan_remove_nth_brick(
     wyy, wxx, wpp, wii, wss = visible_snaps[:,wr]
     
     # make the pick and place action
-    disassembly_action = env.no_op_action()
-    disassembly_action['table_cursor'] = {
-        'activate':True,
-        'position':numpy.array([wyy, wxx]),
-        'polarity':wpp,
-    }
-    #disassembly_action['disassembly'] = {
-    #    'activate':True,
-    #}
-    disassembly_action['disassembly'] = 1
-    action_seq.append(disassembly_action)
-    observation, reward, terminal, info = env.step(disassembly_action)
-    observation_seq.append(observation)
+    if split_cursor_actions:
+        # cursor action
+        table_cursor_action = env.no_op_action()
+        table_cursor_action['table_cursor'] = {
+            'activate':True,
+            'position':numpy.array([wyy, wxx]),
+            'polarity':wpp,
+        }
+        
+        action_seq.append(table_cursor_action)
+        observation, reward, terminal, info = env.step(table_cursor_action)
+        observation_seq.append(observation)
+        
+        # disassembly action
+        disassembly_action = env.no_op_action()
+        disassembly_action['disassembly'] = 1
+        
+        action_seq.append(disassembly_action)
+        observation, reward, terminal, info = env.step(disassembly_action)
+        observation_seq.append(observation)
+        
+        if not observation['disassembly']['success']:
+            raise DisassemblyFailure
     
-    if not observation['disassembly']['success']:
-        raise DisassemblyFailure
+    else:
+        disassembly_action = env.no_op_action()
+        disassembly_action['table_cursor'] = {
+            'activate':True,
+            'position':numpy.array([wyy, wxx]),
+            'polarity':wpp,
+        }
+        #disassembly_action['disassembly'] = {
+        #    'activate':True,
+        #}
+        disassembly_action['disassembly'] = 1
+        action_seq.append(disassembly_action)
+        observation, reward, terminal, info = env.step(disassembly_action)
+        observation_seq.append(observation)
+        
+        if not observation['disassembly']['success']:
+            raise DisassemblyFailure
     
     if debug:
         vis_obs(observation, debug_index, 2, label='disassemble')
@@ -775,7 +901,10 @@ def vis_obs(obs, i, j, label='tmp'):
         map_overlay, stack_images_horizontal)
     table_opacity = numpy.zeros((64,64,1))
     table_cursor = numpy.zeros((64,64,3), dtype=numpy.uint8)
-    y, x, p, k, s = obs['table_cursor']
+    y, x = obs['table_cursor']['position']
+    p = obs['table_cursor']['polarity']
+    k = obs['table_cursor']['instance_id']
+    s = obs['table_cursor']['snap_id']
     table_opacity[y,x] = 1.
     if p == 0:
         table_cursor[y,x] = [255,0,0]
@@ -789,7 +918,10 @@ def vis_obs(obs, i, j, label='tmp'):
 
     hand_opacity = numpy.zeros((24,24,1))
     hand_cursor = numpy.zeros((24,24,3), dtype=numpy.uint8)
-    y, x, p, k, s = obs['hand_cursor']
+    y, x = obs['hand_cursor']['position']
+    p = obs['hand_cursor']['polarity']
+    k = obs['hand_cursor']['instance_id']
+    s = obs['hand_cursor']['snap_id']
     hand_opacity[y,x] = 1.
     if p == 0:
         hand_cursor[y,x] = [255,0,0]
