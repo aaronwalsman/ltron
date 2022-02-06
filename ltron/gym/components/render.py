@@ -1,3 +1,5 @@
+import time
+
 import numpy
 
 from splendor.frame_buffer import FrameBufferWrapper
@@ -111,16 +113,16 @@ class SnapRenderComponent(LtronGymComponent):
         scene.viewport_scissor(0,0,self.width,self.height)
         
         # get the snap names
-        snaps = scene.get_snaps(polarity=self.polarity, style=self.style)
-        snap_names = scene.get_snap_names(snaps)
+        snaps = scene.get_matching_snaps(
+            polarity=self.polarity, style=self.style)
         
         # render instance ids
-        scene.snap_render_instance_id(snap_names)
+        scene.snap_render_instance_id(snaps)
         instance_id_mask = self.frame_buffer.read_pixels()
         instance_ids = masks.color_byte_to_index(instance_id_mask)
         
         # render snap ids
-        scene.snap_render_snap_id(snap_names)
+        scene.snap_render_snap_id(snaps)
         snap_id_mask = self.frame_buffer.read_pixels()
         snap_ids = masks.color_byte_to_index(snap_id_mask)
         

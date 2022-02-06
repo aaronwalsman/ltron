@@ -255,7 +255,7 @@ def build_metadata(path_root):
         num_instances = len(scene.instances)
         max_instances_per_scene = max(num_instances, max_instances_per_scene)
 
-        edges = scene.get_all_edges(unidirectional=False)
+        edges = scene.get_assembly_edges(unidirectional=False)
         num_edges = edges.shape[1]
         max_edges_per_scene = max(num_edges, max_edges_per_scene)
 

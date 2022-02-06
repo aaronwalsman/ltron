@@ -1,4 +1,8 @@
-import copy
+import math
+import collections
+#import copy
+
+from pyquaternion import Quaternion
 
 try:
     import splendor.primitives as primitives
@@ -8,10 +12,12 @@ except ImportError:
 
 from ltron.ldraw.commands import *
 from ltron.exceptions import LtronException
-from ltron.geometry.utils import metric_close_enough, default_allclose
+from ltron.geometry.utils import (
+    metric_close_enough, default_allclose, translate_matrix)
 #from ltron.geometry.epsilon_array import EpsilonArray
 from ltron.geometry.deduplicate_spatial import (
     deduplicate, rotation_doublecheck_function)
+from ltron.geometry.utils import unscale_transform
 
 gender_to_polarity = {
     'M':'+',
@@ -116,6 +122,549 @@ class SnapClear(Snap):
 class SnapStyle(Snap):
     @staticmethod
     def construct_snaps(command, reference_transform):
+        def delegate(command, transform):
+            if isinstance(command, LDCadSnapCylCommand):
+                return SnapCylinder.construct_snaps(command, transform)
+            #elif isinstance(command, LDCadSnapClpCommand):
+            #    return SnapClip.construct_snaps(command, transform)
+            #elif isinstance(command, LDCadSnapFgrCommand):
+            #    return SnapFinger.construct_snaps(command, transform)
+            #elif isinstance(command, LDCadSnapGenCommand):
+            #    return SnapGeneric.construct_snaps(command, transform)
+            #elif isinstance(command, LDCadSnapSphCommand):
+            #    return SnapSphere.construct_snaps(command, transform)
+            else:
+                return []
+        
+        snap_transform = numpy.dot(reference_transform, command.transform)
+        snaps = []
+        if 'grid' in command.flags:
+            grid_transforms = griderate(command.flags['grid'], snap_transform)
+            for grid_transform in grid_transforms:
+                snaps.extend(delegate(command, grid_transform))
+        else:
+            snaps.extend(delegate(command, snap_transform))
+        
+        return snaps
+    
+    def __init__(self, command):
+        super().__init__(command)
+        self.group = command.flags.get('group', None)
+    
+    def __int__(self):
+        return self.snap_id
+    
+    def compatible(self, other):
+        if self.group is None and other.group is None:
+            return True
+        else:
+            return self.group == other.group
+
+class SnapCylinder(SnapStyle):
+    @staticmethod
+    def construct_snaps(command, transform):
+        p = gender_to_polarity[command.flags['gender']]
+        secs = command.flags['secs']
+        center = command.flags.get('center', 'false').lower() == 'true'
+        sec_parts = secs.split()
+        cross_section = [c.lower() for c in sec_parts[0::3]]
+        radius = [float(r) for r in sec_parts[1::3]]
+        length = [float(h) for h in sec_parts[2::3]]
+        total_length = sum(length)
+        num_sections = len(length) - 1
+        
+        caps = command.flags.get('caps', 'one')
+        slide = str_to_bool(command.flags.get('slide', 'false'))
+        
+        snaps = []
+        cumulative_length = 0
+        if p == '+':
+            for i, (c, r, l) in enumerate(zip(cross_section, radius, length)):
+                first = i == 0
+                last = i == num_sections
+                ty = -cumulative_length
+                if center:
+                    ty += total_length / 2
+                
+                # axle 4 12
+                if (c == 'r' and
+                    r == 4 and
+                    l == 11 and
+                    not last and
+                    cross_section[i+1] == '_l' and
+                    radius[i+1] == 4.25 and
+                    length[i+1] == 1
+                ):
+                    snaps.append(Axle_4_12(command, transform))
+                
+                # pin
+                if c == 'r' and r == 6 and l == 16 and caps != 'both':
+                    ty -= 3
+                    first_transform = transform @ translate_matrix([0,ty,0])
+                    snaps.append(HalfPin(command, first_transform))
+                    
+                    ty -= 10
+                    second_transform = transform @ translate_matrix([0,ty,0])
+                    snaps.append(HalfPin(command, second_transform))
+                
+                # half pin
+                elif c == 'r' and r == 6 and l == 6 and caps != 'both':
+                    ty -= 3
+                    halfpin_transform = transform @ translate_matrix([0,ty,0])
+                    snaps.append(HalfPin(command, halfpin_transform))
+                
+                # stud
+                elif c == 'r' and r == 6 and (first or last) and caps != 'both':
+                    if not(caps == 'one' and first and num_sections > 1):
+                        if caps == 'none' and first:
+                            t = translate_matrix([0,ty-l,0])
+                            flip = numpy.array([
+                                [-1, 0, 0, 0],
+                                [ 0,-1, 0, 0],
+                                [ 0, 0, 1, 0],
+                                [ 0, 0, 0, 1]]
+                            )
+                            stud_transform = transform @ t @ flip
+                        else:
+                            t = translate_matrix([0,ty,0])
+                            stud_transform = transform @ t
+                        snaps.append(Stud(command, l, stud_transform))
+                
+                # bar
+                elif p == '+' and c == 'r' and r == 4 and l >= 8:
+                    # skip bars for now
+                    pass
+                    #for section in whatever:
+                    #    bar_transform = SOMETHING
+                    #    snaps.append(Bar(length=s, transform=bar_transform))
+                    #continue
+                
+                cumulative_length += l
+        
+        elif p == '-':
+            for i, (c, r, l) in enumerate(zip(cross_section, radius, length)):
+                first = i == 0
+                last = i == num_sections
+                ty = -cumulative_length
+                if center:
+                    ty += total_length / 2
+                
+                # axle 4 12
+                if (c == 'r' and
+                    r == 4 and
+                    l == 11 and
+                    not last and
+                    radius[i+1] == 5 and
+                    length[i+1] == 1
+                ):
+                    snaps.append(AxleHole_4_12(command, transform))
+                
+                # pin hole
+                if (c == 'r' and
+                    r == 6 and
+                    l == 16 and
+                    caps != 'both' and
+                    not first and
+                    not last
+                ):
+                    ty -= 3
+                    first_transform = transform @ translate_matrix([0,ty,0])
+                    snaps.append(HalfPinHole(command, first_transform))
+                    
+                    #ty -= 15
+                    ty -= 10
+                    second_transform = transform @ translate_matrix([0,ty,0])
+                    snaps.append(HalfPinHole(command, second_transform))
+                
+                # half pin hole
+                elif (
+                    c == 'r' and
+                    r == 6 and
+                    l == 6 and
+                    caps != 'both' and
+                    not first and
+                    not last
+                ):
+                    ty -= 3
+                    halfpin_transform = transform @ translate_matrix([0,ty,0])
+                    snaps.append(HalfPinHole(command, halfpin_transform))
+                
+                # stud hole
+                elif r == 6 and (first or last) and caps != 'both':
+                    if not(caps == 'one' and first and num_sections > 1):
+                        hole_transform = transform @ translate_matrix([0,ty,0])
+                        snaps.append(StudHole(command, l, hole_transform))
+                
+                cumulative_length += l
+        
+        return snaps
+    
+    def __init__(self, command):
+        super().__init__(command)
+    
+    def is_upright(self):
+        return unscale_transform(self.transform.copy())[:3,1] @ [0,1,0] >= 0.999
+
+class UniversalSnap(SnapStyle):
+    group = None
+    def __init__(self, transform):
+        self.transform = transform
+        self.snap_style = self
+
+class Axle_4_12(SnapCylinder):
+    polarity = '+'
+    radius = 4
+    search_radius = 1
+    length = 12
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+        self.subtype_id = 'cylinder(4,12,u)'
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, AxleHole_4_12)
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        p = my_instance.transform[:3,3]
+        q = other_instance.transform[:3,3]
+        return metric_close_enough(p, q, 1.)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        return default_pick_and_place_transforms(my_instance, other_instance)
+
+class AxleHole_4_12(SnapCylinder):
+    polarity = '-'
+    radius = 4
+    search_radius = 1
+    length = 12
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+        self.subtype_id = 'cylinder(4,12,u)'
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, Axle_4_12)
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        p = my_instance.transform[:3,3]
+        q = other_instance.transform[:3,3]
+        return metric_close_enough(p, q, 1.)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        t = default_pick_and_place_transforms(my_instance, other_instance)
+        return t
+
+class Stud(SnapCylinder):
+    polarity = '+'
+    radius = 6
+    search_radius = 10
+    def __init__(self, command, length, transform):
+        super().__init__(command)
+        self.length = length
+        self.transform = transform
+        self.subtype_id = 'cylinder(%.01f,%.01f,u)'%(
+            round(self.radius, 1), round(self.length, 1))
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, (StudHole, HalfPinHole, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, StudHole):
+            return stud_studhole_connected(my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPinHole):
+            return stud_halfpinhole_connected(my_instance, other_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, StudHole):
+            return stud_studhole_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPinHole):
+            return stud_halfpinhole_pick_and_place_transforms(
+                my_instance, other_intance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+
+class StudHole(SnapCylinder):
+    polarity = '-'
+    radius = 6
+    search_radius = 10
+    def __init__(self, command, length, transform):
+        super().__init__(command)
+        self.length = length
+        self.transform = transform
+        self.subtype_id = 'cylinder(6,%.01f,u)'%(round(self.length, 1))
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        
+        return isinstance(other, (Stud, HalfPin, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, Stud):
+            return stud_studhole_connected(other_instance, my_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPin):
+            return halfpin_studhole_connected(other_instance, my_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, Stud):
+            return studhole_stud_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPin):
+            return studhole_halfpin_pick_and_place_transforms(
+                my_instance, other_intance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+                start_height=0,
+                sections=((self.radius, -self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
+
+class HalfPin(SnapCylinder):
+    polarity = '+'
+    radius = 6
+    search_radius = 10
+    length = 10
+    subtype_id = 'cylinder(6,10,c)'
+    
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, (StudHole, HalfPinHole, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, StudHole):
+            return halfpin_studhole_connected(my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPinHole):
+            return halfpin_halfpinhole_connected(my_instance, other_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, StudHole):
+            return halfpin_studhole_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPinHole):
+            return halfpin_halfpinhole_pick_and_place_transforms(
+                my_instance, other_intance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+                start_height=5,
+                sections=((self.radius, 5-self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
+
+class HalfPinHole(SnapCylinder):
+    polarity = '-'
+    radius = 6
+    search_radius = 10
+    length = 10
+    subtype_id = 'cylinder(6,10,c)'
+    
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, (Stud, HalfPin, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance):
+            return False
+        
+        if isinstance(other_instance.snap_style, Stud):
+            return stud_halfpinhole_connected(other_instance, my_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPin):
+            return halfpin_halfpinhole_connected(other_instance, my_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, Stud):
+            return halfpinhole_stud_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, HalfPin):
+            return halfpinhole_halfpin_pick_and_place_transforms(
+                my_instance, other_intance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+                start_height=5,
+                sections=((self.radius, 5-self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
+
+def default_pick_and_place_transforms(pick, place):
+    pick_transform = unscale_transform(pick.snap_style.transform.copy())
+    inv_pick_transform = numpy.linalg.inv(pick_transform)
+    place_transform = unscale_transform(place.transform.copy())
+    transforms = []
+    for i in range(4):
+        angle = i * math.pi/2.
+        rotation = Quaternion(axis=(0,1,0), angle=angle)
+        transform = (
+            place_transform @
+            rotation.transformation_matrix @
+            inv_pick_transform #@
+            #pick.brick_instance.transform
+        )
+        
+        transforms.append(transform)
+    
+    return transforms
+
+def stud_studhole_connected(stud, stud_hole):
+    p = stud.transform[:3,3]
+    q = stud_hole.transform[:3,3]
+    return metric_close_enough(p, q, 1.)
+
+def stud_studhole_pick_and_place_transforms(stud, studhole):
+    return default_pick_and_place_transforms(stud, studhole)
+
+def studhole_stud_pick_and_place_transforms(studhole, stud):
+    return default_pick_and_place_transforms(studhole, stud)
+
+def stud_halfpinhole_connected(stud, half_pin_hole):
+    p = stud.transform[:3,3]
+    a = (half_pin_hole.transform @ [0, 5,0,1])[:3]
+    b = (half_pin_hole.transform @ [0,-5,0,1])[:3]
+    return metric_close_enough(p, a, 1) or metric_close_enough(p, b, 1)
+
+def stud_halfpinhole_pick_and_place_transforms(stud, half_pin_hole):
+    return default_pick_and_place_transforms(stud, half_pin_hole)
+
+def halfpinhole_stud_pick_and_place_transforms(half_pin_hole, stud):
+    return default_pick_and_place_transforms(half_pin_hole, stud)
+
+def halfpin_studhole_connected(halfpin, stud_hole):
+    p = stud_hole.transform[:3,3]
+    a = (half_pin.transform @ [0, 5,0,1])[:3]
+    b = (half_pin.transform @ [0,-5,0,1])[:3]
+    return metric_close_enough(p, a, 1) or metric_close_enough(p, b, 1)
+
+def halfpin_studhole_pick_and_place_transforms(half_pin, stud_hole):
+    return default_pick_and_place_transforms(half_pin, stud_hole)
+
+def studhole_halfpin_pick_and_place_transforms(stud_hole, half_pin):
+    return default_pick_and_place_transforms(stud_hole, half_pin)
+
+def halfpin_halfpinhole_connected(half_pin, half_pin_hole):
+    p = half_pin.transform[:3,3]
+    q = half_pin_hole.transform[:3,3]
+    return metric_close_enough(p, q, 1)
+
+def halfpin_halfpinhole_pick_and_place_transforms(half_pin, half_pin_hole):
+    return default_pick_and_place_transforms(half_pin, half_pin_hole)
+
+def halfpinhole_halfpin_pick_and_place_transforms(half_pin_hole, half_pin):
+    return default_pick_and_place_transforms(half_pin_hole, half_pin)
+
+# OLD ==========================================================================
+
+class SnapStyleOFF(Snap):
+    @staticmethod
+    def construct_snaps(command, reference_transform):
         def construct_snap(command, transform):
             if isinstance(command, LDCadSnapCylCommand):
                 return SnapCylinder(command, transform)
@@ -165,16 +714,25 @@ class SnapStyle(Snap):
     def connected2(self, other):
         return True
     
+    def compatible(self, other):
+        if not self.groups_match(other):
+            return False
+        
+        return True
+    
     def groups_match(self, other):
         if self.group is None and other.group is None:
             return True
         else:
             return self.group == other.group
     
-    def transformed_copy(self, transform):
-        copied_snap = copy.copy(self)
-        copied_snap.transform = numpy.dot(transform, self.transform)
-        return copied_snap
+    def __int__(self):
+        return self.snap_id
+    
+    #def transformed_copy(self, transform):
+    #    copied_snap = copy.copy(self)
+    #    copied_snap.transform = numpy.dot(transform, self.transform)
+    #    return copied_snap
     
     # you know when people tell you something is a bad idea and you're like,
     # "no, it's cool man, I know what I'm doing, I got this."
@@ -195,7 +753,7 @@ class SnapStyle(Snap):
         )
     '''
     
-class SnapCylinder(SnapStyle):
+class SnapCylinderOff(SnapStyle):
     style='cylinder'
     def __init__(self, command, transform):
         super(SnapCylinder, self).__init__(command, transform)
@@ -261,6 +819,31 @@ class SnapCylinder(SnapStyle):
         #box_max = numpy.ones(3)
         
         return box_min, box_max
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        
+        if not (isinstance(other, SnapCylinder) or isinstance(other, SnapClip)):
+            return False
+        
+        if self.polarity == '+':
+            if not other.polarity == '-':
+                return False
+        
+        elif self.polarity == '-':
+            if not other.polarity == '+':
+                return False
+        
+        if isinstance(other, SnapCylinder):
+            if self.sec_radius[0] != other.sec_radius[0]:
+                return False
+            
+        elif isinstance(other, SnapClip):
+            if self.sec_radius[0] != other.radius:
+                return False
+        
+        return True
     
     def connected(
         self,
@@ -384,6 +967,21 @@ class SnapClip(SnapStyle):
         box_max = numpy.max([p0, p1], axis=0) + r
         
         return box_min, box_max
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        
+        if not isinstance(other, SnapCylinder):
+            return False
+        
+        if not other.polarity == '+':
+            return False
+        
+        if self.radius != other.sec_radius[0]:
+            return False
+        
+        return True
     
     def connected(
         self,
@@ -685,7 +1283,9 @@ def deduplicate_snaps(
     points = [snap.transform[:3,3] for snap in snaps]
     rdf = rotation_doublecheck_function(max_angular_distance)
     def doublecheck_function(a, b):
-        if a.subtype_id != b.subtype_id:
+        #if a.subtype_id != b.subtype_id:
+        #    return False
+        if type(a) != type(b):
             return False
         return rdf(a.transform,b.transform)
     
@@ -697,3 +1297,82 @@ def deduplicate_snaps(
     )
     
     return [snaps[i] for i in deduplicate_indices]
+
+class SnapStyleSequence(collections.abc.Sequence):
+    def __init__(self, snap_styles=None):
+        if snap_styles is None:
+            snap_styles = []
+        self.snap_styles = snap_styles
+        
+        # hack for now to get snap_ids
+        for i, snap in enumerate(self.snap_styles):
+            snap.snap_id = i
+    
+    def __getitem__(self, key):
+        return self.snap_styles[int(key)]
+    
+    def __len__(self):
+        return len(self.snap_styles)
+    
+    # this is not used yet, but needs to be where we go
+    '''
+    def extend_from_command(self, command, reference_transform):
+        snap_styles = SnapStyle.construct_snaps(command, reference_transform)
+        # this is a hack FOR NOW
+        for i, snap_style in snap_styles:
+            snap_style.snap_id = len(self.snap_styles + i)
+        self.snap_styles.extend(snap_styles)
+    '''
+
+class SnapInstanceSequence(collections.abc.Sequence):
+    def __init__(self, snap_styles, brick_instance):
+        self.snap_instances = []
+        for snap_style in snap_styles:
+            self.snap_instances.append(SnapInstance(snap_style, brick_instance))
+    
+    def __getitem__(self, key):
+        return self.snap_instances[int(key)]
+    
+    def __len__(self):
+        return len(self.snap_instances)
+
+class SnapInstance:
+    def __init__(self, snap_style, brick_instance):
+        self.snap_style = snap_style
+        self.brick_instance = brick_instance
+    
+    def get_transform(self):
+        return self.brick_instance.transform @ self.snap_style.transform
+    
+    transform = property(get_transform)
+    
+    #def compatible(self, other):
+    #    return self.snap_style.compatible(other.snap_style)
+    
+    # for tuple conversion
+    def __getitem__(self, i):
+        if i == 0:
+            return int(self.brick_instance)
+        elif i == 1:
+            return int(self.snap_style)
+        else:
+            raise IndexError
+    
+    def __hash__(self):
+        return hash(tuple(self))
+    
+    def __eq__(self, other):
+        return tuple(self) == tuple(other)
+    
+    def __str__(self):
+        return '%i_%i'%tuple(self)
+    
+    def connected(self, other, unidirectional=False):
+        if unidirectional and (
+            int(self.brick_instance) > int(other.brick_instance)):
+            return False
+        
+        return self.snap_style.connected(self, other)
+    
+    def __getattr__(self, attr):
+        return getattr(self.snap_style, attr)

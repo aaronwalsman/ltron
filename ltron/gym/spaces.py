@@ -367,7 +367,7 @@ class EdgeSpace(spaces.Dict):
     
     def from_scene(self, scene, score=None):
         result = {}
-        edges = scene.get_all_edges(unidirectional=False)
+        edges = scene.get_assembly_edges(unidirectional=False)
         num_edges = edges.shape[-1]
         if num_edges < self.max_edges:
             edges = numpy.concatenate(

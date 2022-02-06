@@ -10,12 +10,12 @@ class DisassemblyComponent(LtronGymComponent):
         max_instances,
         scene_component,
         hand_scene_component=None,
-        check_collisions=False,
+        check_collision=False,
     ):
         self.scene_component = scene_component
         self.hand_scene_component = hand_scene_component
-        self.check_collisions = check_collisions
-        if self.check_collisions:
+        self.check_collision = check_collision
+        if self.check_collision:
             scene = self.scene_component.brick_scene
             assert scene.collision_checker is not None
         
@@ -36,9 +36,9 @@ class DisassemblyComponent(LtronGymComponent):
         instance_id = 0
         if instance_index != 0:
             scene = self.scene_component.brick_scene
-            if self.check_collisions:
+            if self.check_collision:
                 instance = scene.instances[instance_index]
-                snap = instance.get_snap(snap_index)
+                snap = instance.snaps[snap_index]
                 collision = scene.check_snap_collision(
                     [instance], snap)
                 if not collision:
@@ -72,7 +72,7 @@ class IndexDisassemblyComponent(DisassemblyComponent):
         scene_component,
     ):
         super(InstanceDisassemblyComponent, self).__init__(
-            max_instances, scene_component, check_collisions=False)
+            max_instances, scene_component, check_collision=False)
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
@@ -97,7 +97,7 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
         scene_component,
     ):
         super(IndexDisassemblyWithCollisionComponent, self).__init__(
-            max_instances, scene_component, check_collisions=True)
+            max_instances, scene_component, check_collision=True)
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
@@ -123,13 +123,13 @@ class PixelDisassemblyComponent(DisassemblyComponent):
         pos_snap_render_component,
         neg_snap_render_component,
         hand_scene_component=None,
-        check_collisions=False,
+        check_collision=False,
     ):
         super(PixelDisassemblyComponent, self).__init__(
             max_instances,
             scene_component,
             hand_scene_component=hand_scene_component,
-            check_collisions=check_collisions,
+            check_collision=check_collision,
         )
         assert (pos_snap_render_component.width ==
             neg_snap_render_component.width)
@@ -179,13 +179,13 @@ class CursorDisassemblyComponent(DisassemblyComponent):
         scene_component,
         cursor_component,
         hand_scene_component=None,
-        check_collisions=False,
+        check_collision=False,
     ):
         super(CursorDisassemblyComponent, self).__init__(
             max_instances,
             scene_component,
             hand_scene_component=hand_scene_component,
-            check_collisions=check_collisions,
+            check_collision=check_collision,
         )
         self.cursor_component = cursor_component
         

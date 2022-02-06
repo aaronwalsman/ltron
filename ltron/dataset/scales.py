@@ -4,6 +4,7 @@ import ltron.dataset.paths as paths
 from ltron.bricks.brick_scene import BrickScene
 
 pico_max_bricks = 2
+nano_max_bricks = 4
 micro_max_bricks = 8
 mini_max_bricks = 32
 small_max_bricks = 128

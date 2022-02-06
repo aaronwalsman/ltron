@@ -63,7 +63,7 @@ class BreakAndMakeEnvConfig(Config):
     
     include_score = True
     
-    check_collisions = True
+    check_collision = True
     train = True
     
     tile_color_render = True
@@ -93,7 +93,7 @@ class BreakAndMakeEnvConfig(Config):
 #    randomize_viewpoint=True,
 #    randomize_colors=True,
 #    include_score=True,
-#    check_collisions=True,
+#    check_collision=True,
 #    print_traceback=True,
 #    train=False,
 #):
@@ -126,7 +126,7 @@ class BreakAndMakeEnv(LtronEnv):
                 max_edges,
                 #render_args=workspace_render_args,
                 track_snaps=True,
-                collision_checker=config.check_collisions,
+                collision_checker=config.check_collision,
             )
         else:
             components['table_scene'] = DatasetSceneComponent(
@@ -134,7 +134,7 @@ class BreakAndMakeEnv(LtronEnv):
                 path_location=['mpd'],
                 #render_args=workspace_render_args,
                 track_snaps=True,
-                collision_checker=config.check_collisions,
+                collision_checker=config.check_collision,
             )
         components['hand_scene'] = EmptySceneComponent(
             shape_ids=shape_ids,
@@ -263,21 +263,21 @@ class BreakAndMakeEnv(LtronEnv):
         components['rotate'] = CursorRotationAroundSnap(
             components['table_scene'],
             components['table_cursor'],
-            check_collisions=config.check_collisions,
+            check_collision=config.check_collision,
         )
         components['pick_and_place'] = CursorHandspacePickAndPlace(
             components['table_scene'],
             components['table_cursor'],
             components['hand_scene'],
             components['hand_cursor'],
-            check_collisions=config.check_collisions,
+            check_collision=config.check_collision,
         )
         components['disassembly'] = CursorDisassemblyComponent(
             max_instances,
             components['table_scene'],
             components['table_cursor'],
             hand_scene_component=components['hand_scene'],
-            check_collisions=config.check_collisions,
+            check_collision=config.check_collision,
         )
         components['insert_brick'] = HandspaceBrickInserter(
             components['hand_scene'],

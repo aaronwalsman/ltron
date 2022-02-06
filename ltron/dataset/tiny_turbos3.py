@@ -237,7 +237,7 @@ for set_number, set_list in existing_sets.items():
                 set_signatures[set_signature] = []
             set_signatures[set_signature].append(file_path)
             
-            edges = scene.get_all_edges(unidirectional=True)
+            edges = scene.get_assembly_edges(unidirectional=True)
             edges_per_scene.append(edges.shape[1])
             print('%s:'%file_path)
             print('  %i instances'%len(scene.instances))

@@ -115,19 +115,17 @@ class InteractiveHandspaceReassemblyEnv:
             self.handspace_scene.mask_render(flip_y=False)
         elif self.render_mode == 'snap':
             '''
-            snap_instances = self.workspace_scene.get_snaps(
+            snap_instances = self.workspace_scene.get_matching_snaps(
                 polarity=self.polarity)
-            snap_names = self.workspace_scene.get_snap_names(snap_instances)
             self.workspace_viewport()
             self.workspace_scene.snap_render_instance_id(
-                snap_names, flip_y=False)
+                snap_instance, flip_y=False)
             
-            snap_instances = self.handspace_scene.get_snaps(
+            snap_instances = self.handspace_scene.get_matching_snaps(
                 polarity=self.polarity)
-            snap_names = self.handspace_scene.get_snap_names(snap_instances)
             self.handspace_viewport()
             self.handspace_scene.snap_render_instance_id(
-                snap_names, flip_y=False)
+                snap_instances, flip_y=False)
             '''
             
     def step(self, action):

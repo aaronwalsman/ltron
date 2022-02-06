@@ -33,7 +33,7 @@ for set_name in tqdm.tqdm(all_sets):
             if str(brick_shape) not in shape_ids:
                 shape_ids[str(brick_shape)] = len(shape_ids)+1
         
-        edges = scene.get_all_edges()
+        edges = scene.get_assembly_edges()
         try:
             max_edges = max(max_edges, edges.shape[1])
         except IndexError:

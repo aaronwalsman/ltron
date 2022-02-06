@@ -20,7 +20,7 @@ from ltron.ldraw.documents import (
     LDrawDAT,
 )
 from ltron.bricks.snap import (
-    Snap, SnapStyle, SnapClear, deduplicate_snaps, griderate)
+    Snap, SnapStyle, SnapStyleSequence, SnapClear, deduplicate_snaps, griderate)
 
 class BrickShapeLibrary(collections.abc.MutableMapping):
     def __init__(self, brick_shapes=None):
@@ -60,6 +60,7 @@ class BrickShapeLibrary(collections.abc.MutableMapping):
    
     def __setitem__(self, key, value):
         assert isinstance(value, BrickShape)
+        assert str(key) == str(value)
         self.brick_shapes[str(key)] = value
     
     def __delitem__(self, key):
@@ -185,7 +186,7 @@ class BrickShape:
                             if p.type_id != snap.type_id]
         
         #self.snaps = list(set(resolved_snaps))
-        self.snaps = deduplicate_snaps(resolved_snaps)
+        self.snaps = SnapStyleSequence(deduplicate_snaps(resolved_snaps))
         
         try:
             bb = numpy.array([

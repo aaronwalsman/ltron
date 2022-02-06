@@ -1,3 +1,4 @@
+import time
 import sys
 import traceback
 import multiprocessing
@@ -24,8 +25,9 @@ def traceback_decorator(f):
 
 class LtronEnv(gym.Env):
     @traceback_decorator
-    def __init__(self, components, print_traceback=False):
+    def __init__(self, components, print_traceback=False, time=False):
         self.print_traceback = print_traceback
+        self.time = time
         self.components = components
         
         observation_space = {}
@@ -62,6 +64,8 @@ class LtronEnv(gym.Env):
         terminal = False
         info = {}
         for component_name, component in self.components.items():
+            if self.time:
+                t_start = time.time()
             if component_name in self.action_space.spaces:
                 component_action = action[component_name]
             else:
@@ -73,6 +77,11 @@ class LtronEnv(gym.Env):
             terminal |= t
             if i is not None:
                 info[component_name] = i
+            
+            if self.time:
+                t_end = time.time()
+                print('------ step (%s): %f'%(
+                    component_name, (t_end - t_start)))
         
         return observation, reward, terminal, info
     
@@ -94,9 +103,15 @@ class LtronEnv(gym.Env):
     def set_state(self, state):
         observation = {}
         for component_name, component_state in state.items():
+            if self.time:
+                t_start = time.time()
             o = self.components[component_name].set_state(component_state)
             if component_name in self.observation_space.spaces:
                 observation[component_name] = o
+            if self.time:
+                t_end = time.time()
+                print('------ set state (%s): %f'%(
+                    component_name, (t_end - t_start)))
         
         return observation
     

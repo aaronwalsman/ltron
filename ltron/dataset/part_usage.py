@@ -33,7 +33,7 @@ for file_name in tqdm.tqdm(file_names):
             path_data[file_name]['brick_counts'][brick_shape] = 0
         path_data[file_name]['brick_counts'][brick_shape] += 1
 
-    edges = scene.get_all_edges(unidirectional=True)
+    edges = scene.get_assembly_edges(unidirectional=True)
     path_data[file_name]['edge_data'] = {}
     for a, b in edges.T:
         instance_a = scene.instances[a]

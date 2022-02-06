@@ -73,7 +73,7 @@ class DatasetPathComponent(LtronGymComponent):
         if self.initialized:
             self.episode_id += 1
         else:
-            self.initialized=True,
+            self.initialized = True
             self.episode_id = 0
             self.dataset_id = 0
         

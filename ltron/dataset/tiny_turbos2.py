@@ -202,7 +202,7 @@ for set_number, set_list in existing_sets.items():
                 instance_counts[str(brick_shape)] += 1
                 all_colors.add(instance.color)
             
-            edges = scene.get_all_edges(unidirectional=True)
+            edges = scene.get_assembly_edges()
             edges_per_scene.append(edges.shape[1])
             print('%s:'%file_path)
             print('  %i instances'%len(scene.instances))

@@ -35,7 +35,7 @@ def build_metadata(name, path_root, test_percent):
         num_instances = len(scene.instances)
         max_instances_per_scene = max(num_instances, max_instances_per_scene)
         
-        edges = scene.get_all_edges(unidirectional=False)
+        edges = scene.get_assembly_edges(unidirectional=False)
         num_edges = edges.shape[1]
         max_edges_per_scene = max(num_edges, max_edges_per_scene)
     
@@ -90,7 +90,7 @@ def build_dataset_old(name, path_root, paths, test_set):
         num_instances = len(scene.instances)
         max_instances_per_scene = max(max_instances_per_scene, num_instances)
         
-        edges = scene.get_all_edges(unidirectional=True)
+        edges = scene.get_assembly_edges(unidirectional=True)
         num_edges = edges.shape[1]
         max_edges_per_scene = max(max_edges_per_scene, num_edges)
         colors = set(scene.color_library.keys())

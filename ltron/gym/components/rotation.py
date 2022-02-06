@@ -12,12 +12,12 @@ import math
 
 class RotationAroundSnap(LtronGymComponent):
     def __init__(
-        self, sceneComp, pos_snap_render, neg_snap_render, check_collisions
+        self, sceneComp, pos_snap_render, neg_snap_render, check_collision
     ):
         self.scene_component = sceneComp
         self.pos_snap_render = pos_snap_render
         self.neg_snap_render = neg_snap_render
-        self.check_collisions = check_collisions
+        self.check_collision = check_collision
         width = self.pos_snap_render.width
         height = self.pos_snap_render.height
         assert self.neg_snap_render.width == width
@@ -77,7 +77,7 @@ class RotationAroundSnap(LtronGymComponent):
         if instance_id == 0:
             return {'success' : 0}, 0, False, None
 
-        if self.check_collisions:
+        if self.check_collision:
             instance = self.scene_component.brick_scene.instances[instance_id]
             transform = instance.transform
             collision = self.scene_component.brick_scene.check_collision(
@@ -89,7 +89,7 @@ class RotationAroundSnap(LtronGymComponent):
         
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]
-        snap = instance.get_snap(snap_id)
+        snap = instance.snaps[snap_id]
         scene.transform_about_snap([instance], snap, rotate_y)
 
         return {'success' : 1}, 0, False, None
@@ -107,12 +107,12 @@ class CursorRotationAroundSnap(LtronGymComponent):
         self,
         scene_component,
         cursor_component,
-        check_collisions,
+        check_collision,
         rotation_steps = 4,
     ):
         self.scene_component = scene_component
         self.cursor_component = cursor_component
-        self.check_collisions = check_collisions
+        self.check_collision = check_collision
         self.rotation_steps = rotation_steps
         #self.action_space = Dict({
             #'activate':Discrete(2),
@@ -164,12 +164,12 @@ class CursorRotationAroundSnap(LtronGymComponent):
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]
         original_instance_transform = instance.transform
-        snap = instance.get_snap(snap_id)
+        snap = instance.snaps[snap_id]
         scene.transform_about_snap([instance], snap, rotate_y)
         
-        if self.check_collisions:
+        if self.check_collision:
             transform = instance.transform
-            snap = instance.get_snap(snap_id)
+            snap = instance.snaps[snap_id]
             collision = self.scene_component.brick_scene.check_snap_collision(
                 target_instances=[instance], snap=snap)
             if collision:

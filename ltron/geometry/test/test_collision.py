@@ -23,8 +23,8 @@ scene.import_ldraw(os.path.join(
 
 instances = [scene.instances['29'], scene.instances['30']]
 #instances[0].transform[2,3] -= 10
-#scene.renderer.set_instance_transform(str(instances[0]), instances[0].transform)
-snap = instances[0].get_snaps()[1]
+#scene.renderer.move_instance(str(instances[0]), instances[0].transform)
+snap = instances[0].snaps[1]
 
 collision = check_snap_collision(
         scene,
@@ -48,7 +48,7 @@ print(collision)
 instance_transform = instances[0].transform
 instance_transform[1,3] -= 8
 scene.move_instance('29', instance_transform)
-snap = instances[0].get_snaps()[1]
+snap = instances[0].snaps[1]
 
 collision = check_snap_collision(
         scene,

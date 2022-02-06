@@ -95,7 +95,7 @@ for f in tqdm(names):
         instance_counts[str(brick_shape)] += 1
         all_colors.add(instance.color)
     try:
-        edges = scene.get_all_edges(unidirectional=True)
+        edges = scene.get_assembly_edges(unidirectional=True)
         edges_per_scene.append(edges.shape[1])
     except:
         print('poop')

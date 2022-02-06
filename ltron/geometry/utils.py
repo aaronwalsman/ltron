@@ -41,3 +41,8 @@ def unscale_transform(transform):
     if numpy.linalg.det(transform) < 0.:
         transform[:3,0] *= -1
     return transform
+
+def translate_matrix(t):
+    transform = numpy.eye(4)
+    transform[:3,3] = t
+    return transform

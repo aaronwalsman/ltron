@@ -1,8 +1,8 @@
-import random
 import math
 import time
 
 import numpy
+random = numpy.random.default_rng(1234567890)
 
 from pyquaternion import Quaternion
 
@@ -155,6 +155,15 @@ WideAxleWheelSampler = AxleWheelSubAssemblySampler(
             [0, 0, 0,  1]])],
         [WheelASampler, WheelBSampler, WheelCSampler])
         
+def get_all_snap_pairs(self, instance_snaps_a, instance_snaps_b):
+    snap_pairs = [
+        (snap_a, snap_b)
+        for (snap_a, snap_b)
+        in product(instance_snaps_a, instance_snaps_b)
+        if (snap_a != snap_b and snap_a.compatible(snap_b))
+    ]
+
+    return snap_pairs
 
 def sample_scene(
         scene,
@@ -173,7 +182,7 @@ def sample_scene(
     except TypeError:
         parts_per_scene = parts_per_scene, parts_per_scene
     
-    num_parts = random.randint(*parts_per_scene)
+    num_parts = random.integers(*parts_per_scene, endpoint=True)
     
     scene.load_colors(colors)
     
@@ -184,34 +193,8 @@ def sample_scene(
                 return scene
         
         if len(scene.instances):
-            #===============================================================
-            # get a list of unoccupied snaps
-            #---------------------------------------------------------------
-            # get all snaps
-            all_scene_snaps = set()
-            for instance_id, instance in scene.instances.items():
-                brick_shape = instance.brick_shape
-                all_scene_snaps |= set(
-                        (instance_id, i)
-                        for i in range(len(brick_shape.snaps)))
-            #---------------------------------------------------------------
-            # build a list of occupied snaps
-            all_snap_connections = scene.get_all_snap_connections()
-            occupied_snaps = set()
-            for a_id, connections in all_snap_connections.items():
-                for b_id, b_snap, a_snap in connections:
-                    occupied_snaps.add((a_id, a_snap))
-                    occupied_snaps.add((b_id, b_snap))
-            #---------------------------------------------------------------
-            # build a list of unoccupied snaps
-            unoccupied_snaps = all_scene_snaps - occupied_snaps
-            unoccupied_snaps = [
-                    scene.instances[instance_id].get_snap(snap_id)
-                    for instance_id, snap_id in unoccupied_snaps]
-            unoccupied_snaps = [
-                    snap for snap in unoccupied_snaps]
-                    #if (isinstance(snap, SnapCylinder) and
-                    #        snap.contains_stud_radius())]
+            
+            unoccupied_snaps = scene.get_unoccupied_snaps()
             
             if not len(unoccupied_snaps):
                 print('no unoccupied snaps!')
@@ -233,12 +216,8 @@ def sample_scene(
                     new_instance = scene.add_instance(
                             brick_shape, color, transform)
                     new_instances.append(new_instance)
-                    new_snaps = new_instance.get_snaps()
-                    new_good_snaps = [
-                            snap for snap in new_snaps]
-                            #if (isinstance(snap, SnapCylinder) and
-                            #        snap.contains_stud_radius())]
-                    sub_assembly_snaps.extend(new_good_snaps)
+                    new_snaps = new_instance.snaps
+                    sub_assembly_snaps.extend(new_snaps)
                 
                 # TMP to handle bad sub-assemblies
                 if len(sub_assembly_snaps) == 0:
@@ -250,67 +229,28 @@ def sample_scene(
                 # try to find a valid connection
                 #---------------------------------------------------------------
                 # get all pairs
-                scene_snaps = unoccupied_snaps
-                #if len(scene_snaps) > 100:
-                #    scene_snaps = random.sample(scene_snaps, 100)
-                pairs = list(get_all_transformed_snap_pairs(
-                        unoccupied_snaps, sub_assembly_snaps))
+                pairs = get_all_snap_pairs(sub_assembly_snaps, unoccupied_snaps)
                 if len(pairs) == 0:
                     for instance in new_instances:
                         scene.remove_instance(instance)
                     continue
+                
                 #---------------------------------------------------------------
                 # try to find a pair that is not in collision
                 for j in range(retries):
-                    ((i_scene, scene_snap),
-                     (i_new, sub_assembly_snap)) = random.choice(pairs)
-                    offset_transform = (
-                            scene_snap.transform @
-                            numpy.linalg.inv(sub_assembly_snap.transform))
+                    pick, place = random.choice(pairs)
+                    transforms = scene.all_pick_and_place_transforms(
+                        pick, place, check_collision=True)
                     
-                    # make sure the offset transform is unit volume
-                    # some where somehow getting scaled
-                    det = numpy.linalg.det(offset_transform[:3,:3])
-                    if abs(det-1) > 0.1:
-                        continue
-                    
-                    sub_assembly_snap.transform = scene_snap.transform
-                    for instance in new_instances:
-                        new_transform = offset_transform @ instance.transform
-                        scene.set_instance_transform(instance, new_transform)
-                    if debug:
-                        dump_images = '%i_%i'%(i,j)
-                    else:
-                        dump_images = None
-                    #collision = check_collision(
-                    #        scene,
-                    #        new_instances,
-                    #        scene_snap.transform,
-                    #        sub_assembly_snap.polarity,
-                    #        frame_buffer=frame_buffer,
-                    #        dump_images=dump_images,
-                    #)
-                    #collision = check_snap_collision(
-                    #    scene,
-                    #    new_instances,
-                    #    sub_assembly_snap,
-                    #    frame_buffer=frame_buffer,
-                    #    dump_images=dump_images,
-                    #)
-                    collision = scene.check_snap_collision(
-                        new_instances, sub_assembly_snap, dump_images=dump_images)
-                    if debug:
-                        print(i,j, ':', i_scene, i_new)
-                        scene.export_ldraw('%i_%s.ldr'%(i,j))
-                    if not collision:
+                    if len(transforms):
+                        transform = random.choice(transforms)
+                        scene.move_instance(pick.brick_instance, transform)
+                        
+                        if debug:
+                            print(i,j)
+                            scene.export_ldraw('%i_%s.ldr'%(i,j))
+                        
                         break
-                    else:
-                        for instance, (_, transform) in zip(
-                                new_instances, sub_assembly):
-                            scene.set_instance_transform(
-                                str(instance),
-                                transform,
-                            )
                 
                 #---------------------------------------------------------------
                 # if we tried many times and didn't find a good connection,
@@ -337,12 +277,8 @@ def sample_scene(
                     new_instance = scene.add_instance(
                             brick_shape, color, transform)
                     new_instances.append(new_instance)
-                    new_snaps = new_instance.get_snaps()
-                    new_good_snaps = [
-                            snap for snap in new_snaps]
-                            #if (isinstance(snap, SnapCylinder) and
-                            #    snap.contains_stud_radius())]
-                    sub_assembly_snaps.extend(new_good_snaps)
+                    new_snaps = new_instance.snap()
+                    sub_assembly_snaps.extend(new_snaps)
                 
                 if len(sub_assembly_snaps):
                     break

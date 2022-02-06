@@ -45,7 +45,7 @@ def get_extant_edges(paths):
         scene = BrickScene(track_snaps=True)
         scene.import_ldraw(path)
         
-        edges = scene.get_all_edges()
+        edges = scene.get_assembly_edges()
         
         for a, b in edges.T:
             instance_a = scene.instances[a]

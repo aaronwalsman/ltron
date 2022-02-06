@@ -26,7 +26,7 @@ class HandspacePickAndPlace(LtronGymComponent):
         handspace_scene_component,
         handspace_pos_snap_component,
         handspace_neg_snap_component,
-        check_collisions=False,
+        check_collision=False,
     ):
         self.workspace_scene_component = workspace_scene_component
         self.workspace_pos_snap_component = workspace_pos_snap_component
@@ -34,7 +34,7 @@ class HandspacePickAndPlace(LtronGymComponent):
         self.handspace_scene_component = handspace_scene_component
         self.handspace_pos_snap_component = handspace_pos_snap_component
         self.handspace_neg_snap_component = handspace_neg_snap_component
-        self.check_collisions = check_collisions
+        self.check_collision = check_collision
         
         self.workspace_width = self.workspace_pos_snap_component.width
         self.workspace_height = self.workspace_pos_snap_component.height
@@ -134,9 +134,9 @@ class HandspacePickAndPlace(LtronGymComponent):
         )
         
         if place_at_origin:
-            if self.check_collisions:
+            if self.check_collision:
                 collision = workspace_scene.check_snap_collision(
-                    [new_brick], new_brick.get_snap(pick_snap_id))
+                    [new_brick], new_brick.snaps[pick_snap_id])
                 if collision:
                     workspace_scene.remove_instance(new_brick)
                     success = False
@@ -150,9 +150,9 @@ class HandspacePickAndPlace(LtronGymComponent):
                 (new_brick.instance_id, pick_snap_id),
                 (place_instance_id, place_snap_id),
             )
-            if self.check_collisions:
+            if self.check_collision:
                 collision = workspace_scene.check_snap_collision(
-                    [new_brick], new_brick.get_snap(pick_snap_id))
+                    [new_brick], new_brick.snaps[pick_snap_id])
                 if collision:
                     workspace_scene.remove_instance(new_brick)
                     success = False
@@ -182,13 +182,13 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
         workspace_cursor_component,
         handspace_scene_component,
         handspace_cursor_component,
-        check_collisions=False,
+        check_collision=False,
     ):
         self.workspace_scene_component = workspace_scene_component
         self.workspace_cursor_component = workspace_cursor_component
         self.handspace_scene_component = handspace_scene_component
         self.handspace_cursor_component = handspace_cursor_component
-        self.check_collisions = check_collisions
+        self.check_collision = check_collision
         
         self.observation_space = Dict({'success':Discrete(2)})
         self.action_space = Discrete(3)
@@ -240,12 +240,15 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
         if place_at_origin:
             place = None
         else:
-            place = (place_instance_id, place_snap_id)
+            #place = (place_instance_id, place_snap_id)
+            place = workspace_scene.snap_tuple_to_snap(
+                (place_instance_id, place_snap_id))
         
         success = workspace_scene.pick_and_place_snap(
-            (new_brick.instance_id, pick_snap_id),
+            #(new_brick.instance_id, pick_snap_id),
+            new_brick.snaps[pick_snap_id],
             place,
-            check_collisions=self.check_collisions,
+            check_collision=self.check_collision,
         )
         
         if success:
@@ -260,7 +263,7 @@ class CursorHandspacePickAndPlace(LtronGymComponent):
 
 class PickAndPlace(LtronGymComponent):
     def __init__(self,
-        scene, pos_snap_render, neg_snap_render, check_collisions
+        scene, pos_snap_render, neg_snap_render, check_collision
     ):
         self.scene_component = scene
         self.action_executed = 0
@@ -268,7 +271,7 @@ class PickAndPlace(LtronGymComponent):
         self.neg_snap_render = neg_snap_render
         self.width = self.pos_snap_render.width
         self.height = self.pos_snap_render.height
-        self.check_collisions = check_collisions
+        self.check_collision = check_collision
         assert self.neg_snap_render.width == self.width
         assert self.neg_snap_render.height == self.height
         
@@ -325,10 +328,10 @@ class PickAndPlace(LtronGymComponent):
         if pick_instance == place_instance:
             return {'success' : 0}, 0, False, None
         
-        if self.check_collisions:
+        if self.check_collision:
             instance = self.scene_component.brick_scene.instances[pick_instance]
             initial_transform = instance.transform
-            snap = instance.get_snap(pick_id)
+            snap = instance.snaps[pick_id]
             collision = self.scene_component.brick_scene.check_snap_collision(
                 [instance], snap)
 

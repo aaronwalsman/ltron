@@ -12,7 +12,7 @@ except:
 from ltron.ldraw.parts import LDRAW_PARTS
 from ltron.ldraw.commands import *
 from ltron.ldraw.documents import *
-from ltron.bricks.snap import Snap, SnapStyle, SnapClear
+from ltron.bricks.snap import Snap, SnapStyle, SnapClear, SnapInstanceSequence
 
 class BrickInstanceTable(collections.abc.MutableMapping):
     def __init__(self, shape_library, color_library, instances = None):
@@ -94,6 +94,7 @@ class BrickInstanceTable(collections.abc.MutableMapping):
     
     def __setitem__(self, key, value):
         assert isinstance(value, BrickInstance)
+        assert int(key) == int(value)
         self.instances[int(key)] = value
     
     def __delitem__(self, key):
@@ -114,6 +115,8 @@ class BrickInstance:
         self.color = color
         self.transform = transform
         self.mask_color = mask_color
+        
+        self.snaps = SnapInstanceSequence(self.brick_shape.snaps, self)
     
     def clone(self):
         return BrickInstance(
@@ -130,17 +133,8 @@ class BrickInstance:
     def __str__(self):
         return self.instance_name
     
-    def get_snap(self, i):
-        return self.brick_shape.snaps[i].transformed_copy(self.transform)
-    
-    def get_snaps(self):
-        return [self.get_snap(i) for i in range(len(self.brick_shape.snaps))]
-    
     def get_upright_snaps(self):
-        snaps = self.get_snaps()
-        upright_snaps = [
-            (snap, i) for i, snap in enumerate(snaps) if snap.is_upright()]
-        return tuple(zip(*upright_snaps))
+        return [snap for snap in self.snaps if snap.is_upright()]
     
     def splendor_instance_args(self):
         instance_args = {

@@ -83,8 +83,8 @@ for i in tqdm.tqdm(range(num_scenes)):
     wedge_snap = random.choice(top_wedge_snaps)
     slope_snap = random.choice(bottom_slope_snaps)
     theta = random.choice(thetas)
-    slope_snap_transform = slope_instance_a.get_snap(slope_snap).transform
-    wedge_snap_transform = wedge_instance.get_snap(wedge_snap).transform
+    slope_snap_transform = slope_instance_a.snaps[slope_snap].transform
+    wedge_snap_transform = wedge_instance.snaps[wedge_snap].transform
     c = math.cos(theta)
     s = math.sin(theta)
     rotation = numpy.array([
@@ -105,8 +105,8 @@ for i in tqdm.tqdm(range(num_scenes)):
         wedge_snap = random.choice(top_wedge_snaps)
         slope_snap = random.choice(bottom_slope_snaps)
         theta = random.choice(thetas)
-        slope_snap_transform = slope_instance_b.get_snap(slope_snap).transform
-        wedge_snap_transform = wedge_instance.get_snap(wedge_snap).transform
+        slope_snap_transform = slope_instance_b.snaps[slope_snap].transform
+        wedge_snap_transform = wedge_instance.snaps[wedge_snap].transform
         c = math.cos(theta)
         s = math.sin(theta)
         rotation = numpy.array([

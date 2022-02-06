@@ -343,9 +343,9 @@ class InteractiveReassemblyEnv:
         elif self.render_mode == 'mask':
             self.scene.mask_render(flip_y=False)
         elif self.render_mode == 'snap':
-            snap_instances = self.scene.get_snaps(polarity=self.polarity)
-            snap_names = self.scene.get_snap_names(snap_instances)
-            self.scene.snap_render_instance_id(snap_names, flip_y=False)
+            snap_instances = self.scene.get_matching_snaps(
+                polarity=self.polarity)
+            self.scene.snap_render_instance_id(snap_instances, flip_y=False)
     
     def step(self, action):
         observation, reward, terminal, info = self.env.step(action)
@@ -587,19 +587,17 @@ class InteractiveHandspaceReassemblyEnv:
             self.handspace_viewport()
             self.handspace_scene.mask_render(flip_y=False)
         elif self.render_mode == 'snap':
-            snap_instances = self.workspace_scene.get_snaps(
+            snap_instances = self.workspace_scene.get_matching_snaps(
                 polarity=self.polarity)
-            snap_names = self.workspace_scene.get_snap_names(snap_instances)
             self.workspace_viewport()
             self.workspace_scene.snap_render_instance_id(
-                snap_names, flip_y=False)
+                snap_instances, flip_y=False)
             
-            snap_instances = self.handspace_scene.get_snaps(
+            snap_instances = self.handspace_scene.get_matching_snaps(
                 polarity=self.polarity)
-            snap_names = self.handspace_scene.get_snap_names(snap_instances)
             self.handspace_viewport()
             self.handspace_scene.snap_render_instance_id(
-                snap_names, flip_y=False)
+                snap_instances, flip_y=False)
             
     def step(self, action):
         observation, reward, terminal, info = self.env.step(action)
@@ -813,7 +811,7 @@ def reassembly_env(
     render_args=None,
     randomize_viewpoint=True,
     randomize_colors=True,
-    check_collisions=True,
+    check_collision=True,
     print_traceback=True,
     train=False,
 ):
@@ -831,7 +829,7 @@ def reassembly_env(
         path_location=['mpd'],
         render_args=render_args,
         track_snaps=True,
-        collision_checker=check_collisions,
+        collision_checker=check_collision,
     )
     
     # viewpoint
@@ -872,19 +870,19 @@ def reassembly_env(
         components['scene'],
         pos_snap_render,
         neg_snap_render,
-        check_collisions=check_collisions,
+        check_collision=check_collision,
     )
     components['rotate'] = RotationAroundSnap(
         components['scene'],
         pos_snap_render,
         neg_snap_render,
-        check_collisions=check_collisions,
+        check_collision=check_collision,
     )
     components['pick_and_place'] = PickAndPlace(
         components['scene'],
         pos_snap_render,
         neg_snap_render,
-        check_collisions=check_collisions,
+        check_collision=check_collision,
     )
     
     # reassembly
@@ -927,7 +925,7 @@ def handspace_reassembly_env(
     handspace_render_args=None,
     randomize_viewpoint=True,
     randomize_colors=True,
-    check_collisions=True,
+    check_collision=True,
     print_traceback=True,
     train=False,
 ):
@@ -948,7 +946,7 @@ def handspace_reassembly_env(
         path_location=['mpd'],
         render_args=workspace_render_args,
         track_snaps=True,
-        collision_checker=check_collisions,
+        collision_checker=check_collision,
     )
     
     components['handspace_scene'] = SceneComponent(
@@ -1035,13 +1033,13 @@ def handspace_reassembly_env(
         workspace_pos_snap_render,
         workspace_neg_snap_render,
         handspace_component=components['handspace_scene'],
-        check_collisions=check_collisions,
+        check_collision=check_collision,
     )
     components['rotate'] = RotationAroundSnap(
         components['workspace_scene'],
         workspace_pos_snap_render,
         workspace_neg_snap_render,
-        check_collisions=check_collisions,
+        check_collision=check_collision,
     )
     components['pick_and_place'] = HandspacePickAndPlace(
         components['workspace_scene'],
@@ -1050,7 +1048,7 @@ def handspace_reassembly_env(
         components['handspace_scene'],
         handspace_pos_snap_render,
         handspace_neg_snap_render,
-        check_collisions=check_collisions,
+        check_collision=check_collision,
     )
     components['insert_brick'] = HandspaceBrickInserter(
         components['handspace_scene'],

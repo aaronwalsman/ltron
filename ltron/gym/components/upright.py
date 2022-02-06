@@ -20,7 +20,7 @@ class UprightSceneComponent(LtronGymComponent):
                 return None
         
         for i, instance in scene.instances.items():
-            snaps = instance.get_snaps()
+            snaps = instance.snaps
             for snap in snaps:
                 if isinstance(snap, SnapCylinder):
                     if snap.polarity == '+':

@@ -81,7 +81,7 @@ class VectorOffsetSymbolic(LtronGymComponent):
         
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]
-        snap = instance.get_snap(snap_id)
+        snap = instance.snaps[snap_id]
         
         if self.space == 'world':
             pass

@@ -1,6 +1,7 @@
 import time
 import math
 import os
+from itertools import product
 
 import numpy
 
@@ -17,7 +18,7 @@ from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_shape import BrickShapeLibrary
 from ltron.bricks.brick_instance import BrickInstanceTable
 from ltron.bricks.brick_color import BrickColorLibrary
-from ltron.bricks.snap import SnapCylinder
+from ltron.bricks.snap import SnapInstance, UniversalSnap
 try:
     from ltron.render.environment import RenderEnvironment
     render_available = True
@@ -52,10 +53,10 @@ def make_empty_assembly(max_instances, max_edges):
 class BrickScene:
     
     upright = numpy.array([
-            [-1, 0, 0, 0],
-            [ 0,-1, 0, 0],
-            [ 0, 0, 1, 0],
-            [ 0, 0, 0, 1]])
+            [-1., 0., 0., 0.],
+            [ 0.,-1., 0., 0.],
+            [ 0., 0., 1., 0.],
+            [ 0., 0., 0., 1.]])
     
     # initialization and high level settings ===================================
     
@@ -83,6 +84,7 @@ class BrickScene:
         self.snap_tracker = None
         if track_snaps:
             self.make_track_snaps()
+            self.assembly_cache = None
         
         # collision_checker
         self.collision_checker = None
@@ -123,42 +125,30 @@ class BrickScene:
     # ldraw i/o ----------------------------------------------------------------
     
     def import_ldraw(self, path):
-        #import time
-        #a = time.time()
         # convert the path to a path and subdocument
         path, subdocument = resolve_subdocument(path)
         
-        #b = time.time()
         # read the document and pull out the subdocument
         document = LDrawDocument.parse_document(path)
         if subdocument is not None:
             document = document.reference_table['ldraw'][subdocument]
         
-        #c = time.time()
         # load brick shapes, instances and colors
         new_shapes = self.shape_library.import_document(document)
         new_colors = self.color_library.import_document(document)
         new_instances = self.instances.import_document(
                 document, transform=self.upright)
         
-        #d = time.time()
         if self.renderable:
             # adding instances will automatically load the appropriate assets
             for new_instance in new_instances:
                 self.render_environment.add_instance(new_instance)
         
-        #e = time.time()
         if self.track_snaps:
             for brick_instance in new_instances:
                 self.update_instance_snaps(brick_instance)
         
-        #f = time.time()
-        #print('ab', b-a)
-        #print('bc', c-b)
-        #print('cd', d-c)
-        #print('de', e-d)
-        #print('ef', f-e)
-        #print('total', f-a)
+        self.assembly_cache = None
     
     def export_ldraw(self, path, instances=None):
         if instances is None:
@@ -192,6 +182,8 @@ class BrickScene:
         self.clear_instances()
         self.import_assembly(
             assembly, shape_ids, color_ids, match_instance_ids=True)
+        
+        self.assembly_cache = None
     
     def import_assembly(
         self,
@@ -225,6 +217,8 @@ class BrickScene:
                 instance_id = None
             self.add_instance(
                 brick_shape, color, instance_pose, instance_id=instance_id)
+        
+        self.assembly_cache = None
     
     def make_shape_ids(self):
         brick_shapes = [str(bt) for bt in self.shape_library.values()]
@@ -244,6 +238,11 @@ class BrickScene:
         max_edges=None,
         unidirectional=False,
     ):
+        # this could speed things up, but seems really dangerous, and I'm not
+        # sure I trust it right now
+        #if self.assembly_cache is not None:
+        #    return self.assembly_cache
+        
         assembly = {}
         
         if shape_ids is None:
@@ -279,7 +278,7 @@ class BrickScene:
                 raise MissingColorError
             assembly['pose'][instance_id] = instance.transform
         
-        all_edges = self.get_all_edges(unidirectional=unidirectional)
+        all_edges = self.get_assembly_edges(unidirectional=unidirectional)
         num_edges = all_edges.shape[1]
         if max_edges is not None:
             assert all_edges.shape[1] <= max_edges, 'Too many edges'
@@ -287,6 +286,8 @@ class BrickScene:
                 (4, max_edges - num_edges), dtype=numpy.long)
             all_edges = numpy.concatenate((all_edges, extra_edges), axis=1)
         assembly['edges'] = all_edges
+        
+        self.assembly_cache = assembly
         
         return assembly
     
@@ -301,14 +302,12 @@ class BrickScene:
             self.render_environment.clear_materials()
             self.render_environment.clear_image_lights()
     
-    
     # brick shapes -------------------------------------------------------------
     def add_brick_shape(self, brick_shape):
         new_shape = self.shape_library.add_shape(brick_shape)
         if self.renderable:
             self.render_environment.load_brick_mesh(new_shape)
         return new_shape
-    
     
     # instances ----------------------------------------------------------------
     def add_instance(
@@ -326,6 +325,7 @@ class BrickScene:
         if self.track_snaps:
             self.update_instance_snaps(brick_instance)
         
+        self.assembly_cache = None
         return brick_instance
     
     def move_instance(self, instance, transform):
@@ -335,6 +335,8 @@ class BrickScene:
             self.render_environment.update_instance(instance)
         if self.track_snaps:
             self.update_instance_snaps(instance)
+        
+        self.assembly_cache = None
     
     def hide_instance(self, instance):
         self.renderer.hide_instance(str(instance))
@@ -348,47 +350,8 @@ class BrickScene:
             self.snap_tracker.clear()
         if self.renderable:
             self.render_environment.clear_instances()
-    
-    '''
-    def is_instance_removable(
-            self, instance, direction_space='scene', radius=1):
-        assert self.track_snaps
         
-        instance = self.instances[instance]
-        other_snaps = self.get_instance_snap_connections(instance, radius)
-        
-        instance_snaps = instance.get_snaps()
-        snap_polarities = []
-        snap_axes = []
-        for other_instance_id, other_snap_id, this_snap_id in other_snaps:
-            if self.renderable and self.instance_hidden(other_instance_id):
-                continue
-            
-            snap = instance_snaps[this_snap_id]
-            snap_polarities.append(snap.polarity)
-            snap_axis = numpy.dot(
-                    snap.transform, numpy.array([[0],[-1],[0],[0]]))[:,0]
-            if snap.polarity == '+':
-                snap_axis = -snap_axis
-            if direction_space == 'camera':
-                snap_axis = numpy.dot(self.get_view_matrix(), snap_axis)
-            snap_axis = snap_axis / numpy.linalg.norm(snap_axis)
-            snap_axes.append(snap_axis[:3])
-        
-        if len(snap_axes) == 0:
-            return True, None
-        
-        if len(snap_axes) == 1:
-            return True, snap_axes[0]
-        
-        if not all(snap_polarities[0] == g for g in snap_polarities[1:]):
-            return False, None
-        
-        if not all(numpy.dot(snap_axes[0], a) > 0.95 for a in snap_axes[1:]):
-            return False, None
-        
-        return True, snap_axes[0]
-    '''
+        self.assembly_cache = None
     
     def set_instance_color(self, instance, new_color):
         self.load_colors([new_color])
@@ -399,21 +362,19 @@ class BrickScene:
         if self.renderable:
             self.render_environment.update_instance(instance)
     
-    def set_instance_transform(self, instance, transform):
-        instance = self.instances[instance]
-        instance.transform = transform
-        if self.renderable:
-            self.render_environment.update_instance(instance)
-    
     def remove_instance(self, instance):
         instance = self.instances[instance]
         if self.renderable:
             self.render_environment.remove_instance(instance)
         if self.track_snaps:
-            for i, snap in enumerate(instance.get_snaps()):
-                snap_id = (str(instance), i)
-                self.snap_tracker.remove(snap_id)
+            #for i, snap in enumerate(instance.snaps):
+            #    snap_id = (str(instance), i)
+            #    self.snap_tracker.remove(snap_id)
+            for snap in instance.snaps:
+                self.snap_tracker.remove(tuple(snap))
         del(self.instances[instance])
+        
+        self.assembly_cache = None
     
     def get_scene_bbox(self):
         vertices = []
@@ -432,148 +393,231 @@ class BrickScene:
     # instance snaps -----------------------------------------------------------
     def update_instance_snaps(self, instance):
         assert self.track_snaps
-        for i, snap in enumerate(instance.get_snaps()):
-            snap_id = (str(instance), i)
+        for snap in instance.snaps:
+            snap_id = tuple(snap)
             self.snap_tracker.remove(snap_id)
-            snap_position = numpy.dot(snap.transform, [0,0,0,1])[:3]
+            snap_position = snap.transform[:3,3]
             self.snap_tracker.insert(snap_id, snap_position)
     
-    def get_snaps(
+    def get_matching_snaps(
         self,
         instances=None,
         polarity=None,
         style=None,
-        visible=True
     ):
         if instances is None:
             instances = self.instances
         matching_snaps = []
         for instance in instances:
-            if self.renderable and self.instance_hidden(str(instance)):
-                continue
             instance = self.instances[instance]
-            for i, snap in enumerate(instance.get_snaps()):
+            for snap in instance.snaps:
                 if polarity is not None and snap.polarity != polarity:
                     continue
                 if style is not None and snap.style not in style:
                     continue
-                matching_snaps.append((str(instance), i))
+                matching_snaps.append(snap)
         
         return matching_snaps
     
-    def snap_names_to_snaps(self, snap_names):
-        return [self.instances[i].get_snap(s) for i,s in snap_names]
+    def snap_tuple_to_snap(self, snap_tuple):
+        return self.instances[snap_tuple[0]].snaps[snap_tuple[1]]
     
-    def get_instance_snap_connections(self, instance, radius=1):
+    def get_instance_snap_connections(self, instance, unidirectional=False):
         assert self.track_snaps
         
         instance = self.instances[instance]
-        other_snaps = []
-        for i, snap in enumerate(instance.get_snaps()):
-            snap_position = numpy.dot(snap.transform, [0,0,0,1])[:3]
-            snaps_in_radius = self.snap_tracker.lookup(snap_position, radius)
-            #for j,s in snaps_in_radius:
-            #    if j != str(instance)
+        connections = []
+        for snap in instance.snaps:
+            snap_position = snap.transform[:3,3]
+            snap_tuples_in_radius = self.snap_tracker.lookup(
+                snap_position, snap.search_radius)
             
-            other_snaps.extend(
-                [(j,s,i) for j,s in snaps_in_radius
-                    if j != str(instance)
-                    and snap.connected(self.instances[j].get_snap(s))])
-            
-        return other_snaps
+            for other_snap_tuple in snap_tuples_in_radius:
+                other_snap = self.snap_tuple_to_snap(other_snap_tuple)
+                if snap.connected(other_snap, unidirectional=unidirectional):
+                    connections.append((snap, other_snap))
+        
+        return connections
     
-    def get_all_snap_connections(self, instances=None):
+    def get_all_snap_connections(self, instances=None, unidirectional=False):
         assert self.track_snaps
         if instances is None:
             instances = self.instances
         
         snap_connections = {}
         for instance in instances:
-            connections = self.get_instance_snap_connections(instance)
-            snap_connections[str(instance)] = connections
+            connections = self.get_instance_snap_connections(
+                instance, unidirectional=unidirectional)
+            snap_connections[int(instance)] = connections
         
         return snap_connections
     
-    def get_all_edges(self, instances=None, unidirectional=False):
+    def get_assembly_edges(self, instances=None, unidirectional=False):
         assert self.track_snaps
-        snap_connections = self.get_all_snap_connections(instances=instances)
+        snap_connections = self.get_all_snap_connections(
+            instances=instances, unidirectional=unidirectional)
         all_edges = set()
-        for instance_a_name in snap_connections:
-            instance_a_id = int(instance_a_name)
-            connections = snap_connections[instance_a_name]
-            for instance_b_name, snap_id_b, snap_id_a in connections:
-                instance_b_id = int(instance_b_name)
-                if instance_a_id < instance_b_id or not unidirectional:
-                    all_edges.add(
-                        (instance_a_id, instance_b_id, snap_id_a, snap_id_b))
+        for instance_a_id, connections in snap_connections.items():
+            #for instance_b_name, snap_id_b, snap_id_a in connections:
+            for snap_a, snap_b in connections:
+                #instance_b_id = int(instance_b_name)
+                #if instance_a_id < instance_b_id or not unidirectional:
+                #all_edges.add(
+                #    (instance_a_id, instance_b_id, snap_id_a, snap_id_b))
+                all_edges.add((snap_a[0], snap_b[0], snap_a[1], snap_b[1]))
         num_edges = len(all_edges)
         all_edges = numpy.array(list(all_edges)).T.reshape(4, num_edges)
         return all_edges.astype(numpy.long)
     
-    def get_brick_neighbors(self, instances=None):
-        if instances is None:
-            instances = self.instances
-        edges = self.get_all_edges(instances=instances, unidirectional=True)
-        neighbor_ids = {int(brick):set() for brick in instances}
-        for i in range(edges.shape[1]):
-            instance_a, instance_b, snap_a, snap_b = edges[:,i]
-            neighbor_ids[instance_a].add(instance_b)
-            neighbor_ids[instance_b].add(instance_a)
-        
-        brick_order = list(sorted(neighbor_ids.keys()))
-        bricks = [self.instances[brick_id] for brick_id in brick_order]
-        neighbors = [
-            [self.instances[n_id] for n_id in neighbor_ids[brick_id]]
-            for brick_id in brick_order
-        ]
-        
-        return bricks, neighbors
-    
     def get_all_snaps(self):
         assert self.track_snaps
         
-        all_snaps = set()
-        for instance_id, instance in self.instances.items():
-            brick_shape = instance.brick_shape
-            all_snaps |= set(
-                (instance_id, i)
-                for i in range(len(brick_shape.snaps)))
+        all_snaps = []
+        for instance in self.instances.values():
+            all_snaps.extend(instance.snaps)
         
         return all_snaps
+    
+    def get_occupied_snaps(self):
+        # build a list of occupied snaps
+        all_snap_connections = self.get_all_snap_connections()
+        occupied_snaps = set()
+        #for a_id, connections in all_snap_connections.items():
+        #    for b_id, b_snap, a_snap in connections:
+        #        #occupied_snaps.add((a_id, a_snap))
+        #        #occupied_snaps.add((b_id, b_snap))
+        #        occupied_snaps.add(self.instances[a_id].snaps[a_snap])
+        #        occupied_snaps.add(self.instances[b_id].snaps[b_snap])
+        for instance_a, connections in all_snap_connections.items():
+            for snap_a, snap_b in connections:
+                occupied_snaps.add(snap_a)
+                occupied_snaps.add(snap_b)
+        
+        return occupied_snaps
     
     def get_unoccupied_snaps(self):
         assert self.track_snaps
         
-        all_snaps = self.get_all_snaps()
-        
-        # build a list of occupied snaps
-        all_snap_connections = self.get_all_snap_connections()
-        occupied_snaps = set()
-        for a_id, connections in all_snap_connections.items():
-            for b_id, b_snap, a_snap in connections:
-                occupied_snaps.add((a_id, a_snap))
-                occupied_snaps.add((b_id, b_snap))
-        # build a list of unoccupied snaps
+        all_snaps = set(self.get_all_snaps())
+        occupied_snaps = self.get_occupied_snaps()
         unoccupied_snaps = all_snaps - occupied_snaps
-        unoccupied_snaps = [
-                self.instances[instance_id].get_snap(snap_id)
-                for instance_id, snap_id in unoccupied_snaps]
         
         return unoccupied_snaps
+    
+    def all_pick_and_place_transforms(self, pick, place, check_collision=False):
+        if check_collision:
+            assert self.collision_checker is not None
+        
+        if place is None:
+            place = UniversalSnap(self.upright)
+        
+        candidate_transforms = pick.pick_and_place_transforms(pick, place)
+        
+        pick_instance_transform = pick.brick_instance.transform
+        
+        if check_collision:
+            transforms = []
+            for transform in candidate_transforms:
+                self.move_instance(pick.brick_instance, transform)
+                collision = self.check_snap_collision(
+                    [pick.brick_instance],
+                    pick,
+                )
+                self.move_instance(pick.brick_instance, pick_instance_transform)
+                if not collision:
+                    transforms.append(transform)
+        else:
+            transforms = candidate_transforms
+        
+        return transforms
+    
+    def all_pick_and_place_transforms_old(self,
+        pick,
+        place,
+        check_collision=False,
+    ):
+        assert pyquaternion_available
+        
+        if check_collision:
+            assert self.collision_checker is not None
+        
+        if isinstance(pick, SnapInstance):
+            pick_instance_id = int(pick.brick_instance)
+            pick_snap = pick
+        else:
+            pick_instance_id, pick_snap = pick
+        pick_instance = self.instances[pick_instance_id]
+        pick_transform = unscale_transform(pick_snap.transform.copy())
+        inv_pick_transform = numpy.linalg.inv(pick_transform)
+        pick_instance_transform = pick_instance.transform.copy()
+        if place is None:
+            place_transform = self.upright
+        else:
+            if isinstance(place, SnapInstance):
+                place_transform = unscale_transform(place.transform.copy())
+            else:
+                place_instance_id, place_snap_id = place
+                place_instance = self.instances[place_instance_id]
+                place_snap = place_instance.snaps[place_snap_id]
+                place_transform = unscale_transform(place_snap.transform.copy())
+        
+        pick_and_place_transforms = []
+        for i in range(4):
+            angle = i * math.pi/2.
+            rotation = Quaternion(axis=(0,1,0), angle=angle)
+            candidate_transform = (
+                place_transform @
+                rotation.transformation_matrix @
+                inv_pick_transform @
+                pick_instance_transform
+            )
+            
+            if check_collision:
+                self.move_instance(pick_instance, candidate_transform)
+                collision = self.check_snap_collision(
+                    [pick_instance],
+                    pick_snap,
+                )
+                self.move_instance(pick_instance, pick_instance_transform)
+                if collision:
+                    continue
+            
+            pick_and_place_transforms.append(candidate_transform)
+        
+        return pick_and_place_transforms
     
     def pick_and_place_snap_transform(self,
         pick,
         place,
-        check_collisions=False
+        check_collision=False,
     ):
+        
+        pick_and_place_transforms = self.all_pick_and_place_transforms(
+            pick, place, check_collision=check_collision)
+        
+        inv_pick_instance_transform = numpy.linalg.inv(
+            pick.brick_instance.transform)
+        
+        best_transform = None
+        best_pseudo_angle = -float('inf')
+        for candidate_transform in pick_and_place_transforms:
+            offset = candidate_transform @ inv_pick_instance_transform
+            pseudo_angle = numpy.trace(offset[:3,:3])
+            if pseudo_angle > best_pseudo_angle:
+                best_transform = candidate_transform
+                best_pseudo_angle = pseudo_angle
+        
+        return best_transform
+        
+        '''
         assert pyquaternion_available
         
-        if check_collisions:
+        if check_collision:
             assert self.collision_checker is not None
         
         pick_instance_id, pick_snap_id = pick
         pick_instance = self.instances[pick_instance_id]
-        pick_snap = pick_instance.get_snap(pick_snap_id)
+        pick_snap = pick_instance.snaps[pick_snap_id]
         pick_transform = unscale_transform(pick_snap.transform.copy())
         inv_pick_transform = numpy.linalg.inv(pick_transform)
         pick_instance_transform = pick_instance.transform.copy()
@@ -582,7 +626,7 @@ class BrickScene:
         else:
             place_instance_id, place_snap_id = place
             place_instance = self.instances[place_instance_id]
-            place_snap = place_instance.get_snap(place_snap_id)
+            place_snap = place_instance.snaps[place_snap_id]
             place_transform = unscale_transform(place_snap.transform.copy())
         
         best_transform = None
@@ -603,11 +647,11 @@ class BrickScene:
             )
             pseudo_angle = numpy.trace(offset[:3,:3])
             if pseudo_angle > best_pseudo_angle:
-                if check_collisions:
+                if check_collision:
                     self.move_instance(pick_instance, candidate_transform)
                     collision = self.check_snap_collision(
                         [pick_instance],
-                        pick_instance.get_snap(pick_snap_id),
+                        pick_instance.snaps[pick_snap_id],
                     )
                     self.move_instance(pick_instance, pick_instance_transform)
                     if collision:
@@ -616,11 +660,12 @@ class BrickScene:
                 best_pseudo_angle = pseudo_angle
         
         return best_transform
+        '''
     
-    def pick_and_place_snap(self, pick, place, check_collisions=False):
-        pick_instance = self.instances[pick[0]]
+    def pick_and_place_snap(self, pick, place, check_collision=False):
+        pick_instance = pick.brick_instance
         transform = self.pick_and_place_snap_transform(
-            pick, place, check_collisions=check_collisions)
+            pick, place, check_collision=check_collision)
         if transform is None:
             return False
         else:

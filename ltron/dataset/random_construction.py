@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import os
+import random
+random.seed(1234567890)
 
 import tqdm
 
@@ -30,7 +32,7 @@ def make_mpd(
     min_bricks,
     max_bricks
 ):
-    ldraw_path = os.path.join(settings.collections[collection], 'ldraw')
+    ldraw_path = os.path.join(settings.collections[collection], 'ldraw_new')
     if not os.path.isdir(ldraw_path):
         os.makedirs(ldraw_path)
     
@@ -38,7 +40,13 @@ def make_mpd(
         renderable=True, track_snaps=True, collision_checker=True)
     for i in tqdm.tqdm(range(start_scene, num_scenes+start_scene)):
         sample_scene(
-            scene, samplers, (min_bricks, max_bricks), colors, timeout=10)
+            scene,
+            samplers,
+            (min_bricks, max_bricks),
+            colors,
+            debug=False,
+            timeout=10,
+        )
         scene_path = os.path.join(ldraw_path, '%s_%06i.mpd'%(name, i))
         scene.export_ldraw(scene_path)
         
@@ -58,4 +66,4 @@ def make_scale(collection, scale, start_scene, num_scenes):
     )
 
 #make_scale('random_construction_6_6', 'pico', 0, 50000)
-make_scale('random_construction_6_6', 'pico', 50000, 5000)
+make_scale('random_construction_6_6', 'nano', 0, 50000)
