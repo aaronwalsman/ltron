@@ -54,14 +54,18 @@ def generate_episodes_for_dataset(config=None):
     print('='*80)
     print('Planning Plans %i-%i'%(config.start, end))
     iterate = tqdm.tqdm(range(config.start, end))
+    errors = []
     for i in iterate:
         for j in range(config.episodes_per_model):
             env = BreakAndMakeEnv(
                 config, rank=i, size=num_models, print_traceback=True)
             first_observation = env.reset()
             
-            o, a, r = plan_break_and_make(
-                env, first_observation, shape_ids, color_ids)
+            try:
+                o, a, r = plan_break_and_make(
+                    env, first_observation, shape_ids, color_ids)
+            except:
+                errors.append(i)
             
             o = stack_numpy_hierarchies(*o)
             a = stack_numpy_hierarchies(*a)
@@ -73,6 +77,14 @@ def generate_episodes_for_dataset(config=None):
             path = os.path.join(episode_path, file_name)
             episode = {'observations':o, 'actions':a, 'reward':r}
             numpy.savez_compressed(path, episode=episode)
+        
+        iterate.set_description('Errors: %i'%len(errors))
+    
+    if len(errors:
+        print('Errors for items:')
+        print(errors)
+    else:
+        print('No errors')
 
 def plan_break_and_make(
     env,
