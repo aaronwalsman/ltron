@@ -99,6 +99,7 @@ def start_viewer(
     
     scene = BrickScene(
         renderable=True,
+        collision_checker=True,
         render_args={
             'opengl_mode':'glut',
             'window_width':width,
@@ -205,23 +206,13 @@ def start_viewer(
             scene.removable_render(flip_y=False)
         elif state['render_mode'] == 'mask':
             scene.mask_render(flip_y=False, instances=brick_instances)
-        
-        #elif state['render_mode'] == 'snap+':
-        #    snap_instances = scene.get_snaps(polarity='+')
-        #    snap_names = scene.get_snap_names(snap_instances)
-        #    scene.snap_render_instance_id(snap_names, flip_y=False)
-        #elif state['render_mode'] == 'snap-':
-        #    snap_instances = scene.get_snaps(polarity='-')
-        #    snap_names = scene.get_snap_names(snap_instances)
-        #    scene.snap_render_instance_id(snap_names, flip_y=False)
-        
         elif state['render_mode'] == 'snap':
-            snap_instances = scene.get_snaps(polarity=state['snap_polarity'])
-            snap_names = scene.get_snap_names(snap_instances)
+            snaps = scene.get_matching_snaps(
+                polarity=state['snap_polarity'])
             if state['snap_id_mode'] == 'instance':
-                scene.snap_render_instance_id(snap_names, flip_y=False)
+                scene.snap_render_instance_id(snaps, flip_y=False)
             elif state['snap_id_mode'] == 'snap':
-                scene.snap_render_snap_id(snap_names, flip_y=False)
+                scene.snap_render_snap_id(snaps, flip_y=False)
     
     def get_instance_at_location(x, y):
         brick_instances = list(scene.instances.keys())
@@ -286,7 +277,7 @@ def start_viewer(
                 
                 if snap_id is not None:
                     print('Snap ID: %i'%snap_id)
-                    snap = instance.get_snap(snap_id)
+                    snap = instance.snaps[snap_id]
                     transform = snap.transform
                     print('Snap Transform:')
                     print(transform)
@@ -378,17 +369,17 @@ def start_viewer(
             connected_snaps = scene.get_instance_snap_connections(
                     str(instance_id))
             print('Instance: %i'%instance_id)
-            print('All Snaps:')
-            print(connected_snaps)
+            print('All Connections:')
+            for snap_a, snap_b in connected_snaps:
+                print(snap_a, ':', snap_b)
             
-            connected_instances = set(snap[0] for snap in connected_snaps)
+            connected_instances = set(
+                int(snap_b.brick_instance)
+                for snap_a, snap_b in connected_snaps
+            )
+            
             print('All Connected Instances:')
             print(list(sorted(connected_instances)))
-            
-            unidirectional = set(
-                    s for s in connected_instances if int(s) > instance_id)
-            print('Outgoing Unidirectional Edges:')
-            print(list(sorted(unidirectional)))
         
         elif key == b'p' or key == b'n':
             if key == b'p':
@@ -537,43 +528,60 @@ def start_viewer(
     
     def key_release(key, x, y):
         if key == b'p' or key == b'n':
-            if key == b'p':
+            if key == b'p' or key == b'n':
                 # render negative snaps in mask mode
-                place_snap = get_snap_under_mouse(x, y, '-')
+                if key == b'p':
+                    p = '-'
+                else:
+                    p = '+'
+                place_snap = get_snap_under_mouse(x, y, p)
                 if place_snap[0] is not None and state['pick_snap'] is not None:
                     print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
-                    scene.pick_and_place_snap(state['pick_snap'], place_snap)
+                    i, s = state['pick_snap']
+                    pick_snap = scene.instances[i].snaps[s]
+                    i, s = place_snap
+                    place_snap = scene.instances[i].snaps[s]
+                    scene.pick_and_place_snap(
+                        pick_snap, place_snap, check_collision=True)
                     state['pick_snap'] = None
             
+            '''
             elif key == b'n':
                 # render positive snaps in mask mode
                 place_snap = get_snap_under_mouse(x, y, '+')
                 if place_snap[0] is not None and state['pick_snap'] is not None:
                     print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
-                    scene.pick_and_place_snap(state['pick_snap'], place_snap)
+                    i, s = state['pick_snap']
+                    pick_snap = scene.instances[i].snaps[s]
+                    i, s = place_snap
+                    place_snap = scene.instances[i].snaps[s]
+                    scene.pick_and_place_snap(
+                        pick_snap, place_snap, check_collision=True)
                     state['pick_snap'] = None
-            
+            '''
             state['pick_snap'] = None
     
     def get_snap_under_mouse(x, y, polarity=None):
         
         # get matching snaps
-        snaps = scene.get_snaps(polarity=polarity)
-        snap_instance_names = [
-                '%s_%i'%(inst, snap) for inst, snap in snaps]
+        snaps = scene.get_matching_snaps(polarity=polarity)
+        #snap_instance_names = [
+        #        '%s_%i'%(inst, snap) for inst, snap in snaps]
+        snap_instance_names = [str(snap) for snap in snaps]
         
         # prep scene
         bg_color = renderer.get_background_color()
         renderer.set_background_color((0,0,0))
-        hidden = [renderer.instance_hidden(snap_name)
-                for snap_name in snap_instance_names]
-        for snap_name in snap_instance_names:
-            renderer.show_instance(snap_name)
+        hidden = [renderer.instance_hidden(str(snap)) for snap in snaps]
+        for snap in snaps:
+            renderer.show_instance(str(snap))
         
         # first render: instance id
+        #instance_id_lookup = {
+        #        name : int(inst)
+        #        for name, (inst, snap) in zip(snap_instance_names, snaps)}
         instance_id_lookup = {
-                name : int(inst)
-                for name, (inst, snap) in zip(snap_instance_names, snaps)}
+            str(snap) : int(snap.brick_instance) for snap in snaps}
         renderer.set_instance_masks_to_instance_indices(
                 instance_id_lookup)
         part_mask_frame.enable()
@@ -582,9 +590,11 @@ def start_viewer(
         instance_id = masks.color_byte_to_index(instance_map[y, x])
         
         # second render: snap id
+        #snap_id_lookup = {
+        #        name : int(snap)
+        #        for name, (inst, snap) in zip(snap_instance_names, snaps)}
         snap_id_lookup = {
-                name : int(snap)
-                for name, (inst, snap) in zip(snap_instance_names, snaps)}
+            str(snap) : int(snap.snap_style) for snap in snaps}
         renderer.set_instance_masks_to_instance_indices(snap_id_lookup)
         part_mask_frame.enable()
         renderer.mask_render(instances=snap_instance_names)
@@ -600,7 +610,7 @@ def start_viewer(
     
     def transform_about_snap(instance_id, snap_id, transform):
         instance = scene.instances[instance_id]
-        snap_transform = instance.get_snap(snap_id).transform
+        snap_transform = instance.snaps[snap_id].transform
         prototype_transform = instance.brick_shape.snaps[snap_id].transform
         instance_transform = (
                 snap_transform @

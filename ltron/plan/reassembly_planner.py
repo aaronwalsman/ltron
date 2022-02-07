@@ -39,7 +39,7 @@ def move_brick_to_location(
     # find edges in the target configuration
     original_transform = target_instance.transform
     scene.move_instance(target_instance, target_transform)
-    target_edges = configuration.get_all_edges([new_brick])
+    target_edges = configuration.get_assembly_edges([new_brick])
     
     if not target_edges:
         raise PlanningError('No edges found in new configuration')
@@ -68,9 +68,9 @@ def move_brick_to_location(
         destination_snap_id,
     ))
     
-    target_snap = target_instance.get_snap(target_snap_id)
+    target_snap = target_instance.snaps[target_snap_id]
     scene.move_instance(target_instance, original_transform)
-    original_snap = target_instance.get_snap(target_snap_id)
+    original_snap = target_instance.snaps[target_snap_id]
     
     scene.pick_and_place_snap_transform(
         (target_instance.instance_id, target_snap_id),
@@ -78,7 +78,7 @@ def move_brick_to_location(
     )
     
     # rotate
-    pnp_snap = target_instance.get_snap(target_snap_id)
+    pnp_snap = target_instance.snaps[target_snap_id]
     current_rotate = Quaternion(matrix=pnp_snap.transform)
     target_rotate = Quaternion(matrix=target_snap.transform)
     offset = current_rotate * target_rotate.inverse()
@@ -118,7 +118,7 @@ def plan_reassembly(env):
     
     target_bricks = scene.components['reassembly'].target_bricks
     target_neighbors = scene.components['reassembly'].target_neighbors
-    target_edges = scene.get_all_edges()
+    target_edges = scene.get_assembly_edges()
     
     # pick an arbitrary disassembly order
     visible_snaps = get_visible_bricks_and_snaps(
@@ -133,7 +133,7 @@ def plan_reassembly(env):
             
             bricks_attempted_to_remove.add(instance_id)
             
-            snap = scene.instances[instance_id].get_snap(snap_id)
+            snap = scene.instances[instance_id].snaps[snap_id]
             
             # check push
             #for direction in 'pull', 'push':

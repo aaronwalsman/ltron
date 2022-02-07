@@ -46,7 +46,7 @@ class ReassemblyExpert:
     def __call__(
         self,
         observations,
-        check_collisions=False,
+        check_collision=False,
         unfixable_mode='terminate',
         seq_ids=None,
         frame_ids=None
@@ -64,7 +64,7 @@ class ReassemblyExpert:
                     frame_id = frame_ids[i]
                 action = self.act(
                     index_hierarchy(observations, i),
-                    check_collisions=check_collisions,
+                    check_collision=check_collision,
                     unfixable_mode=unfixable_mode,
                     seq_id=seq_id,
                     frame_id=frame_id,
@@ -89,7 +89,7 @@ class ReassemblyExpert:
     def act(
         self,
         observation,
-        check_collisions=False,
+        check_collision=False,
         unfixable_mode='terminate',
         seq_id=None,
         frame_id=None,
@@ -105,12 +105,12 @@ class ReassemblyExpert:
             if not observation['reassembly']['reassembling']:
                 return self.disassembly_step(
                     observation,
-                    check_collisions=check_collisions,  
+                    check_collision=check_collision,  
                 )
             else:
                 return self.reassembly_step(
                     observation,
-                    check_collisions=check_collisions,
+                    check_collision=check_collision,
                     unfixable_mode=unfixable_mode,
                 )
         
@@ -127,7 +127,7 @@ class ReassemblyExpert:
             Image.fromarray(visualization).save(
                 './vis_%i_%i.png'%(seq_id, frame_id))
     
-    def disassembly_step(self, observation, check_collisions=False):
+    def disassembly_step(self, observation, check_collision=False):
         print('-- disassembly_step')
         
         # If there are still items in the workspace, pick one to remove and 
@@ -191,7 +191,7 @@ class ReassemblyExpert:
     def reassembly_step(
         self,
         observation,
-        check_collisions=False,
+        check_collision=False,
         unfixable_mode='terminate',
     ):
         print('-- reassembly step')
@@ -401,7 +401,7 @@ class ReassemblyExpert:
                 connections_in_workspace = [
                     i in target_to_workspace for i in connected_instances]
                 if any(connections_in_workspace):
-                    if check_collisions:
+                    if check_collision:
                         # TODO: check collisions
                         pass
                     else:

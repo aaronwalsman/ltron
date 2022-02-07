@@ -1,5 +1,6 @@
 import math
 import time
+from itertools import product
 
 import numpy
 random = numpy.random.default_rng(1234567890)
@@ -155,7 +156,7 @@ WideAxleWheelSampler = AxleWheelSubAssemblySampler(
             [0, 0, 0,  1]])],
         [WheelASampler, WheelBSampler, WheelCSampler])
         
-def get_all_snap_pairs(self, instance_snaps_a, instance_snaps_b):
+def get_all_snap_pairs(instance_snaps_a, instance_snaps_b):
     snap_pairs = [
         (snap_a, snap_b)
         for (snap_a, snap_b)
@@ -277,7 +278,7 @@ def sample_scene(
                     new_instance = scene.add_instance(
                             brick_shape, color, transform)
                     new_instances.append(new_instance)
-                    new_snaps = new_instance.snap()
+                    new_snaps = new_instance.snaps
                     sub_assembly_snaps.extend(new_snaps)
                 
                 if len(sub_assembly_snaps):

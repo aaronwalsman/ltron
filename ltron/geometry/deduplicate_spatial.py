@@ -21,11 +21,8 @@ def deduplicate(
     if not len(points):
         return []
     
-    try:
-        kdtree = cKDTree(points)
-    except:
-        import pdb
-        pdb.set_trace()
+    kdtree = cKDTree(points)
+    
     deduplicated_indices = []
     for i, point in enumerate(points):
         matches = kdtree.query_ball_point(point, max_distance)

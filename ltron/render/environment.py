@@ -118,10 +118,10 @@ class RenderEnvironment:
         )
         
         # add the snap instances
-        for i, snap in enumerate(brick_instance.get_snaps()):
-            self.add_snap_instance(brick_instance.instance_id, i, snap)
+        for i, snap in enumerate(brick_instance.snaps):
+            self.add_snap_instance(snap)
     
-    def add_snap_instance(self, instance_id, snap_id, snap):
+    def add_snap_instance(self, snap):
         if self.window is not None:
             self.window.set_active()
         # create the mesh if it doesn't exist
@@ -133,9 +133,8 @@ class RenderEnvironment:
             )
         
         # add the splendor instance
-        snap_name = '%s_%i'%(instance_id, snap_id)
         self.renderer.add_instance(
-            snap_name,
+            str(snap),
             mesh_name=snap.subtype_id,
             material_name='snap%s'%snap.polarity,
             transform=snap.transform,
@@ -145,31 +144,27 @@ class RenderEnvironment:
     
     def remove_instance(self, brick_instance):
         # remove the instance
-        instance_name = brick_instance.instance_id
-        self.renderer.remove_instance(str(instance_name))
+        self.renderer.remove_instance(str(brick_instance))
         
         # remove all snap instances
-        for i, snap in enumerate(brick_instance.get_snaps()):
-            self.renderer.remove_instance('%s_%i'%(instance_name, i))
+        for snap in brick_instance.snaps:
+            self.renderer.remove_instance(str(snap))
     
     def update_instance(self, brick_instance):
         self.renderer.set_instance_transform(
-            str(brick_instance.instance_id),
+            str(brick_instance),
             brick_instance.transform,
         )
         self.renderer.set_instance_material(
-            str(brick_instance.instance_id),
+            str(brick_instance),
             brick_instance.color.color_name,
         )
         self.renderer.set_instance_mesh(
-            str(brick_instance.instance_id),
+            str(brick_instance),
             brick_instance.brick_shape.mesh_name,
         )
-        for i, snap in enumerate(brick_instance.get_snaps()):
-            self.renderer.set_instance_transform(
-                '%s_%i'%(brick_instance.instance_id, i),
-                snap.transform,
-            )
+        for snap in brick_instance.snaps:
+            self.renderer.set_instance_transform(str(snap), snap.transform)
     
     def instance_hidden(self, brick_instance):
         return self.renderer.instance_hidden(str(brick_instance))
@@ -206,12 +201,11 @@ class RenderEnvironment:
         for snap_instance in snap_instances:
             self.renderer.show_instance(snap_instance)
     
-    def hide_snap_instance(self, instance_id, snap_id):
-        snap_name = '%s_%i'%(instance_id, snap_id)
-        self.hide_instance(snap_name)
+    def hide_snap_instance(self, snap):
+        self.hide_instance(str(snap))
     
-    def show_snap_instance(self, instance_id, snap_id):
-        snap_name = '%s_%i'%(instance_id, snap_id)
+    def show_snap_instance(self, snap):
+        self.show_instance(str(snap))
     
     def color_render(self, instances=None, **kwargs):
         if instances is None:
@@ -227,46 +221,44 @@ class RenderEnvironment:
         self.renderer.mask_render(instances=instances, **kwargs)
         self.renderer.set_background_color(background_color)
     
-    def get_snap_names(self, snaps):
-        return [
-            snap if isinstance(snap, str) else '%s_%i'%snap
-            for snap in snaps
-        ]
-    
     def snap_render_instance_id(self, snaps=None, **kwargs):
         if snaps is None:
             snaps = self.get_all_snap_instances()
         
+        snap_names = [str(snap) for snap in snaps]
+        
         background_color = self.renderer.get_background_color()
         self.renderer.set_background_color((0,0,0))
-            
         self.set_snap_masks_to_instance_id(snaps)
-        self.renderer.mask_render(instances=snaps, **kwargs)
+        
+        self.renderer.mask_render(instances=snap_names, **kwargs)
         self.renderer.set_background_color(background_color)
     
     def snap_render_snap_id(self, snaps=None, **kwargs):
         if snaps is None:
             snaps = self.get_all_snap_instances()
         
+        snap_names = [str(snap) for snap in snaps]
+        
         background_color = self.renderer.get_background_color()
         self.renderer.set_background_color((0,0,0))
         
         self.set_snap_masks_to_snap_id(snaps)
-        self.renderer.mask_render(instances=snaps, **kwargs)
+        self.renderer.mask_render(instances=snap_names, **kwargs)
         self.renderer.set_background_color(background_color)
     
     def set_snap_masks_to_instance_id(self, snaps):
         if snaps is None:
             snaps = self.get_all_snap_instances()
         mask_lookup = {
-            snap:int(snap.split('_')[0]) for snap in snaps}
+            str(snap):int(snap.brick_instance) for snap in snaps}
         self.renderer.set_instance_masks_to_instance_indices(mask_lookup)
     
     def set_snap_masks_to_snap_id(self, snaps):
         if snaps is None:
             snaps = self.get_all_snap_instances()
         mask_lookup = {
-            snap:int(snap.split('_')[1]) for snap in snaps}
+            str(snap):int(snap.snap_style) for snap in snaps}
         self.renderer.set_instance_masks_to_instance_indices(mask_lookup)
     
     def __getattr__(self, attr):

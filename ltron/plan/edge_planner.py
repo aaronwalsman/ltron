@@ -27,7 +27,7 @@ class DisassemblyFailure(LtronException):
 class NoVisibleSnapsFailure(LtronException):
     pass
 
-class VeryStrangeNeedToDebugFailure(LtronException):
+class DoubleSnapConnectionFailure(LtronException):
     pass
 
 # utilities ====================================================================
@@ -99,6 +99,8 @@ def search_camera_space(env, component_name, state, condition, max_steps):
             env, position, component_name, state, condition
         )
         if test_result:
+            # reset state
+            env.set_state(state)
             return position, test_info
         
         for i in range(4):
@@ -127,14 +129,14 @@ def search_camera_space(env, component_name, state, condition, max_steps):
                     new_distance_position = (new_distance,) + new_position
                     insort(frontier, new_distance_position)
     
+    # reset state
+    env.set_state(state)
     return None, None
 
 def test_camera_position(env, position, component_name, state, condition):
     new_state = copy.deepcopy(state)
     replace_camera_in_state(env, new_state, component_name, position)
     observation = env.set_state(new_state)
-    #save_image(observation['table_color_render'],
-    #    './cam_%i_%i_%i_%i.png'%tuple(position))
     return condition(observation)
 
 def replace_camera_in_state(env, state, component_name, position):
@@ -221,6 +223,7 @@ def get_new_to_wip_connections(
     goal_assembly,
     instance,
     goal_to_wip,
+    debug = False,
 ):
     # get connections
     connections = goal_assembly['edges'][0] == instance
@@ -245,6 +248,10 @@ def get_new_to_wip_connections(
         zip(wip_instances, instance_snaps, wip_snaps)
     }
     wip_to_new = {v:k for k,v in new_to_wip.items()}
+    
+    if debug:
+        import pdb
+        pdb.set_trace()
     
     return new_to_wip, wip_to_new, wip_instances, wip_snaps
 
@@ -359,6 +366,7 @@ def plan_add_first_brick(
     # initialize the action squence
     observation_seq = [observation]
     action_seq = []
+    reward_seq = []
     
     # pull shape, color and transform information out of the goal assembly
     shape_index = goal_assembly['shape'][instance]
@@ -368,7 +376,6 @@ def plan_add_first_brick(
     # find the upright snaps ---------------------------------------------------
     brick_shape = BrickShape(shape_id_to_brick_shape[shape_index])
     brick_instance = BrickInstance(0, brick_shape, color_index, brick_transform)
-    #upright_snaps, upright_snap_ids = brick_instance.get_upright_snaps()
     upright_snaps = brick_instance.get_upright_snaps()
     
     # if there are no upright snaps this brick cannot be added as a first brick
@@ -380,6 +387,7 @@ def plan_add_first_brick(
     action_seq.append(insert_action)
     observation, reward, terminal, info = env.step(insert_action)
     observation_seq.append(observation)
+    reward_seq.append(reward)
     
     if debug:
         vis_obs(observation, 1, 1)
@@ -406,10 +414,11 @@ def plan_add_first_brick(
     # update the state
     if hand_camera_actions:
         action_seq.extend(hand_camera_actions)
-        _ = env.set_state(state)
+        #_ = env.set_state(state) # no longer necessary
         for action in hand_camera_actions:
             observation, reward, terminal, info = env.step(action)
             observation_seq.append(observation)
+            reward_seq.append(reward)
         #replace_camera_in_state(
         #    env, state, 'hand_viewpoint', hand_camera_position)
         #observation = env.set_state(state)
@@ -433,6 +442,7 @@ def plan_add_first_brick(
         action_seq.append(hand_cursor_action)
         observation, reward, terminal, info = env.step(hand_cursor_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         # pick and place
         pick_and_place_action = env.no_op_action()
@@ -441,6 +451,7 @@ def plan_add_first_brick(
         action_seq.append(pick_and_place_action)
         observation, reward, terminal, info = env.step(pick_and_place_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
     
     else:
         pick_and_place_action = env.no_op_action()
@@ -453,6 +464,7 @@ def plan_add_first_brick(
         action_seq.append(pick_and_place_action)
         observation, reward, terminal, info = env.step(pick_and_place_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
     
     if debug:
         vis_obs(observation, 1, 3)
@@ -461,7 +473,7 @@ def plan_add_first_brick(
         env.components['table_scene'].brick_scene.export_ldraw(
             './add_1.mpd')
     
-    return observation_seq, action_seq
+    return observation_seq, action_seq, reward_seq
 
 def plan_add_nth_brick(
     env,
@@ -481,6 +493,7 @@ def plan_add_nth_brick(
     # initialize the action sequence
     observation_seq = [observation]
     action_seq = []
+    reward_seq = []
     
     # pull shape, color and transform information out of the goal assembly
     brick_shape = goal_assembly['shape'][instance]
@@ -492,6 +505,7 @@ def plan_add_nth_brick(
     action_seq.append(insert_action)
     observation, reward, terminal, info = env.step(insert_action)
     observation_seq.append(observation)
+    reward_seq.append(reward)
     
     if debug:
         vis_obs(observation, new_wip_instance, 0)
@@ -524,12 +538,13 @@ def plan_add_nth_brick(
     # update the state
     if table_camera_actions:
         action_seq.extend(table_camera_actions)
-        _ = env.set_state(state)
+        #_ = env.set_state(state) # no longer necessary
         for action in table_camera_actions:
             observation, reward, terminal, info = env.step(action)
             observation_seq.append(observation)
-        replace_camera_in_state(
-            env, state, 'table_viewpoint', table_camera_position)
+            reward_seq.append(reward)
+        #replace_camera_in_state(
+        #    env, state, 'table_viewpoint', table_camera_position)
         #observation = env.set_state(state)
         
         if debug:
@@ -542,9 +557,11 @@ def plan_add_nth_brick(
     try:
         new_snaps = [wip_to_new[i,s][1] for i,s in zip(wi, ws)]
     except:
-        raise VeryStrangeNeedToDebugFailure
+        # this is caused by two snaps being connected to one
+        raise DoubleSnapConnectionFailure
     
     # compute the hand camera motion
+    state = env.get_state()
     (hand_camera_actions,
      hand_camera_position,
      new_visible_snaps) = plan_camera_to_see_snaps(
@@ -562,10 +579,11 @@ def plan_add_nth_brick(
     # update the state
     if hand_camera_actions:
         action_seq.extend(hand_camera_actions)
-        _ = env.set_state(state)
+        #_ = env.set_state(state) # no longer necessary
         for action in hand_camera_actions:
             observation, reward, terminal, info = env.step(action)
             observation_seq.append(observation)
+            reward_seq.append(reward)
         #replace_camera_in_state(
         #    env, state, 'hand_viewpoint', hand_camera_position)
         #observation = env.set_state(state)
@@ -598,6 +616,7 @@ def plan_add_nth_brick(
         action_seq.append(hand_cursor_action)
         observation, reward, terminal, info = env.step(hand_cursor_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         # table cursor
         table_cursor_action = env.no_op_action()
@@ -610,6 +629,7 @@ def plan_add_nth_brick(
         action_seq.append(table_cursor_action)
         observation, reward, terminal, info = env.step(table_cursor_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         # pick and place
         pick_and_place_action = env.no_op_action()
@@ -618,6 +638,7 @@ def plan_add_nth_brick(
         action_seq.append(pick_and_place_action)
         observation, reward, terminal, info = env.step(pick_and_place_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         if not observation['pick_and_place']['success']:
             raise PickAndPlaceFailure
@@ -644,15 +665,14 @@ def plan_add_nth_brick(
         # take the action to generate the latest observation
         observation, reward, terminal, info = env.step(pick_and_place_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         if not observation['pick_and_place']['success']:
             raise PickAndPlaceFailure
     
-    state = env.get_state()
-    
     if debug:
         vis_obs(observation, new_wip_instance, 3)
-
+    
     # make the rotation action -------------------------------------------------
     
     # figure out if we need to rotate the new instance
@@ -670,6 +690,7 @@ def plan_add_nth_brick(
     
     if discrete_rotation:
         # compute the camera motion to make sure the snap to rotate is visible
+        state = env.get_state()
         (table_camera_actions,
          table_camera_position,
          new_visible_snaps) = plan_camera_to_see_snaps(
@@ -688,10 +709,11 @@ def plan_add_nth_brick(
         # update the state
         if table_camera_actions:
             action_seq.extend(table_camera_actions)
-            _ = env.set_state(state)
+            #_ = env.set_state(state) # no longer necessary
             for action in table_camera_actions:
                 observation, reward, terminal, info = env.step(action)
                 observation_seq.append(observation)
+                reward_seq.append(reward)
             #replace_camera_in_state(
             #    env, state, 'table_viewpoint', table_camera_position)
             #observation = env.set_state(state)
@@ -713,6 +735,7 @@ def plan_add_nth_brick(
             action_seq.append(table_cursor_action)
             observation, reward, terminal, info = env.step(table_cursor_action)
             observation_seq.append(observation)
+            reward_seq.append(reward)
             
             # rotation
             rotation_action = env.no_op_action()
@@ -721,7 +744,8 @@ def plan_add_nth_brick(
             action_seq.append(rotation_action)
             observation, reward, terminal, info = env.step(rotation_action)
             observation_seq.append(observation)
-        
+            reward_seq.append(reward)
+           
         else:
             # cursor/rotate action
             rotation_action = env.no_op_action()
@@ -735,6 +759,7 @@ def plan_add_nth_brick(
             action_seq.append(rotation_action)
             observation, reward, terminal, info = env.step(rotation_action)
             observation_seq.append(observation)
+            reward_seq.append(reward)
         
         if debug:
             vis_obs(observation, new_wip_instance, 5)
@@ -746,7 +771,7 @@ def plan_add_nth_brick(
     #env.components['table_scene'].brick_scene.export_ldraw(
     #    './export_step_%i_b.mpd'%instance)
     
-    return observation_seq, action_seq
+    return observation_seq, action_seq, reward_seq
 
 def plan_remove_nth_brick(
     env,
@@ -772,6 +797,7 @@ def plan_remove_nth_brick(
     # initialize the action sequence
     observation_seq = [observation]
     action_seq = []
+    reward_seq = []
     
     # table camera -------------------------------------------------------------
     # find all connections between the instance and the rest of the scene
@@ -800,8 +826,6 @@ def plan_remove_nth_brick(
      wip_snaps,
      instance_snaps) = get_wip_to_wip_connections(wip_assembly, wip_instance)
     
-    #print('ll', set(instance_to_wip.keys()))
-    
     if not len(wip_instances):
         brick_shape = wip_assembly['shape'][wip_instance]
         brick_shape = BrickShape(shape_id_to_brick_shape[brick_shape])
@@ -826,12 +850,12 @@ def plan_remove_nth_brick(
     
     # update the state
     if table_camera_actions:
-        print('MOVE')
         action_seq.extend(table_camera_actions)
-        _ = env.set_state(state)
+        #_ = env.set_state(state) # no longer necessary
         for action in table_camera_actions:
             observation, reward, terminal, info = env.step(action)
             observation_seq.append(observation)
+            reward_seq.append(reward)
         #replace_camera_in_state(
         #    env, state, 'table_viewpoint', table_camera_position)
         #observation = env.set_state(state)
@@ -858,6 +882,7 @@ def plan_remove_nth_brick(
         action_seq.append(table_cursor_action)
         observation, reward, terminal, info = env.step(table_cursor_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         # disassembly action
         disassembly_action = env.no_op_action()
@@ -866,6 +891,7 @@ def plan_remove_nth_brick(
         action_seq.append(disassembly_action)
         observation, reward, terminal, info = env.step(disassembly_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         if not observation['disassembly']['success']:
             raise DisassemblyFailure
@@ -884,6 +910,7 @@ def plan_remove_nth_brick(
         action_seq.append(disassembly_action)
         observation, reward, terminal, info = env.step(disassembly_action)
         observation_seq.append(observation)
+        reward_seq.append(reward)
         
         if not observation['disassembly']['success']:
             raise DisassemblyFailure
@@ -893,7 +920,7 @@ def plan_remove_nth_brick(
         env.components['table_scene'].brick_scene.export_ldraw(
             './disassembly_%i.mpd'%instance)
     
-    return observation_seq, action_seq
+    return observation_seq, action_seq, reward_seq
 
 def vis_obs(obs, i, j, label='tmp'):
     from splendor.image import save_image
