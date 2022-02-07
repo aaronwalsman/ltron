@@ -304,6 +304,33 @@ class SnapCylinder(SnapStyle):
     
     def is_upright(self):
         return unscale_transform(self.transform.copy())[:3,1] @ [0,1,0] >= 0.999
+    
+    def equivalent(self, other):
+        if type(self) != type(other):
+            return False
+        
+        if self.polarity != other.polarity:
+            return False
+        
+        if self.radius != other.radius:
+            return False
+        
+        if self.length != other.length:
+            return False
+        
+        p1 = (self.transform @ [0,0,0,1])[:3]
+        p2 = (other.transform @ [0,0,0,1])[:3]
+        if numpy.linalg.norm(p1 - p2) > self.search_radius:
+            return False
+        
+        n1 = (self.transform @ [0,1,0,0])[:3]
+        n1 /= numpy.linalg.norm(n1)
+        n2 = (other.transform @ [0,1,0,0])[:3]
+        n2 /= numpy.linalg.norm(n2)
+        if numpy.dot(n1, n2) < 0.99:
+            return False
+        
+        return True
 
 class UniversalSnap(SnapStyle):
     group = None
@@ -1281,13 +1308,14 @@ def deduplicate_snaps(
     max_angular_distance=0.08,
 ):
     points = [snap.transform[:3,3] for snap in snaps]
-    rdf = rotation_doublecheck_function(max_angular_distance)
+    #rdf = rotation_doublecheck_function(max_angular_distance)
     def doublecheck_function(a, b):
+        return a.equivalent(b)
         #if a.subtype_id != b.subtype_id:
         #    return False
-        if type(a) != type(b):
-            return False
-        return rdf(a.transform,b.transform)
+        #if type(a) != type(b):
+        #    return False
+        #return rdf(a.transform,b.transform)
     
     deduplicate_indices = deduplicate(
         points,
@@ -1346,8 +1374,11 @@ class SnapInstance:
     
     transform = property(get_transform)
     
-    #def compatible(self, other):
-    #    return self.snap_style.compatible(other.snap_style)
+    def compatible(self, other):
+        if isinstance(other, SnapInstance):
+            return self.snap_style.compatible(other.snap_style)
+        else:
+            return self.snap_style.compatible(other)
     
     # for tuple conversion
     def __getitem__(self, i):
