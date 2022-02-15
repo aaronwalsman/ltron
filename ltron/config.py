@@ -146,6 +146,9 @@ class Config:
                 source_name = primary_attr
             if hasattr(other, source_name):
                 args[primary_attr] = getattr(other, source_name)
+        for kwarg in kwargs:
+            if not hasattr(cls, kwarg):
+                raise AttributeError, 'The attribute "%s" does not exist'%kwarg
         return cls(**args)
     
     @classmethod
