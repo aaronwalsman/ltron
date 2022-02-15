@@ -11,15 +11,17 @@ from ltron.gym.envs.break_and_make_env import (
     BreakAndMakeEnv, BreakAndMakeEnvConfig)
 from ltron.plan.roadmap import Roadmap
 from ltron.dataset.paths import get_dataset_info, get_dataset_paths
+from ltron.geometry.collision import build_collision_map
 
 class BreakAndMakeEpisodeConfig(BreakAndMakeEnvConfig):
     episodes_per_model = 1
     dataset = 'random_construction_6_6'
     collection = 'random_construction_6_6'
     split = 'train'
-    subset = None
-    start = 0
-    end = None
+    
+    target_steps_per_view_change = 2
+    
+    error_handling = 'count'
     
     seed = 1234567890
 
@@ -45,42 +47,53 @@ def generate_episodes_for_dataset(config=None):
     if not os.path.exists(episode_path):
         os.makedirs(episode_path)
     
-    num_models = len(dataset_paths['mpd'])
-    if config.end is None:
-        end = num_models
-    else:
-        end = config.end
+    #num_models = len(dataset_paths['mpd'])
+    #if config.end is None:
+    #    end = num_models
+    #else:
+    #    end = config.end
+    
+    env = BreakAndMakeEnv(
+        config, rank=0, size=1, print_traceback=True)
     
     print('='*80)
-    print('Planning Plans %i-%i'%(config.start, end))
-    iterate = tqdm.tqdm(range(config.start, end))
+    print('Planning Plans')
+    iterate = tqdm.tqdm(range(env.components['dataset'].length))
     errors = []
     for i in iterate:
         for j in range(config.episodes_per_model):
-            env = BreakAndMakeEnv(
-                config, rank=i, size=num_models, print_traceback=True)
+            #env = BreakAndMakeEnv(
+            #    config, rank=i, size=num_models, print_traceback=True)
             first_observation = env.reset()
             
             try:
+                t = config.target_steps_per_view_change
                 o, a, r = plan_break_and_make(
-                    env, first_observation, shape_ids, color_ids)
+                    env, first_observation, shape_ids, color_ids,
+                    target_steps_per_view_change=t,
+                )
+                
+                o = stack_numpy_hierarchies(*o)
+                a = stack_numpy_hierarchies(*a)
+                r = numpy.array(r)
+                
+                file_name = os.path.basename(dataset_paths['mpd'][i])
+                file_name = file_name.replace('.mpd', '_%i.npz'%j)
+                file_name = file_name.replace('.ldr', '_%i.npz'%j)
+                path = os.path.join(episode_path, file_name)
+                episode = {'observations':o, 'actions':a, 'reward':r}
+                numpy.savez_compressed(path, episode=episode)
+            except KeyboardInterrupt:
+                raise
             except:
-                errors.append(i)
-            
-            o = stack_numpy_hierarchies(*o)
-            a = stack_numpy_hierarchies(*a)
-            r = numpy.array(r)
-            
-            file_name = os.path.basename(dataset_paths['mpd'][i])
-            file_name = file_name.replace('.mpd', '_%i.npz'%j)
-            file_name = file_name.replace('.ldr', '_%i.npz'%j)
-            path = os.path.join(episode_path, file_name)
-            episode = {'observations':o, 'actions':a, 'reward':r}
-            numpy.savez_compressed(path, episode=episode)
+                if config.error_handling == 'count':
+                    errors.append(i)
+                else:
+                    raise
         
         iterate.set_description('Errors: %i'%len(errors))
     
-    if len(errors:
+    if len(errors):
         print('Errors for items:')
         print(errors)
     else:
@@ -97,6 +110,8 @@ def plan_break_and_make(
     # get the full and empty assemblies
     full_assembly = observation['table_assembly']
     full_state = env.get_state()
+    full_collision_map = build_collision_map(
+        env.components['table_scene'].brick_scene)
     
     empty_assembly = {
         'shape' : numpy.zeros_like(full_assembly['shape']),
@@ -104,6 +119,7 @@ def plan_break_and_make(
         'pose' : numpy.zeros_like(full_assembly['pose']),
         'edges' : numpy.zeros_like(full_assembly['edges']),
     }
+    empty_collision_map = {}
     
     # initialize the result lists
     observations = []
@@ -114,7 +130,9 @@ def plan_break_and_make(
     break_roadmap = Roadmap(
         env,
         full_state,
+        full_collision_map,
         empty_assembly,
+        empty_collision_map,
         shape_ids,
         color_ids,
         target_steps_per_view_change=target_steps_per_view_change,
@@ -147,7 +165,9 @@ def plan_break_and_make(
     make_roadmap = Roadmap(
         env,
         empty_state,
+        empty_collision_map,
         full_assembly,
+        full_collision_map,
         shape_ids,
         color_ids,
         target_steps_per_view_change=target_steps_per_view_change,

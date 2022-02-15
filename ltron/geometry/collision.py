@@ -80,8 +80,8 @@ def build_collision_map(
         scene_instances = set(
             int(scene_instance) for scene_instance in scene_instances)
     
-    if frame_buffer is None:
-        frame_buffer = make_collision_framebuffer(resolution)
+    #if frame_buffer is None:
+    #    frame_buffer = make_collision_framebuffer(resolution)
     
     edges = scene.get_assembly_edges(unidirectional=False)
     collision_map = {}
@@ -115,13 +115,21 @@ def build_collision_map(
             k = 0
             while current_scene_instances:
                 k += 1
-                colliders = check_snap_collision(
-                    scene,
+                #colliders = check_snap_collision(
+                #    scene,
+                #    [instance],
+                #    snap,
+                #    scene_instances=current_scene_instances,
+                #    return_colliding_instances=True,
+                #    frame_buffer=frame_buffer,
+                #    *args,
+                #    **kwargs,
+                #)
+                colliders = scene.check_snap_collision(
                     [instance],
                     snap,
                     scene_instances=current_scene_instances,
                     return_colliding_instances=True,
-                    frame_buffer=frame_buffer,
                     *args,
                     **kwargs,
                 )

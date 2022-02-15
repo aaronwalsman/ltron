@@ -9,7 +9,7 @@ import tqdm
 import numpy
 
 from ltron.exceptions import LtronException
-from ltron.bricks.brick_scene import BrickScene
+#from ltron.bricks.brick_scene import BrickScene
 from ltron.geometry.collision import build_collision_map
 from ltron.matching import match_assemblies, match_lookup
 from ltron.bricks.brick_instance import BrickInstance
@@ -58,7 +58,9 @@ class Roadmap:
         self,
         env,
         start_env_state,
+        start_collision_map,
         goal_assembly,
+        goal_collision_map,
         shape_ids,
         color_ids,
         target_steps_per_view_change=4,
@@ -77,6 +79,9 @@ class Roadmap:
         self.color_ids = color_ids
         self.target_steps_per_view_change = target_steps_per_view_change
         self.split_cursor_actions = split_cursor_actions
+        
+        self.start_collision_map = start_collision_map
+        self.goal_collision_map = goal_collision_map
         
         # initialize paths
         self.paths = {}
@@ -110,6 +115,7 @@ class Roadmap:
         self.paths[first_path]['env_state'] = start_env_state
         self.paths[first_path]['evaluated'] = True
         
+        '''
         # build start collision map
         temp_scene = BrickScene(renderable=True, track_snaps=True)
         temp_scene.import_assembly(
@@ -121,6 +127,7 @@ class Roadmap:
         temp_scene.import_assembly(
             self.goal_assembly, self.brick_shape_to_shape_id, self.color_ids)
         self.goal_collision_map = build_collision_map(temp_scene)
+        '''
     
     #def get_observation_action_seq(self, path):
     #    observation_seq = []
