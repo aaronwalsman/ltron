@@ -148,7 +148,7 @@ class Config:
                 args[primary_attr] = getattr(other, source_name)
         for kwarg in kwargs:
             if not hasattr(cls, kwarg):
-                raise AttributeError, 'The attribute "%s" does not exist'%kwarg
+                raise AttributeError('The attribute "%s" does not exist'%kwarg)
         return cls(**args)
     
     @classmethod
