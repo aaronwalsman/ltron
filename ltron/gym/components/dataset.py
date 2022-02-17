@@ -86,7 +86,7 @@ class DatasetPathComponent(LtronGymComponent):
             index = self.episode_id % len(self.dataset_ids)
             self.dataset_id = self.dataset_ids[index]
         elif self.reset_mode == 'single_pass':
-            if self.episode_id < len(self.dataset_paths):
+            if self.episode_id < len(self.dataset_paths['mpd']):
                 self.dataset_id = self.dataset_ids[self.episode_id]
             else:
                 self.finished = True
