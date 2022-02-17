@@ -43,7 +43,7 @@ def generate_episodes_for_dataset(config=None):
         config.dataset, config.split, config.subset)
     
     episode_path = os.path.join(
-        settings.collections[config.collection], 'episodes')
+        settings.collections[config.collection], 'episodes_new')
     if not os.path.exists(episode_path):
         os.makedirs(episode_path)
     
