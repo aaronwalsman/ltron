@@ -24,7 +24,7 @@ class CollisionChecker:
     def __init__(
         self,
         scene,
-        resolution=(64,64),
+        resolution=(128,128),
         max_intersection=4,
     ):
         self.scene = scene
@@ -66,7 +66,7 @@ def build_collision_map(
     target_instances=None,
     scene_instances=None,
     frame_buffer=None,
-    resolution=(64,64),
+    resolution=(128,128),
     *args,
     **kwargs,
 ):
@@ -179,7 +179,7 @@ def check_collision(
     target_instances,
     render_transform,
     scene_instances=None,
-    resolution=(64,64),
+    resolution=(128,128),
     frame_buffer=None,
     max_intersection=4,
     erosion=1,
@@ -341,7 +341,7 @@ def check_collision_old(
         target_instances,
         snap_transform,
         target_snap_polarity,
-        resolution=(64,64),
+        resolution=(128,128),
         frame_buffer=None,
         max_intersection=4,
         dump_images=None,
