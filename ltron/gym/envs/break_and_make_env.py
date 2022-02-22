@@ -69,6 +69,8 @@ class BreakAndMakeEnvConfig(Config):
     tile_color_render = True
     tile_width = 16
     tile_height = 16
+    
+    observe_dataset_id = False
 
 #def break_and_make_env(config, rank, size):
 #    dataset,
@@ -109,7 +111,9 @@ class BreakAndMakeEnv(LtronEnv):
             config.subset,
             rank,
             size,
-            reset_mode=config.dataset_reset_mode)
+            reset_mode=config.dataset_reset_mode,
+            observe_dataset_id = config.observe_dataset_id,
+        )
         dataset_info = components['dataset'].dataset_info
         shape_ids = dataset_info['shape_ids']
         color_ids = dataset_info['color_ids']
@@ -208,7 +212,7 @@ class BreakAndMakeEnv(LtronEnv):
             distance_steps=hand_distance_steps,
             aspect_ratio=config.hand_image_width/config.hand_image_height,
             start_position=(0,0,0),
-            auto_frame='none',
+            auto_frame='reset',
             frame_button=True
         )
         
