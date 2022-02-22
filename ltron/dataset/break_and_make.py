@@ -17,11 +17,15 @@ class BreakAndMakeEpisodeConfig(BreakAndMakeEnvConfig):
     episodes_per_model = 1
     dataset = 'random_construction_6_6'
     collection = 'random_construction_6_6'
-    split = 'train'
+    split = 'train_new'
     
-    target_steps_per_view_change = 2
+    target_steps_per_view_change = 2.
     
     error_handling = 'count'
+    
+    episode_directory = 'episodes_2'
+    
+    split_cursor_actions = False
     
     seed = 1234567890
 
@@ -43,7 +47,7 @@ def generate_episodes_for_dataset(config=None):
         config.dataset, config.split, config.subset)
     
     episode_path = os.path.join(
-        settings.collections[config.collection], 'episodes_new')
+        settings.collections[config.collection], config.episode_directory)
     if not os.path.exists(episode_path):
         os.makedirs(episode_path)
     
@@ -71,6 +75,7 @@ def generate_episodes_for_dataset(config=None):
                 o, a, r = plan_break_and_make(
                     env, first_observation, shape_ids, color_ids,
                     target_steps_per_view_change=t,
+                    split_cursor_actions=config.split_cursor_actions,
                 )
                 
                 o = stack_numpy_hierarchies(*o)
@@ -105,6 +110,7 @@ def plan_break_and_make(
     shape_ids,
     color_ids,
     target_steps_per_view_change=2,
+    split_cursor_actions=False,
     timeout=float('inf'),
 ):
     # get the full and empty assemblies
@@ -136,6 +142,7 @@ def plan_break_and_make(
         shape_ids,
         color_ids,
         target_steps_per_view_change=target_steps_per_view_change,
+        split_cursor_actions=split_cursor_actions,
     )
     break_path = break_roadmap.plan(timeout=timeout)
     o, a, r = break_roadmap.get_observation_action_reward_seq(
@@ -171,6 +178,7 @@ def plan_break_and_make(
         shape_ids,
         color_ids,
         target_steps_per_view_change=target_steps_per_view_change,
+        split_cursor_actions=split_cursor_actions,
     )
     make_path = make_roadmap.plan(timeout=timeout)
     o, a, r = make_roadmap.get_observation_action_reward_seq(

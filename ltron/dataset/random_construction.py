@@ -65,5 +65,6 @@ def make_scale(collection, scale, start_scene, num_scenes):
         num_bricks,
     )
 
-make_scale('random_construction_6_6', 'pico', 50000, 5000)
+#make_scale('random_construction_6_6', 'mini', 0, 100)
+make_scale('random_construction_6_6', 'pico', 0, 55000)
 #make_scale('random_construction_6_6', 'nano', 0, 50000)
