@@ -588,7 +588,7 @@ class HalfPinHole(SnapCylinder):
         return isinstance(other, (Stud, HalfPin, UniversalSnap))
     
     def connected(self, my_instance, other_instance):
-        if not self.compatible(other_instance):
+        if not self.compatible(other_instance.snap_style):
             return False
         
         if isinstance(other_instance.snap_style, Stud):
@@ -644,7 +644,7 @@ def default_pick_and_place_transforms(pick, place):
 def stud_studhole_connected(stud, stud_hole):
     p = stud.transform[:3,3]
     q = stud_hole.transform[:3,3]
-    return metric_close_enough(p, q, 1.)
+    return metric_close_enough(p, q, 2.)
 
 def stud_studhole_pick_and_place_transforms(stud, studhole):
     return default_pick_and_place_transforms(stud, studhole)
@@ -653,10 +653,18 @@ def studhole_stud_pick_and_place_transforms(studhole, stud):
     return default_pick_and_place_transforms(studhole, stud)
 
 def stud_halfpinhole_connected(stud, half_pin_hole):
+    # check if the positions are close enough
     p = stud.transform[:3,3]
     a = (half_pin_hole.transform @ [0, 5,0,1])[:3]
     b = (half_pin_hole.transform @ [0,-5,0,1])[:3]
-    return metric_close_enough(p, a, 1) or metric_close_enough(p, b, 1)
+    if not (metric_close_enough(p, a, 2) or metric_close_enough(p, b, 2)):
+        return False
+    
+    # make sure the stud is pointing towards the middle of the halfpinhole
+    stud_direction = (stud.transform @ [0,1,0,0])[:3]
+    center_to_stud = p - half_pin_hole.transform[:3,3]
+    center_to_stud /= numpy.linalg.norm(center_to_stud)
+    return numpy.dot(stud_direction, center_to_stud) > 0.99
 
 def stud_halfpinhole_pick_and_place_transforms(stud, half_pin_hole):
     return default_pick_and_place_transforms(stud, half_pin_hole)
@@ -664,7 +672,7 @@ def stud_halfpinhole_pick_and_place_transforms(stud, half_pin_hole):
 def halfpinhole_stud_pick_and_place_transforms(half_pin_hole, stud):
     return default_pick_and_place_transforms(half_pin_hole, stud)
 
-def halfpin_studhole_connected(halfpin, stud_hole):
+def halfpin_studhole_connected(half_pin, stud_hole):
     p = stud_hole.transform[:3,3]
     a = (half_pin.transform @ [0, 5,0,1])[:3]
     b = (half_pin.transform @ [0,-5,0,1])[:3]

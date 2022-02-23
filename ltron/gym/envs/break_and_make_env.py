@@ -69,6 +69,8 @@ class BreakAndMakeEnvConfig(Config):
     tile_color_render = True
     tile_width = 16
     tile_height = 16
+    
+    egl_device=None
 
 #def break_and_make_env(config, rank, size):
 #    dataset,
@@ -124,17 +126,17 @@ class BreakAndMakeEnv(LtronEnv):
                 color_ids,
                 max_instances,
                 max_edges,
-                #render_args=workspace_render_args,
                 track_snaps=True,
                 collision_checker=config.check_collision,
+                render_args={'egl_device':config.egl_device},
             )
         else:
             components['table_scene'] = DatasetSceneComponent(
                 dataset_component=components['dataset'],
                 path_location=['mpd'],
-                #render_args=workspace_render_args,
                 track_snaps=True,
                 collision_checker=config.check_collision,
+                render_args={'egl_device':config.egl_device},
             )
         components['hand_scene'] = EmptySceneComponent(
             shape_ids=shape_ids,
