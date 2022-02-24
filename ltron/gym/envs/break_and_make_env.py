@@ -132,7 +132,7 @@ class BreakAndMakeEnv(LtronEnv):
                 max_edges,
                 track_snaps=True,
                 collision_checker=config.check_collision,
-                render_args={'egl_device':config.egl_device},
+                #render_args={'egl_device':config.egl_device},
             )
         else:
             components['table_scene'] = DatasetSceneComponent(
@@ -140,7 +140,7 @@ class BreakAndMakeEnv(LtronEnv):
                 path_location=['mpd'],
                 track_snaps=True,
                 collision_checker=config.check_collision,
-                render_args={'egl_device':config.egl_device},
+                #render_args={'egl_device':config.egl_device},
             )
         components['hand_scene'] = EmptySceneComponent(
             shape_ids=shape_ids,
