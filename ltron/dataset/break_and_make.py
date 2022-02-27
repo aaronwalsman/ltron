@@ -9,7 +9,7 @@ import ltron.settings as settings
 from ltron.hierarchy import stack_numpy_hierarchies
 from ltron.gym.envs.break_and_make_env import (
     BreakAndMakeEnv, BreakAndMakeEnvConfig)
-from ltron.plan.roadmap import Roadmap
+from ltron.plan.roadmap import Roadmap, PlannerTimeoutError
 from ltron.dataset.paths import get_dataset_info, get_dataset_paths
 from ltron.geometry.collision import build_collision_map
 
@@ -23,11 +23,13 @@ class BreakAndMakeEpisodeConfig(BreakAndMakeEnvConfig):
     
     error_handling = 'count'
     
-    episode_directory = 'episodes_2'
+    episode_directory = 'episodes_4'
     
     split_cursor_actions = False
     
     seed = 1234567890
+    
+    timeout = None
 
 def generate_episodes_for_dataset(config=None):
     if config is None:
@@ -36,6 +38,9 @@ def generate_episodes_for_dataset(config=None):
         config = BreakAndMakeEpisodeConfig.from_commandline()
     
     config.dataset_reset_mode = 'single_pass'
+    timeout = config.timeout
+    if timeout is None:
+        timeout = float('inf')
     
     random.seed(config.seed)
     numpy.random.seed(config.seed)
@@ -64,6 +69,7 @@ def generate_episodes_for_dataset(config=None):
     print('Planning Plans')
     iterate = tqdm.tqdm(range(env.components['dataset'].length))
     errors = []
+    timeout_i = []
     for i in iterate:
         for j in range(config.episodes_per_model):
             #env = BreakAndMakeEnv(
@@ -72,11 +78,16 @@ def generate_episodes_for_dataset(config=None):
             
             try:
                 t = config.target_steps_per_view_change
-                o, a, r = plan_break_and_make(
-                    env, first_observation, shape_ids, color_ids,
-                    target_steps_per_view_change=t,
-                    split_cursor_actions=config.split_cursor_actions,
-                )
+                try:
+                    o, a, r = plan_break_and_make(
+                        env, first_observation, shape_ids, color_ids,
+                        target_steps_per_view_change=t,
+                        split_cursor_actions=config.split_cursor_actions,
+                        timeout = timeout,
+                    )
+                except PlannerTimeoutError:
+                    timeout_i.append(i)
+                    continue
                 
                 o = stack_numpy_hierarchies(*o)
                 a = stack_numpy_hierarchies(*a)
@@ -96,13 +107,18 @@ def generate_episodes_for_dataset(config=None):
                 else:
                     raise
         
-        iterate.set_description('Errors: %i'%len(errors))
+        iterate.set_description('Errors: %i, Timeout: %i'%(
+            len(errors), len(timeout_i)))
     
     if len(errors):
         print('Errors for items:')
         print(errors)
     else:
         print('No errors')
+    
+    if len(timeout_i):
+        print('Timeout for items:')
+        print(timeout_i)
 
 def plan_break_and_make(
     env,
