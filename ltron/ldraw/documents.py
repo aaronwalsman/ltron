@@ -82,8 +82,6 @@ class LDrawDocument:
         try:
             self.resolved_file_path = get_reference_path(file_path, self.shadow)
         except LtronReferenceException as e:
-            import pdb
-            pdb.set_trace()
             raise LtronReferenceException
         #if self.shadow:
             #self.resolved_file_path = ldraw_paths.resolve_shadow_path(

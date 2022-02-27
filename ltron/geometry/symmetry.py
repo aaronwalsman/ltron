@@ -26,7 +26,8 @@ from ltron.home import get_ltron_home
 from ltron.bricks.brick_scene import BrickScene
 from ltron.bricks.brick_shape import BrickShape
 from ltron.ldraw.parts import LDRAW_PARTS, LDRAW_BLACKLIST_ALL
-from ltron.geometry.utils import metric_close_enough, vector_angle_close_enough
+from ltron.geometry.utils import (
+    metric_close_enough, vector_angle_close_enough, unscale_transform)
 
 symmetry_table_path = os.path.join(
     get_ltron_home(), 'symmetry_table.json')
@@ -366,7 +367,9 @@ def pose_match_under_symmetries(
     if not metric_close_enough(pose_a[:3,3], pose_b[:3,3], metric_tolerance):
         return False
     
-    r_ab = pose_a[:3,:3].T @ pose_b[:3,:3]
+    r_a = unscale_transform(pose_a[:3,:3])
+    r_b = unscale_transform(pose_b[:3,:3])
+    r_ab = r_a.T @ r_b
     q = Quaternion(matrix=r_ab)
     if abs(q.angle) < angular_tolerance:
         return True

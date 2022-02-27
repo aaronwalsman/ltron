@@ -48,7 +48,7 @@ def process_file_paths(file_paths, subset=None, rank=0, size=1):
         if '[' in file_path:
             file_path, path_slice = file_path.split('[')
             path_slice = path_slice.replace(']', '').split(':')
-            path_slice = [None if s is '' else int(s) for s in path_slice]
+            path_slice = [None if s == '' else int(s) for s in path_slice]
             path_slice = slice(*path_slice)
         else:
             path_slice = slice(None)
