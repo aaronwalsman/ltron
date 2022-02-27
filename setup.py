@@ -30,7 +30,10 @@ setuptools.setup(
             'ltron_make_license=ltron.scripts.ltron_make_license:main',
             'ltron_make_symmetry_table=ltron.scripts.ltron_make_symmetry_table:'
                 'main',
-            'ltron_generate_episodes=ltron.dataset.break_and_make:generate_episodes_for_dataset',
+            'ltron_generate_episodes=ltron.dataset.break_and_make:'
+                'generate_episodes_for_dataset',
+            'ltron_clean_omr=ltron.dataset.omr_clean.ultimate_cleanup:'
+                'clean_omr',
         ]
     },
     classifiers = [

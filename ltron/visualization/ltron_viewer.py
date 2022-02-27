@@ -381,15 +381,15 @@ def start_viewer(
             print('All Connected Instances:')
             print(list(sorted(connected_instances)))
         
-        elif key == b'p' or key == b'n':
-            if key == b'p':
+        elif key == b'p' or key == b'P' or key == b'n' or key == b'N':
+            if key == b'p' or key == b'P':
                 # render positive snaps in mask mode
                 instance_id, snap_id = get_snap_under_mouse(x, y, '+')
                 print('picked: %s, %s'%(instance_id, snap_id))
                 if instance_id:
                     state['pick_snap'] = (instance_id, snap_id)
             
-            if key == b'n':
+            if key == b'n' or key == b'N':
                 # render negative snaps in mask mode
                 instance_id, snap_id = get_snap_under_mouse(x, y, '-')
                 print('picked: %s, %s'%(instance_id, snap_id))
@@ -528,22 +528,21 @@ def start_viewer(
     
     def key_release(key, x, y):
         if key == b'p' or key == b'n':
-            if key == b'p' or key == b'n':
-                # render negative snaps in mask mode
-                if key == b'p':
-                    p = '-'
-                else:
-                    p = '+'
-                place_snap = get_snap_under_mouse(x, y, p)
-                if place_snap[0] is not None and state['pick_snap'] is not None:
-                    print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
-                    i, s = state['pick_snap']
-                    pick_snap = scene.instances[i].snaps[s]
-                    i, s = place_snap
-                    place_snap = scene.instances[i].snaps[s]
-                    scene.pick_and_place_snap(
-                        pick_snap, place_snap, check_collision=True)
-                    state['pick_snap'] = None
+            # render negative snaps in mask mode
+            if key == b'p':
+                p = '-'
+            else:
+                p = '+'
+            place_snap = get_snap_under_mouse(x, y, p)
+            if place_snap[0] is not None and state['pick_snap'] is not None:
+                print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
+                i, s = state['pick_snap']
+                pick_snap = scene.instances[i].snaps[s]
+                i, s = place_snap
+                place_snap = scene.instances[i].snaps[s]
+                scene.pick_and_place_snap(
+                    pick_snap, place_snap, check_collision=True)
+                state['pick_snap'] = None
             
             '''
             elif key == b'n':
@@ -560,6 +559,36 @@ def start_viewer(
                     state['pick_snap'] = None
             '''
             state['pick_snap'] = None
+        
+        
+        elif key == b'P' or key == b'N':
+            # render negative snaps in mask mode
+            if key == b'p':
+                p = '-'
+            else:
+                p = '+'
+            place_snap = get_snap_under_mouse(x, y, p)
+            if place_snap[0] is not None and state['pick_snap'] is not None:
+                print('placing to: %s, %s'%(place_snap[0], place_snap[1]))
+                i, s = state['pick_snap']
+                pick_snap = scene.instances[i].snaps[s]
+                j, s = place_snap
+                place_snap = scene.instances[j].snaps[s]
+                
+                pick_and_place_transforms = (
+                    scene.all_pick_and_place_transforms(
+                        pick_snap, place_snap, check_collision=False
+                    )
+                )
+                instance_transform = scene.instances[i].transform
+                for transform in pick_and_place_transforms:
+                    scene.move_instance(i, transform)
+                    render()
+                    time.sleep(1)
+                
+                scene.move_instance(i, instance_transform)
+                
+                state['pick_snap'] = None
     
     def get_snap_under_mouse(x, y, polarity=None):
         

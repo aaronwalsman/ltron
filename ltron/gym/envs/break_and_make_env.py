@@ -73,6 +73,8 @@ class BreakAndMakeEnvConfig(Config):
     egl_device=None
     
     observe_dataset_id = False
+    
+    allow_snap_flip = False
 
 #def break_and_make_env(config, rank, size):
 #    dataset,
@@ -270,6 +272,7 @@ class BreakAndMakeEnv(LtronEnv):
             components['table_scene'],
             components['table_cursor'],
             check_collision=config.check_collision,
+            allow_snap_flip=config.allow_snap_flip,
         )
         components['pick_and_place'] = CursorHandspacePickAndPlace(
             components['table_scene'],

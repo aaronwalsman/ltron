@@ -127,8 +127,8 @@ class SnapStyle(Snap):
                 return SnapCylinder.construct_snaps(command, transform)
             #elif isinstance(command, LDCadSnapClpCommand):
             #    return SnapClip.construct_snaps(command, transform)
-            #elif isinstance(command, LDCadSnapFgrCommand):
-            #    return SnapFinger.construct_snaps(command, transform)
+            elif isinstance(command, LDCadSnapFgrCommand):
+                return SnapFinger.construct_snaps(command, transform)
             #elif isinstance(command, LDCadSnapGenCommand):
             #    return SnapGeneric.construct_snaps(command, transform)
             #elif isinstance(command, LDCadSnapSphCommand):
@@ -298,7 +298,7 @@ class SnapCylinder(SnapStyle):
                 cumulative_length += l
         
         return snaps
-    
+        
     def __init__(self, command):
         super().__init__(command)
     
@@ -331,6 +331,25 @@ class SnapCylinder(SnapStyle):
             return False
         
         return True
+    
+    def get_collision_direction_transforms(self):
+        # return a list of directions that this snap can be pushed onto another
+        if self.polarity == '+':
+            sign = 1
+        elif self.polarity == '-':
+            sign = -1
+        
+        return [
+            numpy.array([
+                [ 1, 0,    0, 0],
+                [ 0, 0, sign, 0],
+                [ 0, 1,    0, 0],
+                [ 0, 0,    0, 1]
+            ])
+        ]
+    
+    collision_direction_transforms = property(
+        get_collision_direction_transforms)
 
 class UniversalSnap(SnapStyle):
     group = None
@@ -622,6 +641,268 @@ class HalfPinHole(SnapCylinder):
                 start_cap=True,
                 end_cap=True)
 
+class SnapFinger(SnapStyle):
+    @staticmethod
+    def construct_snaps(command, transform):
+        center = command.flags.get('center', 'false').lower() == 'true'
+        seq = [float(s) for s in command.flags.get('seq', []).split()]
+        g = command.flags.get('genderofs', 'm').lower()
+        radius = command.flags.get('radius', 6.)
+        
+        snaps = []
+        cumulative_length = 0
+        
+        if (command.flags.get('group', '').lower() == 'lckhng' or
+            (radius == 6 and numpy.allclose(seq, [4,8,4])) or
+            (radius == 6 and numpy.allclose(seq, [4.5,8,4.5])) or
+            (radius == 6 and numpy.allclose(seq, [8]))
+        ):
+            
+            # enforce the group
+            command.flags['group'] = 'lckHng'
+            
+            if len(seq) == 1:
+                snaps.append(InsideLockHinge(command, transform))
+            elif len(seq) == 3:
+                snaps.append(OutsideLockHinge(command, transform))
+            else:
+                raise Exception('bad lock hinge')
+        
+        elif command.flags.get('group','').lower() == 'hgbrc':
+            if g == 'f':
+                snaps.append(DoubleStudHingeHousing(command, transform))
+            elif g == 'm':
+                snaps.append(DoubleStudHingeInsert(command, transform))
+            else:
+                raise Exception('bad double snap hinge')
+        
+        elif len(seq) == 5 and numpy.allclose(seq, [4,4,4,4,4]):
+            if g == 'f':
+                snaps.append(Neg44444Finger(command, transform))
+            elif g == 'm':
+                snaps.append(Pos44444Finger(command, transform))
+            else:
+                raise Exception('bad 44444 finger')
+        
+        elif len(seq) == 3 and numpy.allclose(seq, [4,24,4]):
+            if g == 'f':
+                snaps.append(BoxCoverFinger(command, transform))
+            elif g == 'm':
+                snaps.append(BoxFinger(command, transform))
+            else:
+                raise Exception('bad box finger')
+        
+        elif len(seq) == 9 and numpy.allclose(seq, [4,14,4,16,4,16,4,14,4]):
+            if g == 'f':
+                snaps.append(NegQuadHinge(command, transform))
+            elif g == 'm':
+                snaps.append(PosQuadHinge(command, transform))
+            else:
+                raise Exception('bad quad hinge')
+        
+        return snaps
+    
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+    
+    def is_upright(self):
+        return unscale_transform(self.transform.copy())[:3,1] @ [0,1,0] >= 0.999
+    
+    def equivalent(self, other):
+        if type(self) != type(other):
+            return False
+        
+        if self.polarity != other.polarity:
+            return False
+        
+        p1 = (self.transform @ [0,0,0,1])[:3]
+        p2 = (other.transform @ [0,0,0,1])[:3]
+        if numpy.linalg.norm(p1 - p2) > self.search_radius:
+            return False
+        
+        #n1 = (self.transform @ [0,1,0,0])[:3]
+        #n1 /= numpy.linalg.norm(n1)
+        #n2 = (other.transform @ [0,1,0,0])[:3]
+        #n2 /= numpy.linalg.norm(n2)
+        #if numpy.dot(n1, n2) < 0.99:
+        #    return False
+        
+        return True
+    
+    def get_collision_direction_transforms(self):
+        # return a list of directions that this snap can be pushed onto another
+        if self.polarity == '+':
+            sign = 1
+        elif self.polarity == '-':
+            sign = -1
+
+        return [
+            numpy.array([
+                [ 1, 0,    0, 0],
+                [ 0, 1,    0, 0],
+                [ 0, 0, sign, 0],
+                [ 0, 0,    0, 1]
+            ]),
+            numpy.array([
+                [ 0, 0,-sign, 0],
+                [ 0, 1,    0, 0],
+                [ 1, 0,    0, 0],
+                [ 0, 0,    0, 1]
+            ]),
+            numpy.array([
+                [-1, 0,    0, 0],
+                [ 0, 1,    0, 0],
+                [ 0, 0,-sign, 0],
+                [ 0, 0,    0, 1]
+            ]),
+            numpy.array([
+                [ 0, 0, sign, 0],
+                [ 0, 1,    0, 0],
+                [-1, 0,    0, 0],
+                [ 0, 0,    0, 1]
+            ]),
+            ####
+            #numpy.array([
+            #    [-1, 0,    0, 0],
+            #    [ 0,-1,    0, 0],
+            #    [ 0, 0, sign, 0],
+            #    [ 0, 0,    0, 1]
+            #]),
+            #numpy.array([
+            #    [ 0, 0,-sign, 0],
+            #    [ 0,-1,    0, 0],
+            #    [-1, 0,    0, 0],
+            #    [ 0, 0,    0, 1]
+            #]),
+            #numpy.array([
+            #    [ 1, 0,    0, 0],
+            #    [ 0,-1,    0, 0],
+            #    [ 0, 0,-sign, 0],
+            #    [ 0, 0,    0, 1]
+            #]),
+            #numpy.array([
+            #    [ 0, 0, sign, 0],
+            #    [ 0,-1,    0, 0],
+            #    [ 1, 0,    0, 0],
+            #    [ 0, 0,    0, 1]
+            #]),
+        ]
+
+    collision_direction_transforms = property(
+        get_collision_direction_transforms)
+
+def make_finger_pair(radius, length, subtype_id):
+    class SharedFinger(SnapFinger):
+        search_radius = 2
+        
+        def __init__(self, command, transform):
+            super().__init__(command, transform)
+            self.radius = radius
+            self.length = length
+            self.subtype_id = subtype_id
+        
+        def connected(self, my_instance, other_instance):
+            if not self.compatible(other_instance.snap_style):
+                return False
+            return generic_finger_connected(my_instance, other_instance)
+        
+        def pick_and_place_transforms(self, my_instance, other_instance):
+            if not self.compatible(other_instance.snap_style):
+                return []
+            
+            rotations = [
+                numpy.array([
+                    [ 1, 0, 0, 0],
+                    [ 0, 1, 0, 0],
+                    [ 0, 0, 1, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [ 0, 0,-1, 0],
+                    [ 0, 1, 0, 0],
+                    [ 1, 0, 0, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [-1, 0, 0, 0],
+                    [ 0, 1, 0, 0],
+                    [ 0, 0,-1, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [ 0, 0, 1, 0],
+                    [ 0, 1, 0, 0],
+                    [-1, 0, 0, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [-1, 0, 0, 0],
+                    [ 0,-1, 0, 0],
+                    [ 0, 0, 1, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [ 0, 0,-1, 0],
+                    [ 0,-1, 0, 0],
+                    [-1, 0, 0, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [ 1, 0, 0, 0],
+                    [ 0,-1, 0, 0],
+                    [ 0, 0,-1, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+                numpy.array([
+                    [ 0, 0, 1, 0],
+                    [ 0,-1, 0, 0],
+                    [ 1, 0, 0, 0],
+                    [ 0, 0, 0, 1]
+                ]),
+            ]
+            
+            pick_transform = unscale_transform(
+                my_instance.snap_style.transform.copy())
+            inv_pick_transform = numpy.linalg.inv(pick_transform)
+            place_transform = unscale_transform(other_instance.transform.copy())
+            
+            return [place_transform @ rotation @ inv_pick_transform
+                for rotation in rotations]
+        
+        def get_snap_mesh(self):
+            assert splendor_available
+            return primitives.multi_cylinder(
+                start_height=-self.length/2,
+                sections=((self.radius, self.length/2),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True,
+            )
+    
+    class PosFinger(SharedFinger):
+        polarity = '+'
+        def compatible(self, other):
+            if not super().compatible(other):
+                return False
+            return isinstance(other, NegFinger)
+    
+    class NegFinger(SharedFinger):
+        polarity = '-'
+        def compatible(self, other):
+            if not super().compatible(other):
+                return False
+            return isinstance(other, PosFinger)
+
+    return PosFinger, NegFinger
+
+InsideLockHinge, OutsideLockHinge = make_finger_pair(6, 16, 'lock_hinge')
+DoubleStudHingeInsert, DoubleStudHingeHousing = make_finger_pair(
+    4, 40, 'double_stud_hinge')
+Pos44444Finger, Neg44444Finger = make_finger_pair(4, 20, 'finger_44444')
+BoxFinger, BoxCoverFinger = make_finger_pair(4, 32, 'box_finger')
+PosQuadHinge, NegQuadHinge = make_finger_pair(4, 80, 'quad_hinge')
+
 def default_pick_and_place_transforms(pick, place):
     pick_transform = unscale_transform(pick.snap_style.transform.copy())
     inv_pick_transform = numpy.linalg.inv(pick_transform)
@@ -676,7 +957,14 @@ def halfpin_studhole_connected(half_pin, stud_hole):
     p = stud_hole.transform[:3,3]
     a = (half_pin.transform @ [0, 5,0,1])[:3]
     b = (half_pin.transform @ [0,-5,0,1])[:3]
-    return metric_close_enough(p, a, 1) or metric_close_enough(p, b, 1)
+    if not (metric_close_enough(p, a, 2) or metric_close_enough(p, b, 2)):
+        return False
+    
+    # make sure the stud hole is pointing toward the middle of the halfpin
+    studhole_direction = (stud_hole.transform @ [0,1,0,0])[:3]
+    center_to_studhole = p - half_pin.transform[:3,3]
+    center_to_studhole /= numpy.linalg.norm(center_to_studhole)
+    return numpy.dot(studhole_direction, center_to_studhole) > 0.99
 
 def halfpin_studhole_pick_and_place_transforms(half_pin, stud_hole):
     return default_pick_and_place_transforms(half_pin, stud_hole)
@@ -694,6 +982,24 @@ def halfpin_halfpinhole_pick_and_place_transforms(half_pin, half_pin_hole):
 
 def halfpinhole_halfpin_pick_and_place_transforms(half_pin_hole, half_pin):
     return default_pick_and_place_transforms(half_pin_hole, half_pin)
+
+def generic_finger_connected(outside_lockhinge, inside_lockhinge):
+    po = outside_lockhinge.transform[:3,3]
+    pi = inside_lockhinge.transform[:3,3]
+    if not metric_close_enough(po, pi, 2):
+        print('not close enough')
+        return False
+    
+    yo = outside_lockhinge.transform[:3,1]
+    yi = inside_lockhinge.transform[:3,1]
+    if numpy.abs(numpy.dot(yo, yi)) < 0.975:
+        print('bad angle', numpy.dot(yo, yi))
+        return False
+    
+    return True
+
+def doublestudhinge_connected(housing, insert):
+    return lockhinge_connected(housing, insert)
 
 # OLD ==========================================================================
 
@@ -1063,7 +1369,7 @@ class SnapClip(SnapStyle):
                 start_cap=True,
                 end_cap=True)
 
-class SnapFinger(SnapStyle):
+class SnapFingerOff(SnapStyle):
     style='finger'
     def __init__(self, command, transform):
         super(SnapFinger, self).__init__(command, transform)
@@ -1415,3 +1721,11 @@ class SnapInstance:
     
     def __getattr__(self, attr):
         return getattr(self.snap_style, attr)
+    
+    def get_collision_direction_transforms(self):
+        directions = self.snap_style.get_collision_direction_transforms()
+        return [self.transform @ direction for direction in directions]
+    
+    collision_direction_transforms = property(
+        get_collision_direction_transforms
+    )

@@ -65,6 +65,7 @@ class Roadmap:
         color_ids,
         target_steps_per_view_change=4,
         split_cursor_actions=False,
+        allow_snap_flip=False,
     ):
         
         # store arguments
@@ -79,6 +80,7 @@ class Roadmap:
         self.color_ids = color_ids
         self.target_steps_per_view_change = target_steps_per_view_change
         self.split_cursor_actions = split_cursor_actions
+        self.allow_snap_flip = allow_snap_flip
         
         self.start_collision_map = start_collision_map
         self.goal_collision_map = goal_collision_map
@@ -516,6 +518,7 @@ class Roadmap:
                     goal_to_wip,
                     self.shape_id_to_brick_shape,
                     split_cursor_actions=self.split_cursor_actions,
+                    allow_snap_flip=self.allow_snap_flip,
                     debug=False,
                 )
         

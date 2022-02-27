@@ -7,6 +7,7 @@ import numpy
 
 from splendor.image import save_image
 
+from ltron.bricks.snap import SnapFinger
 from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.exceptions import LtronException
@@ -286,6 +287,7 @@ def compute_discrete_rotation(
     wip_connected_instance,
     brick_shape_name,
     rotation_steps = 4,
+    allow_snap_flip = False,
 ):
     
     goal_transform = goal_assembly['pose'][goal_instance]
@@ -330,7 +332,37 @@ def compute_discrete_rotation(
         )
         offsets.append(offset)
         if default_allclose(offset, goal_offset):
+            print(r)
             return r
+    
+    snap_style = brick_shape.snaps[snap]
+    if allow_snap_flip and isinstance(snap_style, SnapFinger):
+        flip_rotation = numpy.array([
+            [-1, 0, 0, 0],
+            [ 0,-1, 0, 0],
+            [ 0, 0, 1, 0],
+            [ 0, 0, 0, 1],
+        ])
+        for r in range(rotation_steps):
+            c = math.cos(r * math.pi * 2 / rotation_steps)
+            s = math.sin(r * math.pi * 2 / rotation_steps)
+            ry = numpy.array([
+                [ c, 0, s, 0],
+                [ 0, 1, 0, 0],
+                [-s, 0, c, 0],
+                [ 0, 0, 0, 1],
+            ])
+            offset = (
+                inv_connected_wip_transform @
+                wip_snap_transform @
+                ry @
+                flip_rotation @
+                inv_snap_transform
+            )
+            offsets.append(offset)
+            if default_allclose(offset, goal_offset):
+                print(r + rotation_steps)
+                return r + rotation_steps
     
     raise NoMatchingRotationError
 
@@ -483,6 +515,7 @@ def plan_add_nth_brick(
     goal_to_wip,
     shape_id_to_brick_shape,
     split_cursor_actions=False,
+    allow_snap_flip=False,
     debug=False,
 ):
     
@@ -686,6 +719,7 @@ def plan_add_nth_brick(
         wii,
         shape_id_to_brick_shape[brick_shape],
         rotation_steps = 4,
+        allow_snap_flip = allow_snap_flip,
     )
     
     if discrete_rotation:

@@ -149,9 +149,11 @@ def check_snap_collision(
     target_instances,
     snap,
     *args,
+    return_colliding_instances=False,
     **kwargs,
 ):
     
+    '''
     if snap.polarity == '+':
         sign = 1
     elif snap.polarity == '-':
@@ -165,14 +167,38 @@ def check_snap_collision(
     ])
     
     render_transform = snap.transform @ direction_transform
+    '''
     
-    return check_collision(
-        scene,
-        target_instances,
-        render_transform,
-        *args,
-        **kwargs,
-    )
+    if return_colliding_instances:
+        all_collisions = [
+            check_collision(
+                scene,
+                target_instances,
+                render_transform,
+                *args,
+                return_colliding_instances=return_colliding_instances,
+                **kwargs,
+            )
+            for render_transform in snap.collision_direction_transforms
+        ]
+        len_collisions = [(len(c), c) for c in all_collisions]
+        return min(len_collisions)[1]
+    
+    else:
+        collision = all(
+            check_collision(
+                scene,
+                target_instances,
+                #render_transform,
+                render_transform,
+                *args,
+                return_colliding_instances=return_colliding_instances,
+                **kwargs,
+            )
+            for render_transform in snap.collision_direction_transforms
+        )
+    
+    return collision
 
 def check_collision(
     scene,

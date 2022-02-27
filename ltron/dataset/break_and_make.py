@@ -28,6 +28,8 @@ class BreakAndMakeEpisodeConfig(BreakAndMakeEnvConfig):
     split_cursor_actions = False
     
     seed = 1234567890
+    
+    allow_snap_flip = False
 
 def generate_episodes_for_dataset(config=None):
     if config is None:
@@ -76,6 +78,7 @@ def generate_episodes_for_dataset(config=None):
                     env, first_observation, shape_ids, color_ids,
                     target_steps_per_view_change=t,
                     split_cursor_actions=config.split_cursor_actions,
+                    allow_snap_flip=config.allow_snap_flip,
                 )
                 
                 o = stack_numpy_hierarchies(*o)
@@ -111,6 +114,7 @@ def plan_break_and_make(
     color_ids,
     target_steps_per_view_change=2,
     split_cursor_actions=False,
+    allow_snap_flip=False,
     timeout=float('inf'),
 ):
     # get the full and empty assemblies
@@ -143,6 +147,7 @@ def plan_break_and_make(
         color_ids,
         target_steps_per_view_change=target_steps_per_view_change,
         split_cursor_actions=split_cursor_actions,
+        allow_snap_flip=allow_snap_flip,
     )
     break_path = break_roadmap.plan(timeout=timeout)
     o, a, r = break_roadmap.get_observation_action_reward_seq(
@@ -179,6 +184,7 @@ def plan_break_and_make(
         color_ids,
         target_steps_per_view_change=target_steps_per_view_change,
         split_cursor_actions=split_cursor_actions,
+        allow_snap_flip=allow_snap_flip,
     )
     make_path = make_roadmap.plan(timeout=timeout)
     o, a, r = make_roadmap.get_observation_action_reward_seq(
