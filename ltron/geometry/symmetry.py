@@ -369,18 +369,42 @@ def pose_match_under_symmetries(
     
     r_a = unscale_transform(pose_a[:3,:3])
     r_b = unscale_transform(pose_b[:3,:3])
+    #if matrix_angle_close_enough(r_a, r_b, angular_tolerance):
+    #    return True
+    #r_ab = r_a.T @ r_b
+    #q = Quaternion(matrix=r_ab)
+    #if abs(q.angle) < angular_tolerance:
+    #    return True
     r_ab = r_a.T @ r_b
-    q = Quaternion(matrix=r_ab)
-    if abs(q.angle) < angular_tolerance:
-        return True
+    t = (numpy.trace(r_ab) - 1)/2.
+    if t < -1.:
+        t = -1
+    if t > 1.:
+        t = 1
+    angle = math.acos(t)
+    s = (
+        (r_ab[2,1] - r_ab[1,2])**2 +
+        (r_ab[0,2] - r_ab[2,0])**2 +
+        (r_ab[1,0] - r_ab[0,1])**2
+    )**0.5
+    if s < 0.000001:
+        axis = numpy.array([0,1,0])
+    else:
+        axis = numpy.array([
+            (r_ab[2,1] - r_ab[1,2])/s,
+            (r_ab[0,2] - r_ab[2,0])/s,
+            (r_ab[1,0] - r_ab[0,1])/s
+        ])
     
     for symmetry in symmetries:
         symmetry_axis, symmetry_angle = symmetry_tests[symmetry]
         if vector_angle_close_enough(
-            symmetry_axis, q.axis, angular_tolerance, allow_negative=True
+            #symmetry_axis, q.axis, angular_tolerance, allow_negative=True
+            symmetry_axis, axis, angular_tolerance, allow_negative=True
         ):
             angle_offset = abs(
-                round(q.angle / symmetry_angle) * symmetry_angle - q.angle)
+            #    round(q.angle / symmetry_angle) * symmetry_angle - q.angle)
+                round(angle / symmetry_angle) * symmetry_angle - angle)
             if angle_offset < angular_tolerance:
                 return True
     
