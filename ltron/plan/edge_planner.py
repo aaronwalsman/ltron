@@ -11,7 +11,7 @@ from ltron.bricks.snap import SnapFinger
 from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.brick_instance import BrickInstance
 from ltron.exceptions import LtronException
-from ltron.geometry.utils import default_allclose
+from ltron.geometry.utils import default_allclose, unscale_transform
 
 class NoMatchingRotationError(LtronException):
     pass
@@ -311,11 +311,10 @@ def compute_discrete_rotation(
     inv_snap_transform = numpy.linalg.inv(snap_transform)
     wip_snap_transform = wip_transform @ snap_transform
     
-    if default_allclose(goal_offset, wip_offset):
-        return 0
+    goal_r = unscale_transform(goal_offset)
     
     offsets = []
-    for r in range(1, rotation_steps):
+    for r in range(rotation_steps):
         c = math.cos(r * math.pi * 2 / rotation_steps)
         s = math.sin(r * math.pi * 2 / rotation_steps)
         ry = numpy.array([
@@ -330,9 +329,9 @@ def compute_discrete_rotation(
             ry @
             inv_snap_transform
         )
-        offsets.append(offset)
-        if default_allclose(offset, goal_offset):
-            return r
+        offset_r = unscale_transform(offset)
+        t = numpy.trace(offset_r.T @ goal_r)
+        offsets.append((t,r,offset))
     
     snap_style = brick_shape.snaps[snap]
     if allow_snap_flip and isinstance(snap_style, SnapFinger):
@@ -358,11 +357,11 @@ def compute_discrete_rotation(
                 flip_rotation @
                 inv_snap_transform
             )
-            offsets.append(offset)
-            if default_allclose(offset, goal_offset):
-                return r + rotation_steps
+            offset_r = unscale_transform(offset)
+            t = numpy.trace(offset_r.T @ goal_r)
+            offsets.append((t,r+rotation_steps,offset))
     
-    raise NoMatchingRotationError
+    return max(offsets)[1]
 
 # action builders ==============================================================
 
