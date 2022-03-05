@@ -34,6 +34,8 @@ class DatasetPathComponent(LtronGymComponent):
         
         self.dataset_paths = get_dataset_paths(dataset, split, subset)
         self.length = len_hierarchy(self.dataset_paths)
+        #self.zipfile, self.names = get_zip_paths(dataset, split, subset=subset)
+        #self.length = len(self.names)
         if reset_mode == 'uniform':
             self.dataset_ids = range(self.length)
         else:
@@ -52,6 +54,7 @@ class DatasetPathComponent(LtronGymComponent):
         if self.observe_dataset_id:
             observation_space['dataset_id'] = Discrete(
                 len(self.dataset_paths))
+                #len(self.names))
         if len(observation_space):
             self.observation_space = Dict(observation_space)
     
@@ -87,6 +90,7 @@ class DatasetPathComponent(LtronGymComponent):
             self.dataset_id = self.dataset_ids[index]
         elif self.reset_mode == 'single_pass':
             if self.episode_id < len(self.dataset_paths['mpd']):
+            #if self.episode_id < len(self.names):
                 self.dataset_id = self.dataset_ids[self.episode_id]
             else:
                 self.finished = True
@@ -96,6 +100,7 @@ class DatasetPathComponent(LtronGymComponent):
         if not self.finished:
             self.dataset_item = index_hierarchy(
                 self.dataset_paths, self.dataset_id)
+            #self.dataset_item = self.names[self.dataset_id]
         
         self.observe()
         return self.observation
