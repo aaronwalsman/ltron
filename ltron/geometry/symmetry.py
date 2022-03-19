@@ -384,6 +384,7 @@ def pose_match_under_symmetries(
     angle = math.acos(t)
     if abs(angle) < angular_tolerance:
         return True
+    
     s = (
         (r_ab[2,1] - r_ab[1,2])**2 +
         (r_ab[0,2] - r_ab[2,0])**2 +

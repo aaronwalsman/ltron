@@ -160,7 +160,8 @@ class Roadmap:
             
             # use the edge checker to evaluate the edges until the goal is
             # reached or until the cost has become greater than next_best_cost
-            if self.check_path(path, next_best_cost):
+            good_path = self.check_path(path, next_best_cost)
+            if good_path:
                 return path
     
     def get_observation_action_reward_seq(
@@ -207,6 +208,7 @@ class Roadmap:
             
             # find a path from this starting path to the goal through
             # unevaluated nodes
+            #print(path[-1])
             while path[-1] != self.goal_membership:
                 
                 # add the current state to the road map paths
@@ -408,6 +410,7 @@ class Roadmap:
             'successors':None,
             'evaluated':False,
             'all_successors_evaluated':False,
+            'good_actions':set(),
         }
     
     def check_path(self, candidate_path, next_best_cost):
@@ -424,8 +427,10 @@ class Roadmap:
             if not b_path_data['evaluated']:
                 
                 # check the edge
-                observation_seq, action_seq, reward_seq = self.check_edge(
-                    b_path, goal_to_wip)
+                observation_seq, action_seq, reward_seq = (
+                    self.check_edge(b_path, goal_to_wip))
+                
+                #a_path_data['good_actions'] != better_actions
                 
                 b_path_data['evaluated'] = True
                 
@@ -535,7 +540,6 @@ class Roadmap:
                 split_cursor_actions=self.split_cursor_actions,
                 debug=False,
             )
-    
     
     #def make_false_positive_labels(self, fp):
     # this was always wrong I guess?

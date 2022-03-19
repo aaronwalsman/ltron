@@ -93,7 +93,7 @@ def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
 def get_zip_paths(dataset, split_name, subset=None, key='zip', rank=0, size=1):
     zip_path = get_dataset_info(dataset)['splits'][split_name][key]
     zip_path = zip_path.format(**settings.collections)
-    z = ZipFile(zip_path)
+    z = ZipFile(zip_path, 'r')
     names = [info.filename for info in z.infolist() if not info.is_dir()]
     names = names[get_subset_slice(subset)]
     return z, names

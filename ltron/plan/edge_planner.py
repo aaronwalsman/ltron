@@ -330,7 +330,7 @@ def compute_discrete_rotation(
             inv_snap_transform
         )
         offset_r = unscale_transform(offset)
-        t = numpy.trace(offset_r.T @ goal_r)
+        t = numpy.trace(offset_r[:3,:3].T @ goal_r[:3,:3])
         offsets.append((t,r,offset))
     
     snap_style = brick_shape.snaps[snap]
@@ -358,7 +358,7 @@ def compute_discrete_rotation(
                 inv_snap_transform
             )
             offset_r = unscale_transform(offset)
-            t = numpy.trace(offset_r.T @ goal_r)
+            t = numpy.trace(offset_r[:3,:3].T @ goal_r[:3,:3])
             offsets.append((t,r+rotation_steps,offset))
     
     return max(offsets)[1]
