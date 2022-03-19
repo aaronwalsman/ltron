@@ -104,7 +104,7 @@ def start_viewer(
             'opengl_mode':'glut',
             'window_width':width,
             'window_height':height,
-            'load_scene':'grey_cube'},
+            'load_scene':'front_light'},
         track_snaps=True)
     
     window = scene.render_environment.window
