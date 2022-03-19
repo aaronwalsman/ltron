@@ -164,6 +164,10 @@ color_index_to_alt_rgb[503]= (199, 193, 183)
 color_index_to_alt_rgb[504]= (137, 135, 136)
 color_index_to_alt_rgb[511]= (250, 250, 250)
 
+for key in color_index_to_rgb:
+    if key not in color_index_to_alt_rgb:
+        color_index_to_alt_rgb[key] = color_index_to_rgb[key]
+
 def get_color_rgb(index, default=None):
     if settings.render['color_scheme'] == 'ldraw':
         if default is None:
