@@ -115,8 +115,12 @@ def generate_episodes_for_dataset(config=None):
                 else:
                     raise
         
+        if len(final_rs):
+            avg_final_r = sum(final_rs)/len(final_rs)
+        else:
+            avg_final_r = 0.
         iterate.set_description('Errors: %i, Timeout: %i, R: %f'%(
-            len(errors), len(timeout_i), sum(final_rs)/len(final_rs)))
+            len(errors), len(timeout_i), avg_final_r))
     
     if len(errors):
         print('Errors for items:')

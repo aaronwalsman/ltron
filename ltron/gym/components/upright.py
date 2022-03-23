@@ -26,7 +26,14 @@ class UprightSceneComponent(LtronGymComponent):
                     if snap.polarity == '+':
                         new_transform = scene.upright
                     elif snap.polarity == '-':
-                        new_transform = numpy.eye(4)
+                        new_transform = (
+                            scene.upright @ numpy.array([
+                                [-1, 0, 0, 0],
+                                [ 0,-1, 0, 0],
+                                [ 0, 0, 1, 0],
+                                [ 0, 0, 0, 1],
+                            ])
+                        )
                     
                     snap_transform = unscale_transform(snap.transform)
                     offset = new_transform @ numpy.linalg.inv(snap_transform)
@@ -35,7 +42,7 @@ class UprightSceneComponent(LtronGymComponent):
                         new_instance_transform = offset @ instance.transform
                         scene.move_instance(j, new_instance_transform)
                     
-                    return
+                    return None
         
         if self.fail_mode == 'ignore':
             pass

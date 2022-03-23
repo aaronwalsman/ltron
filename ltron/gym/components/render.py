@@ -13,11 +13,14 @@ class ColorRenderComponent(LtronGymComponent):
             width,
             height,
             scene_component,
+            render_frequency='step',
             anti_alias=True):
         
         self.width = width
         self.height = height
         self.scene_component = scene_component
+        self.render_frequency = render_frequency
+        
         scene = self.scene_component.brick_scene
         self.scene_component.brick_scene.make_renderable()
         self.anti_alias = anti_alias
@@ -35,18 +38,23 @@ class ColorRenderComponent(LtronGymComponent):
         self.observation = self.frame_buffer.read_pixels()
     
     def reset(self):
-        self.observe()
+        if self.render_frequency in ('step', 'reset'):
+            self.observe()
         return self.observation
     
     def step(self, action):
-        self.observe()
+        if self.render_frequency in ('step',):
+            self.observe()
         return self.observation, 0., False, None
     
+    def get_state(self):
+        return self.observation
+    
     def set_state(self, state):
-        self.observe()
+        self.observation = state
         return self.observation
 
-class SegmentationRenderComponent(LtronGymComponent):
+class InstanceRenderComponent(LtronGymComponent):
     def __init__(self,
         width,
         height,
@@ -66,6 +74,7 @@ class SegmentationRenderComponent(LtronGymComponent):
     def observe(self):
         scene = self.scene_component.brick_scene
         self.frame_buffer.enable()
+        # it seems like this should be done at a lower level than this
         scene.viewport_scissor(0,0,self.width,self.height)
         scene.mask_render()
         mask = self.frame_buffer.read_pixels()

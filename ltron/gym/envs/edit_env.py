@@ -33,16 +33,15 @@ from ltron.gym.components.break_and_make import (
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
 from ltron.gym.components.tile import DeduplicateTileMaskComponent
+from ltron.gym.components.partial_disassembly import PartialDisassemblyComponent
 
 # TODO: Needs a config
 
-class BreakAndMakeEnvConfig(Config):
+class EditEnvConfig(Config):
     dataset = 'random_construction_6_6'
     ldraw_file = None
     split = 'train'
     subset = None
-    
-    task = 'break_and_make'
     
     table_image_height = 256
     table_image_width = 256
@@ -76,35 +75,7 @@ class BreakAndMakeEnvConfig(Config):
     
     allow_snap_flip = False
 
-#def break_and_make_env(config, rank, size):
-#    dataset,
-#    split,
-#    subset=None,
-#    rank=0,
-#    size=1,
-#    task='break_and_make',
-#    file_override=None,
-#    workspace_image_width=256,
-#    workspace_image_height=256,
-#    handspace_image_width=96,
-#    handspace_image_height=96,
-#    workspace_map_width=64,
-#    workspace_map_height=64,
-#    handspace_map_width=24,
-#    handspace_map_height=24,
-#    dataset_reset_mode='uniform',
-#    max_episode_length=32,
-#    workspace_render_args=None,
-#    handspace_render_args=None,
-#    randomize_viewpoint=True,
-#    randomize_colors=True,
-#    include_score=True,
-#    check_collision=True,
-#    print_traceback=True,
-#    train=False,
-#):
-
-class BreakAndMakeEnv(LtronEnv):
+class EditEnv(LtronEnv):
     def __init__(self, config, rank=0, size=1, print_traceback=False):
         components = OrderedDict()
         
@@ -169,17 +140,6 @@ class BreakAndMakeEnv(LtronEnv):
                 components['table_scene'],
                 randomize_frequency='reset',
             )
-        
-        # initial assembly
-        components['initial_table_assembly'] = AssemblyComponent(
-            components['table_scene'],
-            shape_ids,
-            color_ids,
-            max_instances,
-            max_edges,
-            update_frequency='reset',
-            observe_assembly=config.train,
-        )
         
         # viewpoint
         azimuth_steps = 8
@@ -253,6 +213,25 @@ class BreakAndMakeEnv(LtronEnv):
             polarity='-',
         )
         
+        # initial color render component
+        components['initial_table_color_render'] = ColorRenderComponent(
+            config.table_image_width,
+            config.table_image_height,
+            components['table_scene'],
+            render_frequency='reset',
+        )
+        
+        # initial assembly
+        components['initial_table_assembly'] = AssemblyComponent(
+            components['table_scene'],
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            update_frequency='reset',
+            observe_assembly=config.train,
+        )
+        
         # cursors
         components['table_cursor'] = SnapCursor(
             max_instances,
@@ -296,18 +275,16 @@ class BreakAndMakeEnv(LtronEnv):
             max_instances,
         )
         
+        # partial disassembly
+        components['partial_disassembly'] = PartialDisassemblyComponent(
+            components['disassembly'],
+            table_pos_snap_render,
+            table_neg_snap_render,
+            max_instances,
+            num_disassembly_steps=1,
+        )
+        
         # phase
-        if config.task == 'break_and_make':
-            components['phase'] = BreakAndMakePhaseSwitch(
-                table_scene_component=components['table_scene'],
-                table_viewpoint_component=components['table_viewpoint'],
-                hand_scene_component=components['hand_scene'],
-                dataset_component=components['dataset'],
-                start_make_mode='clear',
-                train=config.train,
-            )
-        elif config.task == 'break_only':
-            components['phase'] = BreakOnlyPhaseSwitch()
         
         # color render
         components['table_color_render'] = ColorRenderComponent(
@@ -369,20 +346,11 @@ class BreakAndMakeEnv(LtronEnv):
         
         # score
         if config.include_score:
-            if config.task == 'break_and_make':
-                components['score'] = BreakAndMakeScore(
-                    components['initial_table_assembly'],
-                    components['table_assembly'],
-                    components['phase'],
-                    shape_ids,
-                )
-            else:
-                components['score'] = BreakOnlyScore(
-                    components['initial_table_assembly'],
-                    components['table_assembly'],
-                )
-        
-        # build the env
-        #env = LtronEnv(components, print_traceback=print_traceback)
+            components['score'] = BreakAndMakeScore(
+                components['initial_table_assembly'],
+                components['table_assembly'],
+                None,
+                shape_ids,
+            )
         
         super().__init__(components, print_traceback=print_traceback)

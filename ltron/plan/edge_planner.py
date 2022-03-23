@@ -412,14 +412,18 @@ def plan_add_first_brick(
         return None
 
     # make the insert action ---------------------------------------------------
-    insert_action = make_insert_action(env, shape_index, color_index)
-    action_seq.append(insert_action)
-    observation, reward, terminal, info = env.step(insert_action)
-    observation_seq.append(observation)
-    reward_seq.append(reward)
-    
-    if debug:
-        vis_obs(observation, 1, 1)
+    hand_assembly = observation['hand_assembly']
+    hand_shape = hand_assembly['shape'][1]
+    hand_color = hand_assembly['color'][1]
+    if hand_shape != brick_shape or hand_color != brick_color:
+        insert_action = make_insert_action(env, shape_index, color_index)
+        action_seq.append(insert_action)
+        observation, reward, terminal, info = env.step(insert_action)
+        observation_seq.append(observation)
+        reward_seq.append(reward)
+        
+        if debug:
+            vis_obs(observation, 1, 1)
     
     # hand camera --------------------------------------------------------------
     # compute the hand camera motion
@@ -531,14 +535,18 @@ def plan_add_nth_brick(
     brick_transform = goal_assembly['pose'][instance]
     
     # make the insert action ---------------------------------------------------
-    insert_action = make_insert_action(env, brick_shape, brick_color)
-    action_seq.append(insert_action)
-    observation, reward, terminal, info = env.step(insert_action)
-    observation_seq.append(observation)
-    reward_seq.append(reward)
-    
-    if debug:
-        vis_obs(observation, new_wip_instance, 0)
+    hand_assembly = observation['hand_assembly']
+    hand_shape = hand_assembly['shape'][1]
+    hand_color = hand_assembly['color'][1]
+    if hand_shape != brick_shape or hand_color != brick_color:
+        insert_action = make_insert_action(env, brick_shape, brick_color)
+        action_seq.append(insert_action)
+        observation, reward, terminal, info = env.step(insert_action)
+        observation_seq.append(observation)
+        reward_seq.append(reward)
+        
+        if debug:
+            vis_obs(observation, new_wip_instance, 0)
     
     # table camera -------------------------------------------------------------
     # find all connections between the new instance and the wip bricks
@@ -560,7 +568,7 @@ def plan_add_nth_brick(
         'table_pos_snap_render',
         'table_neg_snap_render',
         'table_viewpoint',
-        'table_mask_render',
+        'table_instance_render',
     )
     if wip_visible_snaps is None:
         return None, None
@@ -732,7 +740,7 @@ def plan_add_nth_brick(
             'table_pos_snap_render',
             'table_neg_snap_render',
             'table_viewpoint',
-            'table_mask_render',
+            'table_instance_render',
         )
         if new_visible_snaps is None:
             return None, None
@@ -874,7 +882,7 @@ def plan_remove_nth_brick(
         'table_pos_snap_render',
         'table_neg_snap_render',
         'table_viewpoint',
-        'table_mask_render' if use_mask else None,
+        'table_instance_render' if use_mask else None,
     )
     if visible_snaps is None:
         raise NoVisibleSnapsFailure

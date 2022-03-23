@@ -22,7 +22,6 @@ setuptools.setup(
         'splendor-render',
     ],
     packages=setuptools.find_packages(),
-    #scripts=[],
     entry_points = {
         'console_scripts' : [
             'ltron_viewer=ltron.scripts.ltron_viewer:main',

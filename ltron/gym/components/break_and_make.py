@@ -123,7 +123,7 @@ class BreakAndMakeScore(LtronGymComponent):
         self.part_names = {value:key for key, value in shape_ids.items()}
     
     def observe(self):
-        if self.phase_component.phase:
+        if self.phase_component is None or self.phase_component.phase:
             initial_assembly = self.initial_assembly_component.assembly
             current_assembly = self.current_assembly_component.assembly
             

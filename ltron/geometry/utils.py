@@ -35,9 +35,14 @@ def matrix_is_mirrored(matrix):
 
 def unscale_transform(transform):
     transform = transform.copy()
-    transform[:3,0] /= numpy.linalg.norm(transform[:3,0])
-    transform[:3,1] /= numpy.linalg.norm(transform[:3,1])
-    transform[:3,2] /= numpy.linalg.norm(transform[:3,2])
+    n0 = numpy.linalg.norm(transform[:3,0])
+    n1 = numpy.linalg.norm(transform[:3,1])
+    n2 = numpy.linalg.norm(transform[:3,2])
+    if n0 == 0. or n1 == 0. or n2 == 0.:
+        raise Exception('zero scaled matrix')
+    transform[:3,0] /= n0
+    transform[:3,1] /= n1
+    transform[:3,2] /= n2
     if numpy.linalg.det(transform) < 0.:
         transform[:3,0] *= -1
     return transform
