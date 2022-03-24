@@ -285,6 +285,7 @@ class EditEnv(LtronEnv):
         )
         
         # phase
+        components['phase'] = BreakOnlyPhaseSwitch()
         
         # color render
         components['table_color_render'] = ColorRenderComponent(
@@ -314,6 +315,14 @@ class EditEnv(LtronEnv):
                 config.tile_height,
                 components['hand_color_render'],
             )
+            
+            components['initial_table_tile_mask'] = (
+                DeduplicateTileMaskComponent(
+                    config.tile_width,
+                    config.tile_height,
+                    components['initial_table_color_render'],
+            ))
+                
         
         # snap render
         components['table_pos_snap_render'] = table_pos_snap_render

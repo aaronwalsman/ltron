@@ -763,27 +763,31 @@ def plan_add_nth_brick(
         r = random.randint(0, new_visible_snaps.shape[1]-1)
         y, x, p, i, s = new_visible_snaps[:,r]
         if split_cursor_actions:
-            # cursor
-            table_cursor_action = env.no_op_action()
-            table_cursor_action['table_cursor'] = {
-                'activate' : True,
-                'position' : numpy.array([y,x]),
-                'polarity' : p,
-            }
-            
-            action_seq.append(table_cursor_action)
-            observation, reward, terminal, info = env.step(table_cursor_action)
-            observation_seq.append(observation)
-            reward_seq.append(reward)
-            
-            # rotation
-            rotation_action = env.no_op_action()
-            rotation_action['rotate'] = discrete_rotation
-            
-            action_seq.append(rotation_action)
-            observation, reward, terminal, info = env.step(rotation_action)
-            observation_seq.append(observation)
-            reward_seq.append(reward)
+            prev_y, prev_x = observation['table_cursor']['position']
+            prev_p = observation['table_cursor']['polarity']
+            if y != prev_y or x != prev_x or p != prev_p:
+                # cursor
+                table_cursor_action = env.no_op_action()
+                table_cursor_action['table_cursor'] = {
+                    'activate' : True,
+                    'position' : numpy.array([y,x]),
+                    'polarity' : p,
+                }
+                
+                action_seq.append(table_cursor_action)
+                observation, reward, terminal, info = env.step(
+                    table_cursor_action)
+                observation_seq.append(observation)
+                reward_seq.append(reward)
+                
+                # rotation
+                rotation_action = env.no_op_action()
+                rotation_action['rotate'] = discrete_rotation
+                
+                action_seq.append(rotation_action)
+                observation, reward, terminal, info = env.step(rotation_action)
+                observation_seq.append(observation)
+                reward_seq.append(reward)
            
         else:
             # cursor/rotate action

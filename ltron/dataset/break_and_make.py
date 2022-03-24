@@ -198,6 +198,7 @@ def plan_break_and_make(
     
     # update the result lists
     # do not add the observation because it will come from the make sequence
+    # when the empty state is set
     actions.append(action)
     rewards.append(reward)
     

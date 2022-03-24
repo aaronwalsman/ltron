@@ -71,6 +71,13 @@ def generate_episodes_for_dataset(config=None):
                 split_cursor_actions=config.split_cursor_actions,
                 allow_snap_flip=True,
             )
+            action = env.no_op_action()
+            action['phase'] = 1
+            observation, reward, terminal, info = env.step(action)
+            #o.append(observation) # don't need the last one
+            a.append(action)
+            r.append(reward)
+            
             o = stack_numpy_hierarchies(*o)
             a = stack_numpy_hierarchies(*a)
             r = numpy.array(r)

@@ -1,3 +1,5 @@
+import math
+
 import numpy
 
 from scipy.ndimage import binary_erosion
@@ -10,6 +12,8 @@ from splendor.masks import color_byte_to_index
 from ltron.geometry.utils import unscale_transform, default_allclose
 
 from ltron.exceptions import ThisShouldNeverHappen
+
+PIXELS_PER_LDU = 1.
 
 def make_collision_frame_buffer(resolution):
     frame_buffer = FrameBufferWrapper(
@@ -25,13 +29,11 @@ class CollisionChecker:
         self,
         scene,
         #resolution=(128,128),
-        pixels_per_ldu=8,
         max_intersection=1, #=4
     ):
         self.scene = scene
         #self.frame_buffer = make_collision_frame_buffer(resolution)
         self.frame_buffers = {}
-        self.pixels_per_ldu = pixels_per_ldu
         self.max_intersection = max_intersection
     
     def check_collision(
@@ -48,7 +50,6 @@ class CollisionChecker:
             frame_buffers=self.frame_buffers,
             update_frame_buffers=True,
             max_intersection=self.max_intersection,
-            pixels_per_ldu=self.pixels_per_ldu
             **kwargs,
         )
     
@@ -65,7 +66,6 @@ class CollisionChecker:
             frame_buffers=self.frame_buffers,
             update_frame_buffers=True,
             max_intersection=self.max_intersection,
-            pixels_per_ldu=self.pixels_per_ldu,
             **kwargs,
         )
 
@@ -86,7 +86,7 @@ def check_snap_collision(
             scene,
             target_instances,
             render_transform,
-            *args
+            *args,
             return_colliding_instances=return_colliding_instances,
             **kwargs,
         )
@@ -142,7 +142,6 @@ def check_collision(
     scene_instances=None,
     frame_buffers=None,
     update_frame_buffers=False,
-    pixels_per_ldu=0.4,
     max_intersection=1, #=4
     erosion=1,
     required_clearance=24,
@@ -199,7 +198,7 @@ def check_collision(
     far_clip = thickness * 2 + required_clearance + 3 * tolerance_spacing
     
     # compute orthographic bounds
-    required_resolution = max_dim * pixels_per_ldu
+    required_resolution = max_dim * PIXELS_PER_LDU
     required_power = math.ceil(math.log(required_resolution, 2))
     resolution = 2**required_power
     if resolution in frame_buffers:
@@ -208,8 +207,8 @@ def check_collision(
         frame_buffer = make_collision_frame_buffer((resolution, resolution))
         if update_frame_buffers:
             frame_buffers[resolution] = frame_buffer
-    extra_width = (resolution - (width * pixels_per_ldu)) / pixels_per_ldu
-    extra_height = (resolution - (height * pixels_per_ldu)) / pixels_per_ldu
+    extra_width = (resolution - (width * PIXELS_PER_LDU)) / PIXELS_PER_LDU
+    extra_height = (resolution - (height * PIXELS_PER_LDU)) / PIXELS_PER_LDU
     l = box_max[0] + extra_width
     r = box_min[0]
     b = -(box_max[1] + extra_height)
