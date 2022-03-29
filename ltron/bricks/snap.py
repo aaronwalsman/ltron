@@ -120,6 +120,8 @@ class SnapClear(Snap):
     pass
 
 class SnapStyle(Snap):
+    renderable = True
+    
     @staticmethod
     def construct_snaps(command, reference_transform):
         def delegate(command, transform):
@@ -134,7 +136,7 @@ class SnapStyle(Snap):
             #elif isinstance(command, LDCadSnapSphCommand):
             #    return SnapSphere.construct_snaps(command, transform)
             else:
-                return []
+                return UnsupportedSnap.construct_snaps(command, transform)
         
         snap_transform = numpy.dot(reference_transform, command.transform)
         snaps = []
@@ -159,6 +161,53 @@ class SnapStyle(Snap):
             return True
         else:
             return self.group == other.group
+
+class UnsupportedSnap(SnapStyle):
+    renderable=False
+    @staticmethod
+    def construct_snaps(command, transform):
+        return [UnsupportedSnap(command, transform)]
+    
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+    
+    def is_upright(self):
+        return False
+    
+    def equivalent(self, other):
+        return False
+    
+    def get_collision_direction_transforms(self):
+        return []
+    
+    collision_direction_transforms = property(
+        get_collision_direction_transforms)
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        return False
+    
+    def connected(self, my_instance, other_instance):
+        return False
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        return []
+
+class UnsupportedCylinderSnap(UnsupportedSnap):
+    pass
+
+class UnsupportedFingerSnap(UnsupportedSnap):
+    pass
 
 class SnapCylinder(SnapStyle):
     @staticmethod
@@ -296,6 +345,9 @@ class SnapCylinder(SnapStyle):
                         snaps.append(StudHole(command, l, hole_transform))
                 
                 cumulative_length += l
+        
+        if len(snaps) == 0:
+            snaps.append(UnsupportedCylinderSnap(command, transform))
         
         return snaps
         
@@ -699,6 +751,9 @@ class SnapFinger(SnapStyle):
                 snaps.append(PosQuadHinge(command, transform))
             else:
                 raise Exception('bad quad hinge')
+        
+        if len(snaps) == 0:
+            snaps.append(UnsupportedFingerSnap)
         
         return snaps
     

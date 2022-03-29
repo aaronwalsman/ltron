@@ -18,7 +18,7 @@ from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_shape import BrickShapeLibrary
 from ltron.bricks.brick_instance import BrickInstanceTable
 from ltron.bricks.brick_color import BrickColorLibrary
-from ltron.bricks.snap import SnapInstance, UniversalSnap
+from ltron.bricks.snap import SnapInstance, UniversalSnap, UnsupportedSnap
 try:
     from ltron.render.environment import RenderEnvironment
     render_available = True
@@ -411,6 +411,8 @@ class BrickScene:
         for instance in instances:
             instance = self.instances[instance]
             for snap in instance.snaps:
+                if isinstance(snap.snap_style, UnsupportedSnap):
+                    continue
                 if polarity is not None and snap.polarity != polarity:
                     continue
                 if style is not None and snap.style not in style:
@@ -428,6 +430,8 @@ class BrickScene:
         instance = self.instances[instance]
         connections = []
         for snap in instance.snaps:
+            if isinstance(snap.snap_style, UnsupportedSnap):
+                continue
             snap_position = snap.transform[:3,3]
             snap_tuples_in_radius = self.snap_tracker.lookup(
                 snap_position, snap.search_radius)

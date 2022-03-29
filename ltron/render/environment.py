@@ -119,7 +119,8 @@ class RenderEnvironment:
         
         # add the snap instances
         for i, snap in enumerate(brick_instance.snaps):
-            self.add_snap_instance(snap)
+            if snap.renderable:
+                self.add_snap_instance(snap)
     
     def add_snap_instance(self, snap):
         if self.window is not None:
@@ -148,7 +149,8 @@ class RenderEnvironment:
         
         # remove all snap instances
         for snap in brick_instance.snaps:
-            self.renderer.remove_instance(str(snap))
+            if snap.renderable:
+                self.renderer.remove_instance(str(snap))
     
     def update_instance(self, brick_instance):
         self.renderer.set_instance_transform(
@@ -164,7 +166,8 @@ class RenderEnvironment:
             brick_instance.brick_shape.mesh_name,
         )
         for snap in brick_instance.snaps:
-            self.renderer.set_instance_transform(str(snap), snap.transform)
+            if snap.renderable:
+                self.renderer.set_instance_transform(str(snap), snap.transform)
     
     def instance_hidden(self, brick_instance):
         return self.renderer.instance_hidden(str(brick_instance))
