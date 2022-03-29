@@ -61,7 +61,7 @@ def generate_episodes_for_dataset(config=None):
                 i:i for i in numpy.nonzero(initial_assembly['shape'])[0]
                 if i != instance
             }
-            o, a, r = plan_add_nth_brick(
+            o, a, c, r = plan_add_nth_brick(
                 env,
                 initial_assembly,
                 instance,
@@ -76,17 +76,24 @@ def generate_episodes_for_dataset(config=None):
             observation, reward, terminal, info = env.step(action)
             #o.append(observation) # don't need the last one
             a.append(action)
+            th, tw = observation['table_pos_snap_render'].shape[:2]
+            hh, hw = observation['hand_pos_snap_render'].shape[:2]
+            table_zero = numpy.zeros((th, tw, 2), dtype=numpy.bool)
+            hand_zero = numpy.zeros((hh, hw, 2), dtype=numpy.bool)
+            c.append((table_zero, hand_zero))
             r.append(reward)
             
             o = stack_numpy_hierarchies(*o)
             a = stack_numpy_hierarchies(*a)
+            c = stack_numpy_hierarchies(*c)
             r = numpy.array(r)
             
             file_name = os.path.basename(dataset_paths['mpd'][i])
             file_name = file_name.replace('.mpd', '_%i.npz'%j)
             file_name = file_name.replace('.ldr', '_%i.npz'%j)
             path = os.path.join(episode_path, file_name)
-            episode = {'observations':o, 'actions':a, 'reward':r}
+            episode = {
+                'observations':o, 'actions':a, 'click_maps':c, 'reward':r}
             numpy.savez_compressed(path, episode=episode)
 
 

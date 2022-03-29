@@ -527,12 +527,18 @@ def plan_add_nth_brick(
     # initialize the action sequence
     observation_seq = [observation]
     action_seq = []
+    click_map_seq = []
     reward_seq = []
     
     # pull shape, color and transform information out of the goal assembly
     brick_shape = goal_assembly['shape'][instance]
     brick_color = goal_assembly['color'][instance]
     brick_transform = goal_assembly['pose'][instance]
+    
+    th, tw, _ = observation['table_pos_snap_render'].shape
+    hh, hw, _ = observation['hand_pos_snap_render'].shape
+    zero_table = numpy.zeros((th, tw, 2), dtype=numpy.bool)
+    zero_hand = numpy.zeros((hh, hw, 2), dtype=numpy.bool)
     
     # make the insert action ---------------------------------------------------
     hand_assembly = observation['hand_assembly']
@@ -544,6 +550,7 @@ def plan_add_nth_brick(
         observation, reward, terminal, info = env.step(insert_action)
         observation_seq.append(observation)
         reward_seq.append(reward)
+        click_map_seq.append((zero_table, zero_hand))
         
         if debug:
             vis_obs(observation, new_wip_instance, 0)
@@ -581,6 +588,7 @@ def plan_add_nth_brick(
             observation, reward, terminal, info = env.step(action)
             observation_seq.append(observation)
             reward_seq.append(reward)
+            click_map_seq.append((zero_table, zero_hand))
         #replace_camera_in_state(
         #    env, state, 'table_viewpoint', table_camera_position)
         #observation = env.set_state(state)
@@ -622,6 +630,7 @@ def plan_add_nth_brick(
             observation, reward, terminal, info = env.step(action)
             observation_seq.append(observation)
             reward_seq.append(reward)
+            click_map_seq.append((zero_table, zero_hand))
         #replace_camera_in_state(
         #    env, state, 'hand_viewpoint', hand_camera_position)
         #observation = env.set_state(state)
@@ -633,6 +642,9 @@ def plan_add_nth_brick(
     # pick one of the new visible snaps randomly
     nr = random.randint(0, new_visible_snaps.shape[1]-1)
     nyy, nxx, npp, nii, nss = new_visible_snaps[:,nr]
+    hand_click_map = zero_hand.copy()
+    hand_click_map[
+        new_visible_snaps[0], new_visible_snaps[1], new_visible_snaps[2]] = 1
     
     # find the table visible snap that is connected to the chosen new snap
     wip_i, wip_s = new_to_wip[nii, nss]
@@ -640,7 +652,10 @@ def plan_add_nth_brick(
         (wi == wip_i) & (ws == wip_s))[0]
     wr = random.choice(table_locations)
     wyy, wxx, wpp, wii, wss = wip_visible_snaps[:,wr]
-
+    table_click_map = zero_table.copy()
+    table_click_map[
+        wy[table_locations], wx[table_locations], wp[table_locations]] = 1
+    
     # make the pick and place action
     if split_cursor_actions:
         # hand cursor
@@ -655,6 +670,7 @@ def plan_add_nth_brick(
         observation, reward, terminal, info = env.step(hand_cursor_action)
         observation_seq.append(observation)
         reward_seq.append(reward)
+        click_map_seq.append((zero_table, hand_click_map))
         
         # table cursor
         table_cursor_action = env.no_op_action()
@@ -668,6 +684,7 @@ def plan_add_nth_brick(
         observation, reward, terminal, info = env.step(table_cursor_action)
         observation_seq.append(observation)
         reward_seq.append(reward)
+        click_map_seq.append((table_click_map, zero_hand))
         
         # pick and place
         pick_and_place_action = env.no_op_action()
@@ -677,6 +694,7 @@ def plan_add_nth_brick(
         observation, reward, terminal, info = env.step(pick_and_place_action)
         observation_seq.append(observation)
         reward_seq.append(reward)
+        click_map_seq.append((zero_table, zero_hand))
         
         if not observation['pick_and_place']['success']:
             raise PickAndPlaceFailure
@@ -699,6 +717,7 @@ def plan_add_nth_brick(
         #}
         pick_and_place_action['pick_and_place'] = 1
         action_seq.append(pick_and_place_action)
+        click_map_seq.append((zero_table, zero_hand))
         
         # take the action to generate the latest observation
         observation, reward, terminal, info = env.step(pick_and_place_action)
@@ -753,6 +772,7 @@ def plan_add_nth_brick(
                 observation, reward, terminal, info = env.step(action)
                 observation_seq.append(observation)
                 reward_seq.append(reward)
+                click_map_seq.append((zero_table, zero_hand))
             #replace_camera_in_state(
             #    env, state, 'table_viewpoint', table_camera_position)
             #observation = env.set_state(state)
@@ -762,6 +782,9 @@ def plan_add_nth_brick(
         
         r = random.randint(0, new_visible_snaps.shape[1]-1)
         y, x, p, i, s = new_visible_snaps[:,r]
+        table_click_map = zero_table.copy()
+        table_click_map[
+            new_visible_snaps[0], new_visible_snaps[1], new_visible_snaps[2]]=1
         if split_cursor_actions:
             prev_y, prev_x = observation['table_cursor']['position']
             prev_p = observation['table_cursor']['polarity']
@@ -775,6 +798,7 @@ def plan_add_nth_brick(
                 }
                 
                 action_seq.append(table_cursor_action)
+                click_map_seq.append((table_click_map, zero_hand))
                 observation, reward, terminal, info = env.step(
                     table_cursor_action)
                 observation_seq.append(observation)
@@ -785,6 +809,7 @@ def plan_add_nth_brick(
                 rotation_action['rotate'] = discrete_rotation
                 
                 action_seq.append(rotation_action)
+                click_map_seq.append((zero_table, zero_hand))
                 observation, reward, terminal, info = env.step(rotation_action)
                 observation_seq.append(observation)
                 reward_seq.append(reward)
@@ -800,6 +825,7 @@ def plan_add_nth_brick(
             rotation_action['rotate'] = discrete_rotation
             
             action_seq.append(rotation_action)
+            click_map_seq.append((zero_table, zero_hand))
             observation, reward, terminal, info = env.step(rotation_action)
             observation_seq.append(observation)
             reward_seq.append(reward)
@@ -814,7 +840,7 @@ def plan_add_nth_brick(
     #env.components['table_scene'].brick_scene.export_ldraw(
     #    './export_step_%i_b.mpd'%instance)
     
-    return observation_seq, action_seq, reward_seq
+    return observation_seq, action_seq, click_map_seq, reward_seq
 
 def plan_remove_nth_brick(
     env,
