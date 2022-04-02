@@ -1,4 +1,6 @@
-# LTRON: Lego Interactive Machine Learning Environment
+![Alt text](assets/ltron_logo.png?raw=true "LTRON")
+
+# Interactive Lego Machine Learning Environment
 
 ## Installation:
 To install LTRON run:
