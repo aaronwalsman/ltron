@@ -178,7 +178,37 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
     
     return valid_matches
 
+def compute_misaligned(matches, assembly_a, assembly_b):
+    # find all instances in assembly_a and assembly_b that are not matched
+    all_a = set(numpy.where(assembly_a['shape'] != 0)[0])
+    all_b = set(numpy.where(assembly_b['shape'] != 0)[0])
+    matched_a = set(m[0] for m in matches)
+    matched_b = set(m[1] for m in matches)
+    misaligned_a = all_a - matched_a
+    misaligned_b = all_b - matched_b
+    
+    return misaligned_a, misaligned_b
+
+def compute_unmatched(matches, assembly_a, assembly_b):
+    
+    # find the misaligned instances that match shape and color
+    misaligned_matches = [
+        (a,b)
+        for a in misaligned_a for b in misaligned_b
+        if (assembly_a['shape'][a] == assembly_b['shape'][b] and
+            assembly_a['color'][a] == assembly_b['color'][b])
+    ]
+    
+    # find the misaligned instances that have no appropriate match
+    matched_a = set(m[0] for m in misaligned_matches)
+    matched_b = set(m[1] for m in misaligned_matches)
+    unmatched_a = misaligned_a - matched_a
+    unmatched_b = misaligned_b - matched_b
+    
+    return misaligned_matches, unmatched_a, unmatched_b
+
 def match_lookup(matching, assembly_a, assembly_b):
+    #print('DEPRECATED, switch to compute_unmatched')
     a_to_b = {a:b for a, b in matching}
     b_to_a = {b:a for a, b in matching}
     a_instances = numpy.where(assembly_a['shape'] != 0)[0]

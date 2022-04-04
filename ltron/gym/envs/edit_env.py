@@ -74,6 +74,9 @@ class EditEnvConfig(Config):
     observe_dataset_id = False
     
     allow_snap_flip = False
+    
+    table_distance = 320
+    hand_distance = 180
 
 class EditEnv(LtronEnv):
     def __init__(self, config, rank=0, size=1, print_traceback=False):
@@ -147,9 +150,9 @@ class EditEnv(LtronEnv):
         elevation_steps = 2
         # TODO: make this correct
         table_distance_steps = 1
-        table_distance_range=[320,320] # was 250
+        table_distance_range=[config.table_distance, config.table_distance]
         hand_distance_steps = 1
-        hand_distance_range=[180,180] # was 150
+        hand_distance_range=[config.hand_distance, config.hand_distance]
         if config.randomize_viewpoint:
             start_position='uniform'
         else:
