@@ -70,43 +70,6 @@ class InstanceVisibilityComponent(VisibilityComponent):
         
         return None, 0., self.check_terminal(), None
 
-class InstanceRemovabilityComponent(LtronGymComponent):
-    def __init__(self,
-            max_instances,
-            scene_component):
-        
-        self.max_instances = max_instances
-        self.scene_component = scene_component
-        self.observation_space = gym_spaces.Dict({
-                'removable' : bg_spaces.MultiInstanceSelectionSpace(
-                    self.max_instances),
-                'direction' : bg_spaces.MultiInstanceDirectionSpace(
-                    self.max_instances),
-        })
-    
-    def compute_observation(self):
-        scene = self.scene_component.brick_scene
-        removable_observation = numpy.zeros(
-                self.max_instances+1, dtype=numpy.bool)
-        direction_observation = numpy.zeros(
-                (self.max_instances+1, 3))
-        for instance_id, instance in scene.instances.items():
-            removable, direction = scene.is_instance_removable(
-                    instance, direction_space='camera')
-            if removable:
-                removable_observation[int(instance_id)] = True
-            if direction is not None:
-                direction_observation[int(instance_id)] = direction 
-        
-        return {'removable' : removable_observation,
-                'direction' : direction_observation}
-    
-    def reset(self):
-        return self.compute_observation()
-    
-    def step(self, action):
-        return self.compute_observation(), 0, False, None
-
 class PixelVisibilityComponent(VisibilityComponent):
     def __init__(self,
             width,
