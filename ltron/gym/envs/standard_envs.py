@@ -76,7 +76,7 @@ def segmentation_supervision_env(
                 components['random_floating_bricks'].bricks_per_scene[-1])
     
     # episode length
-    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
+    components['episode_length'] = EpisodeLengthComponent(max_instances)
     
     # color randomization
     if randomize_colors:
@@ -195,7 +195,7 @@ def graph_supervision_env(
                 components['random_floating_bricks'].bricks_per_scene[-1])
     
     # episode length
-    components['episode_length'] = MaxEpisodeLengthComponent(max_instances)
+    components['episode_length'] = EpisodeLengthComponent(max_instances)
     
     # color randomization
     if randomize_colors:
