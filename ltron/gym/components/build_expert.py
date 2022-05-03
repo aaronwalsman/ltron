@@ -101,7 +101,8 @@ class BuildExpert(LtronGymComponent):
             actions = self.fix_rotate(
                 current_to_target,
                 target_to_current,
-                list(target_to_current_misaligned_connected.keys()),
+                target_to_current_misaligned_connected,
+                #current_to_target_misaligned_connected,
                 current_assembly,
                 target_assembly,
             )
@@ -230,25 +231,38 @@ class BuildExpert(LtronGymComponent):
         current_to_target,
         target_to_current,
         targets_to_fix,
+        #current_to_target_misaligned_connected,
         current_assembly,
         target_assembly,
     ):
         actions = []
         
+        '''
         # what shape/color combos are we looking for
         fn_shape_color_snaps = []
-        for tgt_i in targets_to_fix:
+        for tgt_i, cur_set in targets_to_fix.items():
             shape = target_assembly['shape'][tgt_i]
             color = target_assembly['color'][tgt_i]
             
             #fn_shape_colors.add((shape, color))
             fn_edges = matching_edges(target_assembly, tgt_i)
             fn_edges = target_assembly['edges'][:,fn_edges]
+            # EITHER A
             for _, tgt_con_i, tgt_s, tgt_con_s in fn_edges.T:
                 if tgt_con_i in target_to_current:
                     fn_shape_color_snaps.append(
                         (shape, color, tgt_i, tgt_con_i, tgt_s, tgt_con_s))
+            
+            # OR B
+            for _, tgt_con_i, tgt_s, tgt_con_s in fn_edges.T:
+                if tgt_con_i in target_to_current:
+                    for cur_i, cur_s, cur_con_s in cur_set:
+                        if (thing, cur_s, cur_con_s) == (thing, tgt_s, tgt_con_s):
+                            fn_shape_color_snaps.append(
+                                (shape, color, tgt_i, tgt_con_i, tgt_s, tgt_con_s))
+        '''
         
+        '''
         # is a pick already clicked on?
         pickable = {}
         for s, c, tgt_i, tgt_con_i, tgt_s, tgt_con_s in fn_shape_color_snaps:
@@ -261,9 +275,23 @@ class BuildExpert(LtronGymComponent):
                     pickable.setdefault((self.target_scene, i, tgt_s), [])
                     pickable[self.target_scene, i, tgt_s].append(
                         (self.target_scene, tgt_i, tgt_con_i, tgt_con_s))
+        '''
+        
+        # pickable maps (n,i,s) in current assembly to [(n,i,ci,cs)] in target
+        pickable = {}
+        for tgt_i, cur_set in targets_to_fix.items():
+            for cur_i, cur_s, cur_con_s in cur_set:
+                fn_edge_indices = matching_edges(
+                    target_assembly, i1=tgt_i, s1=cur_s, s2=cur_con_s)
+                fn_edges = target_assembly['edges'][:,fn_edge_indices]
+                if fn_edges.shape[1]:
+                    tgt_con_i = fn_edges[1,0]
+                    pickable[self.target_scene, cur_i, cur_s] = [
+                        [self.target_scene, tgt_i, tgt_con_i, cur_con_s]]
         
         pick_component = self.action_component.components['pick_cursor']
         pick_n, pick_i, pick_s = pick_component.get_selected_snap()
+        
         if (pick_n, pick_i, pick_s) not in pickable:
             pick_actions = []
             pick_names = []

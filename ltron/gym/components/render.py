@@ -1,5 +1,3 @@
-import time
-
 import numpy
 
 from splendor.frame_buffer import FrameBufferWrapper
