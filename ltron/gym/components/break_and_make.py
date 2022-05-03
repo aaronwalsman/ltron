@@ -9,7 +9,7 @@ from gym.spaces import Dict, Discrete
 from ltron.hierarchy import hierarchy_branch
 from ltron.score import score_assemblies
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
-from ltron.gym.spaces import AssemblySpace, InstanceMatchingSpace
+from ltron.gym.spaces import PhaseSpace
 
 class BreakAndMakePhaseSwitch(LtronGymComponent):
     def __init__(self,
@@ -99,7 +99,8 @@ class BreakAndMakePhaseSwitch(LtronGymComponent):
 class BreakOnlyPhaseSwitch(LtronGymComponent):
     def __init__(self):
         self.action_space = Discrete(3)
-        self.observation_space = Discrete(2)
+        self.observation_space = PhaseSpace(2)
+        self.phase = 0
     
     def reset(self):
         return 0

@@ -13,7 +13,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/aaronwalsman/ltron",
     install_requires = [
-        'gym==0.17.3',
+        #'gym==0.17.3',
+        'gym==0.21.0',
         'numpy',
         'scipy',
         'pyquaternion',

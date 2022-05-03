@@ -10,6 +10,101 @@ from ltron.dataset.paths import (
 import ltron.gym.spaces as bg_spaces
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
+'''
+class DatasetLoaderComponent(LtronGymComponent):
+    def __init__(self,
+        scene_component,
+        dataset,
+        split,
+        subset=None,
+        rank=0,
+        size=1,
+        selection_mode='uniform',
+    ):
+        self.scene_component = scene_component
+        self.dataset = dataset
+        self.split = split
+        self.subset = subset
+        self.rank = rank
+        self.size = size
+        self.selection_mode = selection_mode
+        self.dataset_info = get_dataset_info(self.dataset)
+        
+        self.dataset_paths = get_dataset_paths(dataset, split, subset)
+        self.length = len(self.dataset_paths)
+        if reset_mode == 'uniform':
+            self.dataset_ids = range(self.length)
+        else;
+            self.dataset_ids = range(self.rank, self.length, self.size)
+        self.set_state({
+            'finished':False,
+            'episode_id':None,
+            'dataset_id':None,
+        })
+    
+    def reset(self):
+        # three cases:
+        # 1. hasn't been initialized yet
+        # 2. normal operation
+        # 3. finished (single pass only)
+        
+        # increment episode_id if initialized, otherwise initialize
+        if self.initialized:
+            self.episode_id += 1
+        else:
+            self.initialized = True
+            self.episode_id = 0
+            self.dataset_id = 0
+        
+        # pick the dataset id according to the reset_mode
+        if self.reset_mode == 'uniform':
+            self.dataset_id = random.choice(self.dataset_ids)
+        elif (self.reset_mode == 'sequential' or
+            self.reset_mode == 'multi_pass'
+        ):
+            index = self.episode_id % len(self.dataset_ids)
+            self.dataset_id = self.dataset_ids[index]
+        elif self.reset_mode == 'single_pass':
+            if self.episode_id < len(self.dataset_paths['mpd']):
+            #if self.episode_id < len(self.names):
+                self.dataset_id = self.dataset_ids[self.episode_id]
+            else:
+                self.finished = True
+        else:
+            raise ValueError('Unknown reset mode "%s"'%self.reset_mode)
+        
+        if not self.finished:
+            self.dataset_item = index_hierarchy(
+                self.dataset_paths, self.dataset_id)
+            #self.dataset_item = self.names[self.dataset_id]
+        
+        self.observe()
+        return self.observation
+    
+    def step(self, action):
+        self.observe()
+        return self.observation, 0., False, None
+    
+    def get_state(self):
+        state = {
+            'initialized':self.initialized,
+            'finished':self.finished,
+            'episode_id':self.episode_id,
+            'dataset_id':self.dataset_id,
+        }
+        
+        return state
+       
+    def set_state(self, state):
+        self.initialized = state['initialized']
+        self.finished = state['finished']
+        self.episode_id = state['episode_id']
+        self.dataset_id = state['dataset_id']
+        
+        self.observe()
+        return self.observation
+'''
+
 class DatasetPathComponent(LtronGymComponent):
     def __init__(self,
         dataset,

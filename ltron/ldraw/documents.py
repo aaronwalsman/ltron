@@ -4,7 +4,6 @@ import zipfile
 
 from ltron.home import get_ltron_home
 import ltron.settings as settings
-#import ltron.ldraw.paths as ldraw_paths
 from ltron.ldraw.parts import (
     LDRAW_PARTS,
     LDRAW_PATHS,
@@ -41,14 +40,83 @@ class LDrawMissingFileComment(LDrawException):
 class LDrawDocument:
     @staticmethod
     def parse_document(
-        file_path, reference_table=shared_reference_table, shadow = False
+        file_path, reference_table=shared_reference_table, shadow=False
+    ):
+        
+        reference_name = get_reference_name(file_path)
+        resolved_file_path = get_reference_path(file_path, shadow)
+        
+        if shadow:
+            zipped = reference_name in SHADOW_PATHS
+            z = offlib_csl
+        else:
+            zipped = reference_name in LDRAW_PATHS
+            z = ldraw_zip
+        if zipped:
+            lines = z.open(resolved_file_path).readlines()
+            lines = [line.decode('latin-1') for line in lines]
+        else:
+            lines = open(
+                resolved_file_path, encoding='latin-1').readlines()
+        
+        return LDrawDocument.parse_lines(
+            file_path,
+            lines,
+            reference_name=None,
+            resolved_file_path=None,
+            reference_table=reference_table,
+            shadow=shadow,
+        )
+    
+    @staticmethod
+    def parse_text(
+        file_path,
+        text,
+        reference_name=None,
+        resolved_file_path=None,
+        reference_table=shared_reference_table,
+        shadow=False,
+    ):
+        if isinstance(text, bytes):
+            text = text.decode('latin-1')
+        return LDrawDocument.parse_lines(
+            file_path,
+            lines=text.splitlines(),
+            reference_name=reference_name,
+            resolved_file_path=resolved_file_path,
+            reference_table=reference_table,
+            shadow=shadow,
+        )
+    
+    @staticmethod
+    def parse_lines(
+        file_path,
+        lines,
+        reference_name=None,
+        resolved_file_path=None,
+        reference_table=shared_reference_table,
+        shadow=False
     ):
         file_name, ext = os.path.splitext(file_path)
         if ext == '.mpd' or ext == '.ldr' or ext == '.l3b':
             try:
-                return LDrawMPDMainFile(file_path, reference_table, shadow)
+                return LDrawMPDMainFile(
+                    file_path,
+                    lines,
+                    reference_name=reference_name,
+                    resolved_file_path=resolved_file_path,
+                    reference_table=reference_table,
+                    shadow=shadow,
+                )
             except LDrawMissingFileComment:
-                return LDrawLDR(file_path, reference_table, shadow)
+                return LDrawLDR(
+                    file_path,
+                    lines,
+                    reference_name=reference_name,
+                    resolved_file_path=resolved_file_path,
+                    reference_table=reference_table,
+                    shadow=shadow,
+                )
         # this doesn't work because a lot of ".ldr" files are actually
         # structured as ".mpd" files
         #elif ext == '.ldr':
@@ -65,7 +133,14 @@ class LDrawDocument:
                     dat_cache[file_path] = dat
                 return dat
             '''
-            return LDrawDAT(file_path, reference_table, shadow)
+            return LDrawDAT(
+                file_path,
+                lines,
+                reference_name=reference_name,
+                resolved_file_path=resolved_file_path,
+                reference_table=reference_table,
+                shadow=shadow,
+            )
         else:
             raise ValueError('Unknown extension: %s (%s)'%(file_path, ext))
     
@@ -78,6 +153,7 @@ class LDrawDocument:
         else:
             self.reference_table['ldraw'][self.reference_name] = self
     
+    '''
     def resolve_file_path(self, file_path):
         try:
             self.resolved_file_path = get_reference_path(file_path, self.shadow)
@@ -88,6 +164,7 @@ class LDrawDocument:
             #    file_path)
         #else:
             #self.resolved_file_path = ldraw_paths.resolve_ldraw_path(file_path)
+    '''
     
     def import_references(self):
         for command in self.commands:
@@ -102,7 +179,9 @@ class LDrawDocument:
                 if reference_name not in self.reference_table['ldraw']:
                     try:
                         LDrawDocument.parse_document(
-                                reference_name, self.reference_table)
+                            reference_name,
+                            self.reference_table,
+                        )
                     except:
                         print('Error when importing: %s'%reference_name)
                         raise
@@ -116,7 +195,8 @@ class LDrawDocument:
                         LDrawDocument.parse_document(
                             self.reference_name,
                             self.reference_table,
-                            shadow=True)
+                            shadow=True,
+                        )
                     except:
                         print('Error when importing shadow: %s'%
                             self.reference_name)
@@ -144,16 +224,28 @@ class LDrawDocument:
         return self.reference_name
 
 class LDrawMPDMainFile(LDrawDocument):
-    def __init__(self, file_path, reference_table = None, shadow = False):
+    def __init__(self,
+        file_path,
+        lines,
+        reference_name=None,
+        resolved_file_path=None,
+        reference_table = None,
+        shadow = False
+    ):
         
         # initialize reference_table
         self.shadow = shadow
-        self.resolve_file_path(file_path)
-        self.reference_name = get_reference_name(file_path)
+        if resolved_file_path is None:
+            #self.resolve_file_path(file_path)
+            resolved_file_path = get_reference_path(file_path, self.shadow)
+        self.resolved_file_path = resolved_file_path
+        if reference_name is None:
+            reference_name = get_reference_name(file_path)
+        self.reference_name = reference_name
         self.set_reference_table(reference_table)
         
         # resolve the file path and parse all commands in this file
-        lines = open(self.resolved_file_path, encoding='latin-1').readlines()
+        #lines = open(self.resolved_file_path, encoding='latin-1').readlines()
         try:
             commands = LDrawCommand.parse_commands(lines)
         except:
@@ -212,7 +304,7 @@ class LDrawMPDInternalFile(LDrawDocument):
 
 '''
 class LDrawLDR(LDrawDocument):
-    def __init__(self, file_path, reference_table = None, shadow = False):
+    def __init__(self, file_path, reference_table=None, shadow=False):
         
         # initialize reference table
         self.shadow = shadow
@@ -232,11 +324,24 @@ class LDrawLDR(LDrawDocument):
 '''
 
 class LDrawLDR(LDrawDocument):
-    def __init__(self, file_path, reference_table = None, shadow = False):
+    def __init__(self,
+        file_path,
+        lines,
+        resolved_file_path=None,
+        reference_name=None,
+        reference_table=None,
+        shadow=False,
+    ):
         # initialize reference table
         self.shadow = shadow
-        self.resolve_file_path(file_path)
-        self.reference_name = get_reference_name(file_path)
+        #self.resolve_file_path(file_path)
+        #self.reference_name = get_reference_name(file_path)
+        if resolved_file_path is None:
+            resolved_file_path = get_reference_path(file_path, self.shadow)
+        self.resolved_file_path = resolved_file_path
+        if reference_name is None:
+            reference_name = get_reference_name(file_path)
+        self.reference_name = reference_name
         self.set_reference_table(reference_table)
         # resolve the file path and parse all commands in this file
         '''
@@ -253,6 +358,8 @@ class LDrawLDR(LDrawDocument):
             lines = [line.decode('latin-1') for line in lines]
         '''
         
+        # now in parse_document
+        '''
         if shadow:
             zipped = self.reference_name in SHADOW_PATHS
             z = offlib_csl
@@ -265,6 +372,7 @@ class LDrawLDR(LDrawDocument):
         else:
             lines = open(
                 self.resolved_file_path, encoding='latin-1').readlines()
+        '''
         
         try:
             self.commands = LDrawCommand.parse_commands(lines)

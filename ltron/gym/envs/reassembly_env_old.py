@@ -14,7 +14,7 @@ import splendor.contexts.glut as glut
 
 from ltron.gym.ltron_env import LtronEnv
 from ltron.gym.components.scene import SceneComponent
-from ltron.gym.components.episode import MaxEpisodeLengthComponent
+from ltron.gym.components.episode import EpisodeLengthComponent
 from ltron.gym.components.dataset import DatasetPathComponent
 from ltron.gym.components.render import (
         ColorRenderComponent, SegmentationRenderComponent, SnapRenderComponent)
@@ -955,7 +955,7 @@ def handspace_reassembly_env(
         collision_checker=False,
     )
     
-    components['episode'] = MaxEpisodeLengthComponent(
+    components['episode'] = EpisodeLengthComponent(
         max_episode_length, observe_step=False)
     
     # viewpoint

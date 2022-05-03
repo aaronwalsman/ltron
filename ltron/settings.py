@@ -20,41 +20,43 @@ render = {}
 
 def reload_settings():
     if os.path.exists(settings_cfg_path):
-        setup_parser = configparser.ConfigParser()
-        setup_parser.read(settings_cfg_path)
+        settings_parser = configparser.ConfigParser()
+        settings_parser.read(settings_cfg_path)
         
         paths.clear()
         paths.update({
             key : resolve_path(value)
-            for key, value in dict(setup_parser['paths']).items()
+            for key, value in dict(settings_parser['paths']).items()
         })
 
         datasets.clear()
+        datasets_path = resolve_path(settings_parser['paths']['datasets'])
         datasets.update({
-            key : resolve_path(value)
-            for key, value in dict(setup_parser['datasets']).items()
-            if key not in setup_parser['DEFAULT']
+            fname.replace('.json', '') : os.path.join(datasets_path, fname)
+            for fname in os.listdir(datasets_path)
+            if fname.endswith('.json')
         })
-
+        
         collections.clear()
+        collections_path = resolve_path(settings_parser['paths']['collections'])
         collections.update({
-            key : resolve_path(value)
-            for key, value in dict(setup_parser['collections']).items()
-            if key not in setup_parser['DEFAULT']
+            fname.replace('.tar', '') : os.path.join(collections_path, fname)
+            for fname in os.listdir(collections_path)
+            if fname.endswith('.tar')
         })
 
         urls.clear()
         urls.update({
             key : url
-            for key, url in dict(setup_parser['urls']).items()
-            if key not in setup_parser['DEFAULT']
+            for key, url in dict(settings_parser['urls']).items()
+            if key not in settings_parser['DEFAULT']
         })
         
         render.clear()
         render.update({
             key : value
-            for key, value in dict(setup_parser['render']).items()
-            if key not in setup_parser['DEFAULT']
+            for key, value in dict(settings_parser['render']).items()
+            if key not in settings_parser['DEFAULT']
         })
 
 reload_settings()

@@ -1,6 +1,7 @@
 import math
 import os
-from zipfile import ZipFile
+#from zipfile import ZipFile
+import tarfile
 import glob
 import json
 
@@ -9,30 +10,30 @@ import numpy
 import ltron.settings as settings
 from ltron.hierarchy import map_hierarchies, concatenate_lists
 
-def resolve_subdocument(file_path):
-    if '#' in file_path:
-        file_path, subdocument = file_path.split('#')
-        subdocument = subdocument.lower()
-    else:
-        subdocument = None
-    
-    file_path = os.path.expanduser(file_path)
-    
-    return file_path, subdocument
+#def resolve_subdocument(file_path):
+#    if '#' in file_path:
+#        file_path, subdocument = file_path.split('#')
+#        subdocument = subdocument.lower()
+#    else:
+#        subdocument = None
+#    
+#    file_path = os.path.expanduser(file_path)
+#    
+#    return file_path, subdocument
 
-def get_metadata_path(file_path):
-    file_path = os.path.expanduser(file_path)
-    directory, file_name = os.path.split(file_path)
-    file_basename = os.path.splitext(file_name)[0]
-    primary_index = file_basename.split('_')[1]
-    metadata_path = os.path.join(directory, 'metadata_%s.json'%primary_index)
-    
-    return metadata_path
+#def get_metadata_path(file_path):
+#    file_path = os.path.expanduser(file_path)
+#    directory, file_name = os.path.split(file_path)
+#    file_basename = os.path.splitext(file_name)[0]
+#    primary_index = file_basename.split('_')[1]
+#    metadata_path = os.path.join(directory, 'metadata_%s.json'%primary_index)
+#    
+#    return metadata_path
 
-def get_metadata(file_path):
-    metadata_path = get_metadata_path(file_path)
-    metadata = json.load(open(metadata_path))
-    return metadata
+#def get_metadata(file_path):
+#    metadata_path = get_metadata_path(file_path)
+#    metadata = json.load(open(metadata_path))
+#    return metadata
 
 def get_dataset_info(dataset):
     #dataset_directory = os.path.expanduser(settings.datasets[dataset])
@@ -80,23 +81,39 @@ def process_file_paths(file_paths, subset=None, rank=0, size=1):
     paths = all_file_paths[rank::size]
     return numpy.array(paths, dtype=object)
 
-def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
-    split = get_dataset_info(dataset)['splits'][split_name]
-    
-    def process_fn(file_paths):
-        return process_file_paths(
-            file_paths, subset=subset, rank=rank, size=size)
-    
-    paths = map_hierarchies(process_fn, split)
-    return concatenate_lists(paths)
+# DEPRECATED
+#def get_dataset_paths(dataset, split_name, subset=None, rank=0, size=1):
+#    split = get_dataset_info(dataset)['splits'][split_name]
+#    
+#    def process_fn(file_paths):
+#        return process_file_paths(
+#            file_paths, subset=subset, rank=rank, size=size)
+#    
+#    paths = map_hierarchies(process_fn, split)
+#    return concatenate_lists(paths)
 
-def get_zip_paths(dataset, split_name, subset=None, key='zip', rank=0, size=1):
-    zip_path = get_dataset_info(dataset)['splits'][split_name][key]
-    zip_path = zip_path.format(**settings.collections)
-    z = ZipFile(zip_path, 'r')
-    names = [info.filename for info in z.infolist() if not info.is_dir()]
-    names = names[get_subset_slice(subset)]
-    return z, names
+#def get_zip_paths(dataset, split_name, subset=None, key='zip', rank=0, size=1):
+#    zip_path = get_dataset_info(dataset)['splits'][split_name][key]
+#    zip_path = zip_path.format(**settings.collections)
+#    z = ZipFile(zip_path, 'r')
+#    names = [info.filename for info in z.infolist() if not info.is_dir()]
+#    names = names[get_subset_slice(subset)]
+#    return z, names
+
+def get_tar_paths(dataset, split_name, subset=None, rank=0, size=1):
+    sources = get_dataset_info(dataset)['splits'][split_name]['sources']
+    tars = {}
+    paths = []
+    for source in sources:
+        tar = tarfile.open(settings.collections[source], 'r')
+        tars[source] = tar
+        source_paths = [
+            (source, info.name) for info in tar.getmembers()
+            if info.type != tarfile.DIRTYPE
+        ]
+        paths.extend(source_paths)
+    
+    return tars, paths[get_subset_slice(subset)]
 
 def get_dataset_paths_old(dataset, split_name, subset=None, rank=0, size=1):
     dataset_path = os.path.expanduser(settings.datasets[dataset])

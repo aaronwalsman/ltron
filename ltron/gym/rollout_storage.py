@@ -157,12 +157,14 @@ class RolloutStorage:
         batch_size,
         max_seq_len=None,
         shuffle=False,
+        finished_only=True,
     ):
         return BatchSeqIterator(
             self,
             batch_size,
             max_seq_len=max_seq_len,
             shuffle=shuffle,
+            finished_only=finished_only,
         )
     
     def pad_stack_seqs(self, seq_ids, axis=1, start=None, stop=None):
@@ -185,8 +187,11 @@ class RolloutStorage:
         return self.pad_stack_seqs(
             self.batch_seq_ids, axis=stack_axis, start=start, stop=stop)
     
-    def chop_sequences(self, max_seq_len=None):
-        seq_ids = list(range(self.num_seqs()))
+    def chop_sequences(self, max_seq_len=None, finished_only=True):
+        if finished_only:
+            seq_ids = list(self.finished_seqs)
+        else:
+            seq_ids = list(range(self.num_seqs()))
         seq_id_start_stops = []
         for seq_id in seq_ids:
             seq_len = self.seq_len(seq_id)
@@ -214,12 +219,14 @@ class BatchSeqIterator:
         rollout_storage,
         batch_size,
         max_seq_len=None,
-        shuffle=False
+        shuffle=False,
+        finished_only=True,
     ):
         self.rollout_storage = rollout_storage
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_seq_len = max_seq_len
+        self.finished_only = finished_only
         
         '''
         seq_ids = list(range(rollout_storage.num_seqs()))
@@ -236,7 +243,7 @@ class BatchSeqIterator:
                     start = stop
         '''
         self.seq_id_start_stops = self.rollout_storage.chop_sequences(
-            max_seq_len)
+            max_seq_len, finished_only=self.finished_only)
     
     def __iter__(self):
         if self.shuffle:

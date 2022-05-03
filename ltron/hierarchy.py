@@ -8,22 +8,30 @@ def map_hierarchies(
     InDictClass=dict,
     InListClass=(tuple, list),
     OutDictClass=None,
-    OutListClass=None
+    OutListClass=None,
+    debug=False,
 ):
     if isinstance(a[0], InDictClass):
         assert all(isinstance(aa, dict) for aa in a[1:])
         assert all(aa.keys() == a[0].keys() for aa in a[1:]), (
             ':'.join([str(aa.keys()) for aa in a]))
-        d = {
-            key : map_hierarchies(
-                fn, *[aa[key] for aa in a],
-                InDictClass=InDictClass,
-                InListClass=InListClass,
-                OutDictClass=OutDictClass,
-                OutListClass=OutListClass,
-            )
-            for key in a[0].keys()
-        }
+        try:
+            d = {
+                key : map_hierarchies(
+                    fn, *[aa[key] for aa in a],
+                    InDictClass=InDictClass,
+                    InListClass=InListClass,
+                    OutDictClass=OutDictClass,
+                    OutListClass=OutListClass,
+                    debug=debug,
+                )
+                for key in a[0].keys()
+            }
+        except:
+            if debug:
+                print('Failed during dict mapping with keys:', a[0].keys())
+            raise
+            
         if OutDictClass is not None:
             d = OutDictClass(d)
         return d
@@ -32,16 +40,23 @@ def map_hierarchies(
         assert all(isinstance(aa, (tuple, list)) for aa in a[1:]), (
             ':'.join([str(aa) for aa in a]))
         assert all(len(aa) == len(a[0]) for aa in a[1:])
-        l = [
-            map_hierarchies(
-                fn, *[aa[i] for aa in a],
-                InDictClass=InDictClass,
-                InListClass=InListClass,
-                OutDictClass=OutDictClass,
-                OutListClass=OutListClass,
-            )
-            for i in range(len(a[0]))
-        ]
+        try:
+            l = [
+                map_hierarchies(
+                    fn, *[aa[i] for aa in a],
+                    InDictClass=InDictClass,
+                    InListClass=InListClass,
+                    OutDictClass=OutDictClass,
+                    OutListClass=OutListClass,
+                    debug=debug,
+                )
+                for i in range(len(a[0]))
+            ]
+        except:
+            if debug:
+                print('Failed during list mapping of length:', len(a[0]))
+            raise
+        
         if OutListClass is not None:
             l = OutListClass(l)
         return l
@@ -128,10 +143,10 @@ def concatenate_numpy_hierarchies(*a, **kwargs):
         return numpy.concatenate(a, **kwargs)
     return map_hierarchies(fn, *a)
 
-def stack_numpy_hierarchies(*a, **kwargs):
+def stack_numpy_hierarchies(*a, debug=False, **kwargs):
     def fn(*a):
         return numpy.stack(a, **kwargs)
-    return map_hierarchies(fn, *a)
+    return map_hierarchies(fn, *a, debug=debug)
 
 def pad_numpy_hierarchy(a, pad, axis=0):
     def fn(a):

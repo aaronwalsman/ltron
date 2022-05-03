@@ -11,15 +11,14 @@ from ltron.config import Config
 from ltron.gym.envs.ltron_env import LtronEnv
 from ltron.gym.components.scene import (
     EmptySceneComponent, DatasetSceneComponent, SingleSceneComponent)
-from ltron.gym.components.episode import MaxEpisodeLengthComponent
-from ltron.gym.components.dataset import DatasetPathComponent
+from ltron.gym.components.episode import EpisodeLengthComponent
+from ltron.gym.components.loader import DatasetLoaderComponent
 from ltron.gym.components.render import (
         ColorRenderComponent, InstanceRenderComponent, SnapRenderComponent)
-from ltron.gym.components.cursor import SnapCursor
+from ltron.gym.components.cursor import MultiScreenCursor
 from ltron.gym.components.disassembly import CursorDisassemblyComponent
-from ltron.gym.components.rotation import CursorRotationAroundSnap
-from ltron.gym.components.pick_and_place import (
-        CursorHandspacePickAndPlace)
+from ltron.gym.components.rotation import MultiCursorRotateAboutSnap
+from ltron.gym.components.pick_and_place import MultiScreenPickAndPlace
 from ltron.gym.components.brick_inserter import HandspaceBrickInserter
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
@@ -33,13 +32,12 @@ from ltron.gym.components.break_and_make import (
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
 from ltron.gym.components.tile import DeduplicateTileMaskComponent
-from ltron.gym.components.partial_disassembly import PartialDisassemblyComponent
-
-# TODO: Needs a config
+from ltron.gym.components.partial_disassembly import (
+    MultiScreenPartialDisassemblyComponent,
+)
 
 class EditEnvConfig(Config):
     dataset = 'random_construction_6_6'
-    ldraw_file = None
     split = 'train'
     subset = None
     
@@ -53,7 +51,7 @@ class EditEnvConfig(Config):
     hand_map_height = 24
     hand_map_width = 24
     
-    dataset_reset_mode = 'uniform'
+    dataset_selection_mode = 'uniform'
     
     max_episode_length = 32
     
@@ -71,10 +69,6 @@ class EditEnvConfig(Config):
     
     egl_device=None
     
-    observe_dataset_id = False
-    
-    allow_snap_flip = False
-    
     table_distance = 320
     hand_distance = 180
 
@@ -82,58 +76,48 @@ class EditEnv(LtronEnv):
     def __init__(self, config, rank=0, size=1, print_traceback=False):
         components = OrderedDict()
         
-        # dataset
-        components['dataset'] = DatasetPathComponent(
-            config.dataset,
-            config.split,
-            config.subset,
-            rank,
-            size,
-            reset_mode=config.dataset_reset_mode,
-            observe_dataset_id = config.observe_dataset_id,
-        )
-        dataset_info = components['dataset'].dataset_info
+        # dataset info
+        dataset_info = get_dataset_info(config.dataset)
         shape_ids = dataset_info['shape_ids']
         color_ids = dataset_info['color_ids']
         max_instances = dataset_info['max_instances_per_scene']
         max_edges = dataset_info['max_edges_per_scene']
         
         # scenes
-        if config.ldraw_file is not None:
-            components['table_scene'] = SingleSceneComponent(
-                config.ldraw_file,
-                shape_ids,
-                color_ids,
-                max_instances,
-                max_edges,
-                track_snaps=True,
-                collision_checker=config.check_collision,
-                #render_args={'egl_device':config.egl_device},
-            )
-        else:
-            components['table_scene'] = DatasetSceneComponent(
-                dataset_component=components['dataset'],
-                path_location=['mpd'],
-                track_snaps=True,
-                collision_checker=config.check_collision,
-                #render_args={'egl_device':config.egl_device},
-            )
+        components['table_scene'] = EmptySceneComponent(
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            track_snaps=True,
+            collision_checker=config.check_collision,
+        )
         components['hand_scene'] = EmptySceneComponent(
-            shape_ids=shape_ids,
-            color_ids=color_ids,
-            max_instances=max_instances,
-            max_edges=max_edges,
-            #render_args=hand_render_args,
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
             track_snaps=True,
             collision_checker=False,
+        )
+        
+        # dataset
+        components['dataset'] = DatasetLoaderComponent(
+            components['table_scene'],
+            config.dataset,
+            config.split,
+            subset=config.subset,
+            rank=rank,
+            size=size,
+            sample_mode=config.dataset_reset_mode,
         )
         
         # uprightify
         components['upright'] = UprightSceneComponent(
             scene_component = components['table_scene'])
         
-        # max length
-        components['step'] = MaxEpisodeLengthComponent(
+        # time step
+        components['step'] = EpisodeLengthComponent(
             config.max_episode_length, observe_step=True)
         
         # color randomization
@@ -169,7 +153,6 @@ class EditEnv(LtronEnv):
             auto_frame='reset',
             frame_button=True,
         )
-        
         components['hand_viewpoint'] = ControlledAzimuthalViewpointComponent(
             components['hand_scene'],
             azimuth_steps=azimuth_steps,
@@ -189,31 +172,28 @@ class EditEnv(LtronEnv):
             config.table_map_height,
             components['table_scene'],
             polarity='+',
+            render_frequency='on_demand',
         )
         table_neg_snap_render = SnapRenderComponent(
             config.table_map_width,
             config.table_map_height,
             components['table_scene'],
             polarity='-',
+            render_frequency='on_demand',
         )
-        if config.train:
-            instance_render = InstanceRenderComponent(
-                config.table_map_width,
-                config.table_map_height,
-                components['table_scene'],
-            )
-        
         hand_pos_snap_render = SnapRenderComponent(
             config.hand_map_width,
             config.hand_map_height,
             components['hand_scene'],
             polarity='+',
+            render_frequency='on_demand',
         )
         hand_neg_snap_render = SnapRenderComponent(
             config.hand_map_width,
             config.hand_map_height,
             components['hand_scene'],
             polarity='-',
+            render_frequency='on_demand',
         )
         
         # initial color render component
@@ -236,56 +216,42 @@ class EditEnv(LtronEnv):
         )
         
         # cursors
-        components['table_cursor'] = SnapCursor(
+        components['pick_cursor'] = MultiScreenCursor(
             max_instances,
-            table_pos_snap_render,
-            table_neg_snap_render,
-            observe_instance_snap=config.train,
+            [table_pos_snap_render, hand_pos_snap_render],
+            [table_neg_snap_render, hand_neg_snap_render],
         )
-        components['hand_cursor'] = SnapCursor(
+        components['place_cursor'] = MultiScreenCursor(
             max_instances,
-            hand_pos_snap_render,
-            hand_neg_snap_render,
-            observe_instance_snap=config.train,
+            [table_pos_snap_render, hand_pos_snap_render],
+            [table_neg_snap_render, hand_neg_snap_render],
         )
         
         # action spaces
-        components['rotate'] = CursorRotationAroundSnap(
-            components['table_scene'],
-            components['table_cursor'],
+        components['rotate'] = MultiScreenRotateAboutSnap(
+            (components['table_scene'], components['hand_scene']),
+            components['pick_cursor'],
             check_collision=config.check_collision,
-            allow_snap_flip=config.allow_snap_flip,
+            allow_snap_flip=True,
         )
-        components['pick_and_place'] = CursorHandspacePickAndPlace(
-            components['table_scene'],
-            components['table_cursor'],
-            components['hand_scene'],
-            components['hand_cursor'],
+        components['pick_and_place'] = MultiScreenPickAndPlace(
+            (components['table_scene'], components['hand_scene']),
+            components['pick_cursor'],
+            components['place_cursor'],
             check_collision=config.check_collision,
-        )
-        components['disassembly'] = CursorDisassemblyComponent(
-            max_instances,
-            components['table_scene'],
-            components['table_cursor'],
-            hand_scene_component=components['hand_scene'],
-            check_collision=config.check_collision,
-        )
-        components['insert_brick'] = HandspaceBrickInserter(
-            components['hand_scene'],
-            components['table_scene'],
-            shape_ids,
-            color_ids,
-            max_instances,
         )
         
         # partial disassembly
-        components['partial_disassembly'] = PartialDisassemblyComponent(
-            components['disassembly'],
+        partial_disassembly_component = MultiScreenPartialDisassemblyComponent(
+            components['pick_and_place'],
             table_pos_snap_render,
             table_neg_snap_render,
+            [0],
+            [1],
             max_instances,
             num_disassembly_steps=1,
         )
+        components['partial_disassembly'] = partial_disassembly_component
         
         # phase
         components['phase'] = BreakOnlyPhaseSwitch()
@@ -296,42 +262,34 @@ class EditEnv(LtronEnv):
             config.table_image_height,
             components['table_scene'],
             anti_alias=True,
+            observable=False,
         )
-        
         components['hand_color_render'] = ColorRenderComponent(
             config.hand_image_width,
             config.hand_image_height,
             components['hand_scene'],
             anti_alias=True,
+            observable=False,
         )
-        
-        # tile
-        if config.tile_color_render:
-            components['table_tile_mask'] = DeduplicateTileMaskComponent(
-                config.tile_width,
-                config.tile_height,
-                components['table_color_render'],
-            )
-            
-            components['hand_tile_mask'] = DeduplicateTileMaskComponent(
-                config.tile_width,
-                config.tile_height,
-                components['hand_color_render'],
-            )
-            
-            components['initial_table_tile_mask'] = (
-                DeduplicateTileMaskComponent(
-                    config.tile_width,
-                    config.tile_height,
-                    components['initial_table_color_render'],
-            ))
-                
+        components['table_tile_mask'] = DeduplicateTileMaskComponent(
+            config.tile_width,
+            config.tile_height,
+            components['table_color_render'],
+        )
+        components['hand_tile_mask'] = DeduplicateTileMaskComponent(
+            config.tile_width,
+            config.tile_height,
+            components['hand_color_render'],
+        )
+        components['initial_table_tile_mask'] = DeduplicateTileMaskComponent(
+            config.tile_width,
+            config.tile_height,
+            components['initial_table_color_render'],
+        )
         
         # snap render
         components['table_pos_snap_render'] = table_pos_snap_render
         components['table_neg_snap_render'] = table_neg_snap_render
-        if config.train:
-            components['table_instance_render'] = instance_render
         components['hand_pos_snap_render'] = hand_pos_snap_render
         components['hand_neg_snap_render'] = hand_neg_snap_render
         
@@ -357,12 +315,11 @@ class EditEnv(LtronEnv):
         )
         
         # score
-        if config.include_score:
-            components['score'] = BreakAndMakeScore(
-                components['initial_table_assembly'],
-                components['table_assembly'],
-                None,
-                shape_ids,
-            )
+        components['score'] = BreakAndMakeScore(
+            components['initial_table_assembly'],
+            components['table_assembly'],
+            None,
+            shape_ids,
+        )
         
         super().__init__(components, print_traceback=print_traceback)

@@ -4,7 +4,7 @@ import random
 import numpy
 
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from ltron.gym.spaces import SingleSE3Space
+from ltron.gym.spaces import SE3Space
 
 import splendor.camera as camera
 
@@ -59,7 +59,7 @@ class ControlledAzimuthalViewpointComponent(LtronGymComponent):
         #    observation_space['elevation'] = Discrete(elevation_steps)
         #    observation_space['distance'] = Discrete(distance_steps)
         #if self.observe_view_matrix:
-        #    observation_space['view_matrix'] = SingleSE3Space(
+        #    observation_space['view_matrix'] = SE3Space(
         #        scene_min, scene_max)
         center_min = numpy.array([scene_min] * 3, dtype=numpy.float32)
         center_max = numpy.array([scene_max] * 3, dtype=numpy.float32)
@@ -259,7 +259,7 @@ class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
         
         observation_space = {}
         if self.observe_view_matrix:
-            observation_space['view_matrix'] = SingleSE3Space(
+            observation_space['view_matrix'] = SE3Space(
                 scene_min, scene_max)
         if len(observation_space):
             self.observation_space = Dict(observation_space)

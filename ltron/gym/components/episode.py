@@ -1,13 +1,13 @@
-from ltron.gym.spaces import StepSpace
+from ltron.gym.spaces import TimeStepSpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class MaxEpisodeLengthComponent(LtronGymComponent):
-    def __init__(self, max_episode_length, observe_step=True):
+class EpisodeLengthComponent(LtronGymComponent):
+    def __init__(self, max_episode_length=None, observe_step=True):
         self.max_episode_length = max_episode_length
         self.episode_step = None
         self.observe_step = observe_step
         if self.observe_step:
-            self.observation_space = StepSpace(max_episode_length)
+            self.observation_space = TimeStepSpace(max_episode_length)
     
     def observe(self):
         if self.observe_step:
@@ -23,7 +23,10 @@ class MaxEpisodeLengthComponent(LtronGymComponent):
     def step(self, action):
         self.episode_step += 1
         self.observe()
-        terminal = self.episode_step >= self.max_episode_length
+        if self.max_episode_length is not None:
+            terminal = self.episode_step >= self.max_episode_length
+        else:
+            terminal = False
         return self.observation, 0., terminal, None
     
     def set_state(self, state):

@@ -17,8 +17,8 @@ def draw_box(image, min_x, min_y, max_x, max_y, color):
     h, w = image.shape[:2]
     min_x = max(min_x, 0)
     min_y = max(min_y, 0)
-    max_x = min(max_x, w)
-    max_y = min(max_y, h)
+    max_x = min(max_x, w-1)
+    max_y = min(max_y, h-1)
     image[min_y, min_x:max_x+1] = color
     image[max_y, min_x:max_x+1] = color
     image[min_y:max_y+1, min_x] = color
@@ -67,7 +67,7 @@ def clamp(x, min_x, max_x):
     else:
         return x
 
-def draw_crosshairs(image, x, y, size, color):
+def draw_crosshairs(image, y, x, size, color):
     
     start_x = clamp(round(x-size), 0, image.shape[1]-1)
     center_x = clamp(round(x), 0, image.shape[1]-1)
@@ -79,6 +79,18 @@ def draw_crosshairs(image, x, y, size, color):
     
     image[center_y, start_x:end_x] = color
     image[start_y:end_y, center_x] = color
+
+def draw_square(image, x, y, size, color):
+    start_x = clamp(round(x-size), 0, image.shape[1]-1)
+    end_x = clamp(round(x+size+1), 0, image.shape[1]-1)
+    
+    start_y = clamp(round(x-size), 0, image_shape[0]-1)
+    end_y = clamp(round(x-size), 0, image_shape[0]-1)
+    
+    image[start_x, start_y:end_y] = color
+    image[end_x, start_y:end_y] = color
+    image[start_x:end_x, start_y] = color
+    image[start_x:end_x, end_y] = color
 
 def write_text(
     image,
@@ -107,9 +119,15 @@ def map_overlay(image, overlay, opacity, convert_mask_colors=False):
         image * (1. - upsampled_opacity) +
         upsampled_overlay * upsampled_opacity).astype(numpy.uint8)
 
-def stack_images_horizontal(images, align='top', background_color=(0,0,0)):
+def stack_images_horizontal(
+    images,
+    align='top',
+    background_color=(0,0,0),
+    spacing=0
+):
     max_h = max(image.shape[0] for image in images)
     sum_w = sum(image.shape[1] for image in images)
+    sum_w = sum_w + spacing * (len(images)-1)
     out = numpy.zeros((max_h, sum_w, 3), dtype=numpy.uint8)
     out[:,:] = background_color
     start_x = 0
@@ -123,7 +141,7 @@ def stack_images_horizontal(images, align='top', background_color=(0,0,0)):
             start_y = max_h-h
             end_y = max_h
         out[start_y:end_y, start_x:end_x] = image
-        start_x = end_x
+        start_x = end_x + spacing
     return out
 
 def stack_images_vertical(images, align='left', background_color=(0,0,0)):

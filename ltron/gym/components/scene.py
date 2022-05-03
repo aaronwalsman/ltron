@@ -15,6 +15,60 @@ class EmptySceneComponent(LtronGymComponent):
         render_args=None,
         track_snaps=False,
         collision_checker=False,
+        clear_frequency='reset',
+    ):
+        self.shape_ids = shape_ids
+        self.color_ids = color_ids
+        self.max_instances = max_instances
+        self.max_edges = max_edges
+        self.clear_frequency = clear_frequency
+        
+        if render_args is None:
+            render_args = {'opengl_mode':'egl', 'load_scene':'front_light'}
+        
+        self.brick_scene = BrickScene(
+            renderable=renderable,
+            render_args=render_args,
+            track_snaps=track_snaps,
+            collision_checker=collision_checker,
+        )
+    
+    def clear_scene(self):
+        self.brick_scene.clear_instances()
+    
+    def reset(self):
+        if self.clear_frequency in ('step', 'reset'):
+            self.clear_scene()
+        return None
+    
+    def step(self, action):
+        if self.clear_frequency in ('step',):
+            self.clear_scene()
+        return None, 0., False, None
+    
+    def set_state(self, state):
+        self.brick_scene.clear_instances()
+        self.brick_scene.set_assembly(
+            state, self.shape_ids, self.color_ids)
+        
+        return None
+    
+    def get_state(self):
+        state = self.brick_scene.get_assembly(
+            self.shape_ids, self.color_ids, self.max_instances, self.max_edges)
+        
+        return state
+
+class EmptySceneComponentOld(LtronGymComponent):
+    def __init__(self,
+        shape_ids,
+        color_ids,
+        max_instances,
+        max_edges,
+        renderable=True,
+        render_args=None,
+        track_snaps=False,
+        collision_checker=False,
     ):
         self.shape_ids = shape_ids
         self.color_ids = color_ids

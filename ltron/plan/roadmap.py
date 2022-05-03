@@ -89,13 +89,13 @@ class Roadmap:
         self.paths = {}
         
         # compute a matching from start to goal
-        matching, offset = match_assemblies(
+        matches, offset = match_assemblies(
             self.start_assembly,
             self.goal_assembly,
             self.shape_id_to_brick_shape,
         )
-        self.wip_to_goal, self.goal_to_wip, fp, fn = match_lookup(
-            matching, self.start_assembly, self.goal_assembly)
+        self.wip_to_goal, self.goal_to_wip, fp, fn = computed_unmatched(
+            self.start_assembly, self.goal_assembly, matches)
         
         # make membership ids for the false-positive bricks
         first_fp = max(self.goal_membership, default=0)+1

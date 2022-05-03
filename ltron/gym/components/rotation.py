@@ -1,5 +1,5 @@
 import numpy
-from ltron.gym.spaces import SinglePixelSelectionSpace
+from ltron.gym.spaces import PixelSpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from gym.spaces import (
     Discrete,
@@ -27,7 +27,7 @@ class RotationAroundSnap(LtronGymComponent):
             'activate':Discrete(2),
             'polarity':Discrete(2),
             'direction':Discrete(2),
-            'pick':SinglePixelSelectionSpace(width, height),
+            'pick':PixelSpace(width, height),
         })
 
         self.observation_space = Dict({'success': Discrete(2)})
@@ -102,7 +102,7 @@ class RotationAroundSnap(LtronGymComponent):
             'pick':numpy.array([0,0]),
         }
 
-class CursorRotationAroundSnap(LtronGymComponent):
+class CursorRotateAboutSnap(LtronGymComponent):
     def __init__(
         self,
         scene_component,
@@ -190,6 +190,86 @@ class CursorRotationAroundSnap(LtronGymComponent):
                 target_instances=[instance], snap=snap)
             if collision:
                 self.scene_component.brick_scene.move_instance(
+                    instance, original_instance_transform)
+                return {'success' : 0}, 0, False, None
+        
+        return {'success' : 1}, 0, False, None
+    
+    def no_op_action(self):
+        return 0
+
+class MultiScreenRotateAboutSnap(LtronGymComponent):
+    def __init__(
+        self,
+        scene_components,
+        cursor_component,
+        check_collision,
+        rotation_steps = 4,
+        allow_snap_flip = False,
+    ):
+        self.scene_components = scene_components
+        self.cursor_component = cursor_component
+        self.check_collision = check_collision
+        self.rotation_steps = rotation_steps
+        self.allow_snap_flip = allow_snap_flip
+        #self.action_space = Dict({
+            #'activate':Discrete(2),
+        #    'rotation':Discrete(self.rotation_steps),
+        #})
+        if allow_snap_flip:
+            self.action_space = Discrete(self.rotation_steps*2)
+        else:
+            self.action_space = Discrete(self.rotation_steps)
+
+        self.observation_space = Dict({'success': Discrete(2)})
+    
+    def reset(self):
+        return {'success':0}
+    
+    def step(self, action):
+        failure = {'success' : 0}, 0, False, None
+        if not action:
+            return failure
+        
+        a = action % self.rotation_steps
+        degree = a * math.pi * 2 / self.rotation_steps
+        flip = action // self.rotation_steps
+        
+        trans = numpy.eye(4)
+        
+        rotate_y = numpy.copy(trans)
+        rotate_y[0,0] = math.cos(degree)
+        rotate_y[0,2] = math.sin(degree)
+        rotate_y[2,0] = -math.sin(degree)
+        rotate_y[2,2] = math.cos(degree)
+        
+        if flip:
+            flip_transform = numpy.array([
+                [-1, 0, 0, 0],
+                [ 0,-1, 0, 0],
+                [ 0, 0, 1, 0],
+                [ 0, 0, 0, 1]
+            ])
+            rotate_y = rotate_y @ flip_transform
+        
+        n, i, s = self.cursor_component.get_selected_snap()
+        if i == 0:
+            return failure
+        
+        scene_component = self.scene_components[n]
+        scene = scene_component.brick_scene
+        instance = scene.instances[i]
+        original_instance_transform = instance.transform
+        snap = instance.snaps[s]
+        scene.transform_about_snap([instance], snap, rotate_y)
+        
+        if self.check_collision:
+            transform = instance.transform
+            snap = instance.snaps[s]
+            collision = scene_component.brick_scene.check_snap_collision(
+                target_instances=[instance], snap=snap)
+            if collision:
+                scene_component.brick_scene.move_instance(
                     instance, original_instance_transform)
                 return {'success' : 0}, 0, False, None
         

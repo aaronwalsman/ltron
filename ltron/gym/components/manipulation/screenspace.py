@@ -4,7 +4,7 @@ from gym.spaces import (
 )
 from ltron.gym.spaces import (
     SingleSnapIndexSpace,
-    SinglePixelSelectionSpace,
+    PixelSpace,
 )
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
@@ -24,8 +24,8 @@ class PickAndPlace2D(LtronGymComponent):
         assert neg_snap_render_component.height == height
         
         pick_polarity_space = Discrete(2)
-        pick_space = SinglePixelSelectionSpace(width, height)
-        place_space = SinglePixelSelectionSpace(width, height)
+        pick_space = PixelSpace(width, height)
+        place_space = PixelSpace(width, height)
         self.action_space = Tuple(
             (pick_polarity_space, pick_space, place_space))
         

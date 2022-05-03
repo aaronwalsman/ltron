@@ -81,24 +81,25 @@ def compute_boxsize(instance, scene, complete=False):
     offset = bbox_max - bbox_min
     return max(offset)
 
-def blacklist_computation(threshold):
-    path = Path("~/.cache/ltron/ldraw/parts").expanduser()
-    partlist = list(path.glob("*.dat"))
-
-    blacklist = []
-    print('-'*80)
-    print('Finding Large Bricks to Blacklist')
-    for part in tqdm.tqdm(partlist):
-        part = str(part)
-        if "30520.dat" in part:
-            continue
-        bshape = BrickShape(part)
-        max_dim = numpy.max(bshape.bbox[1] - bshape.bbox[0])
-        if max_dim > threshold:
-            blacklist.append(bshape.reference_name)
-
-    blacklist.append("30520.dat")
-    return blacklist
+# moved to omr_clean/blacklist.py
+#def blacklist_computation(threshold):
+#    path = Path("~/.cache/ltron/ldraw/parts").expanduser()
+#    partlist = list(path.glob("*.dat"))
+#
+#    blacklist = []
+#    print('-'*80)
+#    print('Finding Large Bricks to Blacklist')
+#    for part in tqdm.tqdm(partlist):
+#        part = str(part)
+#        if "30520.dat" in part:
+#            continue
+#        bshape = BrickShape(part)
+#        max_dim = numpy.max(bshape.bbox[1] - bshape.bbox[0])
+#        if max_dim > threshold:
+#            blacklist.append(bshape.reference_name)
+#
+#    blacklist.append("30520.dat")
+#    return blacklist
 
 def add_brick(limit, cur_mod, comp_list, instance_id, scene):
     instance = scene.instances.instances[instance_id]
@@ -125,11 +126,12 @@ def add_brick_box(limit, cur_mod, comp_list, instance_id, scene, used_brick = []
     #    if int(instance_name) not in cur_mod:
     #        continue
     for instance_id in cur_mod:
-        connection = connections[str(instance_id)]
+        connection = connections[instance_id]
         for conn in connection:
             temp = copy.deepcopy(cur_mod)
-            target = int(conn[0])
-            if scene.instances.instances[target].brick_shape.reference_name in blacklist:
+            #target = int(conn[0])
+            target = int(conn[1].brick_instance)
+            if scene.instances[target].brick_shape.reference_name in blacklist:
                 continue
             if target in cur_mod:
                 continue

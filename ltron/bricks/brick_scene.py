@@ -13,7 +13,6 @@ except ImportError:
 
 #import splendor.masks as masks
 
-from ltron.dataset.paths import resolve_subdocument
 from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_shape import BrickShapeLibrary
 from ltron.bricks.brick_instance import BrickInstanceTable
@@ -124,12 +123,21 @@ class BrickScene:
     
     # ldraw i/o ----------------------------------------------------------------
     
-    def import_ldraw(self, path):
-        # convert the path to a path and subdocument
-        path, subdocument = resolve_subdocument(path)
-        
-        # read the document and pull out the subdocument
+    def import_text(self, path, text, subdocument=None):
+        document = LDrawDocument.parse_text(path, text)
+        self.import_document(document, subdocument=subdocument)
+    
+    def import_lines(self, path, lines, subdocument=None):
+        document = LDrawDocument.parse_lines(path, lines)
+        self.import_document(document, subdocument=subdocument)
+    
+    def import_ldraw(self, path, subdocument=None):
         document = LDrawDocument.parse_document(path)
+        self.import_document(document, subdocument=subdocument)
+    
+    def import_document(self, document, subdocument=None):
+        
+        # pull the subdocument if specified
         if subdocument is not None:
             document = document.reference_table['ldraw'][subdocument]
         
@@ -612,64 +620,21 @@ class BrickScene:
                 best_pseudo_angle = pseudo_angle
         
         return best_transform
-        
-        '''
-        assert pyquaternion_available
-        
-        if check_collision:
-            assert self.collision_checker is not None
-        
-        pick_instance_id, pick_snap_id = pick
-        pick_instance = self.instances[pick_instance_id]
-        pick_snap = pick_instance.snaps[pick_snap_id]
-        pick_transform = unscale_transform(pick_snap.transform.copy())
-        inv_pick_transform = numpy.linalg.inv(pick_transform)
-        pick_instance_transform = pick_instance.transform.copy()
-        if place is None:
-            place_transform = self.upright
-        else:
-            place_instance_id, place_snap_id = place
-            place_instance = self.instances[place_instance_id]
-            place_snap = place_instance.snaps[place_snap_id]
-            place_transform = unscale_transform(place_snap.transform.copy())
-        
-        best_transform = None
-        best_pseudo_angle = -float('inf')
-        for i in range(4):
-            angle = i * math.pi/2.
-            rotation = Quaternion(axis=(0,1,0), angle=angle)
-            candidate_transform = (
-                place_transform @
-                rotation.transformation_matrix @
-                inv_pick_transform @
-                pick_instance_transform
-            )
-            
-            offset = (
-                candidate_transform @
-                numpy.linalg.inv(pick_instance_transform)
-            )
-            pseudo_angle = numpy.trace(offset[:3,:3])
-            if pseudo_angle > best_pseudo_angle:
-                if check_collision:
-                    self.move_instance(pick_instance, candidate_transform)
-                    collision = self.check_snap_collision(
-                        [pick_instance],
-                        pick_instance.snaps[pick_snap_id],
-                    )
-                    self.move_instance(pick_instance, pick_instance_transform)
-                    if collision:
-                        continue
-                best_transform = candidate_transform
-                best_pseudo_angle = pseudo_angle
-        
-        return best_transform
-        '''
     
-    def pick_and_place_snap(self, pick, place, check_collision=False):
+    def pick_and_place_snap(self,
+        pick,
+        place,
+        check_pick_collision=False,
+        check_place_collision=False,
+    ):
         pick_instance = pick.brick_instance
+        if check_pick_collision:
+            collision = self.check_snap_collision([pick_instance], pick)
+            if collision:
+                return False
+        
         transform = self.pick_and_place_snap_transform(
-            pick, place, check_collision=check_collision)
+            pick, place, check_collision=check_place_collision)
         if transform is None:
             return False
         else:

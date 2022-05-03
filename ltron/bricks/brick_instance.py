@@ -25,7 +25,7 @@ class BrickInstanceTable(collections.abc.MutableMapping):
     
     def add_instance(
         self,
-        brick_name,
+        brick_shape,
         brick_color,
         brick_transform,
         mask_color=None,
@@ -41,7 +41,7 @@ class BrickInstanceTable(collections.abc.MutableMapping):
             
         new_instance = BrickInstance(
                 instance_id,
-                self.shape_library[brick_name],
+                self.shape_library[brick_shape],
                 self.color_library[brick_color],
                 brick_transform,
                 mask_color=mask_color)

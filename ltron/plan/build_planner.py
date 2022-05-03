@@ -12,6 +12,8 @@ class BuildPlanner(Planner):
         goal_assembly,
         camera_motion_penalty=-0.1
     ):
+        raise Exception('Deprecated')
+        
         super(BuildPlanner, self).__init__()
         self.env = env
         self.start_state = self.make_state(start_assembly, start_camera)

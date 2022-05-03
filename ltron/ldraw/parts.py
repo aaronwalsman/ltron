@@ -81,8 +81,10 @@ def get_reference_path(path, shadow):
             return LDRAW_PATHS[path]
         else:
             path = os.path.expanduser(path)
-            if os.path.exists(path):
-                return path
-            else:
-                raise LtronReferenceException('Ldraw path not found: %s'%path)
+            return path
+            # don't require existence because it may be in a tar file
+            #if os.path.exists(path):
+            #    return path
+            #else:
+            #    raise LtronReferenceException('Ldraw path not found: %s'%path)
 

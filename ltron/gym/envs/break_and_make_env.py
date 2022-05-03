@@ -11,13 +11,13 @@ from ltron.config import Config
 from ltron.gym.envs.ltron_env import LtronEnv
 from ltron.gym.components.scene import (
     EmptySceneComponent, DatasetSceneComponent, SingleSceneComponent)
-from ltron.gym.components.episode import MaxEpisodeLengthComponent
+from ltron.gym.components.episode import EpisodeLengthComponent
 from ltron.gym.components.dataset import DatasetPathComponent
 from ltron.gym.components.render import (
         ColorRenderComponent, InstanceRenderComponent, SnapRenderComponent)
 from ltron.gym.components.cursor import SnapCursor
 from ltron.gym.components.disassembly import CursorDisassemblyComponent
-from ltron.gym.components.rotation import CursorRotationAroundSnap
+from ltron.gym.components.rotation import CursorRotateAboutSnap
 from ltron.gym.components.pick_and_place import (
         CursorHandspacePickAndPlace)
 from ltron.gym.components.brick_inserter import HandspaceBrickInserter
@@ -159,7 +159,7 @@ class BreakAndMakeEnv(LtronEnv):
             scene_component = components['table_scene'])
         
         # max length
-        components['step'] = MaxEpisodeLengthComponent(
+        components['step'] = EpisodeLengthComponent(
             config.max_episode_length, observe_step=True)
         
         # color randomization
@@ -268,7 +268,7 @@ class BreakAndMakeEnv(LtronEnv):
         )
         
         # action spaces
-        components['rotate'] = CursorRotationAroundSnap(
+        components['rotate'] = CursorRotateAboutSnap(
             components['table_scene'],
             components['table_cursor'],
             check_collision=config.check_collision,

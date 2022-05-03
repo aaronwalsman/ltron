@@ -18,7 +18,6 @@ import splendor.masks as masks
 from splendor.image import save_image
 
 import ltron.settings as settings
-from ltron.dataset.paths import resolve_subdocument
 from ltron.bricks.brick_scene import BrickScene
 
 instructions = '''
@@ -88,14 +87,13 @@ up-arrow :              move the brick under the cursor one step in the
 
 def start_viewer(
         file_path,
+        subdocument=None,
         width = 512,
         height = 512,
         image_light = 'grey_cube',
         background_color = (102, 102, 102),
         poll_frequency = 8,
         print_fps = False):
-    
-    resolved_file_path, subdocument = resolve_subdocument(file_path)
     
     scene = BrickScene(
         renderable=True,
@@ -159,12 +157,12 @@ def start_viewer(
     def reload_scene(force=False):
         while True:
             try:
-                change_time = os.stat(resolved_file_path).st_mtime
+                change_time = os.stat(file_path).st_mtime
                 if change_time != state['recent_file_change_time'] or force:
                     t_start_load = time.time()
                     view_matrix = scene.get_view_matrix()
                     scene.instances.clear()
-                    scene.import_ldraw(file_path)
+                    scene.import_ldraw(file_path, subdocument=subdocument)
                     
                     #renderer.load_scene(scene, clear_scene=True)
                     if state['recent_file_change_time'] == -1:
@@ -442,7 +440,7 @@ def start_viewer(
         
         elif key == b'E':
             print('overwriting scene')
-            scene.export_ldraw(resolved_file_path)
+            scene.export_ldraw(file_path)
         
         elif key == b'[':
             instance_id = get_instance_at_location(x, y)

@@ -53,7 +53,6 @@ def planner_old(
     while not finished:
         matching = match_configurations(start_config, goal_config)
         (start_to_goal,
-         goal_to_start,
          misplaced_start,
          unplaced_goal) = match_lookup(matching, start_config, goal_config)
         

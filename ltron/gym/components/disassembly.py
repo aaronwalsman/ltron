@@ -2,7 +2,7 @@ import numpy
 
 from gym.spaces import Dict, Discrete
 
-import ltron.gym.spaces as bg_spaces
+from ltron.gym.spaces import InstanceIndexSpace, SnapIndexSpace, PixelSpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class DisassemblyComponent(LtronGymComponent):
@@ -21,7 +21,7 @@ class DisassemblyComponent(LtronGymComponent):
         
         self.observation_space = Dict({
             'success': Discrete(2),
-            'instance_id': bg_spaces.SingleInstanceIndexSpace(max_instances),
+            'instance_id': InstanceIndexSpace(max_instances),
         })
     
     def reset(self):
@@ -76,7 +76,7 @@ class IndexDisassemblyComponent(DisassemblyComponent):
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
-        index_space = bg_spaces.SingleInstanceIndexSpace(self.max_instances)
+        index_space = InstanceIndexSpace(self.max_instances)
         self.action_space = Tuple(activate_space, index_space)
     
     def step(self, action):
@@ -101,7 +101,7 @@ class IndexDisassemblyWithCollisionComponent(DisassemblyComponent):
         self.max_instances = max_instances
         
         activate_space = Discrete(2)
-        index_snap_space = bg_spaces.SingleSnapIndexSpace(self.max_snaps)
+        index_snap_space = SnapIndexSpace(self.max_snaps)
         self.action_space = Tuple(activate_space, index_snap_space)
         
     def step(self, action):
@@ -142,7 +142,7 @@ class PixelDisassemblyComponent(DisassemblyComponent):
         
         activate_space = Discrete(2)
         polarity_space = Discrete(2)
-        pick_space = bg_spaces.SinglePixelSelectionSpace(
+        pick_space = PixelSpace(
             self.width, self.height)
         
         self.action_space = Dict({
@@ -204,3 +204,35 @@ class CursorDisassemblyComponent(DisassemblyComponent):
     
     def no_op_action(self):
         return 0
+
+#class MultiScreenDisassemblyComponent(DisassemblyComponent):
+#    def __init__(self,
+#        max_instances,
+#        scene_component,
+#        cursor_component,
+#        hand_scene_component=None,
+#        check_collision=False,
+#    ):
+#        super(CursorDisassemblyComponent, self).__init__(
+#            max_instances,
+#            scene_component,
+#            hand_scene_component=hand_scene_component,
+#            check_collision=check_collision,
+#        )
+#        self.cursor_component = cursor_component
+#        
+#        self.action_space = Discrete(2)
+#    
+#    def step(self, action):
+#        success = False
+#        instance_id = 0
+#        if action:
+#            instance_id = self.cursor_component.instance_id
+#            snap_id = self.cursor_component.snap_id
+#            if instance_id != 0:
+#                success, instance_id = self.disassemble(instance_id, snap_id)
+#        
+#        return {'success':success, 'instance_id':instance_id}, 0., False, None
+#    
+#    def no_op_action(self):
+#        return 0

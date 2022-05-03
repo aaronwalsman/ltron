@@ -1,7 +1,7 @@
 import numpy
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
-from ltron.gym.spaces import SegmentationSpace
+from ltron.gym.spaces import BinaryMaskSpace, MaskedTiledImageSpace
 
 class DeduplicateTileMaskComponent(LtronGymComponent):
     def __init__(self,
@@ -19,7 +19,13 @@ class DeduplicateTileMaskComponent(LtronGymComponent):
         self.width = self.render_component.width // self.tile_width
         self.height = self.render_component.height // self.tile_height
         
-        self.observation_space = SegmentationSpace(self.width, self.height, 1)
+        #self.observation_space = BinaryMaskSpace(self.width, self.height)
+        self.observation_space = MaskedTiledImageSpace(
+            self.render_component.width,
+            self.render_component.height,
+            tile_width,
+            tile_height,
+        )
         self.background = background
     
     def observe(self):
@@ -30,11 +36,14 @@ class DeduplicateTileMaskComponent(LtronGymComponent):
             self.height, self.tile_height, self.width, self.tile_width, c)
         modified_tiles = numpy.moveaxis(modified_tiles, 2, 1)
         modified_tiles = modified_tiles.reshape(self.height, self.width, -1)
-        self.observation = numpy.any(modified_tiles, axis=-1).reshape(
-            self.height, self.width).astype(numpy.long)
-        
-        #import pdb
-        #pdb.set_trace()
+        # NOTE TO SELF: At one point this was cast to longs for a reason I
+        # haven't figured out.  I changed it to bool to agree with the action
+        # space type, but it's possible that this could cause issues later.
+        self.observation = {
+            'image' : self.render_component.observation,
+            'tile_mask' : numpy.any(modified_tiles, axis=-1).reshape(
+                self.height, self.width).astype(numpy.bool)
+        }
         
         self.previous_frame = frame
     

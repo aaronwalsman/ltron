@@ -87,6 +87,7 @@ def batch_deduplicate_from_masks(
     masks,
     t,
     pad,
+    flatten_hw=False,
 ):
     s, b, h, w, c = frames.shape
     sm, bm, hh, ww = masks.shape
@@ -134,12 +135,17 @@ def batch_deduplicate_from_masks(
     batch_padded_tiles = batch_padded_tiles.transpose(1,0,2,3,4)
     
     # place the coordinates in a padded grid and swap the batch and time axes
-    batch_padded_coords = numpy.zeros((b, max_len, 3), dtype=s_coord.dtype)
     t_coord = t[s_coord, b_coord]
-    shw_coord = numpy.stack((t_coord, h_coord, w_coord), axis=-1)
-    batch_padded_coords[b_coord, i_coord] = shw_coord
-    #if s_start is not None:
-    #    batch_padded_coords[:,:,0] += s_start.reshape(b, 1)
+    if flatten_hw:
+        hw_coord = h_coord * ww + w_coord
+        shw_coord = numpy.stack((t_coord, hw_coord), axis=-1)
+        batch_padded_coords = numpy.zeros((b, max_len, 2), dtype=s_coord.dtype)
+        batch_padded_coords[b_coord, i_coord] = shw_coord
+    else:
+        shw_coord = numpy.stack((t_coord, h_coord, w_coord), axis=-1)
+        batch_padded_coords = numpy.zeros((b, max_len, 3), dtype=s_coord.dtype)
+        batch_padded_coords[b_coord, i_coord] = shw_coord
+    
     batch_padded_coords = batch_padded_coords.transpose(1,0,2)
     
     return (

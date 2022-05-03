@@ -56,7 +56,7 @@ class InstancePoseComponent(LtronGymComponent):
         self.space = space
         
         self.observation_space = ltron_spaces.MultiSE3Space(
-            self.max_instances_per_scene,
+            self.max_instances_per_scene+1,
             scene_min,
             scene_max,
         )

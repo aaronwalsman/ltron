@@ -178,7 +178,87 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
     
     return valid_matches
 
-def compute_misaligned(matches, assembly_a, assembly_b):
+# Categories I want:
+# 1. matched (1 to 1)
+# 2. unmatched, but shares shape and color and correct connection (1 to many)
+# 3. unmatched, but shares shape and color (1 to many)
+# 4. unmatched, wrong shape/color (list)
+
+def matching_edges(assembly, i1=None, i2=None, s1=None, s2=None):
+    matches = numpy.ones(assembly['edges'].shape[1], dtype=numpy.bool)
+    if i1 is not None:
+        matches = matches & (assembly['edges'][0] == i1)
+    if i2 is not None:
+        matches = matches & (assembly['edges'][1] == i2)
+    if s1 is not None:
+        matches = matches & (assembly['edges'][2] == s1)
+    if s2 is not None:
+        matches = matches & (assembly['edges'][3] == s2)
+    
+    return matches
+
+
+def compute_misaligned(assembly_a, assembly_b, matches):
+    all_a = set(numpy.where(assembly_a['shape'] != 0)[0])
+    all_b = set(numpy.where(assembly_b['shape'] != 0)[0])
+    a_to_b = dict(matches)
+    b_to_a = {b:a for a,b in matches}
+    
+    unmatched_a = all_a - set(a_to_b.keys())
+    unmatched_b = all_b - set(b_to_a.keys())
+    
+    misaligned_connected_a = {}
+    misaligned_connected_b = {}
+    shape_color_match_a = {}
+    shape_color_match_b = {}
+    for a in unmatched_a:
+        a_shape = assembly_a['shape'][a]
+        a_color = assembly_a['color'][a]
+        a_edge_indices = matching_edges(assembly_a, i1=a)
+        a_edges = assembly_a['edges'][:,a_edge_indices]
+        for b in unmatched_b:
+            b_shape = assembly_b['shape'][b]
+            b_color = assembly_b['color'][b]
+            if a_shape == b_shape and a_color == b_color:
+                shape_color_match_a.setdefault(a, set())
+                shape_color_match_a[a].add(b)
+                shape_color_match_b.setdefault(b, set())
+                shape_color_match_b[b].add(a)
+                b_edge_indices = matching_edges(assembly_b, i1=b)
+                b_edges = assembly_b['edges'][:,b_edge_indices]
+                for _, ai2, as1, as2 in a_edges.T:
+                    for _, bi2, bs1, bs2 in b_edges.T:
+                        # THIS NEEDS SYMMETRY TREATMENT
+                        # IN FACT, WE PROBABLY NEED SNAPS IN SYMMETRY TABLE
+                        # TODO TODO TODO TODO TODO
+                        if a_to_b[ai2] == bi2 and as1 == bs1 and as2 == bs2:
+                            misaligned_connected_a.setdefault(a, set())
+                            misaligned_connected_a[a].add((b, as1, as2))
+                            misaligned_connected_b.setdefault(b, set())
+                            misaligned_connected_b[b].add((a, bs1, bs2))
+    
+    misaligned_disconnected_a = {
+        k:v for k,v in shape_color_match_a.items()
+        if k not in misaligned_connected_a
+    }
+    misaligned_disconnected_b = {
+        k:v for k,v in shape_color_match_b.items()
+        if k not in misaligned_connected_b
+    }
+    
+    shape_color_mismatch_a = unmatched_a - shape_color_match_a.keys()
+    shape_color_mismatch_b = unmatched_b - shape_color_match_b.keys()
+    
+    return (
+        misaligned_connected_a,
+        misaligned_connected_b,
+        misaligned_disconnected_a,
+        misaligned_disconnected_b,
+        shape_color_mismatch_a,
+        shape_color_mismatch_b,
+    )
+
+def compute_misaligned_old(matches, assembly_a, assembly_b):
     # find all instances in assembly_a and assembly_b that are not matched
     all_a = set(numpy.where(assembly_a['shape'] != 0)[0])
     all_b = set(numpy.where(assembly_b['shape'] != 0)[0])
@@ -190,6 +270,9 @@ def compute_misaligned(matches, assembly_a, assembly_b):
     return misaligned_a, misaligned_b
 
 def compute_unmatched(matches, assembly_a, assembly_b):
+    
+    misaligned_a, misaligned_b = compute_misaligned_old(
+        matches, assembly_a, assembly_b)
     
     # find the misaligned instances that match shape and color
     misaligned_matches = [

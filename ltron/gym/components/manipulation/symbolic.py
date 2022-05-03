@@ -11,10 +11,7 @@ from gym.spaces import (
     Box,
 )
 
-from ltron.gym.spaces import (
-    SingleSnapIndexSpace,
-    SinglePixelSelectionSpace,
-)
+from ltron.gym.spaces import SingleSnapIndexSpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class PickAndPlaceSymbolic(LtronGymComponent):
