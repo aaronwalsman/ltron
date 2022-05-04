@@ -231,7 +231,6 @@ class BuildExpert(LtronGymComponent):
         current_to_target,
         target_to_current,
         targets_to_fix,
-        #current_to_target_misaligned_connected,
         current_assembly,
         target_assembly,
     ):
