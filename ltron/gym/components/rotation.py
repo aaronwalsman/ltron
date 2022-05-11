@@ -198,7 +198,7 @@ class CursorRotateAboutSnap(LtronGymComponent):
     def no_op_action(self):
         return 0
 
-class MultiScreenRotateAboutSnap(LtronGymComponent):
+class MultiSceneRotateAboutSnap(LtronGymComponent):
     def __init__(
         self,
         scene_components,

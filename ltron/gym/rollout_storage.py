@@ -1,7 +1,9 @@
 import random
 import math
+import io
 import copy
 import os
+import tarfile
 
 import numpy
 
@@ -31,19 +33,37 @@ class RolloutStorage:
         self.total_steps = 0
         self.batch_index = 0
     
-    def save(self, path, finished_only=False, seq_ids=None):
-        path = os.path.expanduser(path)
-        
+    def save(
+        self,
+        destination,
+        finished_only=False,
+        seq_ids=None,
+        seq_offset=0,
+    ):
         if seq_ids is None:
             seq_ids = self.seq_locations.keys()
-        
         if finished_only:
             seq_ids = [s for s in seq_ids if s in self.finished_seqs]
+            
+        if isinstance(destination, str):
+            destination = os.path.expanduser(destination)
+            if os.path.splitet(destination)[-1].lower() == '.tar':
+                destination = tarfile.open(destination, 'w')
         
         for i, seq_id in enumerate(seq_ids):
-            seq_path = os.path.join(path, 'seq_%06i.npz'%i)
+            file_name = 'seq_%08i.npz'%(i+seq_offset)
             seq = self.get_seq(seq_id)
-            numpy.savez_compressed(seq_path, seq=seq)
+            if isinstance(destination, tarfile.TarFile):
+                buf = io.BytesIO()
+                numpy.savez_compressed(buf, seq=seq)
+                buf.seek(0)
+                info = tarfile.TarInfo(name=file_name)
+                info.size=len(buf.getbuffer())
+                destination.addfile(tarinfo=info, fileobj=buf)
+            
+            else:
+                seq_path = os.path.join(destination, file_name)
+                numpy.savez_compressed(seq_path, seq=seq)
     
     def __or__(self, other):
         assert self.batch_size == other.batch_size
@@ -83,8 +103,6 @@ class RolloutStorage:
             self.gym_data = kwargs
             self.batch_index += self.batch_size
         else:
-            #self.gym_data = concatenate_numpy_hierarchies(
-            #    self.gym_data, kwargs)
             if self.batch_index >= len_hierarchy(self.gym_data):
                 self.gym_data = increase_capacity(self.gym_data, factor=2)
             set_index_hierarchy(
@@ -228,20 +246,6 @@ class BatchSeqIterator:
         self.max_seq_len = max_seq_len
         self.finished_only = finished_only
         
-        '''
-        seq_ids = list(range(rollout_storage.num_seqs()))
-        self.seq_id_start_stops = []
-        for seq_id in seq_ids:
-            seq_len = rollout_storage.seq_len(seq_id)
-            if max_seq_len is None or seq_len < max_seq_len:
-                self.seq_id_start_stops.append((seq_id, None, None))
-            else:
-                start = 0
-                while start < seq_len:
-                    stop = start + max_seq_len
-                    self.seq_id_start_stops.append((seq_id, start, stop))
-                    start = stop
-        '''
         self.seq_id_start_stops = self.rollout_storage.chop_sequences(
             max_seq_len, finished_only=self.finished_only)
     

@@ -36,10 +36,10 @@ class BinaryMaskSpace(Box):
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        super(BinaryMaskSpace, self).__init__(
+        super().__init__(
             low=0, high=1, shape=(height, width), dtype=numpy.bool)
 
-class IndexMaskSpace(Box):
+class InstanceMaskSpace(Box):
     '''
     A height x width array, where each pixel contains a long refering to
     a segmentation index.
@@ -48,9 +48,21 @@ class IndexMaskSpace(Box):
         self.width = width,
         self.height = height
         self.max_instances = max_instances
-        super(IndexMaskSpace, self).__init__(
-                low=0, high=max_instances, shape=(height, width),
-                dtype=numpy.long)
+        super().__init__(
+            low=0, high=max_instances, shape=(height, width), dtype=numpy.long)
+
+class SnapMaskSpace(Box):
+    '''
+    A height x width x 2 array, where each pixel contains a long refering to
+    a brick instance index, and another long referring to a connection point
+    index.
+    '''
+    def __init__(self, width, height, max_id=masks.NUM_MASKS-1):
+        self.width = width
+        self.height = height
+        self.max_id = max_id
+        super().__init__(
+            low=0, high=max_id, shape=(height, width, 2), dtype=numpy.long)
 
 class MaskedTiledImageSpace(Dict):
     def __init__(self, width, height, tile_width, tile_height, channels=3):
@@ -66,20 +78,6 @@ class MaskedTiledImageSpace(Dict):
         image_space = ImageSpace(width, height, channels=channels)
         tile_space = BinaryMaskSpace(self.mask_width, self.mask_height)
         super().__init__({'image':image_space, 'tile_mask':tile_space})
-
-class SnapSegmentationSpace(Box):
-    '''
-    A height x width x 2 array, where each pixel contains a long refering to
-    a brick instance index, and another long referring to a connection point
-    index.
-    '''
-    def __init__(self, width, height, max_id=masks.NUM_MASKS-1):
-        self.width = width
-        self.height = height
-        self.max_id = max_id
-        super(SnapSegmentationSpace, self).__init__(
-                low=0, high=max_id, shape=(height, width, 2),
-                dtype=numpy.long)
 
 class TimeStepSpace(Discrete):
     '''
@@ -110,6 +108,23 @@ class SnapIndexSpace(MultiDiscrete):
         self.max_num_snaps = max_num_snaps
         super(SnapIndexSpace, self).__init__(
             [self.max_num_instances+1, max_num_snaps])
+
+class DiscreteSpanSpace(Discrete):
+    def __init__(self, span):
+        self.span = span
+        super().__init__(self.span.total)
+    
+    def __getattr__(self, attr):
+        return getattr(self.span, attr)
+
+class SymbolicSnapSpace(DiscreteSpanSpace):
+    def __init__(self, max_instances):
+        self.max_instances = max_instances
+        span = NameSpan(NO_OP=1,
+            **{name:(i, MAX_SNAPS_PER_BRICK)
+            for name, i in max_instances.items()
+        })
+        super().__init__(span)
 
 class PixelSpace(MultiDiscrete):
     '''

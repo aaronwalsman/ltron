@@ -33,10 +33,12 @@ class NameSpan:
     def keys(self):
         return self.spans.keys()
     
+    '''
     def subspace(self, subspace):
         return NameSpan(**{
             n:span['shape'] for n,span in self.spans.items() if n in subspace
         })
+    '''
     
     def name_range(self, name):
         return self.spans[name]['start'], self.spans[name]['end']
@@ -55,7 +57,15 @@ class NameSpan:
                 return name, *ijk
         raise IndexError
     
-    def unravel_all(self, i):
+    def ravel(self, name, *ijk):
+        if isinstance(self.spans[name]['shape'], NameSpan):
+            i = self.spans[name]['shape'].ravel(*ijk)
+        else:
+            i = numpy.ravel_multi_index(ijk, self.spans[name]['shape'])
+        return self.spans[name]['start'] + i
+    
+    def unravel_vector(self, v, dim=0):
+        '''
         def recurse(ns, ii):
             result = {}
             for name, span in ns.spans.items():
@@ -66,10 +76,22 @@ class NameSpan:
                     result[name] = chunk
             return result
         return recurse(self, i)
+        '''
+        result = {}
+        for name, span in self.spans.items():
+            index_tuple = tuple(
+                slice(None) if i != dim else slice(span['start'], span['end'])
+                for i, s in enumerate(v.shape)
+            )
+            chunk = v[index_tuple]
+            if isinstance(span['shape'], NameSpan):
+                result[name] = span['shape'].unravel_vector(chunk, dim=dim)
+            else:
+                reshape = v.shape[:dim] + span['shape'] + v.shape[dim+1:]
+                result[name] = chunk.reshape(reshape)
+        
+        return result
     
-    def ravel(self, name, *ijk):
-        if isinstance(self.spans[name]['shape'], NameSpan):
-            i = self.spans[name]['shape'].ravel(*ijk)
-        else:
-            i = numpy.ravel_multi_index(ijk, self.spans[name]['shape'])
-        return self.spans[name]['start'] + i
+    def ravel_vector(self, i, dim=0):
+        # TODO
+        pass

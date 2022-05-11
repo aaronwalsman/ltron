@@ -102,7 +102,7 @@ def batch_deduplicate_from_masks(
     
     nonstatic_tiles = masks.transpose(1, 0, 2, 3)
     
-    # below copied from batch_deduplicate_tiles_seqs below
+    # below copied from batch_deduplicate_tiled_seqs below
     
     # get indices of changing tiles
     b_coord, s_coord, h_coord, w_coord = numpy.where(nonstatic_tiles)

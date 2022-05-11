@@ -14,8 +14,8 @@ class EditDistance(LtronGymComponent):
         self.part_names = {value:key for key, value in shape_ids.items()}
 
     def observe(self):
-        initial_assembly = self.initial_assembly_component.assembly
-        current_assembly = self.current_assembly_component.assembly
+        initial_assembly = self.initial_assembly_component.observe()
+        current_assembly = self.current_assembly_component.observe()
         
         self.edit_distance, _ = edit_distance(
             current_assembly,

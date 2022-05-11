@@ -32,6 +32,8 @@ class MultiScreenEditEnvConfig(CursorActionWrapperConfig):
     split = 'train'
     subset = None
     
+    observation_mode = 'visual'
+    
     table_image_height = 256
     table_image_width = 256
     hand_image_height = 96
@@ -119,43 +121,69 @@ class MultiScreenEditEnv(LtronEnv):
             max_instances,
             max_edges,
             update_frequency='reset',
-            observe_assembly=config.train,
+            observable=(config.observation_mode == 'symbolic'),
+        )
+        
+        # Assembly =============================================================
+        # (build these before actions so that they may be passed in, but
+        #  register them later so that they will reflect the final scene)
+        components['table_assembly_on_demand'] = AssemblyComponent(
+            components['table_scene'],
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            update_frequency = 'on_demand',
+            observable = False,
+        )
+        
+        components['hand_assembly_on_demand'] = AssemblyComponent(
+            components['hand_scene'],
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            update_frequency = 'on_demand',
+            observable = False,
         )
         
         # Action ===============================================================
         components['action'] = CursorActionWrapper(
             config,
-            components['table_scene'],
-            components['hand_scene'],
+            {
+                'table':components['table_scene'],
+                'hand': components['hand_scene'],
+            },
             max_instances,
+            assembly_components = {
+                'table':components['table_assembly_on_demand'],
+                'hand':components['hand_assembly_on_demand'],
+            },
             print_traceback=print_traceback,
         )
         
         # No action space, but needs renderers =================================
-        
-        # initial color render component
-        components['initial_table_color_render'] = ColorRenderComponent(
-            config.table_image_width,
-            config.table_image_height,
-            components['table_scene'],
-            render_frequency='reset',
-        )
-        '''
-        components['initial_table_color_render'] = ConstantImage(
-            config.table_image_width, config.table_image_height)
-        '''
-        components['initial_table'] = DeduplicateTileMaskComponent(
-            config.tile_width,
-            config.tile_height,
-            components['initial_table_color_render'],
-        )
+        if config.observation_mode == 'visual':
+            # initial color render component
+            components['initial_table_color_render'] = ColorRenderComponent(
+                config.table_image_width,
+                config.table_image_height,
+                components['table_scene'],
+                update_frequency='reset',
+            )
+            components['initial_table'] = DeduplicateTileMaskComponent(
+                config.tile_width,
+                config.tile_height,
+                components['initial_table_color_render'],
+            )
         
         # partial disassembly
         partial_disassembly_component = MultiScreenPartialDisassemblyComponent(
             #action_components['pick_and_place'],
             components['action'].components['pick_and_place'],
-            components['action'].components['table_pos_snap_render'],
-            components['action'].components['table_neg_snap_render'],
+            components['action'].components['pick_cursor'],
+            #components['action'].components['table_pos_snap_render'],
+            #components['action'].components['table_neg_snap_render'],
             ['table'],
             ['hand'],
             max_instances,
@@ -165,61 +193,52 @@ class MultiScreenEditEnv(LtronEnv):
         
         # Always-on renderers/observation spaces ===============================
         # color render
-        components['table_color_render'] = ColorRenderComponent(
-            config.table_image_width,
-            config.table_image_height,
-            components['table_scene'],
-            anti_alias=True,
-            observable=False,
-        )
-        '''
-        components['table_color_render'] = SpotCheck(
-            config.table_image_width,
-            config.table_image_height,
-        )
-        '''
-        components['hand_color_render'] = ColorRenderComponent(
-            config.hand_image_width,
-            config.hand_image_height,
-            components['hand_scene'],
-            anti_alias=True,
-            observable=False,
-        )
-        '''
-        components['hand_color_render'] = ConstantImage(
-            config.hand_image_width, config.hand_image_height)
-        '''
-        components['table'] = DeduplicateTileMaskComponent(
-            config.tile_width,
-            config.tile_height,
-            components['table_color_render'],
-        )
-        components['hand'] = DeduplicateTileMaskComponent(
-            config.tile_width,
-            config.tile_height,
-            components['hand_color_render'],
-        )
+        if config.observation_mode == 'visual':
+            components['table_color_render'] = ColorRenderComponent(
+                config.table_image_width,
+                config.table_image_height,
+                components['table_scene'],
+                anti_alias=True,
+                observable=False,
+            )
+            components['hand_color_render'] = ColorRenderComponent(
+                config.hand_image_width,
+                config.hand_image_height,
+                components['hand_scene'],
+                anti_alias=True,
+                observable=False,
+            )
+            components['table'] = DeduplicateTileMaskComponent(
+                config.tile_width,
+                config.tile_height,
+                components['table_color_render'],
+            )
+            components['hand'] = DeduplicateTileMaskComponent(
+                config.tile_width,
+                config.tile_height,
+                components['hand_color_render'],
+            )
         
-        # current assembly
-        components['table_assembly'] = AssemblyComponent(
-            components['table_scene'],
-            shape_ids,
-            color_ids,
-            max_instances,
-            max_edges,
-            update_frequency = 'step',
-            observe_assembly = config.train,
-        )
-        
-        components['hand_assembly'] = AssemblyComponent(
-            components['hand_scene'],
-            shape_ids,
-            color_ids,
-            max_instances,
-            max_edges,
-            update_frequency = 'step',
-            observe_assembly = config.train,
-        )
+        elif config.observation_mode == 'symbolic':
+            components['table_assembly'] = AssemblyComponent(
+                components['table_scene'],
+                shape_ids,
+                color_ids,
+                max_instances,
+                max_edges,
+                update_frequency = 'step',
+                observable = True,
+            )
+            
+            components['hand_assembly'] = AssemblyComponent(
+                components['hand_scene'],
+                shape_ids,
+                color_ids,
+                max_instances,
+                max_edges,
+                update_frequency = 'step',
+                observable = True,
+            )
         
         # score
         components['score'] = EditDistance(

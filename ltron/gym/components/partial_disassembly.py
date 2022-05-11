@@ -4,19 +4,20 @@ import numpy
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
+'''
 class PartialDisassemblyComponent(LtronGymComponent):
     def __init__(self,
         disassembly_component,
-        pos_snap_render_component,
-        neg_snap_render_component,
-        max_instances_per_scene,
+        #pos_snap_render_component,
+        #neg_snap_render_component,
+        #max_instances_per_scene,
         num_disassembly_steps=1,
     ):
         self.disassembly_component = disassembly_component
-        self.pos_snap_render_component = pos_snap_render_component
-        self.neg_snap_render_component = neg_snap_render_component
+        #self.pos_snap_render_component = pos_snap_render_component
+        #self.neg_snap_render_component = neg_snap_render_component
         self.num_disassembly_steps = num_disassembly_steps
-        self.max_instances_per_scene = max_instances_per_scene
+        #self.max_instances_per_scene = max_instances_per_scene
     
     def reset(self):
         for i in range(self.num_disassembly_steps):
@@ -50,20 +51,23 @@ class PartialDisassemblyComponent(LtronGymComponent):
                 print('unable to remove anything?')
                 import pdb
                 pdb.set_trace()
+'''
 
 class MultiScreenPartialDisassemblyComponent(LtronGymComponent):
     def __init__(self,
         pick_and_place_component,
-        pos_snap_render_component,
-        neg_snap_render_component,
+        #pos_snap_render_component,
+        #neg_snap_render_component,
+        pick_cursor_component,
         pick_screen_names,
         place_screen_names,
         max_instances_per_scene,
         num_disassembly_steps=1,
     ):
         self.pick_and_place_component = pick_and_place_component
-        self.pos_snap_render_component = pos_snap_render_component
-        self.neg_snap_render_component = neg_snap_render_component
+        #self.pos_snap_render_component = pos_snap_render_component
+        #self.neg_snap_render_component = neg_snap_render_component
+        self.pick_cursor_component = pick_cursor_component
         self.pick_screen_names = pick_screen_names
         self.place_screen_names = place_screen_names
         self.num_disassembly_steps = num_disassembly_steps
@@ -71,6 +75,8 @@ class MultiScreenPartialDisassemblyComponent(LtronGymComponent):
     
     def reset(self):
         for i in range(self.num_disassembly_steps):
+            
+            '''
             # get the rendered pos/neg snap images
             pos_render = self.pos_snap_render_component.observe()
             neg_render = self.neg_snap_render_component.observe()
@@ -91,10 +97,13 @@ class MultiScreenPartialDisassemblyComponent(LtronGymComponent):
             visible_instance_snaps = [
                 (j,s) for j,s in zip(visible_instances, visible_snaps)
                 if j != 0]
+            '''
+            visible_instance_snaps = self.pick_cursor_component.visible_snaps(
+                names=[self.pick_screen_names[i]])
             
             # try to find a brick that is removable
             random.shuffle(visible_instance_snaps)
-            for instance, snap in visible_instance_snaps:
+            for name, instance, snap in visible_instance_snaps:
                 success = self.pick_and_place_component.pick_and_place(
                     self.pick_screen_names[i],
                     instance,

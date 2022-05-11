@@ -72,12 +72,15 @@ class Config:
     '''
     
     def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            assert hasattr(self.__class__, key), (
-                'Invalid Config Argument: %s'%key)
-            setattr(self, key, value)
+        for attr, value in kwargs.items():
+            setattr(self, attr, value)
         
         self.set_all_dependents()
+    
+    def __setattr__(self, attr, value):
+        if not hasattr(self.__class__, attr):
+            raise AttributeError('Invalid Config Attribute: %s'%attr)
+        super().__setattr__(attr, value)
     
     def set_all_dependents(self):
         inheritance = list(reversed(self.__class__.mro()))

@@ -49,13 +49,13 @@ class BuildExpert(LtronGymComponent):
     
     def observe(self):
         current_assembly = (
-            self.current_assembly_components[self.target_scene].assembly)
+            self.current_assembly_components[self.target_scene].observe())
         secondary_assemblies = {
-            name : component.assembly
+            name : component.observe()
             for name, component in self.current_assembly_components.items()
             if name != self.target_scene
         }
-        target_assembly = self.target_assembly_component.assembly
+        target_assembly = self.target_assembly_component.observe()
         
         actions = self.good_actions(
             current_assembly, target_assembly, secondary_assemblies)
@@ -98,7 +98,7 @@ class BuildExpert(LtronGymComponent):
         
         # Are there connected misaligned
         elif len(target_to_current_misaligned_connected):
-            actions = self.fix_rotate(
+            actions = self.adjust_connection(
                 current_to_target,
                 target_to_current,
                 target_to_current_misaligned_connected,
@@ -109,7 +109,7 @@ class BuildExpert(LtronGymComponent):
         
         # Are there disconnected misaligned
         elif len(target_to_current_misaligned_disconnected):
-            actions = self.fix_pick_and_place(
+            actions = self.make_connection(
                 current_to_target,
                 target_to_current,
                 list(target_to_current_misaligned_disconnected.keys()),
@@ -125,7 +125,7 @@ class BuildExpert(LtronGymComponent):
             raise Exception
         
         elif len(false_negatives):
-            actions = self.fix_pick_and_place(
+            actions = self.make_connection(
                 current_to_target,
                 target_to_current,
                 false_negatives,
@@ -227,7 +227,7 @@ class BuildExpert(LtronGymComponent):
 
         return max(offsets)[1]
 
-    def fix_rotate(self,
+    def adjust_connection(self,
         current_to_target,
         target_to_current,
         targets_to_fix,
@@ -295,7 +295,9 @@ class BuildExpert(LtronGymComponent):
             pick_actions = []
             pick_names = []
             for n, i, s in pickable:
-                pick_actions.extend(self.action_component.pick_where(n, i, s))
+                pick_actions.extend(
+                    self.action_component.actions_to_pick_snap(n, i, s)
+                )
                 pick_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(pick_actions):
@@ -326,7 +328,7 @@ class BuildExpert(LtronGymComponent):
         #    )
         return rotate_actions
     
-    def fix_pick_and_place(self,
+    def make_connection(self,
         current_to_target,
         target_to_current,
         targets_to_fix,
@@ -366,11 +368,15 @@ class BuildExpert(LtronGymComponent):
         
         pick_component = self.action_component.components['pick_cursor']
         pick_n, pick_i, pick_s = pick_component.get_selected_snap()
+        
         if (pick_n, pick_i, pick_s) not in pickable:
             pick_actions = []
             pick_names = []
             for n, i, s in pickable:
-                pick_actions.extend(self.action_component.pick_where(n, i, s))
+                pick_actions.extend(
+                    #self.action_component.actions_to_place_snap(n, i, s)
+                    self.action_component.actions_to_pick_snap(n, i, s)
+                )
                 pick_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(pick_actions):
@@ -379,6 +385,7 @@ class BuildExpert(LtronGymComponent):
                             n + '_viewpoint')
                     print('supervising viewpoint(fpnp):', view_actions)
                     pick_actions.extend(view_actions)
+            
             return pick_actions
         
         # is a place already clicked on?
@@ -390,7 +397,8 @@ class BuildExpert(LtronGymComponent):
             place_names = []
             for n, i, s in placeable:
                 place_actions.extend(
-                    self.action_component.place_where(n, i, s))
+                    self.action_component.actions_to_place_snap(n, i, s)
+                )
                 place_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(place_actions):
