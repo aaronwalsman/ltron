@@ -100,12 +100,17 @@ def process_file_paths(file_paths, subset=None, rank=0, size=1):
 #    names = names[get_subset_slice(subset)]
 #    return z, names
 
-def get_tar_paths(dataset, split_name, subset=None, rank=0, size=1):
+def get_sources(dataset, split_name):
     sources = get_dataset_info(dataset)['splits'][split_name]['sources']
+    source_paths = [settings.collections[source] for source in sources]
+    return source_paths
+
+def get_tar_paths(dataset, split_name, subset=None, rank=0, size=1):
+    sources = get_sources(dataset, split_name)
     tars = {}
     paths = []
     for source in sources:
-        tar = tarfile.open(settings.collections[source], 'r')
+        tar = tarfile.open(source, 'r')
         tars[source] = tar
         source_paths = [
             (source, info.name) for info in tar.getmembers()

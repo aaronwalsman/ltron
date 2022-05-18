@@ -78,8 +78,13 @@ class SymbolicCursor(CursorComponent):
         assembly = self.assembly_components[name].observe()
         if assembly['shape'][instance_id] == 0:
             return []
-        else:
-            return [self.action_space.ravel(name, instance_id, snap_id)]
+        #else:
+        #    return [self.action_space.ravel(name, instance_id, snap_id)]
+        return [(name, instance_id, snap_id)]
+    
+    def actions_to_deselect(self):
+        name = self.coords[0]
+        return [(name, 0, 0)]
     
     def visible_snaps(self, names=None):
         snaps = []
@@ -122,14 +127,19 @@ class MultiViewCursor(CursorComponent):
         self.action_space = MultiScreenPixelSpace(screen_dimensions)
     
     def get_selected_snap(self):
-        if self.polarity:
-            render_component = self.pos_render_components[self.screen_name]
+        name = self.coords[0]
+        if name == 'DESELECT':
+            return next(iter(self.pos_render_components.keys())), 0, 0
+        
+        name, y, x, p = self.coords
+        if p:
+            render_component = self.pos_render_components[name]
         else:
-            render_component = self.neg_render_components[self.screen_name]
+            render_component = self.neg_render_components[name]
         
         snap_map = render_component.observe()
-        instance_id, snap_id = snap_map[self.position[0], self.position[1]]
-        return self.screen_name, instance_id, snap_id
+        instance_id, snap_id = snap_map[y, x]
+        return name, instance_id, snap_id
     
     def actions_to_select_snap(self, screen_name, instance, snap):
         actions = []
@@ -145,6 +155,9 @@ class MultiViewCursor(CursorComponent):
                 actions.append(self.action_space.ravel(screen_name, y, x, p))
         
         return actions
+    
+    def actions_to_deselect(self):
+        return [('DESELECT', 0)]
     
     def visible_snaps(self, names=None):
         snaps = set()

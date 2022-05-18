@@ -430,7 +430,15 @@ class BrickScene:
         return matching_snaps
     
     def snap_tuple_to_snap(self, snap_tuple):
-        return self.instances[snap_tuple[0]].snaps[snap_tuple[1]]
+        i, s = snap_tuple
+        if i in self.instances:
+            instance = self.instances[i]
+        else:
+            return None
+        if s < len(instance.snaps):
+            return self.instances[i].snaps[s]
+        else:
+            return None
     
     def get_instance_snap_connections(self, instance, unidirectional=False):
         assert self.track_snaps

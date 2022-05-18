@@ -127,23 +127,23 @@ class MultiScreenEditEnv(LtronEnv):
         # Assembly =============================================================
         # (build these before actions so that they may be passed in, but
         #  register them later so that they will reflect the final scene)
-        components['table_assembly_on_demand'] = AssemblyComponent(
+        components['table_assembly_always'] = AssemblyComponent(
             components['table_scene'],
             shape_ids,
             color_ids,
             max_instances,
             max_edges,
-            update_frequency = 'on_demand',
+            update_frequency = 'always',
             observable = False,
         )
         
-        components['hand_assembly_on_demand'] = AssemblyComponent(
+        components['hand_assembly_always'] = AssemblyComponent(
             components['hand_scene'],
             shape_ids,
             color_ids,
             max_instances,
             max_edges,
-            update_frequency = 'on_demand',
+            update_frequency = 'always',
             observable = False,
         )
         
@@ -156,8 +156,8 @@ class MultiScreenEditEnv(LtronEnv):
             },
             max_instances,
             assembly_components = {
-                'table':components['table_assembly_on_demand'],
-                'hand':components['hand_assembly_on_demand'],
+                'table':components['table_assembly_always'],
+                'hand':components['hand_assembly_always'],
             },
             print_traceback=print_traceback,
         )

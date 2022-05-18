@@ -130,3 +130,4 @@ class MultiScreenPartialDisassemblyComponent(LtronGymComponent):
                 print('unable to remove anything?')
                 import pdb
                 pdb.set_trace()
+            

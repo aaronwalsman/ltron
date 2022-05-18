@@ -122,8 +122,8 @@ class SymbolicSnapSpace(DiscreteSpanSpace):
         self.max_instances = max_instances
         span = NameSpan(NO_OP=1,
             **{name:(i, MAX_SNAPS_PER_BRICK)
-            for name, i in max_instances.items()
-        })
+            for name, i in max_instances.items()}
+        )
         super().__init__(span)
 
 class PixelSpace(MultiDiscrete):
@@ -158,7 +158,10 @@ class DiscreteChain(Discrete):
         for name, subspace in self.subspaces.items():
             if isinstance(subspace, Discrete):
                 #sub_actions = range(subspace.n)
-                shape = subspace.n
+                if hasattr(subspace, 'span'):
+                    shape = subspace.span
+                else:
+                    shape = subspace.n
             elif isinstance(subspace, MultiDiscrete):
                 #sub_actions = product(range(n) for n in subspace.nvec)
                 shape = subspace.nvec
@@ -236,7 +239,7 @@ class MultiScreenPixelSpace(Discrete):
         #self.screen_data = OrderedDict()
         self.screen_span = NameSpan()
         #self.total_elements = 1
-        self.screen_span.add_names(NO_OP=1, **screen_shapes)
+        self.screen_span.add_names(NO_OP=1, DESELECT=1, **screen_shapes)
         #for name, (h,w) in screen_shapes.items():
             #self.screen_data[name] = {
             #    'shape' : (h,w,channels),

@@ -23,7 +23,7 @@ class DatasetLoaderComponent(LtronGymComponent):
         self.size = size
         self.sample_mode = sample_mode
         self.dataset_info = get_dataset_info(self.dataset)
-
+        
         self.tarfiles, self.dataset_paths = get_tar_paths(
             dataset, split, subset)
         self.length = len(self.dataset_paths)

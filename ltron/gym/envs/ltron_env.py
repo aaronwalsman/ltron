@@ -119,11 +119,15 @@ class LtronEnv(gym.Env):
     
     def discrete_chain_component_actions(self, action):
         component_actions = {}
-        active_name, i = self.action_space.unravel(action)
+        active_name, *ijk = self.action_space.unravel(action)
         for component_name, component in self.components.items():
             if hasattr(component, 'action_space'):
                 if active_name == component_name:
-                    component_actions[component_name] = i
+                    if hasattr(component.action_space, 'span'):
+                        a = component.action_space.span.ravel(*ijk)
+                    else:
+                        a = ijk[0]
+                    component_actions[component_name] = a
                 else:
                     component_actions[component_name] = component.no_op_action()
             else:

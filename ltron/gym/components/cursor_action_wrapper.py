@@ -197,7 +197,14 @@ class CursorActionWrapper(LtronEnv):
         actions = self.components[cursor].actions_to_select_snap(
             *args, **kwargs)
         return [
-            self.action_space.ravel(cursor, a)
+            self.action_space.ravel(cursor, *a)
+            for a in actions
+        ]
+    
+    def actions_to_deselect(self, cursor, *args, **kwargs):
+        actions = self.components[cursor].actions_to_deselect(*args, **kwargs)
+        return [
+            self.action_space.ravel(cursor, *a)
             for a in actions
         ]
     
@@ -206,6 +213,12 @@ class CursorActionWrapper(LtronEnv):
     
     def actions_to_place_snap(self, *args, **kwargs):
         return self.actions_to_select_snap('place_cursor', *args, **kwargs)
+    
+    def actions_to_deselect_pick(self, *args, **kwargs):
+        return self.actions_to_deselect('pick_cursor', *args, **kwargs)
+    
+    def actions_to_deselect_place(self, *args, **kwargs):
+        return self.actions_to_deselect('place_cursor', *args, **kwargs)
     
     def all_component_actions(self, component):
         return self.action_space.all_subspace_actions(component)

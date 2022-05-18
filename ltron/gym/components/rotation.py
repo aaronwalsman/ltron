@@ -259,6 +259,8 @@ class MultiSceneRotateAboutSnap(LtronGymComponent):
         scene_component = self.scene_components[n]
         scene = scene_component.brick_scene
         instance = scene.instances[i]
+        if s >= len(instance.snaps):
+            return failure
         original_instance_transform = instance.transform
         snap = instance.snaps[s]
         scene.transform_about_snap([instance], snap, rotate_y)

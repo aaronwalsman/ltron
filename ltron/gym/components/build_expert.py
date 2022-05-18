@@ -124,6 +124,13 @@ class BuildExpert(LtronGymComponent):
             print('This should not happen yet')
             raise Exception
         
+        elif not len(current_to_target):
+            actions = self.add_first_brick(
+                false_negatives,
+                target_assembly,
+                secondary_assemblies,
+            )
+        
         elif len(false_negatives):
             actions = self.make_connection(
                 current_to_target,
@@ -301,10 +308,13 @@ class BuildExpert(LtronGymComponent):
                 pick_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(pick_actions):
+                print('supervising viewpoint (fr):')
+                import pdb
+                pdb.set_trace()
                 for n in pick_names:
                     view_actions = self.action_component.all_component_actions(
                         n + '_viewpoint')
-                    print('supervising viewpoint (fr):', view_actions)
+                    print(view_actions)
                     pick_actions.extend(view_actions)
             return pick_actions
         
@@ -327,6 +337,93 @@ class BuildExpert(LtronGymComponent):
         #            self.target_scene + '_viewpoint')
         #    )
         return rotate_actions
+    
+    
+    def add_first_brick(
+        self,
+        targets_to_fix,
+        target_assembly,
+        secondary_assemblies,
+    ):
+        actions = []
+        fn_shape_colors = []
+        for target_to_fix in targets_to_fix:
+            shape = target_assembly['shape'][target_to_fix]
+            color = target_assembly['color'][target_to_fix]
+            
+            fn_shape_colors.append((shape, color, target_to_fix))
+        
+        pickable = set()
+        for shape, color, target_index in fn_shape_colors:
+            for name, secondary_assembly in secondary_assemblies.items():
+                for i in range(secondary_assembly['shape'].shape[0]):
+                    if name == self.target_scene:
+                        continue
+                    secondary_shape = secondary_assembly['shape'][i]
+                    secondary_color = secondary_assembly['color'][i]
+                    if secondary_shape == shape and secondary_color == color:
+                        # what snaps?
+                        # upright would be nice...
+                        # anything with a connection would be sufficient...
+                        # we could even do everything...
+                        # but I don't know how many there are...
+                        target_pose = target_assembly['pose'][target_index]
+                        scene = self.scene_components[name].brick_scene
+                        y_axis = target_pose[:3,1]
+                        for snap in scene.instances[i].brick_shape.snaps:
+                            snap_y_axis = scene.upright @ snap.transform[:,1]
+                            snap_y_axis = snap_y_axis[:3]
+                            if numpy.dot(y_axis, snap_y_axis) > 0.99:
+                                pickable.add((name, i, snap.snap_id))
+        
+        pick_cursor = self.action_component.components['pick_cursor']
+        pick_n, pick_i, pick_s = pick_cursor.get_selected_snap()
+        
+        # if a pickable thing is not picked, pick it
+        if (pick_n, pick_i, pick_s) not in pickable:
+            pick_actions = []
+            pick_names = []
+            for n, i, s in pickable:
+                pick_actions.extend(
+                    #self.action_component.actions_to_place_snap(n, i, s)
+                    self.action_component.actions_to_pick_snap(n, i, s)
+                )
+                pick_names.append(n)
+
+            if self.always_add_viewpoint_actions or not len(pick_actions):
+                print('supervising viewpoint(first):')
+                import pdb
+                pdb.set_trace()
+                for n in pick_names:
+                    view_actions = self.action_component.all_component_actions(
+                            n + '_viewpoint')
+                    print(view_actions)
+                    pick_actions.extend(view_actions)
+
+            return pick_actions
+        
+        place_cursor = self.action_component.components['place_cursor']
+        place_n, place_i, place_s = place_cursor.get_selected_snap()
+        place_n = 'hand'
+        place_i = 1
+        palce_s = 0
+        
+        # if anything is selected in the place cursor, deselect it
+        if place_i != 0:
+            place_actions = self.action_component.actions_to_deselect_place()
+            
+            if self.always_add_viewpoint_actions:
+                print('supervising viewpoint(first2):')
+                import pdb
+                pdb.set_trace()
+                # TODO
+            
+            return place_actions
+        
+        # clicks are correct, it's time to pick_and_place!
+        pnp_actions = [self.action_component.pick_and_place_action()]
+        return pnp_actions
+    
     
     def make_connection(self,
         current_to_target,
@@ -380,10 +477,13 @@ class BuildExpert(LtronGymComponent):
                 pick_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(pick_actions):
+                print('supervising viewpoint(fpnp):')
+                import pdb
+                pdb.set_trace()
                 for n in pick_names:
                     view_actions = self.action_component.all_component_actions(
                             n + '_viewpoint')
-                    print('supervising viewpoint(fpnp):', view_actions)
+                    print(view_actions)
                     pick_actions.extend(view_actions)
             
             return pick_actions
@@ -396,16 +496,20 @@ class BuildExpert(LtronGymComponent):
             place_actions = []
             place_names = []
             for n, i, s in placeable:
+                place_i = target_to_current[i]
                 place_actions.extend(
-                    self.action_component.actions_to_place_snap(n, i, s)
+                    self.action_component.actions_to_place_snap(n, place_i, s)
                 )
                 place_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(place_actions):
+                print('supervising viewpoint(fpnp2):')
+                import pdb
+                pdb.set_trace()
                 for n in place_names:
                     view_actions = self.action_component.all_component_actions(
                             n + '_viewpoint')
-                    print('supervisting viewpoint(fpnp2):', view_actions)
+                    print(view_actions)
                     place_actions.extend(view_actions)
             return place_actions
         
