@@ -6,21 +6,8 @@ random.seed(1234567890)
 import tqdm
 
 import ltron.settings as settings
-import ltron.dataset.scales as scales
 from ltron.bricks.brick_scene import BrickScene
-from ltron.geometry.scene_sampler import sample_scene, SingleSubAssemblySampler
-
-samplers_s006 = [
-    SingleSubAssemblySampler('54383.dat'),
-    SingleSubAssemblySampler('41770.dat'),
-    SingleSubAssemblySampler('2450.dat'),
-    SingleSubAssemblySampler('43722.dat'),
-    SingleSubAssemblySampler('2436.dat'),
-    SingleSubAssemblySampler('4081.dat'),
-]
-
-colors_c006 = ['1','4','7','14','22','25']
-
+from ltron.sampler.scene_sampler import sample_scene, SingleSubAssemblySampler
 
 def make_mpd(
     collection,
@@ -52,13 +39,12 @@ def make_mpd(
         
         scene.clear_instances()
 
-def make_scale(collection, scale, start_scene, num_scenes):
-    num_bricks = getattr(scales, '%s_max_bricks'%scale)
+def make_scale(collection, num_bricks, start_scene, num_scenes):
     make_mpd(
         collection,
         scale,
-        samplers_s006,
-        colors_c006,
+        samplers_6b,
+        colors_6c,
         start_scene,
         num_scenes,
         num_bricks,
@@ -66,5 +52,3 @@ def make_scale(collection, scale, start_scene, num_scenes):
     )
 
 make_scale('random_construction_6_6', 'pico', 0, 55000)
-#make_scale('random_construction_6_6', 'nano', 0, 55000)
-#make_scale('random_construction_6_6', 'mini', 8864, 55000-8864)
