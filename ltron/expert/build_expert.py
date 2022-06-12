@@ -5,6 +5,8 @@ def build_expert(
     camera_moves_fn,
 ):
     
+    raise Exception('DEPRECATED')
+    
     # compute the best alignment and find misaligned bricks
     matches, offset = match_assemblies(
         current_assembly, target_assembly, self.part_names)
