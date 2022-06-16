@@ -17,7 +17,7 @@ class ColorRenderComponent(SensorComponent):
     ):
         super().__init__(
             update_frequency=update_frequency,
-            observable=observable
+            observable=observable,
         )
         
         self.width = width

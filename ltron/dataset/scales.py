@@ -3,12 +3,12 @@ import tqdm
 import ltron.dataset.paths as paths
 from ltron.bricks.brick_scene import BrickScene
 
-pico_max_bricks = 2
-nano_max_bricks = 4
-micro_max_bricks = 8
-mini_max_bricks = 32
-small_max_bricks = 128
-medium_max_bricks = 512
+#pico_max_bricks = 2
+#nano_max_bricks = 4
+#micro_max_bricks = 8
+#mini_max_bricks = 32
+#small_max_bricks = 128
+#medium_max_bricks = 512
 
 def get_model_sizes(dataset, split, max_bricks=None):
     file_paths = paths.get_dataset_paths(dataset, split)

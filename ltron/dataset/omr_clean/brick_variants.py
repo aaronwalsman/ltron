@@ -60,7 +60,9 @@ def remap_variants(original_scene, variant_tables):
     
     return remapped_scene
 
-def remap_variant_paths(paths, out_path, variant_tables=None, overwrite=False):
+def remap_variant_paths(
+    paths, dest_directory, variant_tables=None, overwrite=False):
+    
     if variant_tables is None:
         variant_table_path = os.path.join(
             get_ltron_home(), 'variant_tables.json')
@@ -73,13 +75,18 @@ def remap_variant_paths(paths, out_path, variant_tables=None, overwrite=False):
             glob.glob(os.path.join(paths, '*.mpd'))
         )
     
+    original_scene = BrickScene()
     for path in tqdm.tqdm(paths):
         file_name = os.path.split(path)[-1]
-        write_path = os.path.join(out_path, file_name)
+        write_path = os.path.join(dest_directory, file_name)
         if not overwrite and os.path.exists(write_path):
             continue
-        original_scene = BrickScene()
-        original_scene.import_ldraw(path)
+        original_scene.clear_instances()
+        try:
+            original_scene.import_ldraw(path)
+        except:
+            print("Can't open: " + path + " during variant remapping")
+            continue
         remapped_scene = remap_variants(original_scene, variant_tables)
         remapped_scene.export_ldraw(write_path)
 

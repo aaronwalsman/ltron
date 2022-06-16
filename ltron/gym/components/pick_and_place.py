@@ -3,16 +3,18 @@ import numpy
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from gym.spaces import Discrete, Dict
 
-class MultiScenePickAndPlace(LtronGymComponent):
+class PickAndPlace(LtronGymComponent):
     def __init__(self,
         scene_components,
         pick_cursor_component,
         place_cursor_component,
+        max_instances_per_scene=None,
         check_collision=False,
     ):
         self.scene_components = scene_components
         self.pick_cursor_component = pick_cursor_component
         self.place_cursor_component = place_cursor_component
+        self.max_instances_per_scene = max_instances_per_scene
         self.check_collision = check_collision
         
         #self.observation_space = Dict({'success':Discrete(2)})
@@ -33,6 +35,9 @@ class MultiScenePickAndPlace(LtronGymComponent):
         
         # get the pick instance/snap
         pick_n, pick_i, pick_s = self.pick_cursor_component.get_selected_snap()
+        
+        print('PICK')
+        print(pick_n, pick_i, pick_s)
         
         if pick_i == 0:
             #return self.failure
@@ -56,10 +61,10 @@ class MultiScenePickAndPlace(LtronGymComponent):
         place_i,
         place_s,
     ):
-        #print(
-        #    'pick-and-placing',
-        #    pick_n, pick_i, pick_s, place_n, place_i, place_s,
-        #)
+        print(
+            'pick-and-placing',
+            pick_n, pick_i, pick_s, place_n, place_i, place_s,
+        )
         pick_scene = self.scene_components[pick_n].brick_scene
         pick_instance = pick_scene.instances[pick_i]
         place_scene = self.scene_components[place_n].brick_scene
@@ -89,6 +94,10 @@ class MultiScenePickAndPlace(LtronGymComponent):
         # if the bricks are not from the same screen
         # add a matching new brick to the place scene
         else:
+            
+            if self.max_instances_per_scene is not None:
+                if len(place_scene.instances) >= self.max_instances_per_scene:
+                    return False
             
             # check if the picked brick can be removed without colliding
             if self.check_collision:
@@ -137,7 +146,7 @@ class MultiScenePickAndPlace(LtronGymComponent):
         # if we are transferring between scenes
         # we need to either remove the original pick instance on success
         # or remove the new instance we added to the place scene on failure
-        if pick_scene != place_scene:
+        if pick_n != place_n:
             if success:
                 pick_scene.remove_instance(pick_i)
             else:

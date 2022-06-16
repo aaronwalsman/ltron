@@ -1,6 +1,55 @@
-from gym.spaces import Dict, Discrete
+from gym.spaces import Dict, Discrete, MultiDiscrete
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
+
+class BrickInserter(LtronGymComponent):
+    def __init__(
+        self,
+        scene_component,
+        shape_ids,
+        color_ids,
+    ):
+        self.scene_component = scene_component
+        self.brick_shape_to_id = shape_ids
+        self.id_to_brick_shape = {value:key for key, value in shape_ids.items()}
+        self.color_name_to_id = color_ids
+        self.id_to_color_name = {value:key for key, value in color_ids.items()}
+        
+        self.observation_space = Dict({'success' : Discrete(2)})
+        self.action_space = MultiDiscrete((
+            max(self.id_to_brick_shape.keys())+1,
+            max(self.id_to_color_name.keys())+1,
+        ))
+    
+    def reset(self):
+        return {'success' : False}
+    
+    def step(self, action):
+        shape = action[0]
+        color = action[1]
+        
+        if shape == 0 or color == 0:
+            success = False
+        elif (
+            shape in self.id_to_brick_shape and
+            color in self.id_to_color_name
+        ):
+            scene = self.hand_component.brick_scene
+            scene.clear_instances()
+            brick_shape = self.id_to_brick_shape[shape]
+            color_name = self.id_to_color_name[color]
+            scene.add_instance(brick_shape, color_name, scene.upright)
+            success = True
+        else:
+            success = False
+        
+        return {'success' : success}, 0, False, {}
+    
+    def no_op_action(self):
+        return (0,0)
+    
+    def actions_to_insert_brick(self, shape, color):
+        return shape, color
 
 class HandspaceBrickInserter(LtronGymComponent):
     def __init__(

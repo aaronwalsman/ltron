@@ -158,11 +158,10 @@ class BrickScene:
         
         self.assembly_cache = None
     
-    def export_ldraw(self, path, instances=None):
+    def export_ldraw_text(self, file_name, instances=None):
         if instances is None:
             instances = self.instances
         
-        directory, file_name = os.path.split(path)
         lines = [
                 '0 FILE %s'%file_name,
                 '0 Main',
@@ -183,8 +182,13 @@ class BrickScene:
             line = '1 %s %s %s'%(color, str_transform, brick_shape_name)
             lines.append(line)
         
+        return '\n'.join(lines)
+    
+    def export_ldraw(self, path, instances=None):
+        directory, file_name = os.path.split(path)
+        text = self.export_ldraw_text(file_name, instances=instances)
         with open(path, 'w') as f:
-            f.write('\n'.join(lines))
+            f.write(text)
     
     def set_assembly(self, assembly, shape_ids, color_ids):
         self.clear_instances()

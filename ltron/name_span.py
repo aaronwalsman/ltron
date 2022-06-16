@@ -33,13 +33,6 @@ class NameSpan:
     def keys(self):
         return self.spans.keys()
     
-    '''
-    def subspace(self, subspace):
-        return NameSpan(**{
-            n:span['shape'] for n,span in self.spans.items() if n in subspace
-        })
-    '''
-    
     def name_range(self, name):
         return self.spans[name]['start'], self.spans[name]['end']
     
@@ -65,25 +58,16 @@ class NameSpan:
         return self.spans[name]['start'] + i
     
     def unravel_vector(self, v, dim=0):
-        '''
-        def recurse(ns, ii):
-            result = {}
-            for name, span in ns.spans.items():
-                chunk = ii[span['start']:span['end']]
-                if isinstance(span['shape'], NameSpan):
-                    result[name] = recurse(span['shape'], chunk)
-                else:
-                    result[name] = chunk
-            return result
-        return recurse(self, i)
-        '''
         result = {}
         for name, span in self.spans.items():
-            index_tuple = tuple(
-                slice(None) if i != dim else slice(span['start'], span['end'])
-                for i, s in enumerate(v.shape)
-            )
-            chunk = v[index_tuple]
+            #index_tuple = tuple(
+            #    slice(None) if i != dim else slice(span['start'], span['end'])
+            #    for i, s in enumerate(v.shape)
+            #)
+            index = [slice(None) for _ in v.shape]
+            index[dim] = slice(span['start'], span['end'])
+            index = tuple(index)
+            chunk = v[index]
             if isinstance(span['shape'], NameSpan):
                 result[name] = span['shape'].unravel_vector(chunk, dim=dim)
             else:
@@ -92,6 +76,20 @@ class NameSpan:
         
         return result
     
-    def ravel_vector(self, i, dim=0):
-        # TODO
-        pass
+    def ravel_vector(self, v, dim=0, out=None):
+        result = []
+        for name in self.keys():
+            start, end = self.name_range(name)
+            if out is not None:
+                index = [slice(None) for _ in out.shape]
+                index[dim] = slice(start, end)
+                index = tuple(index)
+                out[index] = v[name]
+            else:
+                result.append(v[name])
+        
+        if out is not None:
+            return out
+        
+        else:
+            return numpy.cat(result, dim=dim)

@@ -8,18 +8,20 @@ import gym.spaces as spaces
 import numpy
 
 from ltron.config import Config
+from ltron.dataset.paths import get_dataset_info
 from ltron.gym.envs.ltron_env import LtronEnv
-from ltron.gym.components.scene import (
-    EmptySceneComponent, DatasetSceneComponent, SingleSceneComponent)
+from ltron.gym.components.scene import EmptySceneComponent
 from ltron.gym.components.episode import EpisodeLengthComponent
-from ltron.gym.components.dataset import DatasetPathComponent
+from ltron.gym.components.loader import DatasetLoaderComponent
 from ltron.gym.components.render import (
         ColorRenderComponent, InstanceRenderComponent, SnapRenderComponent)
-from ltron.gym.components.cursor import SnapCursor
+#from ltron.gym.components.cursor import SnapCursor
+from ltron.gym.components.cursor_action_wrapper import (
+    CursorActionWrapperConfig, CursorActionWrapper)
 from ltron.gym.components.disassembly import CursorDisassemblyComponent
 from ltron.gym.components.rotation import CursorRotateAboutSnap
-from ltron.gym.components.pick_and_place import (
-        CursorHandspacePickAndPlace)
+#from ltron.gym.components.pick_and_place import (
+#        CursorHandspacePickAndPlace)
 from ltron.gym.components.brick_inserter import HandspaceBrickInserter
 from ltron.gym.components.viewpoint import (
         ControlledAzimuthalViewpointComponent)
@@ -33,10 +35,11 @@ from ltron.gym.components.break_and_make import (
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
 from ltron.gym.components.tile import DeduplicateTileMaskComponent
+from ltron.gym.components.edit_distance import EditDistance
 
 # TODO: Needs a config
 
-class BreakAndMakeEnvConfig(Config):
+class BreakAndMakeEnvConfig(CursorActionWrapperConfig):
     dataset = 'random_construction_6_6'
     ldraw_file = None
     split = 'train'
@@ -54,7 +57,7 @@ class BreakAndMakeEnvConfig(Config):
     hand_map_height = 24
     hand_map_width = 24
     
-    dataset_reset_mode = 'uniform'
+    dataset_sample_mode = 'uniform'
     
     max_episode_length = 32
     
@@ -108,7 +111,14 @@ class BreakAndMakeEnv(LtronEnv):
     def __init__(self, config, rank=0, size=1, print_traceback=False):
         components = OrderedDict()
         
+        dataset_info = get_dataset_info(config.dataset)
+        shape_ids = dataset_info['shape_ids']
+        color_ids = dataset_info['color_ids']
+        max_instances = dataset_info['max_instances_per_scene']
+        max_edges = dataset_info['max_edges_per_scene']
+        
         # dataset
+        '''
         components['dataset'] = DatasetPathComponent(
             config.dataset,
             config.split,
@@ -123,8 +133,9 @@ class BreakAndMakeEnv(LtronEnv):
         color_ids = dataset_info['color_ids']
         max_instances = dataset_info['max_instances_per_scene']
         max_edges = dataset_info['max_edges_per_scene']
-        
+        '''
         # scenes
+        '''
         if config.ldraw_file is not None:
             components['table_scene'] = SingleSceneComponent(
                 config.ldraw_file,
@@ -144,6 +155,17 @@ class BreakAndMakeEnv(LtronEnv):
                 collision_checker=config.check_collision,
                 #render_args={'egl_device':config.egl_device},
             )
+        '''
+        
+        components['table_scene'] = EmptySceneComponent(
+            shape_ids=shape_ids,
+            color_ids=color_ids,
+            max_instances=max_instances,
+            max_edges=max_edges,
+            track_snaps=True,
+            collision_checker=config.check_collision,
+        )
+        
         components['hand_scene'] = EmptySceneComponent(
             shape_ids=shape_ids,
             color_ids=color_ids,
@@ -151,7 +173,18 @@ class BreakAndMakeEnv(LtronEnv):
             max_edges=max_edges,
             #render_args=hand_render_args,
             track_snaps=True,
-            collision_checker=False,
+            collision_checker=config.check_collision,
+        )
+        
+        # loader
+        components['dataset'] = DatasetLoaderComponent(
+            components['table_scene'],
+            config.dataset,
+            config.split,
+            subset=config.subset,
+            rank=rank,
+            size=size,
+            sample_mode=config.dataset_sample_mode,
         )
         
         # uprightify
@@ -178,9 +211,10 @@ class BreakAndMakeEnv(LtronEnv):
             max_instances,
             max_edges,
             update_frequency='reset',
-            observe_assembly=config.train,
+            observable=config.train,
         )
         
+        '''
         # viewpoint
         azimuth_steps = 8
         elevation_range = [math.radians(-30), math.radians(30)]
@@ -219,6 +253,7 @@ class BreakAndMakeEnv(LtronEnv):
             auto_frame='reset',
             frame_button=True
         )
+        '''
         
         # utility rendering components
         table_pos_snap_render = SnapRenderComponent(
@@ -253,6 +288,7 @@ class BreakAndMakeEnv(LtronEnv):
             polarity='-',
         )
         
+        '''
         # cursors
         components['table_cursor'] = SnapCursor(
             max_instances,
@@ -308,6 +344,54 @@ class BreakAndMakeEnv(LtronEnv):
             )
         elif config.task == 'break_only':
             components['phase'] = BreakOnlyPhaseSwitch()
+        '''
+        
+        components['table_assembly_always'] = AssemblyComponent(
+            components['table_scene'],
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            update_frequency = 'always',
+            observable = False,
+        )
+
+        components['hand_assembly_always'] = AssemblyComponent(
+            components['hand_scene'],
+            shape_ids,
+            color_ids,
+            max_instances,
+            max_edges,
+            update_frequency = 'always',
+            observable = False,
+        )
+        
+        components['action'] = CursorActionWrapper(
+            config,
+            {
+                'table':components['table_scene'],
+                'hand': components['hand_scene'],
+            },
+            shape_ids,
+            color_ids,
+            max_instances,
+            assembly_components = {
+                'table':components['table_assembly_always'],
+                'hand':components['hand_assembly_always'],
+            },
+            scene_shapes = {'table':(64,64), 'hand':(24,24)},
+            viewpoint_distances = {'table':320, 'hand':180},
+            phases=2,
+            include_brick_inserter=True,
+            print_traceback=print_traceback,
+        )
+        
+        components['initial_table_color_render'] = ColorRenderComponent(
+            config.table_image_width,
+            config.table_image_height,
+            components['table_scene'],
+            update_frequency='reset',
+        )
         
         # color render
         components['table_color_render'] = ColorRenderComponent(
@@ -354,7 +438,7 @@ class BreakAndMakeEnv(LtronEnv):
             max_instances,
             max_edges,
             update_frequency = 'step',
-            observe_assembly = config.train,
+            observable = config.train,
         )
         
         components['hand_assembly'] = AssemblyComponent(
@@ -364,11 +448,12 @@ class BreakAndMakeEnv(LtronEnv):
             max_instances,
             max_edges,
             update_frequency = 'step',
-            observe_assembly = config.train,
+            observable = config.train,
         )
         
         # score
         if config.include_score:
+            '''
             if config.task == 'break_and_make':
                 components['score'] = BreakAndMakeScore(
                     components['initial_table_assembly'],
@@ -381,8 +466,18 @@ class BreakAndMakeEnv(LtronEnv):
                     components['initial_table_assembly'],
                     components['table_assembly'],
                 )
+            '''
+            components['score'] = EditDistance(
+                components['initial_table_assembly'],
+                components['table_assembly'],
+                shape_ids,
+            )
         
         # build the env
         #env = LtronEnv(components, print_traceback=print_traceback)
         
-        super().__init__(components, print_traceback=print_traceback)
+        super().__init__(
+            components,
+            combine_action_space='single',
+            print_traceback=print_traceback
+        )

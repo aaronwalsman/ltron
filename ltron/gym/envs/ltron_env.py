@@ -6,7 +6,7 @@ import multiprocessing
 import gym
 from gym.vector.async_vector_env import AsyncVectorEnv
 from gym.vector.sync_vector_env import SyncVectorEnv
-from gym.spaces import Dict, Discrete
+from gym.spaces import Dict, Discrete, MultiDiscrete
 
 from ltron.config import Config
 from ltron.bricks.brick_scene import BrickScene
@@ -123,8 +123,10 @@ class LtronEnv(gym.Env):
         for component_name, component in self.components.items():
             if hasattr(component, 'action_space'):
                 if active_name == component_name:
-                    if hasattr(component.action_space, 'span'):
-                        a = component.action_space.span.ravel(*ijk)
+                    if hasattr(component.action_space, 'layout'):
+                        a = component.action_space.layout.ravel(*ijk)
+                    elif isinstance(component.action_space, MultiDiscrete):
+                        a = ijk
                     else:
                         a = ijk[0]
                     component_actions[component_name] = a

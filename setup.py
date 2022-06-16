@@ -34,6 +34,11 @@ setuptools.setup(
                 'generate_episodes_for_dataset',
             'ltron_clean_omr=ltron.dataset.omr_clean.ultimate_cleanup:'
                 'clean_omr',
+            'ltron_build_rc_dataset=ltron.dataset.rc:build_rc_dataset',
+            'live_break_and_make=ltron.gym.envs.live_break_and_make:main',
+            'ltron_generate_episode_collection='
+                'ltron.dataset.generate_episode_collection:'
+                'generate_episode_collection',
         ]
     },
     classifiers = [

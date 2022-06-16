@@ -52,6 +52,54 @@ def draw_vector_field(image, vector_field, weight, color):
             yy, xx = line(start_y, start_x, dest_y, dest_x)
             image[yy, xx] = color * weight[y,x] + image[yy,xx] * (1-weight[y,x])
 
+#def draw_line(image, start_x, start_y, dest_x, dest_y, color):
+#    yy, xx = line(start_y, start_x, dest_y, dest_x)
+#    image[yy, xx] = color
+
+def draw_line(image, x0, y0, x1, y1, color):
+    x0r = int(round(x0))
+    y0r = int(round(y0))
+    x1r = int(round(x1))
+    y1r = int(round(y1))
+    dx = x1 - x0
+    dy = y1 - y0
+    if abs(dx) > abs(dy):
+        if x1 < x0:
+            x0, x0r, x1, x1r = x1, x1r, x0, x0r
+            y0, y0r, y1, y1r = y1, y1r, y0, y0r
+            dx = -dx
+            dy = -dy
+        steps = x1r - x0r
+        if steps:
+            for step in range(steps+1):
+                t = step/steps
+                x = x0r + step
+                y = int(round(y0 + t * dy))
+                if x < 0 or y < 0 or y >= image.shape[0]:
+                    continue
+                if x >= image.shape[1]:
+                    break
+                image[y,x] = color
+
+    else:
+        if y1 < y0:
+            x0, x0r, x1, x1r = x1, x1r, x0, x0r
+            y0, y0r, y1, y1r = y1, y1r, y0, y0r
+            dx = -dx
+            dy = -dy
+        steps = y1r - y0r
+        if steps:
+            for step in range(steps+1):
+                t = step/steps
+                y = y0r + step
+                x = int(round(x0 + t * dx))
+                if y < 0 or x < 0 or x >= image.shape[1]:
+                    continue
+                if y >= image.shape[0]:
+                    break
+                image[y,x] = color
+
+
 def block_upscale_image(image, target_width, target_height):
     scale_y = target_height // image.shape[0]
     scale_x = target_width // image.shape[1]

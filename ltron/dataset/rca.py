@@ -1,5 +1,5 @@
-from ltron.sampler.subassembly_sampler import SingleSubAssemblySampler
-from ltron.sampler.scene_sampler import sample_dataset
+from ltron.dataset.sampler.subassembly_sampler import SingleSubAssemblySampler
+from ltron.dataset.sampler.scene_sampler import sample_collection
 
 '''
 The rca dataset contains six brick types and six colors and is designed to be
@@ -18,14 +18,34 @@ subassembly_samplers = [
 
 colors = ['1','4','7','14','22','25']
 
-min_max_bricks_per_scene = [(2,2), (3,4), (5,8), (9,16), (17,32)]
+all_sizes = ['2_2', '3_4', '5_8', '9_16', '17_32']
+all_splits = ['train', 'test']
 
-def build_rca():
-    sample_dataset(
-        'rca',
-        subassembly_samplers,
-        colors,
-        min_max_bricks_per_scene,
-        train_scenes = 50000,
-        test_scenes = 10000,
-    )
+collection_sizes = {
+    '2_2_train' : 500000,
+    '2_2_test' : 10000,
+    '3_4_train' : 50000,
+    '3_4_test' : 10000,
+    '5_8_train' : 50000,
+    '5_8_test' : 10000,
+    '9_16_train' : 50000,
+    '9_16_test' : 10000,
+    '17_32_train' : 50000,
+    '17_32_test' : 10000,
+}
+
+def build(collections):
+    for collection in collections:
+        min_instances, max_instances, split = collection
+        collection_name = '%i_%i_%s'%(min_instances, max_instances, split)
+        if collection_name not in collection_sizes:
+            raise ValueError('Invalid rca collection: "%s"'%collection_name)
+        sample_collection(
+            'rca',
+            split,
+            subassembly_samplers,
+            colors,
+            min_instances,
+            max_instances,
+            collection_sizes[collection_name],
+        )

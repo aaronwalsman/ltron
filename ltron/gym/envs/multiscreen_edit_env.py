@@ -86,7 +86,7 @@ class MultiScreenEditEnv(LtronEnv):
             collision_checker=config.check_collision,
         )
         
-        # dataset
+        # loader
         components['dataset'] = DatasetLoaderComponent(
             components['table_scene'],
             config.dataset,
@@ -154,6 +154,8 @@ class MultiScreenEditEnv(LtronEnv):
                 'table':components['table_scene'],
                 'hand': components['hand_scene'],
             },
+            shape_ids,
+            color_ids,
             max_instances,
             assembly_components = {
                 'table':components['table_assembly_always'],
@@ -179,11 +181,8 @@ class MultiScreenEditEnv(LtronEnv):
         
         # partial disassembly
         partial_disassembly_component = MultiScreenPartialDisassemblyComponent(
-            #action_components['pick_and_place'],
             components['action'].components['pick_and_place'],
             components['action'].components['pick_cursor'],
-            #components['action'].components['table_pos_snap_render'],
-            #components['action'].components['table_neg_snap_render'],
             ['table'],
             ['hand'],
             max_instances,
@@ -247,7 +246,6 @@ class MultiScreenEditEnv(LtronEnv):
             shape_ids,
         )
         
-        shape_names = {v:k for k,v in shape_ids.items()}
         if config.train:
             components['expert'] = BuildExpert(
                 components['action'],
@@ -257,7 +255,7 @@ class MultiScreenEditEnv(LtronEnv):
                 {'table':components['table_assembly'],
                  'hand':components['hand_assembly']},
                 'table',
-                shape_names,
+                shape_ids,
             )
         
         super().__init__(
@@ -265,3 +263,42 @@ class MultiScreenEditEnv(LtronEnv):
             combine_action_space='single',
             print_traceback=print_traceback,
         )
+    
+    def get_selected_snap(self, cursor):
+        return self.components[cursor].get_selected_snap()
+    
+    def get_selected_pick_snap(self):
+        return self.get_selected_snap('pick')
+    
+    def get_selected_place_snap(self):
+        return self.get_selected_snap('place')
+    
+    def select_snap_actions(self, cursor, *args, **kwargs):
+        actions = self.components[cursor].select_snap_action(*args, **kwargs)
+        return [self.action_space.ravel(cursor, *a) for a in actions]
+    
+    def pick_select_snap_actions(self, *args, **kwargs):
+        return self.select_snap_actions('pick', *args, **kwargs)
+    
+    def place_select_snap_actions(self, *args, **kwargs):
+        return self.select_snap_actions('place', *args, **kwargs)
+    
+    def deselect_actions(self, cursor, *args, **kwargs):
+        actions = self.components[cursor].deselect_actions(*args, **kwargs)
+        return [self.action_space.ravel(cursor, *a) for a in actions]
+    
+    def pick_deselect_actions(self, *args, **kwargs):
+        return self.deselect_actions('pick', *args, **kwargs)
+    
+    def place_deselect_actions(self, *args, **kwargs):
+        return self.deselect_actions('place', *args, **kwargs)
+    
+    def pick_and_place_actions(self):
+        return self.action_space.ravel('pick_and_place', 1)
+    
+    def rotate_actions(self, r):
+        return self.action_space.ravel('rotate', r)
+    
+    def finish_actions(self):
+        return [self.action_space.ravel('phase', 1)]
+    

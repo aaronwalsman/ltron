@@ -13,16 +13,22 @@ from ltron.bricks.snap import SnapCylinder
 from ltron.geometry.collision_sampler import get_all_transformed_snap_pairs
 from ltron.geometry.collision import check_snap_collision
 
+def get_all_brick_shapes(subassembly_samplers):
+    return list(set(sum(
+        [sampler.brick_shapes for sampler in subassembly_samplers],
+        []
+    )))
+
 class SubAssemblySampler:
     pass
 
 class SingleSubAssemblySampler(SubAssemblySampler):
     def __init__(self, brick_shape, transform=BrickScene.upright):
-        self.brick_shape = brick_shape
+        self.brick_shapes = [brick_shape]
         self.transform = transform
     
     def sample(self):
-        return [(self.brick_shape, self.transform)]
+        return [(self.brick_shapes[0], self.transform)]
 
 class MultiSubAssemblySampler(SubAssemblySampler):
     def __init__(self,
@@ -53,6 +59,7 @@ class RotatorSubAssemblySampler(SubAssemblySampler):
         self.rotor_range = rotor_range
         self.pivot = numpy.array(pivot)
         self.transform = transform
+        self.brick_shapes = [holder_type, rotor_type]
     
     def sample(self):
         theta = random.uniform(*self.rotor_range)
@@ -77,6 +84,7 @@ class AxleWheelSubAssemblySampler(SubAssemblySampler):
         self.wheel_transforms = wheel_transforms
         self.wheel_samplers = wheel_samplers
         self.transform = transform
+        self.brick_shapes = [axle_type] + get_all_brick_shapes(wheel_samplers)
     
     def sample(self):
         axle_transform = self.transform

@@ -9,7 +9,9 @@ from ltron.gym.components.cursor import SymbolicCursor, MultiViewCursor
 from ltron.gym.components.pick_and_place import MultiScenePickAndPlace
 from ltron.gym.components.rotation import MultiSceneRotateAboutSnap
 from ltron.gym.components.viewpoint import ControlledAzimuthalViewpointComponent
-from ltron.gym.components.break_and_make import BreakOnlyPhaseSwitch
+from ltron.gym.components.break_and_make import (
+    BreakOnlyPhaseSwitch, BreakAndMakePhaseSwitch)
+from ltron.gym.components.brick_inserter import MultiscreenBrickInserter
 
 class CursorActionWrapperConfig(Config):
     cursor_mode = 'spatial'
@@ -30,24 +32,40 @@ class CursorActionWrapperConfig(Config):
     hand_distance_steps = 1
     azimuth_steps = 8
     elevation_steps = 2
-
+    
 class CursorActionWrapper(LtronEnv):
     def __init__(
         self,
         config,
-        #table_scene_component,
-        #hand_scene_component,
         scene_components,
+        shape_ids,
+        color_ids,
         max_instances,
+        scene_shapes=None,
+        viewpoint_distances=None,
         assembly_components=None,
+        phases = 1,
+        include_brick_inserter=False,
         print_traceback=False,
     ):
         components = OrderedDict()
+        self.phases = phases
         
         # spatial-specific components ==========================================
         if config.cursor_mode == 'spatial':
             
-            for name, scene_component in scene_components:
+            if include_brick_inserter:
+                components['insert'] = MultiscreenBrickInserter(
+                    scene_components['hand'],
+                    scene_components['table'],
+                    shape_ids,
+                    color_ids,
+                    max_instances,
+                )
+            
+            for name, scene_component in scene_components.items():
+                
+                scene_height, scene_width = scene_shapes[name]
                 
                 # Utility Rendering Components ---------------------------------
                 components['%s_pos_snap_render'%name] = SnapRenderComponent(
@@ -55,7 +73,7 @@ class CursorActionWrapper(LtronEnv):
                     scene_width, # where does this come from?
                     scene_component,
                     polarity='+',
-                    render_frequency='on_demand',
+                    update_frequency='on_demand',
                     observable=False,
                 )
                 components['%s_neg_snap_render'%name] = SnapRenderComponent(
@@ -63,15 +81,15 @@ class CursorActionWrapper(LtronEnv):
                     scene_width, # where does this come from?
                     scene_component,
                     polarity='-',
-                    render_frequency='on_demand',
+                    update_frequency='on_demand',
                     observable=False,
                 )
         
                 # Viewpoint ----------------------------------------------------
                 elevation_range = [math.radians(-30), math.radians(30)]
                 distance_range=[
-                    config.min_viewpoint_distance,
-                    config.max_viewpoint_distance
+                    viewpoint_distances[name],
+                    viewpoint_distances[name]
                 ]
                 if config.randomize_viewpoint:
                     start_position = 'uniform'
@@ -84,6 +102,7 @@ class CursorActionWrapper(LtronEnv):
                         elevation_range=elevation_range,
                         elevation_steps=config.elevation_steps,
                         distance_range=distance_range,
+                        distance_steps=1,
                         aspect_ratio=scene_width/scene_height, # wuh?
                         start_position=start_position,
                         auto_frame='reset',
@@ -179,7 +198,14 @@ class CursorActionWrapper(LtronEnv):
         )
         
         # Finished -------------------------------------------------------------
-        components['phase'] = BreakOnlyPhaseSwitch()
+        if self.phases == 2:
+            components['phase'] = BreakAndMakePhaseSwitch(
+                table_scene_component=scene_components['table'],
+                table_viewpoint_component=components['table_viewpoint'],
+                hand_scene_component=scene_components['hand'],
+            )
+        else:
+            components['phase'] = BreakOnlyPhaseSwitch()
         
         super().__init__(
             components,
@@ -221,7 +247,7 @@ class CursorActionWrapper(LtronEnv):
         return self.actions_to_deselect('place_cursor', *args, **kwargs)
     
     def all_component_actions(self, component):
-        return self.action_space.all_subspace_actions(component)
+        return list(range(self.action_space.name_range(component)))
     
     def pick_and_place_action(self):
         return self.action_space.ravel('pick_and_place',1)

@@ -1,25 +1,27 @@
-import math
 import time
 from itertools import product
+import json
+import os
 import tarfile
-from StringIO import StringIO
+from io import BytesIO
 
 import numpy
 random = numpy.random.default_rng(1234567890)
 
+import tqdm
+
 from pyquaternion import Quaternion
 
-from ltron.dataset.paths import get_dataset_info
+import ltron.settings as settings
+from ltron.dataset.sampler.subassembly_sampler import get_all_brick_shapes
 from ltron.bricks.brick_scene import BrickScene
-from ltron.bricks.snap import SnapCylinder
-from ltron.geometry.collision_sampler import get_all_transformed_snap_pairs
-from ltron.geometry.collision import check_snap_collision
 
+'''
 def sample_dataset(
     name,
     subassembly_samplers,
     colors,
-    min_max_bricks_per_scene,
+    min_max_instances_per_scene,
     train_scenes,
     test_scenes,
 ):
@@ -27,36 +29,115 @@ def sample_dataset(
         'splits':{}
     }
     
-    for min_bricks, max_bricks in min_max_bricks_per_scene:
+    colors = sorted(colors)
+    
+    max_instances = 0
+    max_edges = 0
+    train_collections = []
+    test_collections = []
+    all_collections = []
+    for min_instances, max_instances in min_max_instances_per_scene:
+        size_collections = []
         for split, num_scenes in ('train', train_scenes), ('test', test_scenes):
-            sample_collection(
-                '%s_%i_%i_%s'%(name, min_bricks, max_bricks, split),
+            split_name = '%i_%i_%s'%(min_instances, max_instances, split)
+            collection_name = '%s_%s'%(name, split_name)
+            size_collections.append(collection_name)
+            all_collections.append(collection_name)
+            if split == 'train':
+                train_collections.append(collection_name)
+            elif split == 'test':
+                test_collections.append(collection_name)
+            collection_max_instances, collection_max_edges = sample_collection(
+                collection_name,
                 subassembly_samplers,
                 colors,
-                min_bricks,
-                max_bricks,
+                min_instances,
+                max_instances,
                 num_scenes,
             )
+            max_instances = max(max_instances, collection_max_instances)
+            max_edges = max(max_edges, collection_max_edges)
+            
+            dataset_metadata['splits'][split_name] = {
+                'sources':[collection_name],
+            }
+        
+        size_all_split_name = '%i_%i_all'%(min_instances, max_instances)
+        dataset_metadata['splits'][size_all_split_name] = {
+            'sources':size_collections,
+        }
+        
+    dataset_metadata['splits']['train_all'] = train_collections
+    dataset_metadata['splits']['test_all'] = test_collections
+    dataset_metadata['splits']['all'] = all_collections
+    
+    dataset_metadata['max_instances_per_scene'] = max_instances
+    dataset_metadata['max_edges_per_scene'] = max_edges
+    all_shapes = sorted(get_all_brick_shapes(subassembly_samplers))
+    num_shapes = len(all_shapes)
+    dataset_metadata['shape_ids'] = dict(zip(all_shapes, range(1, num_shapes)))
+    dataset_metadata['color_ids'] = dict(zip(colors, range(1, len(colors)+1)))
+    
+    dataset_path = os.path.join(settings.paths['datasets'], '%s.json'%name)
+    with open(dataset_path, 'w') as f:
+        json.dump(dataset_metadata, f, indent=2)
+'''
 
 def sample_collection(
-    name,
+    dataset_name,
+    split_name,
     subassembly_samplers,
     colors,
-    min_bricks,
-    max_bricks,
+    min_instances,
+    max_instances,
     num_scenes,
     compress=False
 ):
-    print('Building Collection: %s'%name)
+    size_name = '%i_%i'%(min_instances, max_instances)
+    collection_name = '%s_%s_%s'%(dataset_name, size_name, split_name)
+    print('-'*80)
+    print('Building Collection: %s'%collection_name)
+    
+    # retrieve the dataset info
+    dataset_path = os.path.join(
+        settings.paths['datasets'], '%s.json'%dataset_name)
+    if os.path.exists(dataset_path):
+        print('Loading dataset information from: %s'%dataset_path)
+        with open(dataset_path, 'r') as f:
+            dataset_info = json.load(f)
+    else:
+        dataset_info = {}
+    
+    # add the color_ids and shape_ids to the dataset info
+    colors = sorted(colors)
+    shapes = sorted(get_all_brick_shapes(subassembly_samplers))
+    for color_shape, values in ('color', colors), ('shape', shapes):
+        ids = dict(zip(values, range(1, len(values)+1)))
+        # if the ids exist in dataset_info, make sure they match the new ids
+        if '%s_ids'%color_shape in dataset_info:
+            if dataset_info['%s_ids'%color_shape] != ids:
+                raise ValueError('New %ss (%s) does not match existing (%s)'%(
+                    color_shape, colors, existing_colors))
+        
+        # if ids do not exist, add them
+        else:
+            dataset_info['%s_ids'%color_shape] = ids
+    
+    # open the collection tar file
     if compress:
         extension = '.tar.gz'
         mode = 'w:gz'
     else:
         extension = '.tar'
         mode = 'w'
-    tar_path = os.path.join(settings.paths['collections'], name + extension)
+    tar_path = os.path.join(
+        settings.paths['collections'], collection_name + extension)
     tar = tarfile.open(tar_path, mode)
     
+    # build the ldraw scenes and add them to the tar fiel
+    padding = len(str(num_scenes))
+    max_instances_per_scene = 0
+    max_edges_per_scene = 0
     scene = BrickScene(
         renderable=True,
         track_snaps=True,
@@ -68,33 +149,82 @@ def sample_collection(
             scene,
             subassembly_samplers,
             colors,
-            min_bricks,
-            max_bricks,
+            min_instances,
+            max_instances,
         )
         
-        text = scene.export_ldraw_text()
-        io = StringIO()
-        io.write(text)
-        io.seek(0)
-        info = tarfile.TarInfo(name=file_name)
-        info.size = len(io.buf)
+        si = str(i).rjust(padding, '0')
+        mpd_name = ('%s_%s.mpd')%(collection_name, si)
+        
+        text = scene.export_ldraw_text(mpd_name)
+        text_bytes = text.encode('utf8')
+        io = BytesIO(text_bytes)
+        info = tarfile.TarInfo(name=mpd_name)
+        info.size = len(text_bytes)
         tar.addfile(tarinfo=info, fileobj=io)
         
+        max_instances_per_scene = max(
+            max_instances_per_scene, len(scene.instances))
+        scene_connections = scene.get_all_snap_connections()
+        scene_edges = sum(scene_connections.values(), [])
+        max_edges_per_scene = max(max_edges_per_scene, len(scene_edges))
+        
     tar.close()
+    
+    # update the max instances/edges per scene
+    for ie, m in (
+        ('instances', max_instances_per_scene), ('edges', max_edges_per_scene)
+    ):
+        max_name = 'max_%s_per_scene'%ie
+        if max_name in dataset_info:
+            if m > dataset_info[max_name]:
+                print('Updating "%s" from %i to %i'%(
+                    max_name, dataset_info[max_name], m))
+                dataset_info[max_name] = m
+        else:
+            print('Setting "%s" to %i'%(max_name, m))
+            dataset_info[max_name] = m
+    
+    # add the splits dictionary to the dataset_info if it does not exist
+    if 'splits' not in dataset_info:
+        dataset_info['splits'] = {}
+    
+    # add the split for this collection, overwrite if it already exists
+    size_split_name = '%s_%s'%(size_name, split_name)
+    if size_split_name in dataset_info['splits']:
+        print('Overwriting split "%s"'%size_split_name)
+    else:
+        print('Adding split "%s"'%size_split_name)
+    dataset_info['splits'][size_split_name] = {
+        'sources': [collection_name],
+    }
+    
+    # add this collection to the size_all, split_all and all splits
+    for all_name in '%s_all'%size_name, '%s_all'%split_name, 'all':
+        if all_name not in dataset_info['splits']:
+            print('Adding split "%s"'%all_name)
+            dataset_info['splits'][all_name] = {'sources':[]}
+        if collection_name not in dataset_info['splits'][all_name]['sources']:
+            print('Adding collection "%s" to Split "%s"'%(
+                collection_name, all_name))
+            dataset_info['splits'][all_name]['sources'].append(collection_name)
+    
+    with open(dataset_path, 'w') as f:
+        dataset_info = json.dump(dataset_info, f, indent=2)
 
 def sample_scene(
         scene,
         subassembly_samplers,
         colors,
-        min_bricks,
-        max_bricks,
+        min_instances,
+        max_instances,
         retries=20,
         debug=False,
         timeout=None):
     
     t_start = time.time()
     
-    num_bricks = random.integers(min_bricks, max_bricks, endpoint=True)
+    num_bricks = random.integers(min_instances, max_instances, endpoint=True)
     
     scene.load_colors(colors)
     

@@ -48,19 +48,20 @@ class CursorComponent(LtronGymComponent):
 
 class SymbolicCursor(CursorComponent):
     def __init__(self,
-        assembly_components,
+        #assembly_components,
+        scene_components,
+        max_instances_per_scene,
         randomize_starting_position=True,
     ):
         super().__init__(
             randomize_starting_position=randomize_starting_position,
         )
-        self.assembly_components = assembly_components
-        self.assembly_order = list(self.assembly_components.keys())
+        self.scene_components = scene_components
+        self.assembly_order = list(self.scene_components.keys())
+        self.max_instances_per_scene = max_instances_per_scene
         
         self.action_space = SymbolicSnapSpace({
-            component_name:component.max_instances
-            for component_name, component in assembly_components.items()
-        })
+            name:max_instances_per_scene for name in self.assembly_order})
         self.observation_space = self.action_space
 
     def get_selected_snap(self):
@@ -68,19 +69,31 @@ class SymbolicCursor(CursorComponent):
         if name == 'NO_OP':
             return self.name, 0, 0
         i,s = self.coords[1:]
-        assembly = self.assembly_components[name].observe()
-        if assembly['shape'][i] == 0:
-            return name, 0, 0
-        else:
+        #assembly = self.assembly_components[name].observe()
+        try:
+            instance = self.scene_components[name].brick_scene.instances[i]
+            snap = instance.snaps[s]
             return name, i, s
+        except (KeyError, IndexError):
+            return name, 0, 0
+        
+        #if assembly['shape'][i] == 0:
+        #    return name, 0, 0
+        #else:
+        #    return name, i, s
 
     def actions_to_select_snap(self, name, instance_id, snap_id):
-        assembly = self.assembly_components[name].observe()
-        if assembly['shape'][instance_id] == 0:
+        #assembly = self.assembly_components[name].observe()
+        #if assembly['shape'][instance_id] == 0:
+        #    return []
+        
+        #return [(name, instance_id, snap_id)]
+        try:
+            instance = self.scene_components[name].instances[instance_id]
+            snap = instance.snaps[snap_id]
+            return [(name, instance_id, snap_id)]
+        except:
             return []
-        #else:
-        #    return [self.action_space.ravel(name, instance_id, snap_id)]
-        return [(name, instance_id, snap_id)]
     
     def actions_to_deselect(self):
         name = self.coords[0]
@@ -89,11 +102,13 @@ class SymbolicCursor(CursorComponent):
     def visible_snaps(self, names=None):
         snaps = []
         if names is None:
-            names = self.assembly_components.keys()
+            #names = self.assembly_components.keys()
+            names = self.scene_components.keys()
         for name in names:
-            component = self.assembly_components[name]
-            assembly = component.observe()
-            scene = component.scene_component.brick_scene
+            #component = self.assembly_components[name]
+            #assembly = component.observe()
+            #scene = component.scene_component.brick_scene
+            scene = self.scene_components[name].brick_scene
             for i, shape in enumerate(assembly['shape']):
                 if shape != 0:
                     instance = scene.instances[i]

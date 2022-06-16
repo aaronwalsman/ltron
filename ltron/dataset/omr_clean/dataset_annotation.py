@@ -96,7 +96,8 @@ def traintest_splitter(path, train_ratio=0.8, mode = "raw"):
             model_name = model.split("/")[-1]
 
             # Only care about the model name
-            checker = model_name.split("@")
+            #checker = model_name.split("@")
+            checker = model_name.split('__')
             part_we_care = checker[0] + "." + model_name.split(".")[-1]
             # print(part_we_care)
             # print(simp_train[0])
@@ -132,31 +133,31 @@ def category_splitter(path, mode='raw'):
         for theme, _ in stat['theme_meta'].items():
             annot[theme.lower()] = {}
             annot[theme.lower()]['mpd'] = []
-
+        
         path = Path(path).expanduser()
         modelList = list(path.rglob('*'))
-
+        
         # Iterate through models
         print('-'*80)
         print('Splitting Into Themes')
         for model in tqdm.tqdm(modelList):
             model = str(model)
             model_name = model.split("/")[-1]
-
+            
             # 0 is Train, 1 is Test
             try:
                 cur_theme = stat['model_map'][model_name]
             except:
                 continue
-
+            
             path_key = "{omr_raw}/"
             if mode == "clean":
                 path_key = "{omr_clean}/"
             model = model.split("/")[-2] + "/" + model.split("/")[-1]
             annot[cur_theme.lower()]['mpd'].append(path_key + model)
-
+        
         return annot
-
+    
     else:
         theme_path = os.path.join(
             settings.collections['omr'], 'theme_map.json')
@@ -176,8 +177,10 @@ def category_splitter(path, mode='raw'):
         print('Splitting Into Themes')
         for model in tqdm.tqdm(modelList):
             model = str(model)
+            #model_name = (
+            #    model.split("/")[-1].split("@")[0] + "." + model.split(".")[-1])
             model_name = (
-                model.split("/")[-1].split("@")[0] + "." + model.split(".")[-1])
+                model.split("/")[-1].split("__")[0]+"."+model.split(".")[-1])
 
             # 0 is Train, 1 is Test
             try:
@@ -206,7 +209,7 @@ def size_splitter(path, size_map, mode="raw"):
     # Iterate through models
     print('-'*80)
     print('Splitting Into Size Categories')
-    for model in tqdm.tqdm(modelList):
+    for i, model in enumerate(tqdm.tqdm(modelList)):
         model = str(model)
 
         try:
@@ -214,8 +217,12 @@ def size_splitter(path, size_map, mode="raw"):
             scene.import_ldraw(model)
         except:
             continue
-
+        
+        if not len(scene.instances):
+            continue
+        
         modelSize = compute_boxsize(scene.instances, scene, complete = False);
+        
         for size, bound in size_map.items():
             if size.lower() != 'medium' or size.lower() != 'large':
                 if modelSize >= 400:
@@ -237,28 +244,31 @@ def size_splitter(path, size_map, mode="raw"):
 def build_metadata(path_root):
     metadata = {}
     mpds = list(glob.glob(os.path.join(path_root, '*')))
-
+    
     max_instances_per_scene = 0
     max_edges_per_scene = 0
     all_brick_names = set()
     all_color_names = set()
     print('-'*80)
     print('Building Metadata')
-    for mpd in tqdm.tqdm(mpds):
+    for i, mpd in enumerate(tqdm.tqdm(mpds)):
         scene = BrickScene(track_snaps=True)
-        scene.import_ldraw(mpd)
+        try:
+            scene.import_ldraw(mpd)
+        except:
+            continue
         brick_names = set(scene.shape_library.keys())
         all_brick_names |= brick_names
         color_names = set(scene.color_library.keys())
         all_color_names |= color_names
-
+        
         num_instances = len(scene.instances)
         max_instances_per_scene = max(num_instances, max_instances_per_scene)
-
+        
         edges = scene.get_assembly_edges(unidirectional=False)
         num_edges = edges.shape[1]
         max_edges_per_scene = max(num_edges, max_edges_per_scene)
-
+    
     metadata['max_instances_per_scene'] = max_instances_per_scene
     metadata['max_edges_per_scene'] = max_edges_per_scene
     metadata['shape_ids'] = {
@@ -269,7 +279,7 @@ def build_metadata(path_root):
         color_name: i
         for i, color_name in enumerate(all_color_names, start=0)
     }
-
+    
     return metadata
 
 def extract_stat(path):
@@ -293,15 +303,28 @@ def extract_stat(path):
 # ALl model name shouldn't contain "/"
 # The real model name should be extracted by model_name.split("/")[-1].split("@")[0] given its path model_name
 def generate_json(model_path, dest_path, train_ratio=0.8, mode='raw'):
-
-    annot = {"splits": {}}
-    annot['splits'] = {**traintest_splitter(model_path, train_ratio, mode), **annot['splits']}
-    annot['splits'] = {**category_splitter(model_path, mode), **annot['splits']}
-    annot = {**build_metadata(model_path), **annot}
-
+    
+    #tmp_path = './tmp_annot.json'
+    #if os.path.exists(tmp_path):
+    #    annot = json.load(open(tmp_path))
+    #else:
+    if True:
+        annot = {"splits": {}}
+        annot['splits'] = {
+            **traintest_splitter(model_path, train_ratio, mode),
+            **annot['splits']
+        }
+        annot['splits'] = {
+            **category_splitter(model_path, mode),
+            **annot['splits']
+        }
+        annot = {**build_metadata(model_path), **annot}
+        #with open(tmp_path, 'w') as f:
+        #    json.dump(annot, f)
+    
     # Size map should be an ordered dict ranked with the upperbound increasingly, value is the upperbound
     size_map = {'pico' :
-                    2, 'micro' : 8, 'mini' : 32, "small" : 128, "medium" : 512, "large" : float("inf")}
+                    2, 'nano': 4, 'micro' : 8, 'mini' : 32, "small" : 128, "medium" : 512, "large" : float("inf")}
     annot['splits'] = {**size_splitter(model_path, size_map), **annot['splits']}
 
     if mode == "raw":

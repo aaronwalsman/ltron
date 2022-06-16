@@ -13,29 +13,29 @@ from ltron.geometry.utils import unscale_transform
 
 class BuildExpert(LtronGymComponent):
     def __init__(self,
-        env,
+        action_component,
         scene_components,
         target_assembly_component,
         current_assembly_components,
         target_scene,
-        shape_ids,
+        shape_names,
         max_instructions=128,
         always_add_viewpoint_actions=False,
-        max_actions=1000000,
     ):
-        self.env = env
         self.scene_components = scene_components
         self.target_scene = target_scene
         self.target_assembly_component = target_assembly_component
         self.current_assembly_components = current_assembly_components
-        self.shape_names = {v:k for k,v in shape_ids.items()}
+        self.action_component = action_component
+        self.shape_names = shape_names
         self.max_instructions = max_instructions
         self.always_add_viewpoint_actions = always_add_viewpoint_actions
         
+        num_actions = action_component.action_space.n
         self.observation_space = Box(
             low=numpy.zeros(self.max_instructions, dtype=numpy.long),
             high=numpy.full(
-                self.max_instructions, max_actions, dtype=numpy.long),
+                self.max_instructions, num_actions-1, dtype=numpy.long),
             shape=(self.max_instructions,),
             dtype=numpy.long,
         )
@@ -70,12 +70,8 @@ class BuildExpert(LtronGymComponent):
     def good_actions(self,
         current_assembly,
         target_assembly,
-        secondary_assemblies,
+        secondary_assemblies
     ):
-        
-        print(current_assembly['shape'])
-        print(target_assembly['shape'])
-        
         matches, offset = match_assemblies(
             current_assembly, target_assembly, self.shape_names)
         current_to_target = dict(matches)
@@ -98,7 +94,7 @@ class BuildExpert(LtronGymComponent):
             len(false_negatives)
         ):
             # Yes: phase
-            actions = self.env.finish_actions() # first check
+            actions = [self.action_component.finish_action()] # first check
         
         # Are there connected misaligned
         elif len(target_to_current_misaligned_connected):
@@ -299,16 +295,15 @@ class BuildExpert(LtronGymComponent):
                     pickable[self.target_scene, cur_i, cur_s] = [
                         [self.target_scene, tgt_i, tgt_con_i, cur_con_s]]
         
-        #pick_component = self.env.components['pick_cursor']
-        #pick_n, pick_i, pick_s = pick_component.get_selected_snap()
-        pick_n, pick_i, pick_s = self.env.get_pick_snap()
+        pick_component = self.action_component.components['pick_cursor']
+        pick_n, pick_i, pick_s = pick_component.get_selected_snap()
         
         if (pick_n, pick_i, pick_s) not in pickable:
             pick_actions = []
             pick_names = []
             for n, i, s in pickable:
                 pick_actions.extend(
-                    self.env.actions_to_pick_snap(n, i, s)
+                    self.action_component.actions_to_pick_snap(n, i, s)
                 )
                 pick_names.append(n)
             
@@ -317,7 +312,7 @@ class BuildExpert(LtronGymComponent):
                 import pdb
                 pdb.set_trace()
                 for n in pick_names:
-                    view_actions = self.env.all_component_actions(
+                    view_actions = self.action_component.all_component_actions(
                         n + '_viewpoint')
                     print(view_actions)
                     pick_actions.extend(view_actions)
@@ -335,8 +330,7 @@ class BuildExpert(LtronGymComponent):
             target_to_current[tgt_con_i],
         )
         
-        #rotate_actions = [self.action_component.rotate_action(r)]
-        rotate_actions = [self.env.rotate_action(r)]
+        rotate_actions = [self.action_component.rotate_action(r)]
         #if self.always_add_viewpoint_actions or not len(rotate_actions):
         #    rotate_actions.extend(
         #        self.action_component.all_component_actions(
@@ -382,20 +376,8 @@ class BuildExpert(LtronGymComponent):
                             if numpy.dot(y_axis, snap_y_axis) > 0.99:
                                 pickable.add((name, i, snap.snap_id))
         
-        # if there are no pickable things, add the brick
-        if not len(pickable):
-            # TODO, need to filter this based on bricks that can be added next
-            insert_actions = []
-            for shape, color, i in fn_shape_colors:
-                insert_actions.append(
-                    self.env.actions_to_insert_brick(shape, color))
-            
-            return insert_actions
-        
-        #pick_cursor = self.action_component.components['pick_cursor']
-        #pick_cursor = self.env.components['pick_cursor']
-        #pick_n, pick_i, pick_s = pick_cursor.get_selected_snap()
-        pick_n, pick_i, pick_s = self.env.get_pick_snap()
+        pick_cursor = self.action_component.components['pick_cursor']
+        pick_n, pick_i, pick_s = pick_cursor.get_selected_snap()
         
         # if a pickable thing is not picked, pick it
         if (pick_n, pick_i, pick_s) not in pickable:
@@ -403,7 +385,8 @@ class BuildExpert(LtronGymComponent):
             pick_names = []
             for n, i, s in pickable:
                 pick_actions.extend(
-                    self.env.actions_to_pick_snap(n, i, s)
+                    #self.action_component.actions_to_place_snap(n, i, s)
+                    self.action_component.actions_to_pick_snap(n, i, s)
                 )
                 pick_names.append(n)
 
@@ -412,25 +395,22 @@ class BuildExpert(LtronGymComponent):
                 import pdb
                 pdb.set_trace()
                 for n in pick_names:
-                    #view_actions = self.action_component.all_component_actions(
-                    view_actions = self.env.all_component_actions(
+                    view_actions = self.action_component.all_component_actions(
                             n + '_viewpoint')
                     print(view_actions)
                     pick_actions.extend(view_actions)
 
             return pick_actions
         
-        #place_cursor = self.action_component.components['place_cursor']
-        #place_n, place_i, place_s = place_cursor.get_selected_snap()
-        place_n, place_i, place_s = self.env.get_place_snap()
-        #place_n = 'hand'
-        #place_i = 1
-        #palce_s = 0
+        place_cursor = self.action_component.components['place_cursor']
+        place_n, place_i, place_s = place_cursor.get_selected_snap()
+        place_n = 'hand'
+        place_i = 1
+        palce_s = 0
         
         # if anything is selected in the place cursor, deselect it
         if place_i != 0:
-            #place_actions = self.action_component.actions_to_deselect_place()
-            place_actions = self.env.actions_to_deselect_place()
+            place_actions = self.action_component.actions_to_deselect_place()
             
             if self.always_add_viewpoint_actions:
                 print('supervising viewpoint(first2):')
@@ -441,8 +421,7 @@ class BuildExpert(LtronGymComponent):
             return place_actions
         
         # clicks are correct, it's time to pick_and_place!
-        #pnp_actions = [self.action_component.pick_and_place_action()]
-        pnp_actions = [self.env.pick_and_place_action()]
+        pnp_actions = [self.action_component.pick_and_place_action()]
         return pnp_actions
     
     
@@ -486,9 +465,8 @@ class BuildExpert(LtronGymComponent):
                             #(self.target_scene, tgt_con_i, tgt_con_s))
                             (self.target_scene, cur_con_i, tgt_con_s))
         
-        #pick_component = self.action_component.components['pick_cursor']
-        #pick_n, pick_i, pick_s = pick_component.get_selected_snap()
-        pick_n, pick_i, pick_s = self.env.get_pick_snap()
+        pick_component = self.action_component.components['pick_cursor']
+        pick_n, pick_i, pick_s = pick_component.get_selected_snap()
         
         if (pick_n, pick_i, pick_s) not in pickable:
             pick_actions = []
@@ -496,8 +474,7 @@ class BuildExpert(LtronGymComponent):
             for n, i, s in pickable:
                 pick_actions.extend(
                     #self.action_component.actions_to_place_snap(n, i, s)
-                    #self.action_component.actions_to_pick_snap(n, i, s)
-                    self.env.actions_to_pick_snap(n, i, s)
+                    self.action_component.actions_to_pick_snap(n, i, s)
                 )
                 pick_names.append(n)
             
@@ -506,8 +483,7 @@ class BuildExpert(LtronGymComponent):
                 import pdb
                 pdb.set_trace()
                 for n in pick_names:
-                    #view_actions = self.action_component.all_component_actions(
-                    view_actions = self.env.all_component_actions(
+                    view_actions = self.action_component.all_component_actions(
                             n + '_viewpoint')
                     print(view_actions)
                     pick_actions.extend(view_actions)
@@ -516,9 +492,8 @@ class BuildExpert(LtronGymComponent):
         
         # is a place already clicked on?
         placeable = pickable[pick_n, pick_i, pick_s]
-        #place_component = self.action_component.components['place_cursor']
-        #place_n, place_i, place_s = place_component.get_selected_snap()
-        place_n, place_i, place_s = self.env.get_place_snap()
+        place_component = self.action_component.components['place_cursor']
+        place_n, place_i, place_s = place_component.get_selected_snap()
         
         #current_i = current_to_target[place_i]
         
@@ -529,8 +504,7 @@ class BuildExpert(LtronGymComponent):
                 #place_i = target_to_current[i]
                 place_actions.extend(
                     #self.action_component.actions_to_place_snap(n, place_i, s)
-                    #self.action_component.actions_to_place_snap(n, i, s)
-                    self.env.actions_to_place_snap(n, i, s)
+                    self.action_component.actions_to_place_snap(n, i, s)
                 )
                 place_names.append(n)
             
@@ -539,14 +513,150 @@ class BuildExpert(LtronGymComponent):
                 import pdb
                 pdb.set_trace()
                 for n in place_names:
-                    #view_actions = self.action_component.all_component_actions(
-                    view_actions = self.env.all_component_actions(
+                    view_actions = self.action_component.all_component_actions(
                             n + '_viewpoint')
                     print(view_actions)
                     place_actions.extend(view_actions)
             return place_actions
         
         # they are both clicked, it's time to pick_and_place!
-        #pnp_actions = [self.action_component.pick_and_place_action()]
-        pnp_actions = [self.env.pick_and_place_action()]
+        pnp_actions = [self.action_component.pick_and_place_action()]
         return pnp_actions
+        
+    def off(self):
+        # Is a snap selected that needs to rotate?
+        (pick_screen,
+         pick_i,
+         pick_s) = self.action_component.get_selected_pick_snap()
+        pick_misaligned = (
+            pick_screen == self.target_screen
+            and pick_i in current_to_target_misaligned
+        )
+        if pick_misaligned:
+            
+            # Is pick_i, pick_s connected to anything?
+            picked_edges = numpy.where(
+                current_assembly['edges'][0] == pick_i &
+                current_assembly['edges'][2] == pick_s
+            )[0]
+            if len(picked_edges):
+                
+                # Is the connected brick part of the current matching?
+                con_i, con_s = current_assembly['edges'][[1,3], picked_edges]
+                if con_i in current_to_target:
+                    
+                    # Does the current connection map to the target assembly?
+                    tgt_con_i = current_to_target[con_i]
+                    tgt_i = current_to_target_misaligned[pick_i]
+                    e = [tgt_i, tgt_con_i, pick_s, con_s]
+                    tgt_edges = numpy.where(
+                        target_assembly['edges'][0] == e[0] &
+                        target_assembly['edges'][1] == e[1] &
+                        target_assembly['edges'][2] == e[2] &
+                        target_assembly['edges'][3] == e[3]
+                    )[0]
+                    if len(tgt_edges):
+                        
+                        # Rotate
+                        return (
+                            self.action_component.ROTATE_ACTIONS(...) +
+                            camera_actions
+                        )
+        
+        # Are two snaps selected that need to be pick-and-placed?
+        # (either we are in the same screen and misplaced
+        #  or we are not and pick is a false negative)
+        (place_screen,
+         place_i,
+         place_s) = self.action_component.get_selected_place_snap()
+        if place_screen == target_screen and place_i in current_to_target:
+            if pick_misaligned:
+                
+                # Does pick_i, place_i, pick_s, place_s map to a target edge?
+                tgt_i = current_to_target_misaligned[pick_i]
+                tgt_con_i = current_to_target[place_i]
+                e = [tgt_i, tgt_con_i, pick_s, place_s]
+                tgt_edges = numpy.where(
+                    target_assembly['edges'][0] == e[0] &
+                    target_assembly['edges'][1] == e[1] &
+                    target_assembly['edges'][2] == e[2] &
+                    target_assembly['edges'][3] == e[3]
+                )[0]
+                if len(tgt_edges):
+                
+                    # Pick and place
+                    return (
+                        self.action_component.PICK_AND_PLACE(...) +
+                        camera_actions,
+                    )
+                
+            if pick_screen != target_screen:
+                pick_shape = hand_assembly['shape'][pick_i]
+                pick_color = hand_assembly['color'][pick_i]
+                
+                # Is there a matching shape/color in the false negatives?
+                for tgt_i in targets_to_fix:
+                    if (target_assembly['shape'][tgt_i] == pick_shape and
+                        target_assembly['color'][tgt_i] == pick_color
+                    ):
+                        tgt_con_i = current_to_target[place_i]
+                        e = [tgt_i, tgt_con_i, pick_s, place_s]
+                        tgt_edges = numpy.where(
+                            target_assembly['edges'][0] == e[0] &
+                            target_assembly['edges'][1] == e[1] &
+                            target_assembly['edges'][2] == e[2] &
+                            target_assembly['edges'][3] == e[3]
+                        )[0]
+                        if len(tgt_edges):
+                            
+                            # Pick and place
+                            return (
+                                self.action_component.PICK_AND_PLACE(...) +
+                                camera_actions,
+                            )
+        
+        # Is something misaligned in the scene?
+        if len(misaligned):
+            possible_actions = []
+            for cur_i, tgt_i in misaligned:
+                misaligned_edges = numpy.where(
+                    current_assembly['edges'][0] == cur_i
+                )[0]
+                misaligned_edges = current_assembly['edges'][:,misaligned_edges]
+                for edge in misaligned_edges.T:
+                    cur_con_i, cur_s, cur_con_s = edge[1:]
+                    if cur_con_i in current_to_target:
+                        tgt_con_i = current_to_target[cur_con_i]
+                        e = [tgt_i, tgt_con_i, cur_s, cur_con_s]
+                        tgt_edges = numpy.where(
+                            target_assembly['edges'][0] == e[0] &
+                            target_assembly['edges'][1] == e[1] &
+                            target_assembly['edges'][2] == e[2] &
+                            target_assembly['edges'][3] == e[3]
+                        )[0]
+                        if len(tgt_edges):
+                            
+                            # Move cursor
+                            actions = self.action_component.MOVE_PICK_CURSOR(
+                                ...)
+                            if actions:
+                                possible_actions.extend(actions)
+            
+            if possible_actions:
+                return possible_actions + camera_actions
+            
+            # Do we need to pick-and-place in the target scene?
+            for cur_i, tgt_i in misaligned:
+                target_edges = numpy.where(
+                    target_assembly['edges'][0] == tgt_i
+                )[0]
+                target_edges = target_assembly['edges'][:,target_edges]
+                for edge in target_edges.T:
+                    tgt_con_i, cur_s, cur_con_s = edge[1:]
+                    if tgt_con_i in target_to_current:
+                        e = None
+        
+        # We need to pick-and-place across screens
+        if not len(misaligned):
+            pass
+

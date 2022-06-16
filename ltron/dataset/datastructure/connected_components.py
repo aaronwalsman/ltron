@@ -1,4 +1,5 @@
 import time
+import os
 import json
 from ltron.ldraw.documents import LDrawMPDMainFile
 from ltron.bricks.brick_scene import BrickScene
@@ -12,9 +13,9 @@ def BFS(instance, connections, visited):
     que = queue.Queue()
     que.put(instance)
     while not que.empty():
-        connection = connections[str(que.get())]
+        connection = connections[int(que.get())]
         for conn in connection:
-            target = int(conn[0])
+            target = int(conn[1].brick_instance)
             if not visited[target-1]:
                 que.put(target)
                 visited[target-1] = True
@@ -39,31 +40,43 @@ def partition(scene):
     return components
 
 # remove all components that contains less than or equal to the threshold
-def partition_omr(directory, outdir=None, remove_thre = 0):
-    path = Path(directory).expanduser()
-    modelList = list(path.rglob('*'))
+def partition_omr(src_directory, dest_directory=None, remove_threshold=0):
+    src_directory = Path(src_directory).expanduser()
+    model_list = list(src_directory.rglob('*'))
+    #model_list = [os.path.join(src_directory, '7657-1 - AT-ST.mpd')]
+    #model_list = [os.path.join(src_directory, '6832-1 - Super Nova II.mpd')]
+    #model_list = [os.path.join(src_directory, '7140-1 - X-wing Fighter.mpd')]
 
     # Iterate through mpd files
     cnt = 0
-    for model in tqdm.tqdm(modelList):
+    scene = BrickScene(track_snaps=True)
+    for model in tqdm.tqdm(model_list):
         model = str(model)
+        print(model)
+        scene.clear_instances()
         try:
-            scene = BrickScene(track_snaps=True)
             scene.import_ldraw(model)
         except:
             print("Can't open: " + model + " during connected components partition")
             continue
 
         components = partition(scene)
-        if outdir is None:
+        if dest_directory is None:
             folder_name = "conn_comps/"
         else:
-            folder_name = outdir
-        modelname = model.split("/")[-1][:-4]
+            folder_name = dest_directory
+        #modelname = model.split("/")[-1][:-4]
+        modelname, ext = os.path.splitext(os.path.split(model)[-1])
         idx = 1
         for _, comp in components.items():
-            if len(comp) <= remove_thre: continue
-            scene.export_ldraw(folder_name + modelname + "@" + str(idx) + "." + model.split(".")[-1], instances=comp)
+            if len(comp) <= remove_threshold:
+                continue
+            out_path = os.path.join(
+                folder_name, '%s__%i%s'%(modelname, idx, ext))
+            scene.export_ldraw(out_path, instances=comp)
+            #scene.export_ldraw(
+            #    folder_name + modelname + "@" + str(idx) +
+            #"." + model.split(".")[-1], instances=comp)
             idx += 1
 
 def main():

@@ -10,7 +10,7 @@ from gym.spaces import (
 from ltron.geometry.collision import check_collision
 import math
 
-class RotationAroundSnap(LtronGymComponent):
+class OLDRotationAroundSnap(LtronGymComponent):
     def __init__(
         self, sceneComp, pos_snap_render, neg_snap_render, check_collision
     ):
@@ -198,7 +198,7 @@ class CursorRotateAboutSnap(LtronGymComponent):
     def no_op_action(self):
         return 0
 
-class MultiSceneRotateAboutSnap(LtronGymComponent):
+class RotateAboutSnap(LtronGymComponent):
     def __init__(
         self,
         scene_components,
