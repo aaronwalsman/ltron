@@ -539,7 +539,11 @@ def start_viewer(
                 i, s = place_snap
                 place_snap = scene.instances[i].snaps[s]
                 scene.pick_and_place_snap(
-                    pick_snap, place_snap, check_collision=True)
+                    pick_snap,
+                    place_snap,
+                    check_pick_collision=True,
+                    check_place_collision=True,
+                )
                 state['pick_snap'] = None
             
             '''
