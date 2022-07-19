@@ -1,4 +1,4 @@
-![Alt text](assets/ltron_logo.png?raw=true "LTRON")
+![LTRON](assets/ltron_logo.png?raw=true "LTRON")
 
 # Interactive Lego Machine Learning Environment
 
