@@ -1,4 +1,6 @@
-# LTRON: Lego Interactive Machine Learning Environment
+![Alt text](assets/ltron_logo.png?raw=true "LTRON")
+
+# Interactive Lego Machine Learning Environment
 
 ## Installation:
 To install LTRON run:
@@ -6,7 +8,14 @@ To install LTRON run:
 pip install ltron
 ltron_asset_installer
 ```
+
 The first line will download LTRON from pypi and install it in your python path. The second line will download and install a set of models and part files that are necessary for LTRON.  By default, these assets are installed to `~/.cache/ltron` and `~/.cache/splendor`.  This will take around 3GB of space.
+
+Release Versions:
+ - 0.0.X : [Embodied AI Workshop, CVPR 2021](https://embodied-ai.org/papers/LegoTron.pdf).
+ - 1.0.X : ECCV 2022
+
+The code in this repo is under active development and the API/interfaces are not stable.  The pypi versions listed above belong to different publications.  The github branch `v1.0.0` corresponds to the ECCV 2022 version.
 
 ## Testing Things Out:
 Once installed you should be able to run `ltron_viewer` to interactively inspect a lego model.  For example from the top directory you can run:
