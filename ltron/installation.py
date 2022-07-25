@@ -59,7 +59,7 @@ def install_ldcad(overwrite=True):
     
     print('-'*80)
     if not ldcad_license_agreement():
-        print('Must agree to all licensing.  Aborting LDCad intall.')
+        print('Must agree to all licensing.  Aborting LDCad install.')
         return False
     
     # unbz2
@@ -139,39 +139,31 @@ def install_splendor_meshes(resolution, overwrite=False):
 ldcad_version = 'LDCad-1-6d2-Linux'
 default_settings_cfg = '''
 [DEFAULT]
-datasets = {HOME}/datasets
 collections = {HOME}/collections
 
 [paths]
 ldraw = {HOME}/ldraw
-ldcad = {HOME}/''' + ldcad_version + '''
+ldcad = {HOME}/LDCad-1-6d2-Linux
 shadow = %(ldcad)s/shadow
 shadow_ldraw = %(shadow)s/offLib/offLibShadow
 
 [datasets]
-random_six = %(collections)s/random_six/random_six.json
-#snap_one = %(collections)s/snap_one/snap_one.json
-#snap_one_frames = %(collections)s/snap_one/snap_one_frames.json
-#snap_four = %(collections)s/snap_four/snap_four.json
-#snap_four_frames = %(collections)s/snap_four/snap_four_frames.json
-#conditional_snap_two = %(collections)s/conditional_snap_two/conditional_snap_two.json
-#conditional_snap_two_frames = %(collections)s/conditional_snap_two/conditional_snap_two_frames.json
+random_construction_6_6 = %(collections)s/random_construction_6_6/rc_6_6.json
+omr_clean = %(collections)s/omr_clean/omr_clean.json
 
 [collections]
+random_construction_6_6 = %(collections)s/random_construction_6_6
 omr = %(collections)s/omr
-random_six = %(collections)s/random_six
-#snap_one = %(collections)s/snap_one
-#snap_four = %(collections)s/snap_four
-#conditional_snap_two = %(collections)s/conditional_snap_two
+omr_clean = %(collections)s/omr_clean
 
 [urls]
 ltron = https://github.com/aaronwalsman/ltron
 ldraw = http://www.ldraw.org/library/updates/complete.zip
-ldcad = http://www.melkert.net/action/download/''' + ldcad_version + '''.tar.bz2
+ldcad = http://www.melkert.net/action/download/LDCad-1-6d2-Linux.tar.bz2
 ldcad_home = http://www.melkert.net/LDCad
 omr_ldraw = https://omr.ldraw.org
 omr = https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
-random_six = https://drive.google.com/uc?id=11K6Zu59aU7EXRcsY_ALcOJG1S2aXcVXz
+random_construction_6_6 = https://drive.google.com/uc?id=10XD0DvGDemFcOcfJ_HwVOqT1ujDPfsAk
 ltron_assets_low = https://drive.google.com/uc?id=11p_vyeL_B_BK7gupI8_JvGGbffJ2kXiG
 ltron_assets_high = https://drive.google.com/uc?id=1wIw-0YXx9QkQ9Kjpcvv5XsZFqdZrGj6U
 

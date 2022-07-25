@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ltron",
-    version="0.0.6",
+    version="1.0.3",
     author="Aaron Walsman",
     author_email="aaronwalsman@gmail.com",
     description='LEGO interactive machine learning environment.',

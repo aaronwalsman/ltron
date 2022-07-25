@@ -31,4 +31,5 @@ def main():
     installation.install_splendor_meshes(args.resolution)
     installation.install_ldcad(overwrite=args.overwrite)
     installation.install_collection('omr', overwrite=args.overwrite)
-    installation.install_collection('random_six', overwrite=args.overwrite)
+    installation.install_collection(
+        'random_construction_6_6', overwrite=args.overwrite)

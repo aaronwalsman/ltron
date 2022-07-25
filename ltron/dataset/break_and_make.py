@@ -19,13 +19,13 @@ class BreakAndMakeEpisodeConfig(BreakAndMakeEnvConfig):
     episodes_per_model = 1
     dataset = 'random_construction_6_6'
     collection = 'random_construction_6_6'
-    split = 'train'
+    split = 'train_2'
     
     target_steps_per_view_change = 2.
     
     error_handling = 'count'
     
-    episode_directory = 'episodes_4'
+    episode_directory = 'episodes_2'
     
     split_cursor_actions = False
     
