@@ -42,6 +42,11 @@ Looking the `$LTRON_HOME/collections/random_construction_6_6/rc_6_6.json` file w
 - `shape_ids`: a class label for each brick shape used in this dataset
 - `class_ids`: a separate class label for each brick color used in this dataset
 
+Using this structure provides access to the following commands:
+- `ltron.dataset.get_dataset_info('dataset_name')` returns the contents of the json dataset file
+- `ltron.dataset.get_dataset_paths('dataset_name', 'split_name', subset=None, rank=0, size=1)` returns a list of paths belonging to a particular split.
+- `ltron.dataset.get_zip_paths('dataset_name', 'split_name', subset=None, rank=0, size=1)` returns a zipfile object and a list of its contents for a particular split.
+
 ## Requirements:
 ```
 gym
