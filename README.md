@@ -28,6 +28,20 @@ Or:
 
 You can interact with the model by clicking on it and dragging the mouse around.  LMB - Orbit.  RMB - Pan.  Scroll - Zoom.  There are a few keys you can press `h` to hide the brick you are hovering over, `v` to show all hidden bricks and `m` to switch back and forth between mask mode and regular rendering.  See other options in `ltron/visualization/ltron_viewer.py`.
 
+## Data Layout:
+This is current as of v1.0.X, but may be streamlined in future releases:
+
+As noted above, the LTRON assets are placed by default in `~/.cache/ltron`.  This location can be changed by setting the `$LTRON_HOME` environment variable.  Additionally, some rendering assets are placed in `~/.cache/splendor`.  This location can be changed by setting the $SPLENDOR_HOME` environment variable.
+
+All LTRON datasets are registered in `$LTRON_HOME/settings.cfg`.  In LTRON each dataset contains a json file that describes where to find the files associated with that dataset, and various metadata.  These are listed in the `[datasets]` header in the `settings.cfg` file.  These json files usually refer to a particular "collection" of ldraw files.  You can think of a collection as a root file path where several ldraw files and/or episode zip files live.  These locations are specified in the `[collections]` header in the `settings.cfg` file.
+
+Looking the `$LTRON_HOME/collections/random_construction_6_6/rc_6_6.json` file we can see what kind of data it contains:
+- `splits`: a set of names corresponding to a block of files used for training or testing.  `rc_6_6.json` contains nine splits: a `train_N`, `test_N` and `train_episodes_N` for N=2,4,8.  The path to each of these splits starts with `{random_construction_6_6}/...` which tells the system to look for these files inside the `random_construction_6_6` collection.
+- `max_instances_per_scene`: an upper bound on number of instances that exist in any of the ldraw files used in the dataset.
+- `max_edges_per_scene`: an upper bound on the number of connections between bricks that exist in any of the ldraw files used in this dataset.
+- `shape_ids`: a class label for each brick shape used in this dataset
+- `class_ids`: a separate class label for each brick color used in this dataset
+
 ## Requirements:
 ```
 gym
