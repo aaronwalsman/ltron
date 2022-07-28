@@ -11,8 +11,10 @@ ltron_asset_installer
 
 The first line will download LTRON from pypi and install it in your python path. The second line will download and install a set of models and part files that are necessary for LTRON.  By default, these assets are installed to `~/.cache/ltron` and `~/.cache/splendor`.  This will take around 3GB of space.
 
-Note that the lines above will pull an older version of this code from PyPI that was released with our [CVPR 2021 workshop paper](https://embodied-ai.org/papers/LegoTron.pdf).  The code in this repo is still under development and the API/interfaces are not stable.
-
+pip Release Versions:
+ - 0.0.X : [Embodied AI Workshop, CVPR 2021](https://embodied-ai.org/papers/LegoTron.pdf).
+ - 1.0.X : ECCV 2022
+ - 
 ## Testing Things Out:
 Once installed you should be able to run `ltron_viewer` to interactively inspect a lego model.  For example from the top directory you can run:
 
@@ -51,7 +53,7 @@ The Open Model Repository files are installed to `~/.cache/ltron/collections/omr
 
 
 ## Data Layout:
-This is current as of v1.0.X, but may be streamlined in future releases:
+This section is current as of v1.0.X, but may be streamlined in future releases:
 
 As noted above, the LTRON assets are placed by default in `~/.cache/ltron`.  This location can be changed by setting the `$LTRON_HOME` environment variable.  Additionally, some rendering assets are placed in `~/.cache/splendor`.  This location can be changed by setting the $SPLENDOR_HOME` environment variable.
 
