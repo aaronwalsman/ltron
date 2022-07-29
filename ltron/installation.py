@@ -118,6 +118,49 @@ def install_collection(name, overwrite=False):
     else:
         print('Already extracted.')
 
+def install_extras(overwrite=False):
+    print('='*80)
+    print('Installing Extras (blacklist, symmetry table, font)')
+    
+    print('-'*80)
+    zip_path = os.path.join(ltron_home, 'extras.zip')
+    download(settings.urls['extras'], zip_path, overwrite=overwrite)
+    
+    print('-'*80)
+    print('Extracting extras')
+    if not any((os.path.exists(os.path.join(ltron_home, f)) for f in
+        ('blacklist.json', 'font', 'symmetry_table.json'))) or overwrite:
+        with zipfile.ZipFile(zip_path, 'r') as z:
+            z.extractall(ltron_home)
+    else:
+        print('Already extracted.')
+
+def install_episodes(collection, episode_name, overwrite=False):
+    episode_path = os.path.join(
+        settings.paths['collections'], collection, episode_name + '.zip')
+    download(
+        settings.urls[episode_name],
+        episode_path,
+        overwrite=overwrite,
+    )
+
+def install_pretrained_lstm_weights(overwrite=False):
+    zip_path = os.path.join(ltron_home, 'eccv_pretrain_lstms.zip')
+    download(
+        settings.urls['pretrained_lstm_weights'],
+        zip_path,
+        overwrite=overwrite,
+    )
+    
+    print('-'*80)
+    print('Extracting pretrained LSTM weights')
+    if not os.path.exists(
+        os.path.join(ltron_home, 'eccv_pretrain_lstms')) or overwrite:
+        with zipfile.ZipFile(zip_path, 'r') as z:
+            z.extractall(ltron_home)
+    else:
+        print('Already extracted.')
+
 def install_splendor_meshes(resolution, overwrite=False):
     print('='*80)
     print('Installing Splendor Meshes (%s)'%resolution)
@@ -146,6 +189,7 @@ ldraw = {HOME}/ldraw
 ldcad = {HOME}/LDCad-1-6d2-Linux
 shadow = %(ldcad)s/shadow
 shadow_ldraw = %(shadow)s/offLib/offLibShadow
+font = {HOME}/font/RobotoCondensed-Regular.ttf
 
 [datasets]
 random_construction_6_6 = %(collections)s/random_construction_6_6/rc_6_6.json
@@ -163,7 +207,16 @@ ldcad = http://www.melkert.net/action/download/LDCad-1-6d2-Linux.tar.bz2
 ldcad_home = http://www.melkert.net/LDCad
 omr_ldraw = https://omr.ldraw.org
 omr = https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
-random_construction_6_6 = https://drive.google.com/uc?id=10XD0DvGDemFcOcfJ_HwVOqT1ujDPfsAk
+omr_clean = https://drive.google.com/uc?id=15-z6YWvzakWsE4WNqXcvg1n72VNWGnbq
+random_construction_6_6 = https://drive.google.com/uc?id=1uLaEWykyDWv3qv7q-8ppgT0GXdh6G9D3
+extras = https://drive.google.com/uc?id=1SklSBjDC57p1rlPrJCM7TY-niGDlGIJy
+random_construction_6_6_episodes_2 = https://drive.google.com/uc?id=1NkUzbalQB7DVmvLHuM1o7EVKjENmC9Gj
+random_construction_6_6_episodes_4 = https://drive.google.com/uc?id=1kGboSReHCpzo3_mXd3LAIkssmKfa0Vke
+random_construction_6_6_episodes_8 = https://drive.google.com/uc?id=1H1u3y1xH1YzACQ3Mm78Z-rvr-1O57ZXH
+omr_episodes_2 = https://drive.google.com/uc?id=1HuJ5L-dZKA57HwGK5ZSZJTKx-Pd5oBTl
+omr_episodes_4 = https://drive.google.com/uc?id=1xKTgKmQc1EKUeVi723-xuBr7kM_dhY_f
+omr_episodes_8 = https://drive.google.com/uc?id=1d6Sesme2KGcf-PnsyEtcz3yR2xoE5jBL
+pretrained_lstm_weights = https://drive.google.com/uc?id=1_aohXQsKhKwYicQPZcasn4Jw3mtX5kIB
 ltron_assets_low = https://drive.google.com/uc?id=11p_vyeL_B_BK7gupI8_JvGGbffJ2kXiG
 ltron_assets_high = https://drive.google.com/uc?id=1wIw-0YXx9QkQ9Kjpcvv5XsZFqdZrGj6U
 
@@ -694,9 +747,9 @@ def make_settings_cfg(overwrite=False):
     else:
         print('Settings file already exists: %s'%settings_path)
 
-def make_blacklist_json(overwrite=False):
-    blacklist_path = os.path.join(ltron_home, 'blacklist.json')
-    if not os.path.exists(blacklist_path) or overwrite:
-        print('Writing default blacklist file to: %s'%blacklist_path)
-        with open(blacklist_path, 'w') as f:
-            json.dump(default_blacklist_data, f)
+#def make_blacklist_json(overwrite=False):
+#    blacklist_path = os.path.join(ltron_home, 'blacklist.json')
+#    if not os.path.exists(blacklist_path) or overwrite:
+#        print('Writing default blacklist file to: %s'%blacklist_path)
+#        with open(blacklist_path, 'w') as f:
+#            json.dump(default_blacklist_data, f)
