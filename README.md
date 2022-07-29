@@ -98,3 +98,6 @@ We have tried to make the LtronEnv structure modular so that it can be customize
 
 ## Further Notes:
 All 3D units are in [LDraw LDUs](http://www.ldraw.org/article/218.html).  One LDU is approximately 0.4 mm, so the physical extents of these scenes can be quite large.
+
+## Disclaimer:
+LTRON is based entirely on fan-made content with open licensing, and is not associated with the LEGO group in any way.
