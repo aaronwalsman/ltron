@@ -315,8 +315,9 @@ def start_viewer(
             depth_map = part_mask_frame.read_pixels(
                     read_depth=True, projection=renderer.get_projection())
             min_depth = numpy.min(depth_map)
-            max_depth = numpy.max(depth_map)
-            depth_map = 1.0 - (depth_map - min_depth) / (500 - min_depth)
+            second_max_depth, max_depth = numpy.unique(depth_map)[-2:]
+            #depth_map = 1.0 - (depth_map - min_depth) / (500 - min_depth)
+            depth_map = 1.0 - (depth_map - min_depth) / (second_max_depth - min_depth)
             depth_map = numpy.clip(depth_map, 0, 1)
             depth_map = (depth_map * 255).astype(numpy.uint8)
             print(depth_map.shape)
