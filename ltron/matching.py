@@ -227,6 +227,11 @@ def compute_misaligned(assembly_a, assembly_b, matches):
                 b_edge_indices = matching_edges(assembly_b, i1=b)
                 b_edges = assembly_b['edges'][:,b_edge_indices]
                 for _, ai2, as1, as2 in a_edges.T:
+                    # if ai2 is not in a_to_b, then the connected brick is also
+                    # not matched, so there's nothing we can do here
+                    if ai2 not in a_to_b:
+                        continue
+                    
                     for _, bi2, bs1, bs2 in b_edges.T:
                         # THIS NEEDS SYMMETRY TREATMENT
                         # IN FACT, WE PROBABLY NEED SNAPS IN SYMMETRY TABLE
