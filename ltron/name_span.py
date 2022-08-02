@@ -8,6 +8,9 @@ class NameSpan:
         self.total = 0
         self.add_names(**name_shapes)
     
+    def __eq__(self, other):
+        return self.spans == other.spans
+    
     def add_names(self, **name_shapes):
         for name, shape in name_shapes.items():
             if name in self.spans:
@@ -15,6 +18,10 @@ class NameSpan:
             
             if isinstance(shape, int):
                 shape = (shape,)
+            elif isinstance(shape, NameSpan):
+                pass
+            else:
+                shape = tuple(shape)
             
             if isinstance(shape, NameSpan):
                 num_items = shape.total
@@ -40,6 +47,7 @@ class NameSpan:
         return self.spans[name]['shape']
     
     def unravel(self, i):
+        i = int(i)
         for name, span in self.spans.items():
             if i >= span['start'] and i < span['end']:
                 i -= span['start']

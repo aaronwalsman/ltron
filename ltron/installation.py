@@ -172,6 +172,9 @@ omr = https://drive.google.com/uc?id=1nr3uut3QK2qCzRm3VjYKc4HNgsum8hLf
 random_six = https://drive.google.com/uc?id=11K6Zu59aU7EXRcsY_ALcOJG1S2aXcVXz
 ltron_assets_low = https://drive.google.com/uc?id=11p_vyeL_B_BK7gupI8_JvGGbffJ2kXiG
 ltron_assets_high = https://drive.google.com/uc?id=1wIw-0YXx9QkQ9Kjpcvv5XsZFqdZrGj6U
+
+[render]
+color_scheme = ldraw
 '''
 
 def make_settings_cfg(overwrite=False):

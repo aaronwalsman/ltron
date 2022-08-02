@@ -38,17 +38,19 @@ def generate_episode_collection(config=None):
     
     def actor_fn(observation, terminal, memory):
         b = terminal.shape[0]
+        distribution = numpy.zeros((b, env.metadata['action_space'].n))
         for i in range(b):
-            distribution = numpy.zeros(b, env.metadata['action_space'].n)
-            import pdb
-            pdb.set_trace()
-            expert_actions = GET_EXPERT_ACTIONS
+            expert_actions = list(set(observation['expert'][0,i]))
             expert_actions = [
                 a for a in expert_actions
                 if a != env.metadata['no_op_action']
             ]
             d = numpy.zeros(env.metadata['action_space'].n)
             d[expert_actions] = 1. / len(expert_actions)
+            if numpy.sum(d) < 0.9999:
+                print('uh?')
+                import pdb
+                pdb.set_trace()
             distribution[i] = d
         
         return distribution, None
@@ -62,6 +64,4 @@ def generate_episode_collection(config=None):
         path='.',
         env=env,
         actor_fn=actor_fn,
-        #expert_probability=1.,
-        #store_distributions=True,
     )
