@@ -1,7 +1,7 @@
 from ltron.gym.spaces import TimeStepSpace
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class EpisodeLengthComponent(LtronGymComponent):
+class TimeStepComponent(LtronGymComponent):
     def __init__(self, max_episode_length=None, observe_step=True):
         self.max_episode_length = max_episode_length
         self.episode_step = None

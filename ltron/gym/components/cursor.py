@@ -3,7 +3,11 @@ import random
 import numpy
 
 from gym.spaces import Dict, Discrete, MultiDiscrete
-from ltron.gym.spaces import MultiScreenPixelSpace, SymbolicSnapSpace
+from ltron.gym.spaces import (
+    MultiScreenPixelSpace,
+    MultiScreenInstanceSnapSpace,
+    SymbolicSnapSpace,
+)
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
@@ -31,10 +35,9 @@ class CursorComponent(LtronGymComponent):
         # test to make sure coords are compatible with the action space
         a = self.action_space.ravel(*coords)
         self.coords = coords
-
+    
     def observe(self):
-        self.observation = self.action_space.ravel(*self.coords)
-
+        self.observation = self.observation_space.ravel(*self.coords)
         return self.observation
     
     def get_state(self):
@@ -59,10 +62,12 @@ class SymbolicCursor(CursorComponent):
         self.scene_components = scene_components
         self.assembly_order = list(self.scene_components.keys())
         self.max_instances_per_scene = max_instances_per_scene
+        self.zero = next(iter(scene_components.keys())), 0, 0
         
         self.action_space = SymbolicSnapSpace({
             name:max_instances_per_scene for name in self.assembly_order})
-        self.observation_space = self.action_space
+        self.observation_space = MultiScreenInstanceSnapSpace(
+            self.assembly_order, max_instances_per_scene)
 
     def get_selected_snap(self):
         name = self.coords[0]
@@ -88,15 +93,17 @@ class SymbolicCursor(CursorComponent):
         #    return []
         
         #return [(name, instance_id, snap_id)]
+        scene_component = self.scene_components[name]
         try:
-            instance = self.scene_components[name].instances[instance_id]
+            instance = scene_component.brick_scene.instances[instance_id]
             snap = instance.snaps[snap_id]
             return [(name, instance_id, snap_id)]
-        except:
+        except (IndexError, KeyError):
             return []
     
-    def actions_to_deselect(self):
-        name = self.coords[0]
+    def actions_to_deselect(self, name=None):
+        if name is None:
+            name = self.coords[0]
         return [(name, 0, 0)]
     
     def visible_snaps(self, names=None):
@@ -117,7 +124,7 @@ class SymbolicCursor(CursorComponent):
         
         return snaps
 
-class MultiViewCursor(CursorComponent):
+class MultiScreenPixelCursor(CursorComponent):
     def __init__(self,
         max_instances_per_scene,
         pos_render_components,
@@ -134,12 +141,15 @@ class MultiViewCursor(CursorComponent):
         
         screen_dimensions = {
             n : (c.height, c.width, 2)
-            for n, c in pos_render_components.items()}
+            for n, c in pos_render_components.items()
+        }
         assert all(
             (c.height, c.width, 2) == screen_dimensions[n]
             for n, c in neg_render_components.items()
         )
-        self.action_space = MultiScreenPixelSpace(screen_dimensions)
+        self.action_space = MultiScreenPixelSpace(
+            screen_dimensions, include_no_op=True)
+        self.observation_space = MultiScreenPixelSpace(screen_dimensions)
     
     def get_selected_snap(self):
         name = self.coords[0]

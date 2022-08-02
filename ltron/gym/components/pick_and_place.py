@@ -1,7 +1,9 @@
 import numpy
 
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from gym.spaces import Discrete, Dict
+
+from ltron.gym.components.ltron_gym_component import LtronGymComponent
+from ltron.exceptions import ThisShouldNeverHappen
 
 class PickAndPlace(LtronGymComponent):
     def __init__(self,
@@ -17,43 +19,35 @@ class PickAndPlace(LtronGymComponent):
         self.max_instances_per_scene = max_instances_per_scene
         self.check_collision = check_collision
         
-        #self.observation_space = Dict({'success':Discrete(2)})
-        self.action_space = Discrete(2)
-        
-        #self.failure = {'success':False}, 0., False, {}
-    
-    #def reset(self):
-    #    #return {'success':False}
+        self.action_space = Discrete(3)
     
     def step(self, action):
-        # the return value for a failed action
         
-        # if no action was taken, return failure
+        # if no action was taken, return
         if not action:
-            #return self.failure
             return None, 0., False, {}
         
         # get the pick instance/snap
         pick_n, pick_i, pick_s = self.pick_cursor_component.get_selected_snap()
         
-        print('PICK')
-        print(pick_n, pick_i, pick_s)
-        
+        # if nothing is picked, return
         if pick_i == 0:
-            #return self.failure
             return None, 0., False, {}
         
         # get the place instance/snap
         (place_n,
          place_i,
          place_s) = self.place_cursor_component.get_selected_snap()
-        success = self.pick_and_place(
-            pick_n, pick_i, pick_s, place_n, place_i, place_s)
         
-        return {'success':success}, 0., False, None
+        # pick and place
+        self.pick_and_place(
+            action, pick_n, pick_i, pick_s, place_n, place_i, place_s)
+        
+        return None, 0., False, {}
     
     def pick_and_place(
         self,
+        action,
         pick_n,
         pick_i,
         pick_s,
@@ -61,22 +55,14 @@ class PickAndPlace(LtronGymComponent):
         place_i,
         place_s,
     ):
-        print(
-            'pick-and-placing',
-            pick_n, pick_i, pick_s, place_n, place_i, place_s,
-        )
+        # get the pick scene and instance
         pick_scene = self.scene_components[pick_n].brick_scene
         pick_instance = pick_scene.instances[pick_i]
-        place_scene = self.scene_components[place_n].brick_scene
-        '''
-        if len(place_scene.instances):
-            if place_i == 0:
-                return False
-            place_snap = place_scene.snap_tuple_to_snap((place_i, place_s))
-        else:
-            place_snap = None
-        '''
         
+        # get the place scene
+        place_scene = self.scene_components[place_n].brick_scene
+        
+        '''
         # if the place instance is 0, the instance will be placed at the origin
         if place_i == 0:
             # does this still work?
@@ -84,8 +70,29 @@ class PickAndPlace(LtronGymComponent):
         else:
             place_snap = place_scene.snap_tuple_to_snap((place_i, place_s))
             if place_snap is None:
-                #print('place invalid, breaking')
                 return False
+        '''
+        
+        # if the action is 0, do nothing
+        if action == 0:
+            return
+        
+        # if the action is 1, the brick selected by the pick cursor will be
+        # connected to the brick selected by the place cursor
+        elif action == 1:
+            place_snap = place_scene.snap_tuple_to_snap((place_i, place_s))
+            if place_snap is None:
+                return
+        
+        # if the action is 2, the scene selected by the place  cursor will be
+        # cleared and the brick selected by the pick cursor will be placed at
+        # the origin
+        elif action == 2:
+            place_snap = None
+        
+        # the action should never be something other than 0, 1 or 2
+        else:
+            raise ThisShouldNeverHappen
         
         # if the bricks are in the same scene, there is no need to transfer it
         if pick_n == place_n:
@@ -95,15 +102,28 @@ class PickAndPlace(LtronGymComponent):
         # add a matching new brick to the place scene
         else:
             
+            # make sure this will not add too many instances to the scene
             if self.max_instances_per_scene is not None:
-                if len(place_scene.instances) >= self.max_instances_per_scene:
+                '''
+                if len(place_scene.instances):
+                    max_i = max(
+                        int(instance) for instance in place_scene.instances
+                    )
+                else:
+                    max_i = 0
+                #if len(place_scene.instances) >= self.max_instances_per_scene:
+                #    return False
+                if max_i >= (self.max_instances_per_scene-1):
                     return False
+                '''
+                if (place_scene.instances.next_instance_id >
+                    self.max_instances_per_scene):
+                    return
             
             # check if the picked brick can be removed without colliding
             if self.check_collision:
                 pick_snap = pick_scene.snap_tuple_to_snap((pick_i, pick_s))
                 if pick_snap is None:
-                    #print('pick invalid, breaking')
                     return False
                 
                 collision = pick_scene.check_snap_collision(
@@ -134,14 +154,13 @@ class PickAndPlace(LtronGymComponent):
             success = False
         else:
             check_pick_collision = (self.check_collision and pick_n == place_n)
+            check_place_collision = (self.check_collision and action != 2)
             success = place_scene.pick_and_place_snap(
                 transferred_instance.snaps[pick_s],
                 place_snap,
                 check_pick_collision=check_pick_collision,
                 check_place_collision=self.check_collision,
             )
-        
-        #print('success:', success)
         
         # if we are transferring between scenes
         # we need to either remove the original pick instance on success
@@ -152,7 +171,17 @@ class PickAndPlace(LtronGymComponent):
             else:
                 place_scene.remove_instance(transferred_instance)
         
-        return success
+        # if the action is 2, remove all other bricks from the place scene
+        if success and action == 2:
+            instances_to_remove = []
+            for i, instance in place_scene.instances.items():
+                if i != transferred_instance.instance_id:
+                    instances_to_remove.append(i)
+            
+            for i in instances_to_remove:
+                place_scene.remove_instance(i)
+        
+        return
     
     def no_op_action(self):
         return 0

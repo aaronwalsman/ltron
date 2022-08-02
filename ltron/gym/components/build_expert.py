@@ -6,7 +6,7 @@ import numpy
 from gym.spaces import Box
 
 from ltron.bricks.brick_shape import BrickShape
-from ltron.bricks.snap import SnapFinger
+from ltron.bricks.snap import SnapFinger, UnsupportedSnap
 from ltron.matching import match_assemblies, compute_misaligned, matching_edges
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from ltron.geometry.utils import unscale_transform
@@ -18,20 +18,28 @@ class BuildExpert(LtronGymComponent):
         target_assembly_component,
         current_assembly_components,
         target_scene,
+        disassembly_scene,
         shape_ids,
         max_instructions=128,
+        shuffle_instructions=True,
         always_add_viewpoint_actions=False,
+        terminate_on_empty=False,
         max_actions=1000000,
     ):
+        # store variables
         self.env = env
         self.scene_components = scene_components
         self.target_scene = target_scene
+        self.disassembly_scene = disassembly_scene
         self.target_assembly_component = target_assembly_component
         self.current_assembly_components = current_assembly_components
         self.shape_names = {v:k for k,v in shape_ids.items()}
         self.max_instructions = max_instructions
+        self.shuffle_instructions = shuffle_instructions
         self.always_add_viewpoint_actions = always_add_viewpoint_actions
+        self.terminate_on_empty = terminate_on_empty
         
+        # build observation space
         self.observation_space = Box(
             low=numpy.zeros(self.max_instructions, dtype=numpy.long),
             high=numpy.full(
@@ -45,9 +53,14 @@ class BuildExpert(LtronGymComponent):
     
     def step(self, action):
         observation = self.observe()
-        return observation, 0., False, {}
+        if self.terminate_on_empty:
+            terminal = numpy.sum(observation) == 0
+        else:
+            terminal = False
+        return observation, 0., terminal, {}
     
     def observe(self):
+        # get assemblies
         current_assembly = (
             self.current_assembly_components[self.target_scene].observe())
         secondary_assemblies = {
@@ -57,31 +70,41 @@ class BuildExpert(LtronGymComponent):
         }
         target_assembly = self.target_assembly_component.observe()
         
-        actions = self.good_actions(
+        # compute the expert actions
+        actions = self.expert_actions(
             current_assembly, target_assembly, secondary_assemblies)
         
-        random.shuffle(actions)
+        # convert the expert actions to a truncated list of instructions
+        if self.shuffle_instructions:
+            random.shuffle(actions)
         actions = actions[:self.max_instructions]
         self.observation = numpy.zeros(self.max_instructions, dtype=numpy.long)
         self.observation[:len(actions)] = actions
         
+        # return
         return self.observation
     
-    def good_actions(self,
+    def expert_actions(self,
         current_assembly,
         target_assembly,
         secondary_assemblies,
     ):
         
-        print(current_assembly['shape'])
-        print(target_assembly['shape'])
-        
+        # match the current and target assemblies
         matches, offset = match_assemblies(
             current_assembly, target_assembly, self.shape_names)
         current_to_target = dict(matches)
         target_to_current = {v:k for k,v in current_to_target.items()}
-        #misaligned, false_positives, false_negatives = compute_misaligned(
-        #    matches, current_assembly, target_assembly)
+        
+        # compute the bricks that are:
+        #  - not in the correct location, but have a correct connection
+        #    (misaligned_connected)
+        #  - not in the correct location, but do not have a correct connection
+        #    (misaligned_disconnected)
+        #  - exist in the current assembly, but do not exist in the target
+        #    (false positives)
+        #  - exist in the target assembly, but do not exist in the current
+        #    (false negatives)
         (current_to_target_misaligned_connected,
          target_to_current_misaligned_connected,
          current_to_target_misaligned_disconnected,
@@ -90,28 +113,29 @@ class BuildExpert(LtronGymComponent):
          false_negatives) = compute_misaligned(
             current_assembly, target_assembly, matches)
         
-        # Is everything fine?
+        # if the current assembly matches the target assembly,
+        # then finish (switch phase)
         if not (
             len(current_to_target_misaligned_connected) or
             len(current_to_target_misaligned_disconnected) or
             len(false_positives) or
             len(false_negatives)
         ):
-            # Yes: phase
             actions = self.env.finish_actions() # first check
         
-        # Are there connected misaligned
+        # if there are bricks that are incorrectly placed, but have a correct
+        # connection, adjust the connection
         elif len(target_to_current_misaligned_connected):
             actions = self.adjust_connection(
                 current_to_target,
                 target_to_current,
                 target_to_current_misaligned_connected,
-                #current_to_target_misaligned_connected,
                 current_assembly,
                 target_assembly,
             )
         
-        # Are there disconnected misaligned
+        # if there are bricks that are incorrectly placed and do not have a
+        # correct connection, make the connection
         elif len(target_to_current_misaligned_disconnected):
             actions = self.make_connection(
                 current_to_target,
@@ -122,12 +146,18 @@ class BuildExpert(LtronGymComponent):
                 {self.target_scene:current_assembly},
             )
         
-        # Are there false positives
+        # if there false positives, remove them
         elif len(false_positives):
-            # IGNORE THIS FOR NOW
-            print('This should not happen yet')
-            raise Exception
+            actions = self.remove_false_positive(
+                current_to_target,
+                target_to_current,
+                false_positives,
+                current_assembly,
+                target_assembly,
+            )
+            return []
         
+        # if the current scene is empty, add the first brick
         elif not len(current_to_target):
             actions = self.add_first_brick(
                 false_negatives,
@@ -135,6 +165,7 @@ class BuildExpert(LtronGymComponent):
                 secondary_assemblies,
             )
         
+        # if the current scene is not empty, but is missing bricks, add a brick
         elif len(false_negatives):
             actions = self.make_connection(
                 current_to_target,
@@ -145,6 +176,7 @@ class BuildExpert(LtronGymComponent):
                 secondary_assemblies,
             )
         
+        # return
         return actions
     
     def compute_discrete_rotation(
@@ -354,10 +386,22 @@ class BuildExpert(LtronGymComponent):
         actions = []
         fn_shape_colors = []
         for target_to_fix in targets_to_fix:
+            target_pose = target_assembly['pose'][target_to_fix]
             shape = target_assembly['shape'][target_to_fix]
             color = target_assembly['color'][target_to_fix]
             
-            fn_shape_colors.append((shape, color, target_to_fix))
+            shape_name = self.shape_names[shape]
+            shape_type = BrickShape(shape_name)
+            y_axis = target_pose[:3,1]
+            scene = self.scene_components[self.target_scene].brick_scene
+            for snap in shape_type.snaps:
+                if isinstance(snap, UnsupportedSnap):
+                    continue
+                snap_y_axis = scene.upright @ snap.transform[:,1]
+                snap_y_axis = snap_y_axis[:3]
+                if numpy.dot(y_axis, snap_y_axis) > 0.99:
+                    fn_shape_colors.append((shape, color, target_to_fix))
+                    break
         
         pickable = set()
         for shape, color, target_index in fn_shape_colors:
@@ -377,6 +421,8 @@ class BuildExpert(LtronGymComponent):
                         scene = self.scene_components[name].brick_scene
                         y_axis = target_pose[:3,1]
                         for snap in scene.instances[i].brick_shape.snaps:
+                            if isinstance(snap, UnsupportedSnap):
+                                continue
                             snap_y_axis = scene.upright @ snap.transform[:,1]
                             snap_y_axis = snap_y_axis[:3]
                             if numpy.dot(y_axis, snap_y_axis) > 0.99:
@@ -428,9 +474,11 @@ class BuildExpert(LtronGymComponent):
         #palce_s = 0
         
         # if anything is selected in the place cursor, deselect it
-        if place_i != 0:
+        #if place_i != 0 or place_n != self.target_scene:
+        if place_n != self.target_scene:
             #place_actions = self.action_component.actions_to_deselect_place()
-            place_actions = self.env.actions_to_deselect_place()
+            place_actions = self.env.actions_to_deselect_place(
+                self.target_scene)
             
             if self.always_add_viewpoint_actions:
                 print('supervising viewpoint(first2):')
@@ -442,9 +490,26 @@ class BuildExpert(LtronGymComponent):
         
         # clicks are correct, it's time to pick_and_place!
         #pnp_actions = [self.action_component.pick_and_place_action()]
-        pnp_actions = [self.env.pick_and_place_action()]
+        pnp_actions = [self.env.pick_and_place_action(2)]
         return pnp_actions
     
+    
+    def remove_false_positive(self,
+        current_to_target,
+        target_to_current,
+        false_positives,
+        current_assembly,
+        target_assembly,
+    ):
+        actions = []
+        return actions
+        
+        # what shap/color combos are we trying to remove
+        fp_shape_color_snaps = []
+        
+        import pdb
+        pdb.set_trace()
+        # CONTINUE HERE
     
     def make_connection(self,
         current_to_target,
@@ -485,6 +550,16 @@ class BuildExpert(LtronGymComponent):
                         pickable[name, i, tgt_s].append(
                             #(self.target_scene, tgt_con_i, tgt_con_s))
                             (self.target_scene, cur_con_i, tgt_con_s))
+        
+        # if there are no pickable things, add the brick
+        if not len(pickable):
+            # TODO, need to filter this based on bricks that can be added next
+            insert_actions = []
+            for shape, color, i, tgt_s, tgt_con_s in fn_shape_color_snaps:
+                insert_actions.append(
+                    self.env.actions_to_insert_brick(shape, color))
+            
+            return insert_actions
         
         #pick_component = self.action_component.components['pick_cursor']
         #pick_n, pick_i, pick_s = pick_component.get_selected_snap()
@@ -548,5 +623,5 @@ class BuildExpert(LtronGymComponent):
         
         # they are both clicked, it's time to pick_and_place!
         #pnp_actions = [self.action_component.pick_and_place_action()]
-        pnp_actions = [self.env.pick_and_place_action()]
+        pnp_actions = [self.env.pick_and_place_action(1)]
         return pnp_actions

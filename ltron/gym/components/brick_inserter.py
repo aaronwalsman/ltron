@@ -1,4 +1,5 @@
-from gym.spaces import Dict, Discrete, MultiDiscrete
+from gym.spaces import Dict, Discrete
+from ltron.gym.spaces import BrickShapeColorSpace
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
@@ -15,14 +16,7 @@ class BrickInserter(LtronGymComponent):
         self.color_name_to_id = color_ids
         self.id_to_color_name = {value:key for key, value in color_ids.items()}
         
-        self.observation_space = Dict({'success' : Discrete(2)})
-        self.action_space = MultiDiscrete((
-            max(self.id_to_brick_shape.keys())+1,
-            max(self.id_to_color_name.keys())+1,
-        ))
-    
-    def reset(self):
-        return {'success' : False}
+        self.action_space = BrickShapeColorSpace(shape_ids, color_ids)
     
     def step(self, action):
         shape = action[0]
@@ -34,7 +28,7 @@ class BrickInserter(LtronGymComponent):
             shape in self.id_to_brick_shape and
             color in self.id_to_color_name
         ):
-            scene = self.hand_component.brick_scene
+            scene = self.scene_component.brick_scene
             scene.clear_instances()
             brick_shape = self.id_to_brick_shape[shape]
             color_name = self.id_to_color_name[color]
@@ -43,7 +37,7 @@ class BrickInserter(LtronGymComponent):
         else:
             success = False
         
-        return {'success' : success}, 0, False, {}
+        return None, 0., False, {}
     
     def no_op_action(self):
         return (0,0)
