@@ -14,7 +14,8 @@ def resolve_path(path):
 
 paths = {}
 datasets = {}
-collections = {}
+#collections = {}
+shards = {}
 urls = {}
 render = {}
 
@@ -37,14 +38,21 @@ def reload_settings():
             if fname.endswith('.json')
         })
         
-        collections.clear()
-        collections_path = resolve_path(settings_parser['paths']['collections'])
-        collections.update({
-            fname.replace('.tar', '') : os.path.join(collections_path, fname)
-            for fname in os.listdir(collections_path)
-            if fname.endswith('.tar')
+        #collections.clear()
+        #collections_path = resolve_path(settings_parser['paths']['collections'])
+        #collections.update({
+        #    fname.replace('.tar', '') : os.path.join(collections_path, fname)
+        #    for fname in os.listdir(collections_path)
+        #    if fname.endswith('.tar')
+        #})
+        shards.clear()
+        shards_path = resolve_path(settings_parser['paths']['shards'])
+        shards.update({
+            os.path.splitext(fname)[0] : os.path.join(shards_path, fname)
+            for fname in os.listdir(shards_path)
+            if '.tar' in fname
         })
-
+        
         urls.clear()
         urls.update({
             key : url

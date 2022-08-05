@@ -2,7 +2,9 @@ import random
 
 import numpy
 
-from ltron.dataset.paths import get_tar_paths, get_dataset_info
+#from ltron.dataset.paths import get_tar_paths, get_dataset_info
+from ltron.dataset.info import get_dataset_info
+from ltron.dataset.webdataset import get_mpd_webdataset
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class DatasetLoaderComponent(LtronGymComponent):
@@ -13,7 +15,10 @@ class DatasetLoaderComponent(LtronGymComponent):
         subset=None,
         rank=0,
         size=1,
-        sample_mode='uniform',
+        #sample_mode='uniform',
+        shuffle=False,
+        shuffle_buffer=1000,
+        repeat=False,
     ):
         self.scene_component = scene_component
         self.dataset = dataset
@@ -21,20 +26,33 @@ class DatasetLoaderComponent(LtronGymComponent):
         self.subset = subset
         self.rank = rank
         self.size = size
-        self.sample_mode = sample_mode
-        self.dataset_info = get_dataset_info(self.dataset)
+        #self.sample_mode = sample_mode
+        #self.dataset_info = get_dataset_info(self.dataset)
         
-        self.tarfiles, self.dataset_paths = get_tar_paths(
-            dataset, split, subset)
-        self.length = len(self.dataset_paths)
-        if sample_mode == 'uniform':
-            self.dataset_ids = range(self.length)
-        else:
-            self.dataset_ids = range(self.rank, self.length, self.size)
+        #self.tarfiles, self.dataset_paths = get_tar_paths(
+        #    dataset, split, subset)
+        
+        self.dataset = get_mpd_webdataset(
+            dataset,
+            split,
+            subset=subset,
+            rank=rank,
+            size=size,
+            shuffle=shuffle,
+            shuffle_buffer=shuffle_buffer,
+            repeat=repeat,
+        )
+        self.iter = iter(self.dataset)
+        
+        #self.length = len(self.dataset_paths)
+        #if sample_mode == 'uniform':
+        #    self.dataset_ids = range(self.length)
+        #else:
+        #    self.dataset_ids = range(self.rank, self.length, self.size)
         self.set_state({
             'finished':False,
-            'episode_id':None,
-            'dataset_id':None,
+            #'episode_id':None,
+            #'dataset_id':None,
         })
     
     def reset(self):
@@ -43,12 +61,13 @@ class DatasetLoaderComponent(LtronGymComponent):
         self.scene_component.clear_scene()
         
         # increment the episode id
-        if self.episode_id is None:
-            self.episode_id = 0
-        else:
-            self.episode_id += 1
+        #if self.episode_id is None:
+        #    self.episode_id = 0
+        #else:
+        #    self.episode_id += 1
         
         # pick the dataset id according to the sample_mode
+        '''
         if self.sample_mode == 'uniform':
             self.dataset_id = random.choice(self.dataset_ids)
         elif self.sample_mode in ('sequential', 'multi_pass'):
@@ -61,14 +80,25 @@ class DatasetLoaderComponent(LtronGymComponent):
                 self.finished = True
         else:
             raise ValueError('Unknown sample mode "%s"'%self.sample_mode)
+        '''
         
         if not self.finished:
             #self.dataset_item = self.dataset_paths[self.dataset_id]
             #self.scene_component.brick_scene.import_ldraw(
             #    self.zipfile.open(self.dataset_paths[self.dataset_id]))
-            tar_source, file_path = self.dataset_paths[self.dataset_id]
-            text = self.tarfiles[tar_source].extractfile(file_path).read()
-            self.scene_component.brick_scene.import_text(file_path, text)
+            
+            #tar_source, file_path = self.dataset_paths[self.dataset_id]
+            #text = self.tarfiles[tar_source].extractfile(file_path).read()
+            #self.scene_component.brick_scene.import_text(file_path, text)
+            
+            try:
+                datapoint = next(self.iter)
+            except StopIteration:
+                self.finished = True
+            else:
+                text = datapoint['mpd']
+                self.scene_component.brick_scene.import_text(
+                    datapoint['__key__'] + '.mpd', text)
         
         return None
 
@@ -78,13 +108,13 @@ class DatasetLoaderComponent(LtronGymComponent):
     def get_state(self):
         state = {
             'finished':self.finished,
-            'episode_id':self.episode_id,
-            'dataset_id':self.dataset_id,
+            #'episode_id':self.episode_id,
+            #'dataset_id':self.dataset_id,
         }
 
         return state
 
     def set_state(self, state):
         self.finished = state['finished']
-        self.episode_id = state['episode_id']
-        self.dataset_id = state['dataset_id']
+        #self.episode_id = state['episode_id']
+        #self.dataset_id = state['dataset_id']

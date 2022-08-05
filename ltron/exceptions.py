@@ -4,5 +4,8 @@ class LtronException(Exception):
 class LtronDeprecatedException(LtronException):
     pass
 
+class LtronMissingDatasetException(LtronException):
+    pass
+
 class ThisShouldNeverHappen(LtronException):
     pass

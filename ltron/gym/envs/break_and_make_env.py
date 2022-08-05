@@ -2,7 +2,7 @@ import math
 from collections import OrderedDict
 
 from ltron.config import Config
-from ltron.dataset.paths import get_dataset_info
+from ltron.dataset.info import get_dataset_info
 from ltron.gym.envs.ltron_env import LtronEnv
 from ltron.gym.components.scene import EmptySceneComponent
 from ltron.gym.components.time_step import TimeStepComponent
@@ -34,7 +34,10 @@ class BreakAndMakeEnvConfig(Config):
     
     max_episode_length = 32
     
-    dataset_sample_mode = 'uniform'
+    #dataset_sample_mode = 'uniform'
+    shuffle = True
+    shuffle_buffer = 1000
+    repeat = True
     
     randomize_colors = False
     randomize_viewpoint = True
@@ -88,7 +91,6 @@ class BreakAndMakeEnv(LtronEnv):
         )
     
     def make_scene_components(self, config, components):
-        print('Making Scene Components')
         # scenes
         components['table_scene'] = EmptySceneComponent(
             self.dataset_info['shape_ids'],
@@ -106,7 +108,7 @@ class BreakAndMakeEnv(LtronEnv):
             track_snaps=True,
             collision_checker=config.check_collision,
         )
-
+        
         # loader
         components['dataset'] = DatasetLoaderComponent(
             components['table_scene'],
@@ -115,13 +117,16 @@ class BreakAndMakeEnv(LtronEnv):
             subset=config.subset,
             rank=self.rank,
             size=self.size,
-            sample_mode=config.dataset_sample_mode,
+            shuffle=config.shuffle,
+            shuffle_buffer=config.shuffle_buffer,
+            repeat=config.repeat,
+            #sample_mode=config.dataset_sample_mode,
         )
-
+        
         # uprightify
         components['upright'] = UprightSceneComponent(
             scene_component = components['table_scene'])
-
+        
         # time step
         components['step'] = TimeStepComponent(
             config.max_episode_length, observe_step=True)
@@ -135,7 +140,6 @@ class BreakAndMakeEnv(LtronEnv):
             )
     
     def make_target_components(self, config, components):
-        print('Making Target Components')
         # target assembly
         components['target_assembly'] = AssemblyComponent(
             components['table_scene'],
@@ -148,7 +152,6 @@ class BreakAndMakeEnv(LtronEnv):
         )
     
     def make_observation_components(self, config, components):
-        print('Making Observation Components')
         if config.target_mode != 'interactive':
             scene_components = {
                 'table':components['table_scene'],
@@ -194,7 +197,6 @@ class BreakAndMakeEnv(LtronEnv):
         pass
     
     def make_visual_observation_components(self, config, components):
-        print('Making Visual Observation Components')
         table_color_render = ColorRenderComponent(
             config.table_image_width,
             config.table_image_height,
@@ -227,7 +229,6 @@ class BreakAndMakeEnv(LtronEnv):
             components['hand_color_render'] = hand_color_render
     
     def make_action_components(self, config, components):
-        print('Making Action Components')
         if config.action_mode == 'symbolic':
             self.make_symbolic_action_components(config, components)
         
@@ -277,7 +278,6 @@ class BreakAndMakeEnv(LtronEnv):
         
     
     def make_symbolic_action_components(self, config, components):
-        print('Making Symbolic Components')
         scene_components = {
             'table':components['table_scene'],
             'hand':components['hand_scene'],
@@ -295,7 +295,6 @@ class BreakAndMakeEnv(LtronEnv):
         )
     
     def make_visual_action_components(self, config, components):
-        print('Making Visual Components')
         scene_components = {
             'table':components['table_scene'],
             'hand':components['hand_scene'],
@@ -364,7 +363,7 @@ class BreakAndMakeEnv(LtronEnv):
              'hand' : components['hand_neg_snap_render']},
         )
         components['place_cursor'] = MultiScreenPixelCursor(
-            max_instances,
+            self.dataset_info['max_instances_per_scene'],
             {'table' : components['table_pos_snap_render'],
              'hand' : components['hand_pos_snap_render']},
             {'table' : components['table_neg_snap_render'],
@@ -372,7 +371,6 @@ class BreakAndMakeEnv(LtronEnv):
         )
     
     def make_reward_components(self, config, components):
-        print('Making Reward Components')
         components['reward'] = EditDistance(
             components['target_assembly'],
             components['table_assembly'],
@@ -380,7 +378,6 @@ class BreakAndMakeEnv(LtronEnv):
         )
     
     def make_expert_components(self, config, components):
-        print('Making Expert Components')
         if self.include_expert:
             scene_components = {
                 'table': components['table_scene'],

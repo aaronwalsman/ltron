@@ -21,6 +21,7 @@ setuptools.setup(
         'gdown',
         'tqdm',
         'splendor-render',
+        'webdatset',
     ],
     packages=setuptools.find_packages(),
     entry_points = {

@@ -10,6 +10,8 @@ import numpy
 import ltron.settings as settings
 from ltron.hierarchy import map_hierarchies, concatenate_lists
 
+raise Exception('Deprecated')
+
 #def resolve_subdocument(file_path):
 #    if '#' in file_path:
 #        file_path, subdocument = file_path.split('#')
@@ -110,12 +112,19 @@ def get_tar_paths(dataset, split_name, subset=None, rank=0, size=1):
     tars = {}
     paths = []
     for source in sources:
+        print('Loading: %s'%source)
+        import time
         tar = tarfile.open(source, 'r')
+        t1 = time.time()
+        import pdb
+        pdb.set_trace()
         tars[source] = tar
         source_paths = [
             (source, info.name) for info in tar.getmembers()
             if info.type != tarfile.DIRTYPE
         ]
+        t2 = time.time()
+        print('Paths:', t2 - t1)
         paths.extend(source_paths)
     
     return tars, paths[get_subset_slice(subset)]

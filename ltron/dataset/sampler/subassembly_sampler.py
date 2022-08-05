@@ -7,7 +7,6 @@ random = numpy.random.default_rng(1234567890)
 
 from pyquaternion import Quaternion
 
-from ltron.dataset.paths import get_dataset_info
 from ltron.bricks.brick_scene import BrickScene
 from ltron.bricks.snap import SnapCylinder
 from ltron.geometry.collision_sampler import get_all_transformed_snap_pairs
