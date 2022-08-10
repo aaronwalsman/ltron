@@ -14,10 +14,11 @@ def standard_transforms(
     rank=0,
     size=1,
     shuffle=False,
-    shuffle_buffer=1000,
+    shuffle_buffer=100,
     repeat=False,
 ):
     if subset is not None:
+        assert subset >= size
         dataset = dataset.slice(subset)
     if rank != 0 and size != 1:
         dataset = dataset.slice(rank, None, size)
@@ -38,10 +39,14 @@ def get_mpd_webdataset(
 
 def get_mpd_webdataset_from_shards(
     shards,
+    shuffle=False,
     **kwargs,
 ):
-    dataset = WebDataset(shards).rename(mpd='mpd;ldr;l3b')
-    dataset = standard_transforms(dataset, **kwargs)
+    # shardshuffle is set to len(shards) because the data distribution across
+    # shards may not be uniform in LTRON
+    dataset = WebDataset(
+        shards, shardshuffle=len(shards)).rename(mpd='mpd;ldr;l3b')
+    dataset = standard_transforms(dataset, shuffle=shuffle, **kwargs)
     
     return dataset
 
@@ -55,25 +60,32 @@ def get_episode_webdataset(
     shards = [settings.shards[shard] for shard in shards]
     return get_episode_dataset_from_shards(**kwargs)
 
-def get_episode_webdataset_from_shards(shards, batch_size=None, **kwargs):
+def get_episode_webdataset_from_shards(
+    shards,
+    batch_size=None,
+    batched_length=None,
+    shuffle=False,
+    **kwargs,
+):
     
     def npz_extractor(item):
         data = BytesIO(item['npz'])
         data = numpy.load(data, allow_pickle=True)['seq'].item()
         return data
     
-    def tuplefy(item):
-        return (item,)
-    
     def collate(item):
         item = [{k:v for k,v in i.items() if k != '__key__'} for i in item]
         return auto_pad_stack_numpy_hierarchies(*item, pad_axis=0, stack_axis=1)
     
-    dataset = WebDataset(shards).map(npz_extractor)
-    dataset = standard_transforms(dataset, **kwargs)
+    # shardshuffle is set to len(shards) because the data distribution across
+    # shards may not be uniform in LTRON
+    dataset = WebDataset(
+        shards, shardshuffle=len(shards)).map(npz_extractor)
+    dataset = standard_transforms(dataset, shuffle=shuffle, **kwargs)
     if batch_size is not None:
-        #dataset = dataset.map(tuplefy).batched(batch_size).map(collate)
-        #dataset = dataset.batched(batch_size).map(collate)
         dataset = dataset.batched(batch_size, collation_fn=collate)
+    
+    if batched_length is not None:
+        dataset = dataset.with_length(batched_length)
     
     return dataset

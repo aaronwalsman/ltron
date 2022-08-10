@@ -61,7 +61,7 @@ class BinaryMaskSpace(Box):
     A height x width bool array
     
     Used by:
-    spaces.MaskedTileImageSpace (component)
+    spaces.MaskedTiledImageSpace (component)
     '''
     def __init__(self, width, height):
         self.width = width
@@ -359,7 +359,14 @@ class MultiScreenPixelSpace(DiscreteLayoutSpace):
         layout = NameSpan()
         if include_no_op:
             layout.add_names(NO_OP=1)
-        layout.add_names(DESELECT=1, **screen_shapes)
+        #layout.add_names(DESELECT=1, **screen_shapes)
+        #for name in screen_shapes.keys():
+        #    layout.add_names(**{'DESELECT_%s'%name:1})
+        screen_layout = {
+            screen : NameSpan(deselect=1, screen=shape)
+            for screen, shape in screen_shapes.items()
+        }
+        layout.add_names(**screen_layout)
         
         super().__init__(layout)
     

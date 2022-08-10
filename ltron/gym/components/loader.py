@@ -17,7 +17,7 @@ class DatasetLoaderComponent(LtronGymComponent):
         size=1,
         #sample_mode='uniform',
         shuffle=False,
-        shuffle_buffer=1000,
+        shuffle_buffer=100,
         repeat=False,
     ):
         self.scene_component = scene_component
@@ -26,29 +26,33 @@ class DatasetLoaderComponent(LtronGymComponent):
         self.subset = subset
         self.rank = rank
         self.size = size
+        self.shuffle = shuffle
+        self.shuffle_buffer = shuffle_buffer
+        self.repeat = repeat
         #self.sample_mode = sample_mode
         #self.dataset_info = get_dataset_info(self.dataset)
         
         #self.tarfiles, self.dataset_paths = get_tar_paths(
         #    dataset, split, subset)
         
-        self.dataset = get_mpd_webdataset(
-            dataset,
-            split,
-            subset=subset,
-            rank=rank,
-            size=size,
-            shuffle=shuffle,
-            shuffle_buffer=shuffle_buffer,
-            repeat=repeat,
-        )
-        self.iter = iter(self.dataset)
-        
         #self.length = len(self.dataset_paths)
         #if sample_mode == 'uniform':
         #    self.dataset_ids = range(self.length)
         #else:
         #    self.dataset_ids = range(self.rank, self.length, self.size)
+        
+        self.dataset = get_mpd_webdataset(
+            self.dataset,
+            self.split,
+            subset=self.subset,
+            rank=self.rank,
+            size=self.size,
+            shuffle=self.shuffle,
+            shuffle_buffer=self.shuffle_buffer,
+            repeat=self.repeat,
+        )
+        self.iter = iter(self.dataset)
+        
         self.set_state({
             'finished':False,
             #'episode_id':None,

@@ -17,6 +17,7 @@ class CursorComponent(LtronGymComponent):
     
     def reset(self):
         if self.randomize_starting_position:
+            # NO_OP is always element 0, so start at 1
             action = random.randint(1, self.action_space.n-1)
             coords = self.action_space.unravel(action)
             self.set_cursor(*coords)
@@ -137,7 +138,7 @@ class MultiScreenPixelCursor(CursorComponent):
         self.max_instances_per_scene = max_instances_per_scene
         self.pos_render_components = pos_render_components
         self.neg_render_components = neg_render_components
-        self.zero = next(iter(pos_render_components.keys())), 0, 0, 0
+        self.zero = next(iter(pos_render_components.keys())), 'deselect', 0
         
         screen_dimensions = {
             n : (c.height, c.width, 2)
@@ -152,11 +153,14 @@ class MultiScreenPixelCursor(CursorComponent):
         self.observation_space = MultiScreenPixelSpace(screen_dimensions)
     
     def get_selected_snap(self):
-        name = self.coords[0]
-        if name == 'DESELECT':
-            return next(iter(self.pos_render_components.keys())), 0, 0
+        name, mode = self.coords[:2]
+        #if name.startswith('DESELECT_'):
+        #    screen = name.replace('DESELECT_', '')
+        #    return screen, 0, 0
+        if mode == 'deselect':
+            return name, 0, 0
         
-        name, y, x, p = self.coords
+        name, mode, y, x, p = self.coords
         if p:
             render_component = self.pos_render_components[name]
         else:
@@ -177,12 +181,18 @@ class MultiScreenPixelCursor(CursorComponent):
                 (snap_map[:,:,1] == snap)
             )
             for y, x in zip(ys, xs):
-                actions.append(self.action_space.ravel(screen_name, y, x, p))
+                #actions.append(self.action_space.ravel(screen_name, y, x, p))
+                actions.append((screen_name, 'screen', y, x, p))
         
         return actions
     
-    def actions_to_deselect(self):
-        return [('DESELECT', 0)]
+    def actions_to_deselect(self, name=None):
+        if name is None:
+            name = self.coords[0]
+        return [(name, 'deselect', 0)]
+        #if not name.startswith('DESELECT_'):
+        #    name = 'DESELECT_%s'%name
+        #return [(name, 0)]
     
     def visible_snaps(self, names=None):
         snaps = set()

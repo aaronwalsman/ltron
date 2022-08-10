@@ -36,7 +36,7 @@ class BreakAndMakeEnvConfig(Config):
     
     #dataset_sample_mode = 'uniform'
     shuffle = True
-    shuffle_buffer = 1000
+    shuffle_buffer = 100
     repeat = True
     
     randomize_colors = False
@@ -197,14 +197,14 @@ class BreakAndMakeEnv(LtronEnv):
         pass
     
     def make_visual_observation_components(self, config, components):
-        table_color_render = ColorRenderComponent(
+        components['table_color_render'] = ColorRenderComponent(
             config.table_image_width,
             config.table_image_height,
             components['table_scene'],
             anti_alias=True,
             observable=False,
         )
-        hand_color_render = ColorRenderComponent(
+        components['hand_color_render'] = ColorRenderComponent(
             config.hand_image_width,
             config.hand_image_height,
             components['hand_scene'],
@@ -216,17 +216,17 @@ class BreakAndMakeEnv(LtronEnv):
             components['table_color_tiles'] = DeduplicateTileMaskComponent(
                 config.tile_width,
                 config.tile_height,
-                table_color_render,
+                components['table_color_render'],
             )
             components['hand_color_tiles'] = DeduplicateTileMaskComponent(
                 config.tile_width,
                 config.tile_height,
-                hand_color_render,
+                components['hand_color_render'],
             )
         
-        else:
-            components['table_color_render'] = table_color_render
-            components['hand_color_render'] = hand_color_render
+        #else:
+        #    components['table_color_render'] = table_color_render
+        #    components['hand_color_render'] = hand_color_render
     
     def make_action_components(self, config, components):
         if config.action_mode == 'symbolic':

@@ -94,6 +94,7 @@ class LtronEnv(gym.Env):
             component_observation = component.reset()
             if component_name in self.observation_space.spaces:
                 observation[component_name] = component_observation
+        
         return observation
     
     @traceback_decorator

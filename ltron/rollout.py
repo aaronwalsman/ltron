@@ -34,6 +34,7 @@ def rollout(
     
     # reset
     observation = env.reset()
+    
     terminal = numpy.ones(b, dtype=numpy.bool)
     reward = numpy.zeros(env.num_envs)
     
