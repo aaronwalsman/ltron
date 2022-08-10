@@ -345,13 +345,13 @@ class BuildExpert(LtronGymComponent):
                 pick_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(pick_actions):
-                print('supervising viewpoint (fr):')
-                import pdb
-                pdb.set_trace()
+                #print('supervising viewpoint (fr):')
+                #import pdb
+                #pdb.set_trace()
                 for n in pick_names:
                     view_actions = self.env.all_component_actions(
                         n + '_viewpoint')
-                    print(view_actions)
+                    #print(view_actions)
                     pick_actions.extend(view_actions)
             return pick_actions
         
@@ -454,14 +454,14 @@ class BuildExpert(LtronGymComponent):
                 pick_names.append(n)
 
             if self.always_add_viewpoint_actions or not len(pick_actions):
-                print('supervising viewpoint(first):')
-                import pdb
-                pdb.set_trace()
+                #print('supervising viewpoint(first):')
+                #import pdb
+                #pdb.set_trace()
                 for n in pick_names:
                     #view_actions = self.action_component.all_component_actions(
                     view_actions = self.env.all_component_actions(
                             n + '_viewpoint')
-                    print(view_actions)
+                    #print(view_actions)
                     pick_actions.extend(view_actions)
 
             return pick_actions
@@ -481,10 +481,11 @@ class BuildExpert(LtronGymComponent):
                 self.target_scene)
             
             if self.always_add_viewpoint_actions:
-                print('supervising viewpoint(first2):')
-                import pdb
-                pdb.set_trace()
+                #print('supervising viewpoint(first2):')
+                #import pdb
+                #pdb.set_trace()
                 # TODO
+                pass
             
             return place_actions
         
@@ -577,14 +578,14 @@ class BuildExpert(LtronGymComponent):
                 pick_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(pick_actions):
-                print('supervising viewpoint(fpnp):')
-                import pdb
-                pdb.set_trace()
+                #print('supervising viewpoint(fpnp):')
+                #import pdb
+                #pdb.set_trace()
                 for n in pick_names:
                     #view_actions = self.action_component.all_component_actions(
                     view_actions = self.env.all_component_actions(
                             n + '_viewpoint')
-                    print(view_actions)
+                    #print(view_actions)
                     pick_actions.extend(view_actions)
             
             return pick_actions
@@ -610,14 +611,14 @@ class BuildExpert(LtronGymComponent):
                 place_names.append(n)
             
             if self.always_add_viewpoint_actions or not len(place_actions):
-                print('supervising viewpoint(fpnp2):')
-                import pdb
-                pdb.set_trace()
+                #print('supervising viewpoint(fpnp2):')
+                #import pdb
+                #pdb.set_trace()
                 for n in place_names:
                     #view_actions = self.action_component.all_component_actions(
                     view_actions = self.env.all_component_actions(
                             n + '_viewpoint')
-                    print(view_actions)
+                    #print(view_actions)
                     place_actions.extend(view_actions)
             return place_actions
         
