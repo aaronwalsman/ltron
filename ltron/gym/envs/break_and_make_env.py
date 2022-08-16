@@ -58,6 +58,7 @@ class BreakAndMakeEnvConfig(Config):
     max_instructions = 128
     shuffle_instructions = True
     expert_always_add_viewpoint_actions = False
+    early_termination = False
 
 class BreakAndMakeEnv(LtronEnv):
     def __init__(
@@ -88,6 +89,8 @@ class BreakAndMakeEnv(LtronEnv):
             components,
             combine_action_space='discrete_chain',
             print_traceback=print_traceback,
+            early_termination=config.early_termination & include_expert,
+            expert_component='expert',
         )
     
     def make_scene_components(self, config, components):
@@ -318,7 +321,7 @@ class BreakAndMakeEnv(LtronEnv):
                 scene_width,
                 scene_component,
                 polarity='+',
-                update_frequency='on_demand',
+                update_frequency='always',#'on_demand',
                 observable=False,
             )
             components['%s_neg_snap_render'%name] = SnapRenderComponent(
@@ -326,7 +329,7 @@ class BreakAndMakeEnv(LtronEnv):
                 scene_width,
                 scene_component,
                 polarity='-',
-                update_frequency='on_demand',
+                update_frequency='always',#'on_demand',
                 observable=False,
             )
 
@@ -439,8 +442,13 @@ class BreakAndMakeEnv(LtronEnv):
     def actions_to_deselect_place(self, *args, **kwargs):
         return self.actions_to_deselect('place_cursor', *args, **kwargs)
     
-    def all_component_actions(self, component):
-        return list(range(*self.action_space.name_range(component)))
+    def all_component_actions(self, component, include_no_op=True):
+        start, stop = self.action_space.name_range(component)
+        if include_no_op:
+            return list(range(start, stop))
+        else:
+            return [r for r in range(start, stop)
+                if r != start + self.components[component].no_op_action()]
     
     def rotate_action(self, r):
         return self.action_space.ravel('rotate', r)
