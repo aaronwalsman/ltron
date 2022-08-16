@@ -2,7 +2,7 @@ import random
 
 import numpy
 
-from gym.spaces import Dict, Discrete, MultiDiscrete
+from gym.spaces import Dict, Discrete
 from ltron.gym.spaces import (
     MultiScreenPixelSpace,
     MultiScreenInstanceSnapSpace,
@@ -12,8 +12,12 @@ from ltron.gym.spaces import (
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class CursorComponent(LtronGymComponent):
-    def __init__(self, randomize_starting_position=True):
+    def __init__(self,
+        randomize_starting_position=True,
+        observe_selected=True,
+    ):
         self.randomize_starting_position = randomize_starting_position
+        self.observe_selected=observe_selected
     
     def reset(self):
         if self.randomize_starting_position:
@@ -38,7 +42,13 @@ class CursorComponent(LtronGymComponent):
         self.coords = coords
     
     def observe(self):
-        self.observation = self.observation_space.ravel(*self.coords)
+        self.observation = {
+            'position':self.observation_space['position'].ravel(*self.coords)
+        }
+        if self.observe_selected:
+            nis = self.get_selected_snap()
+            i = nis[-2]
+            self.observation['selected'] = i != 0
         return self.observation
     
     def get_state(self):
@@ -56,9 +66,11 @@ class SymbolicCursor(CursorComponent):
         scene_components,
         max_instances_per_scene,
         randomize_starting_position=True,
+        observe_selected=True,
     ):
         super().__init__(
             randomize_starting_position=randomize_starting_position,
+            observe_selected=observe_selected,
         )
         self.scene_components = scene_components
         self.assembly_order = list(self.scene_components.keys())
@@ -67,8 +79,13 @@ class SymbolicCursor(CursorComponent):
         
         self.action_space = SymbolicSnapSpace({
             name:max_instances_per_scene for name in self.assembly_order})
-        self.observation_space = MultiScreenInstanceSnapSpace(
-            self.assembly_order, max_instances_per_scene)
+        observation_space = {
+            'position':MultiScreenInstanceSnapSpace(
+                self.assembly_order, max_instances_per_scene)
+        }
+        if self.observe_selected:
+            observation_space['selected'] = Discrete(2)
+        self.observation_space = Dict(observation_space)
 
     def get_selected_snap(self):
         name = self.coords[0]
@@ -131,9 +148,11 @@ class MultiScreenPixelCursor(CursorComponent):
         pos_render_components,
         neg_render_components,
         randomize_starting_position=True,
+        observe_selected=True,
     ):
         super().__init__(
-            randomize_starting_position=randomize_starting_position
+            randomize_starting_position=randomize_starting_position,
+            observe_selected=observe_selected,
         )
         self.max_instances_per_scene = max_instances_per_scene
         self.pos_render_components = pos_render_components
@@ -150,7 +169,12 @@ class MultiScreenPixelCursor(CursorComponent):
         )
         self.action_space = MultiScreenPixelSpace(
             screen_dimensions, include_no_op=True)
-        self.observation_space = MultiScreenPixelSpace(screen_dimensions)
+        observation_space = {
+            'position' : MultiScreenPixelSpace(screen_dimensions)
+        }
+        if observe_selected:
+            observation_space['selected'] = Discrete(2)
+        self.observation_space = Dict(observation_space)
     
     def get_selected_snap(self):
         name, mode = self.coords[:2]
