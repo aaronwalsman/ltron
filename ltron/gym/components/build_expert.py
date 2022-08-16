@@ -9,7 +9,12 @@ from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.snap import SnapFinger, UnsupportedSnap
 from ltron.matching import match_assemblies, compute_misaligned, matching_edges
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
-from ltron.geometry.utils import unscale_transform
+from ltron.geometry.utils import (
+    unscale_transform,
+    matrix_angle_close_enough,
+    matrix_rotation_axis,
+    vector_angle_close_enough,
+)
 
 class BuildExpert(LtronGymComponent):
     def __init__(self,
@@ -93,6 +98,10 @@ class BuildExpert(LtronGymComponent):
         # match the current and target assemblies
         matches, offset = match_assemblies(
             current_assembly, target_assembly, self.shape_names)
+        
+        #current_instances = numpy.where(current_assembly['shape'] != 0)[0]
+        #print(current_instances)
+        
         current_to_target = dict(matches)
         target_to_current = {v:k for k,v in current_to_target.items()}
         
@@ -165,6 +174,14 @@ class BuildExpert(LtronGymComponent):
                 secondary_assemblies,
             )
         
+        #elif len(current_to_target) == 1 and not matrix_angle_close_enough(
+        #    numpy.eye(4), offset, math.radians(5)
+        #):
+        #    actions = self.rotate_first_brick(
+        #        current_assembly,
+        #        offset,
+        #    )
+        
         # if the current scene is not empty, but is missing bricks, add a brick
         elif len(false_negatives):
             actions = self.make_connection(
@@ -179,11 +196,58 @@ class BuildExpert(LtronGymComponent):
         # return
         return actions
     
-    def compute_discrete_rotation(
+    def rotate_first_brick(
+        self,
+        current_assembly,
+        offset,
+        rotation_steps=4,
+    ):
+        current_instance = numpy.where(current_assembly['shape'] != 0)[0][0]
+        offset_axis = matrix_rotation_axis(offset)
+        
+        shape_id = current_assembly['shape'][current_instance]
+        brick_shape_name = self.shape_names[shape_id]
+        brick_shape = BrickShape(brick_shape_name)
+        rotatable_snaps = []
+        for i, snap in enumerate(brick_shape.snaps):
+            snap_axis = snap.transform[:3,:3] @ [0,1,0]
+            if vector_angle_close_enough(
+                offset_axis, snap_axis, math.radians(5), allow_negative=True
+            ):
+                rotatable_snaps.append(i)
+        
+        # if one of these snaps is not already picked, pick one of them
+        pick_n, pick_i, pick_s = self.env.get_pick_snap()
+        if (pick_n != self.target_scene or
+            pick_i != current_instance or
+            pick_s not in rotatable_snaps
+        ):
+            pick_actions = []
+            for rotatable_snap in rotatable_snaps:
+                pick_actions.extend(self.env.actions_to_pick_snap(
+                    self.target_scene,
+                    current_instance,
+                    rotatable_snap,
+                ))
+            
+            return pick_actions
+        
+        else:
+            current_transform = current_assembly['pose'][current_instance]
+            r = self.compute_discrete_rotation(
+                shape_id,
+                pick_s,
+                offset,
+                numpy.eye(4),
+                rotation_steps=rotation_steps,
+            )
+            return [self.env.rotate_action(r)]
+    
+    def compute_attached_discrete_rotation(
         self,
         target_assembly,
         current_assembly,
-        snap,
+        snap_id,
         target_instance,
         target_connected_instance,
         current_instance,
@@ -204,23 +268,43 @@ class BuildExpert(LtronGymComponent):
         current_transform = current_assembly['pose'][current_instance]
         connected_current_transform = current_assembly['pose'][
             current_connected_instance]
-        inv_connected_current_transform = numpy.linalg.inv(
-            connected_current_transform)
-        current_offset = (
-            numpy.linalg.inv(connected_current_transform) @
-            current_transform
-        )
+        #inv_connected_current_transform = numpy.linalg.inv(
+        #    connected_current_transform)
+        #current_offset = (
+        #    numpy.linalg.inv(connected_current_transform) @
+        #    current_transform
+        #)
         
-        shape_index = target_assembly['shape'][target_instance]
-        brick_shape_name = self.shape_names[shape_index]
+        shape_id = target_assembly['shape'][target_instance]
+        target_transform = connected_current_transform @ target_offset
+        
+        return self.compute_discrete_rotation(
+            shape_id,
+            snap_id,
+            current_transform,
+            target_transform,
+            rotation_steps=rotation_steps,
+        )
+    
+    def compute_discrete_rotation(
+        self,
+        shape_id,
+        snap_id,
+        current_transform,
+        target_transform,
+        #target_offset,
+        rotation_steps=4,
+    ):
+        brick_shape_name = self.shape_names[shape_id]
         brick_shape = BrickShape(brick_shape_name)
-        snap_transform = brick_shape.snaps[snap].transform
+        snap_transform = brick_shape.snaps[snap_id].transform
         inv_snap_transform = numpy.linalg.inv(snap_transform)
         current_snap_transform = current_transform @ snap_transform
-
-        target_r = unscale_transform(target_offset)
         
-        offsets = []
+        #target_r = unscale_transform(target_offset)
+        target_r = unscale_transform(target_transform)[:3,:3]
+        
+        candidates = []
         for r in range(rotation_steps):
             c = math.cos(r * math.pi * 2 / rotation_steps)
             s = math.sin(r * math.pi * 2 / rotation_steps)
@@ -230,17 +314,22 @@ class BuildExpert(LtronGymComponent):
                 [-s, 0, c, 0],
                 [ 0, 0, 0, 1],
             ])
-            offset = (
-                inv_connected_current_transform @
+            #offset = (
+            #    inv_connected_current_transform @
+            #    current_snap_transform @
+            #    ry @
+            #    inv_snap_transform
+            #)
+            offset_transform = (
                 current_snap_transform @
                 ry @
                 inv_snap_transform
             )
-            offset_r = unscale_transform(offset)
-            t = numpy.trace(offset_r[:3,:3].T @ target_r[:3,:3])
-            offsets.append((t,r,offset))
+            offset_r = unscale_transform(offset_transform)[:3,:3]
+            t = numpy.trace(offset_r.T @ target_r)
+            candidates.append((t,r,offset_transform))
 
-        snap_style = brick_shape.snaps[snap]
+        snap_style = brick_shape.snaps[snap_id]
         if isinstance(snap_style, SnapFinger):
             flip_rotation = numpy.array([
                 [-1, 0, 0, 0],
@@ -257,19 +346,19 @@ class BuildExpert(LtronGymComponent):
                     [-s, 0, c, 0],
                     [ 0, 0, 0, 1],
                 ])
-                offset = (
+                offset_transform = (
                     inv_connected_current_transform @
                     current_snap_transform @
                     ry @
                     flip_rotation @
                     inv_snap_transform
                 )
-                offset_r = unscale_transform(offset)
-                t = numpy.trace(offset_r[:3,:3].T @ target_r[:3,:3])
-                offsets.append((t,r+rotation_steps,offset))
+                offset_r = unscale_transform(offset_transform)[:3,:3]
+                t = numpy.trace(offset_r.T @ target_r)
+                candidates.append((t,r+rotation_steps,offset_transform))
 
-        return max(offsets)[1]
-
+        return max(candidates)[1]
+    
     def adjust_connection(self,
         current_to_target,
         target_to_current,
@@ -336,6 +425,10 @@ class BuildExpert(LtronGymComponent):
         pick_n, pick_i, pick_s = self.env.get_pick_snap()
         
         if (pick_n, pick_i, pick_s) not in pickable:
+            
+            #print('PICKABLE')
+            #print(pickable)
+            
             pick_actions = []
             pick_names = []
             for n, i, s in pickable:
@@ -350,14 +443,14 @@ class BuildExpert(LtronGymComponent):
                 #pdb.set_trace()
                 for n in pick_names:
                     view_actions = self.env.all_component_actions(
-                        n + '_viewpoint')
+                        n + '_viewpoint', include_no_op=False)
                     #print(view_actions)
                     pick_actions.extend(view_actions)
             return pick_actions
         
         # it's already clicked, it's time to rotate!
         n, tgt_i, tgt_con_i, tgt_con_s = pickable[pick_n, pick_i, pick_s][0]
-        r = self.compute_discrete_rotation(
+        r = self.compute_attached_discrete_rotation(
             target_assembly,
             current_assembly,
             pick_s,
@@ -460,7 +553,7 @@ class BuildExpert(LtronGymComponent):
                 for n in pick_names:
                     #view_actions = self.action_component.all_component_actions(
                     view_actions = self.env.all_component_actions(
-                            n + '_viewpoint')
+                            n + '_viewpoint', include_no_op=False)
                     #print(view_actions)
                     pick_actions.extend(view_actions)
 
@@ -571,8 +664,6 @@ class BuildExpert(LtronGymComponent):
             pick_names = []
             for n, i, s in pickable:
                 pick_actions.extend(
-                    #self.action_component.actions_to_place_snap(n, i, s)
-                    #self.action_component.actions_to_pick_snap(n, i, s)
                     self.env.actions_to_pick_snap(n, i, s)
                 )
                 pick_names.append(n)
@@ -581,12 +672,19 @@ class BuildExpert(LtronGymComponent):
                 #print('supervising viewpoint(fpnp):')
                 #import pdb
                 #pdb.set_trace()
-                for n in pick_names:
+                for n in set(pick_names):
                     #view_actions = self.action_component.all_component_actions(
                     view_actions = self.env.all_component_actions(
-                            n + '_viewpoint')
+                            n + '_viewpoint', include_no_op=False)
                     #print(view_actions)
                     pick_actions.extend(view_actions)
+                print('adding viewpoint actions!')
+                print(pick_actions)
+                print(pickable)
+                for n, i, s in pickable:
+                    a = self.env.actions_to_pick_snap(n, i, s)
+                    print(' ', n, i, s, ':', a)
+                print('-------------------')
             
             return pick_actions
         
@@ -617,7 +715,7 @@ class BuildExpert(LtronGymComponent):
                 for n in place_names:
                     #view_actions = self.action_component.all_component_actions(
                     view_actions = self.env.all_component_actions(
-                            n + '_viewpoint')
+                            n + '_viewpoint', include_no_op=False)
                     #print(view_actions)
                     place_actions.extend(view_actions)
             return place_actions
