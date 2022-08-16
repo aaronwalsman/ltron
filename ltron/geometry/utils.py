@@ -8,10 +8,21 @@ def metric_close_enough(a, b, tolerance):
     return squared_distance(a,b) <= tolerance**2
 
 def matrix_angle_close_enough(a, b, max_angular_distance):
+    a = a[:3,:3]
+    b = b[:3,:3]
     trace_threshold = 1. + 2. * math.cos(max_angular_distance)
     r = a @ b.T
     t = numpy.trace(r)
     return t > trace_threshold
+
+def matrix_rotation_axis(a):
+    a = a[:3,:3]
+    s = a - a.T
+    axis = numpy.array([a[2,1], a[0,2], a[1,0]])
+    if numpy.all(axis == 0):
+        return axis
+    else:
+        return axis / numpy.linalg.norm(axis)
 
 def vector_angle_close_enough(a, b, max_angular_distance, allow_negative=False):
     dot_threshold = math.cos(max_angular_distance)
