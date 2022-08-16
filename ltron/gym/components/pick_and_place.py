@@ -84,7 +84,7 @@ class PickAndPlace(LtronGymComponent):
             if place_snap is None:
                 return
         
-        # if the action is 2, the scene selected by the place  cursor will be
+        # if the action is 2, the scene selected by the place cursor will be
         # cleared and the brick selected by the pick cursor will be placed at
         # the origin
         elif action == 2:
