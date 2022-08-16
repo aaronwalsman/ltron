@@ -127,7 +127,20 @@ def match_assemblies(
                     # not be connected after this better alignment, so now we
                     # need to consider them again.  As convoluted as this is,
                     # it saves a ton of computation.
-                    if len(best_sym_matches) > len(best_matches):
+                    new_best = len(best_sym_matches)
+                    old_best = len(best_matches)
+                    #if (new_best > old_best or
+                    #    (new_best == old_best and
+                    #     best_alignment is not None and
+                    #     a < best_alignment[0]
+                    #    )
+                    #):
+                    #    if (new_best == old_best and
+                    #        best_alignment is not None and
+                    #        a < best_alignment[0]
+                    #    ):
+                    #        print('DOING THE THING', a, best_alignment)
+                    if new_best > old_best:
                         best_alignment = (a,b)
                         best_matches.clear()
                         best_matches.update(best_sym_matches)
