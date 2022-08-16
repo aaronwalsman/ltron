@@ -30,10 +30,16 @@ class LtronEnv(gym.Env):
         self,
         components,
         combine_action_space='dict',
+        early_termination=False,
+        expert_component=None,
         print_traceback=False,
     ):
         self.components = components
         self.combine_action_space = combine_action_space
+        self.early_termination = early_termination
+        self.expert_component = expert_component
+        if early_termination:
+            assert self.expert_component is not None
         self.print_traceback = print_traceback
         
         # build the observation space
@@ -95,7 +101,18 @@ class LtronEnv(gym.Env):
             if component_name in self.observation_space.spaces:
                 observation[component_name] = component_observation
         
+        if self.early_termination:
+            self.update_early_termination_actions(observation)
+        
         return observation
+    
+    @traceback_decorator
+    def update_early_termination_actions(self, observation):
+        self.expert_actions = observation[self.expert_component]
+    
+    @traceback_decorator
+    def check_early_termination(self, action):
+        return action not in self.expert_actions
     
     @traceback_decorator
     def check_action(self, action):
@@ -175,6 +192,10 @@ class LtronEnv(gym.Env):
             terminal |= t
             if i is not None:
                 info[component_name] = i
+        
+        if self.early_termination:
+            terminal |= self.check_early_termination(action)
+            self.update_early_termination_actions(observation)
         
         return observation, reward, terminal, info
     
