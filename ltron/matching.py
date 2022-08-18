@@ -20,8 +20,8 @@ def match_assemblies(
     Computes the rigid offset between two assemblies that brings as many of
     their bricks into alignment as possible.  The naive implementation would
     use N^2 checks to test the offset between every pairwise combination of
-    bricks in assembly_a and assembly_b.  However we throw a bunch of clever
-    hacks as this to make this much more manageable.  The worst case is
+    bricks in assembly_a and assembly_b.  However we throw a bunch of
+    hacks at this to make this much more manageable.  The worst case is
     probably still N^2, but this should only come up in pathological cases.
     
     This is optimized for the case where assembly_b is larger than assembly_a.
@@ -65,7 +65,12 @@ def match_assemblies(
                 for b in instance_indices_b:
                     # If a and b are matched under the current best offset
                     # even if they are not matched to each other, don't
-                    # consider this offset.
+                    # consider this offset.  This is valid because if a and b
+                    # matched each other and had a better score than the current
+                    # matching, then there must be other bricks not currently
+                    # matching, but that would be matching when a and b were
+                    # matched.  We can skip this check because we will find that
+                    # matching when checking the other bricks.
                     if a in matched_a and b in matched_b:
                         continue
                     
@@ -90,24 +95,16 @@ def match_assemblies(
                     best_sym_matches = []
                     for symmetry_pose in symmetry_poses:
                         a_to_b = pose_b @ numpy.linalg.inv(symmetry_pose)
-                        transformed_a = numpy.matmul(a_to_b, assembly_a['pose'])
                         
-                        # Compute the closeset points.
-                        pos_a = transformed_a[:,:3,3]
-                        matches = kdtree.query_ball_point(pos_a, radius)
-                        
-                        # If the number of matches is less than the current best
-                        # skip the validation step.
-                        potential_matches = sum(
-                            1 for s, m in zip(assembly_a['shape'], matches)
-                            if len(m) and s != 0
+                        valid_matches = find_matches_under_transform(
+                            assembly_a,
+                            assembly_b,
+                            part_names,
+                            a_to_b,
+                            kdtree,
+                            radius,
+                            min_matches=len(best_matches),
                         )
-                        if potential_matches <= len(best_matches):
-                            continue
-                        
-                        # Validate the matches.
-                        valid_matches = validate_matches(
-                            assembly_a, assembly_b, matches, a_to_b, part_names)
                         
                         # Update the set of tested matches with everything
                         # that was matched in this comparison, this avoids
@@ -129,17 +126,6 @@ def match_assemblies(
                     # it saves a ton of computation.
                     new_best = len(best_sym_matches)
                     old_best = len(best_matches)
-                    #if (new_best > old_best or
-                    #    (new_best == old_best and
-                    #     best_alignment is not None and
-                    #     a < best_alignment[0]
-                    #    )
-                    #):
-                    #    if (new_best == old_best and
-                    #        best_alignment is not None and
-                    #        a < best_alignment[0]
-                    #    ):
-                    #        print('DOING THE THING', a, best_alignment)
                     if new_best > old_best:
                         best_alignment = (a,b)
                         best_matches.clear()
@@ -162,6 +148,36 @@ def match_assemblies(
     
     # Return.
     return best_matches, best_offset
+
+def find_matches_under_transform(
+    assembly_a,
+    assembly_b,
+    part_names,
+    a_to_b,
+    kdtree,
+    radius=0.01,
+    min_matches=-1,
+):
+    transformed_a = numpy.matmul(a_to_b, assembly_a['pose'])
+    
+    # Compute the closeset points.
+    pos_a = transformed_a[:,:3,3]
+    matches = kdtree.query_ball_point(pos_a, radius)
+    
+    # If the number of matches is less than the current best
+    # skip the validation step.
+    potential_matches = sum(
+        1 for s, m in zip(assembly_a['shape'], matches)
+        if len(m) and s != 0
+    )
+    if potential_matches <= min_matches:
+        return []
+    
+    # Validate the matches.
+    valid_matches = validate_matches(
+        assembly_a, assembly_b, matches, a_to_b, part_names)
+    
+    return valid_matches
 
 def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
     # Ensure that shapes match, colors match, poses match and that each brick
