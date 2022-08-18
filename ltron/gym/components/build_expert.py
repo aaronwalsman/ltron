@@ -3,11 +3,18 @@ import math
 
 import numpy
 
+from scipy.spatial import cKDTree
+
 from gym.spaces import Box
 
 from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.snap import SnapFinger, UnsupportedSnap
-from ltron.matching import match_assemblies, compute_misaligned, matching_edges
+from ltron.matching import (
+    match_assemblies,
+    find_matches_under_transform,
+    compute_misaligned,
+    matching_edges,
+)
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from ltron.geometry.utils import (
     unscale_transform,
@@ -28,6 +35,7 @@ class BuildExpert(LtronGymComponent):
         max_instructions=128,
         shuffle_instructions=True,
         always_add_viewpoint_actions=False,
+        align_orientation=False,
         terminate_on_empty=False,
         max_actions=1000000,
     ):
@@ -42,6 +50,7 @@ class BuildExpert(LtronGymComponent):
         self.max_instructions = max_instructions
         self.shuffle_instructions = shuffle_instructions
         self.always_add_viewpoint_actions = always_add_viewpoint_actions
+        self.align_orientation = align_orientation
         self.terminate_on_empty = terminate_on_empty
         
         # build observation space
@@ -96,8 +105,33 @@ class BuildExpert(LtronGymComponent):
     ):
         
         # match the current and target assemblies
+        if self.align_orientation:
+            instance_ids = numpy.where(current_assembly['shape'])[0]
+            if len(instance_ids):
+                first_instance = instance_ids[0]
+                match_assembly = {
+                    'shape' : current_assembly['shape'][:first_instance+1],
+                    'color' : current_assembly['color'][:first_instance+1],
+                    'pose' : current_assembly['pose'][:first_instance+1],
+                }
+            else:
+                match_assembly = current_assembly
+            kdtree = cKDTree(target_assembly['pose'][:,:3,3])
+        else:
+            match_assembly = current_assembly
+            kdtree = None
+        
         matches, offset = match_assemblies(
-            current_assembly, target_assembly, self.shape_names)
+            match_assembly, target_assembly, self.shape_names, kdtree=kdtree)
+        
+        if self.align_orientation:
+            matches = find_matches_under_transform(
+                current_assembly,
+                target_assembly,
+                self.shape_names,
+                offset,
+                kdtree,
+            )
         
         #current_instances = numpy.where(current_assembly['shape'] != 0)[0]
         #print(current_instances)
@@ -164,6 +198,8 @@ class BuildExpert(LtronGymComponent):
                 current_assembly,
                 target_assembly,
             )
+            # no, just kidding, don't handle this?
+            print('false positives?')
             return []
         
         # if the current scene is empty, add the first brick
@@ -174,13 +210,16 @@ class BuildExpert(LtronGymComponent):
                 secondary_assemblies,
             )
         
-        #elif len(current_to_target) == 1 and not matrix_angle_close_enough(
-        #    numpy.eye(4), offset, math.radians(5)
-        #):
-        #    actions = self.rotate_first_brick(
-        #        current_assembly,
-        #        offset,
-        #    )
+        elif (
+            len(current_to_target) == 1
+            and self.align_orientation
+            and not matrix_angle_close_enough(
+                numpy.eye(4), offset, math.radians(5))
+        ):
+            actions = self.rotate_first_brick(
+                current_assembly,
+                offset,
+            )
         
         # if the current scene is not empty, but is missing bricks, add a brick
         elif len(false_negatives):
@@ -229,6 +268,11 @@ class BuildExpert(LtronGymComponent):
                     current_instance,
                     rotatable_snap,
                 ))
+            
+            if self.always_add_viewpoint_actions or not len(pick_actions):
+                view_actions = self.env.all_component_actions(
+                    self.target_scene + '_viewpoint', include_no_op=False)
+                pick_actions.extend(view_actions)
             
             return pick_actions
         
@@ -678,13 +722,8 @@ class BuildExpert(LtronGymComponent):
                             n + '_viewpoint', include_no_op=False)
                     #print(view_actions)
                     pick_actions.extend(view_actions)
-                print('adding viewpoint actions!')
-                print(pick_actions)
-                print(pickable)
                 for n, i, s in pickable:
                     a = self.env.actions_to_pick_snap(n, i, s)
-                    print(' ', n, i, s, ':', a)
-                print('-------------------')
             
             return pick_actions
         
