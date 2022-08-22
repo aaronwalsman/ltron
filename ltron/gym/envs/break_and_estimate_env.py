@@ -23,7 +23,7 @@ from ltron.gym.components.build_expert import BuildExpert
 from ltron.gym.components.clear import ClearScene
 from ltron.gym.components.viewpoint import ControlledAzimuthalViewpointComponent
 
-class BreakAndMakeEnvConfig(Config):
+class BreakAndEstimateEnvConfig(Config):
     dataset = 'rca'
     split = '2_2_train'
     subset = None
@@ -51,8 +51,9 @@ class BreakAndMakeEnvConfig(Config):
     max_instructions = 2048
     shuffle_instructions = True
     expert_always_add_viewpoint_actions = False
+    early_termination = False
 
-class BreakAndMakeEnv(LtronEnv):
+class BreakAndEstimateEnv(LtronEnv):
     def __init__(
         self,
         config,
@@ -142,15 +143,10 @@ class BreakAndMakeEnv(LtronEnv):
             self.dataset_info['max_instances_per_scene'],
             self.dataset_info['max_edges_per_scene'],
             update_frequency='reset',
-            observable=(config.observation_mode == 'symbolic'),
+            observable=False,
         )
     
     def make_observation_components(self, config, components):
-        
-        scene_components = {
-            'table':components['table_scene'],
-            'estimate':components['estimate_scene'],
-        }
         
         components['table_assembly'] = AssemblyComponent(
             components['table_scene'],
@@ -196,39 +192,13 @@ class BreakAndMakeEnv(LtronEnv):
         components['pick_and_remove'] = PickAndRemove(
             scene_components,
             components['pick_cursor'],
-            components['place_cursor'],
-            max_instances_per_scene=
-                self.dataset_info['max_instances_per_scene'],
             check_collision=config.check_collision,
         )
         
         # phase
-        if config.target_mode == 'interactive':
-            num_phases = 2
-        else:
-            num_phases = 1
-        
         components['phase'] = PhaseSwitch(
-            scene_components, clear_scenes=True, num_phases=num_phases)
+            scene_components, clear_scenes=True, num_phases=1)
         
-    
-    def make_symbolic_action_components(self, config, components):
-        scene_components = {
-            'table':components['table_scene'],
-            'hand':components['hand_scene'],
-        }
-        
-        components['pick_cursor'] = SymbolicCursor(
-            scene_components,
-            self.dataset_info['max_instances_per_scene'],
-            randomize_starting_position = config.randomize_starting_cursor,
-        )
-        components['place_cursor'] = SymbolicCursor(
-            scene_components,
-            self.dataset_info['max_instances_per_scene'],
-            randomize_starting_position = config.randomize_starting_cursor,
-        )
-    
     def make_visual_action_components(self, config, components):
         scene_components = {
             'table':components['table_scene'],
@@ -244,7 +214,7 @@ class BreakAndMakeEnv(LtronEnv):
         for name, scene_component in scene_components.items():
             scene_height, scene_width = scene_shapes[name]
             
-            # Utility Rendering Components ---------------------------------
+            # Utility Rendering Components -------------------------------------
             components['%s_pos_snap_render'%name] = SnapRenderComponent(
                 scene_height,
                 scene_width,
@@ -262,7 +232,7 @@ class BreakAndMakeEnv(LtronEnv):
                 observable=False,
             )
 
-            # Viewpoint ----------------------------------------------------
+            # Viewpoint --------------------------------------------------------
             elevation_range = [math.radians(-30), math.radians(30)]
             distance_range=[
                 viewpoint_distances[name],
@@ -289,17 +259,8 @@ class BreakAndMakeEnv(LtronEnv):
         
         components['pick_cursor'] = MultiScreenPixelCursor(
             self.dataset_info['max_instances_per_scene'],
-            {'table' : components['table_pos_snap_render'],
-             'hand' : components['hand_pos_snap_render']},
-            {'table' : components['table_neg_snap_render'],
-             'hand' : components['hand_neg_snap_render']},
-        )
-        components['place_cursor'] = MultiScreenPixelCursor(
-            self.dataset_info['max_instances_per_scene'],
-            {'table' : components['table_pos_snap_render'],
-             'hand' : components['hand_pos_snap_render']},
-            {'table' : components['table_neg_snap_render'],
-             'hand' : components['hand_neg_snap_render']},
+            {'table' : components['table_pos_snap_render']},
+            {'table' : components['table_neg_snap_render']},
         )
     
     def make_reward_components(self, config, components):
@@ -311,40 +272,36 @@ class BreakAndMakeEnv(LtronEnv):
     
     def make_expert_components(self, config, components):
         if self.include_expert:
-            scene_components = {
-                'table': components['table_scene'],
-                'hand': components['hand_scene'],
-            }
-            assembly_components = {
-                'table': components['table_assembly'],
-                'hand' : components['hand_assembly'],
-            }
-            components['expert'] = BuildExpert(
+            #scene_components = {
+            #    'table': components['table_scene'],
+            #    'estimate': components['estimate_scene'],
+            #}
+            #assembly_components = {
+            #    'table': components['table_assembly'],
+            #    'estimate' : components['estimate_assembly'],
+            #}
+            components['expert'] = EstimateExpert(
                 self,
-                scene_components,
+                #scene_components,
+                components['table_scene'],
+                components['estimate_scene'],
                 components['target_assembly'],
-                assembly_components,
-                'table',
-                'hand',
+                components['table_assembly'],
+                components['estimate_assembly'],
                 self.dataset_info['shape_ids'],
                 max_instructions=config.max_instructions,
                 shuffle_instructions=config.shuffle_instructions,
                 always_add_viewpoint_actions=
                     config.expert_always_add_viewpoint_actions,
-                align_orientation=config.expert_align_orientation,
                 terminate_on_empty=True,
             )
     
     def get_pick_snap(self):
         return self.components['pick_cursor'].get_selected_snap()
     
-    def get_place_snap(self):
-        return self.components['place_cursor'].get_selected_snap()
-    
     def finish_actions(self):
         current_phase = self.components['phase'].phase
-        finish_action = min(
-            current_phase+1, self.components['phase'].num_phases)
+        finish_action = 1
         return [self.action_space.ravel('phase', finish_action)]
     
     def actions_to_select_snap(self, cursor, *args, **kwargs):
@@ -359,18 +316,12 @@ class BreakAndMakeEnv(LtronEnv):
     def actions_to_pick_snap(self, *args, **kwargs):
         return self.actions_to_select_snap('pick_cursor', *args, **kwargs)
     
-    def actions_to_place_snap(self, *args, **kwargs):
-        return self.actions_to_select_snap('place_cursor', *args, **kwargs)
-    
     def actions_to_deselect(self, cursor, *args, **kwargs):
         actions = self.components[cursor].actions_to_deselect(*args, **kwargs)
         return [self.action_space.ravel(cursor, *a) for a in actions]
     
     def actions_to_deselect_pick(self, *args, **kwargs):
         return self.actions_to_deselect('pick_cursor', *args, **kwargs)
-    
-    def actions_to_deselect_place(self, *args, **kwargs):
-        return self.actions_to_deselect('place_cursor', *args, **kwargs)
     
     def all_component_actions(self, component, include_no_op=True):
         start, stop = self.action_space.name_range(component)
@@ -380,12 +331,5 @@ class BreakAndMakeEnv(LtronEnv):
             return [r for r in range(start, stop)
                 if r != start + self.components[component].no_op_action()]
     
-    def rotate_action(self, r):
-        return self.action_space.ravel('rotate', r)
-    
-    def pick_and_place_action(self, p):
-        return self.action_space.ravel('pick_and_place', p)
-    
-    def actions_to_insert_brick(self, shape, color):
-        s, c = self.components['insert'].actions_to_insert_brick(shape, color)
-        return self.action_space.ravel('insert', s, c)
+    def pick_and_remove_action(self, p):
+        return self.action_space.ravel('pick_and_remove', p)

@@ -24,8 +24,14 @@ def matrix_rotation_axis(a):
     #else:
     #    return axis / numpy.linalg.norm(axis)
     w, v = numpy.linalg.eig(a)
-    i = numpy.where(w == 1)[0][0]
-    return v[:,i]
+    tol = 1e-5
+    i = numpy.where(
+        (w.real < 1+tol) &
+        (w.real > 1-tol) &
+        (w.imag < 0+tol) &
+        (w.imag > 0-tol)
+    )[0][0]
+    return v[:,i].real
 
 def vector_angle_close_enough(a, b, max_angular_distance, allow_negative=False):
     dot_threshold = math.cos(max_angular_distance)

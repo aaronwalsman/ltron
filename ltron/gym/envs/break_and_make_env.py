@@ -55,7 +55,7 @@ class BreakAndMakeEnvConfig(Config):
     check_collision = True
     
     # expert
-    max_instructions = 2014
+    max_instructions = 2048
     shuffle_instructions = True
     expert_always_add_viewpoint_actions = False
     expert_align_orientation = False
@@ -90,7 +90,7 @@ class BreakAndMakeEnv(LtronEnv):
             components,
             combine_action_space='discrete_chain',
             print_traceback=print_traceback,
-            early_termination=config.early_termination & include_expert,
+            early_termination=config.early_termination * include_expert,
             expert_component='expert',
         )
     

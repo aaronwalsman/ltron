@@ -7,6 +7,8 @@ import tarfile
 
 import numpy
 
+import tqdm
+
 import gym.spaces as spaces
 
 from ltron.hierarchy import (
@@ -39,6 +41,7 @@ class RolloutStorage:
         finished_only=False,
         seq_ids=None,
         seq_offset=0,
+        use_tqdm=False,
     ):
         if seq_ids is None:
             seq_ids = self.seq_locations.keys()
@@ -50,7 +53,12 @@ class RolloutStorage:
             if os.path.splitet(destination)[-1].lower() == '.tar':
                 destination = tarfile.open(destination, 'w')
         
-        for i, seq_id in enumerate(seq_ids):
+        if use_tqdm:
+            iterate = enumerate(tqdm.tqdm(seq_ids))
+        else:
+            iterate = enumerate(seq_ids)
+        
+        for i, seq_id in iterate:
             file_name = 'seq_%08i.npz'%(i+seq_offset)
             seq = self.get_seq(seq_id)
             if isinstance(destination, tarfile.TarFile):

@@ -32,7 +32,7 @@ class BuildExpert(LtronGymComponent):
         target_scene,
         disassembly_scene,
         shape_ids,
-        max_instructions=128,
+        max_instructions=2048,
         shuffle_instructions=True,
         always_add_viewpoint_actions=False,
         align_orientation=False,

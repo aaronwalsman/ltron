@@ -102,6 +102,7 @@ class LtronEnv(gym.Env):
                 observation[component_name] = component_observation
         
         if self.early_termination:
+            self.early_termination_mistakes = 0
             self.update_early_termination_actions(observation)
         
         return observation
@@ -112,7 +113,11 @@ class LtronEnv(gym.Env):
     
     @traceback_decorator
     def check_early_termination(self, action):
-        return action not in self.expert_actions
+        self.early_termination_mistakes += action not in self.expert_actions
+        if self.early_termination_mistakes >= self.early_termination:
+            return True
+        
+        return False
     
     @traceback_decorator
     def check_action(self, action):

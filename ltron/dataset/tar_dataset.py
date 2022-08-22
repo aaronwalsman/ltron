@@ -26,12 +26,15 @@ def generate_tar_dataset(
         new_shards.append(shard_path)
         print('Making Shard %s'%shard_path)
         shard_tar = tarfile.open(shard_path, 'w')
+        total_shard_episodes = math.ceil(total_episodes / shards)
         shard_seqs = 0
-        while shard_seqs < total_episodes:
+        while shard_seqs < total_shard_episodes:
             pass_episodes = min(
-                episodes_per_shard-shard_seqs, save_episode_frequency)
+                total_shard_episodes-shard_seqs, save_episode_frequency)
+                #episodes_per_shard-shard_seqs, save_episode_frequency)
             pass_name = name + ' (%i-%i/%i)'%(
                 shard_seqs, shard_seqs+pass_episodes, total_episodes)
+            print('Rolling Out %i Episodes'%pass_episodes)
             episodes = rollout(
                 pass_episodes,
                 **kwargs,
@@ -45,6 +48,7 @@ def generate_tar_dataset(
                 finished_only=True,
                 seq_ids=save_ids,
                 seq_offset=shard_seqs,
+                use_tqdm=True,
             )
             #shard_seqs += episodes.num_finished_seqs()
             shard_seqs += pass_episodes
