@@ -9,14 +9,24 @@ class BrickInserter(LtronGymComponent):
         scene_component,
         shape_ids,
         color_ids,
+        include_pose=False,
+        clear_scene=True,
     ):
         self.scene_component = scene_component
         self.brick_shape_to_id = shape_ids
         self.id_to_brick_shape = {value:key for key, value in shape_ids.items()}
         self.color_name_to_id = color_ids
         self.id_to_color_name = {value:key for key, value in color_ids.items()}
+        self.include_pose = include_pose
+        self.clear_scene = clear_scene
         
-        self.action_space = BrickShapeColorSpace(shape_ids, color_ids)
+        if self.include_pose:
+            self.action_space = Dict({
+                'shape_color' : BrickShapeColorSpace(shape_ids, color_ids),
+                'pose' : SE3Space(),
+            })
+        else:
+            self.action_space = BrickShapeColorSpace(shape_ids, color_ids)
     
     def step(self, action):
         shape = action[0]
@@ -29,7 +39,8 @@ class BrickInserter(LtronGymComponent):
             color in self.id_to_color_name
         ):
             scene = self.scene_component.brick_scene
-            scene.clear_instances()
+            if self.clear_scene:
+                scene.clear_instances()
             brick_shape = self.id_to_brick_shape[shape]
             color_name = self.id_to_color_name[color]
             scene.add_instance(brick_shape, color_name, scene.upright)
