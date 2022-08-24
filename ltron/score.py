@@ -15,10 +15,11 @@ def score_assemblies(proposal, target, part_lookup):
 def edit_distance(
     assembly_a,
     assembly_b,
-    part_names,
+    shape_names,
     radius=0.01,
     miss_a_penalty=1,
     miss_b_penalty=1,
+    pose_penalty=1,
 ):
     
     running_a_to_b = {}
@@ -35,13 +36,13 @@ def edit_distance(
             b['shape'][bb] = 0
             b['color'][bb] = 0
         
-        match, offset = match_assemblies(a, b, part_names, radius=radius)
+        match, offset = match_assemblies(a, b, shape_names, radius=radius)
         a_to_b, b_to_a, miss_a, miss_b = match_lookup(match, a, b)
         
         return a, b, a_to_b, miss_a, miss_b
     
     first_match, _ = match_assemblies(
-        assembly_a, assembly_b, part_names, radius=radius)
+        assembly_a, assembly_b, shape_names, radius=radius)
     a_to_b, b_to_a, miss_a, miss_b = match_lookup(
         first_match, assembly_a, assembly_b)
     running_a_to_b.update(a_to_b)
@@ -56,7 +57,7 @@ def edit_distance(
             assembly_a, assembly_b, a_to_b)
         running_a_to_b.update(a_to_b)
         
-        d += 1
+        d += pose_penalty
     
     d += len(miss_a) * miss_a_penalty
     d += len(miss_b) * miss_b_penalty
