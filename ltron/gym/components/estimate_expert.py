@@ -3,12 +3,14 @@ import math
 
 import numpy
 
-from gym.spaces import Box
+from gym.spaces import Box, Dict
 
 from ltron.matching import (
     match_assemblies,
 )
+from ltron.gym.spaces import MultiSE3Space
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
+from ltron.score import edit_distance
 
 class EstimateExpert(LtronGymComponent):
     def __init__(self,
@@ -36,7 +38,7 @@ class EstimateExpert(LtronGymComponent):
         
         self.target_assembly_component = target_assembly_component
         self.table_assembly_component = table_assembly_component
-        self.estimate_assembly_components = estimate_assembly_components
+        self.estimate_assembly_component = estimate_assembly_component
         
         self.shape_ids = shape_ids
         self.shape_names = {v:k for k,v in self.shape_ids.items()}
@@ -46,22 +48,32 @@ class EstimateExpert(LtronGymComponent):
         self.terminate_on_empty = terminate_on_empty
         
         # build observation space
+        '''
         self.observation_space = Dict({
             'mode':Box(low=0,
                 high=max_actions,
                 shape=(self.max_instructions,),
                 dtype=numpy.long,
-            )
+            ),
             'pose':MultiSE3Space(max_actions),
         })
+        '''
+        self.observation_space = Box(
+            low=0,
+            high=max_actions,
+            shape=(self.max_instructions,),
+            dtype=numpy.long,
+        )
     
     def reset(self):
-        return self.observe()
+        observation = self.observe()
+        return observation
     
-    def step(self):
+    def step(self, action):
         observation = self.observe()
         if self.terminate_on_empty:
-            terminal = numpy.sum(observation['mode']) == 0
+            #terminal = numpy.sum(observation['mode']) == 0
+            terminal = numpy.sum(observation) == 0
         else:
             terminal = False
         return observation, 0., terminal, {}
@@ -72,28 +84,33 @@ class EstimateExpert(LtronGymComponent):
         target_assembly = self.target_assembly_component.observe()
         
         # compute the expert actions
-        modes, poses = self.expert_actions(
-            estimate_assembly, target_assembly)
+        #modes, poses = self.expert_actions(
+        modes = numpy.array(
+            self.expert_actions(estimate_assembly, target_assembly))
         
         # shuffle
         if self.shuffle_instructions:
             permutation = numpy.random.permutation(len(modes))
             modes = modes[permutation]
-            poses = poses[permutation]
+            #poses = poses[permutation]
         
         # truncate
         modes = modes[:self.max_instructions]
-        poses = modes[:self.max_poses]
+        #poses = modes[:self.max_poses]
         
         mode_obs = numpy.zeros(self.max_instructions, dtype=numpy.long)
         mode_obs[:len(modes)] = modes
         pose_obs = numpy.zeros((self.max_instructions, 4, 4))
-        pose_obs[:len(poses)] = poses
+        #pose_obs[:len(poses)] = poses
         
         # dictify
-        self.observation = {'mode':mode_obs, 'pose':pose_obs}
+        #self.observation = {'mode':mode_obs, 'pose':pose_obs}
+        self.observation = mode_obs
         
         # return
+        #print(estimate_assembly['shape'])
+        #print(target_assembly['shape'])
+        #print('XPERT:', self.observation)
         return self.observation
     
     def expert_actions(self,
@@ -105,13 +122,14 @@ class EstimateExpert(LtronGymComponent):
         1. If everything is matched: FINISH
         2. If the scene is empty: predict any of the unmatched bricks
         3. If the scene is not empty: remove something or change viewpoint
+            3.A. Actually defer this until later
         '''
         
         # match the estimate and target assemblies
         d, a_to_b = edit_distance(
             estimate_assembly,
             target_assembly,
-            self.part_names,
+            self.shape_names,
         )
         
         # if everything is matched: FINISH
@@ -120,7 +138,23 @@ class EstimateExpert(LtronGymComponent):
             finish_actions = self.env.finish_actions()
             modes = numpy.array(finish_actions, dtype=numpy.long)
             poses = numpy.zeros((len(finish_actions), 4, 4))
-            return modes, poses
+            return modes #, poses
         
-        # if the table scene is empty: PREDICT
+        # PREDICT
+        remaining_target_indices = list(
+            set(numpy.where(target_assembly['shape'])[0]) -
+            set(a_to_b.values())
+        )
         
+        # get remaining shapes/colors/poses
+        remaining_shapes = target_assembly['shape'][remaining_target_indices]
+        remaining_colors = target_assembly['color'][remaining_target_indices]
+        remaining_poses = target_assembly['pose'][remaining_target_indices]
+        
+        # map shapes/colors to modes
+        modes = [
+            self.env.actions_to_insert_brick(shape, color)
+            for shape, color in zip(remaining_shapes, remaining_colors)
+        ]
+        
+        return modes

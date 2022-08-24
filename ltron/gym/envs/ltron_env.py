@@ -199,8 +199,9 @@ class LtronEnv(gym.Env):
                 info[component_name] = i
         
         if self.early_termination:
-            terminal |= self.check_early_termination(action)
+            terminate_early = self.check_early_termination(action)
             self.update_early_termination_actions(observation)
+            terminal |= terminate_early
         
         return observation, reward, terminal, info
     

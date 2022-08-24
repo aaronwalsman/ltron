@@ -19,7 +19,7 @@ from ltron.gym.components.brick_inserter import BrickInserter
 from ltron.gym.components.pick_and_place import PickAndRemove
 from ltron.gym.components.rotate import RotateAboutSnap
 from ltron.gym.components.phase import PhaseSwitch
-from ltron.gym.components.build_expert import BuildExpert
+from ltron.gym.components.estimate_expert import EstimateExpert
 from ltron.gym.components.clear import ClearScene
 from ltron.gym.components.viewpoint import ControlledAzimuthalViewpointComponent
 
@@ -82,7 +82,7 @@ class BreakAndEstimateEnv(LtronEnv):
             components,
             combine_action_space='discrete_chain',
             print_traceback=print_traceback,
-            early_termination=config.early_termination & include_expert,
+            early_termination=config.early_termination * include_expert,
             expert_component='expert',
         )
     
@@ -165,7 +165,7 @@ class BreakAndEstimateEnv(LtronEnv):
             self.dataset_info['max_instances_per_scene'],
             self.dataset_info['max_edges_per_scene'],
             update_frequency = 'step',
-            observable=False,
+            observable=True,
         )
         
         components['table_color_render'] = ColorRenderComponent(
@@ -186,14 +186,22 @@ class BreakAndEstimateEnv(LtronEnv):
     def make_action_components(self, config, components):
         self.make_visual_action_components(config, components)
         
+        components['insert'] = BrickInserter(
+            components['estimate_scene'],
+            self.dataset_info['shape_ids'],
+            self.dataset_info['color_ids'],
+            include_pose=False, # DO THIS NEXT
+            clear_scene=False,
+        )
+        
         scene_components = {
             'table':components['table_scene'],
         }
-        components['pick_and_remove'] = PickAndRemove(
-            scene_components,
-            components['pick_cursor'],
-            check_collision=config.check_collision,
-        )
+        #components['pick_and_remove'] = PickAndRemove(
+        #    scene_components,
+        #    components['pick_cursor'],
+        #    check_collision=config.check_collision,
+        #)
         
         # phase
         components['phase'] = PhaseSwitch(
@@ -266,8 +274,9 @@ class BreakAndEstimateEnv(LtronEnv):
     def make_reward_components(self, config, components):
         components['reward'] = EditDistance(
             components['target_assembly'],
-            components['table_assembly'],
+            components['estimate_assembly'],
             self.dataset_info['shape_ids'],
+            pose_penalty=0,
         )
     
     def make_expert_components(self, config, components):
@@ -333,3 +342,7 @@ class BreakAndEstimateEnv(LtronEnv):
     
     def pick_and_remove_action(self, p):
         return self.action_space.ravel('pick_and_remove', p)
+    
+    def actions_to_insert_brick(self, shape, color):
+        s, c = self.components['insert'].actions_to_insert_brick(shape, color)
+        return self.action_space.ravel('insert', s, c)
