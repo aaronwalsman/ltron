@@ -183,8 +183,16 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
     # Ensure that shapes match, colors match, poses match and that each brick
     # is only matched to one other.
     valid_matches = set()
+    matched_a = set()
+    matched_b = set()
     for a, a_matches in enumerate(matches):
+        if a in matched_a:
+            continue
+        
         for b in a_matches:
+            if b in matched_b:
+                continue
+            
             shape_a = assembly_a['shape'][a]
             shape_b = assembly_b['shape'][b]
             if shape_a != shape_b or shape_a == 0 or shape_b == 0:
@@ -203,6 +211,8 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
                 continue
             
             valid_matches.add((a,b))
+            matched_a.add(a)
+            matched_b.add(b)
             break
     
     return valid_matches

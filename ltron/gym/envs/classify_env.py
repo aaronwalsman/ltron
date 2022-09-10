@@ -17,31 +17,23 @@ from ltron.gym.components.colors import RandomizeColorsComponent
 from ltron.gym.components.edit_distance import EditDistance
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.upright import UprightSceneComponent
-from ltron.gym.components.tile import DeduplicateTileMaskComponent
+from ltron.gym.components.tile import (
+    TileMaskComponent, DeduplicateTileMaskComponent)
 from ltron.gym.components.cursor import SymbolicCursor, MultiScreenPixelCursor
 from ltron.gym.components.brick_inserter import (
     BrickInserter, RandomBrickInserter)
 from ltron.gym.components.pick_and_place import PickAndRemove
 from ltron.gym.components.rotate import RotateAboutSnap
 from ltron.gym.components.phase import PhaseSwitch
-from ltron.gym.components.estimate_expert import EstimateExpert
+from ltron.gym.components.classify_expert import ClassifyExpert
 from ltron.gym.components.clear import ClearScene
 from ltron.gym.components.viewpoint import ControlledAzimuthalViewpointComponent
+from ltron.gym.components.distractor import DistractorComponent
 
-class BreakAndEstimateEnvConfig(Config):
+class ClassifyEnvConfig(Config):
     dataset = 'rca'
-    split = '2_2_train'
-    subset = None
     
-    max_episode_length = 32
-    
-    shuffle = True
-    shuffle_buffer = 100
-    repeat = True
-    
-    randomize_colors = False
     randomize_viewpoint = True
-    randomize_starting_cursor = True
     
     table_image_height = 256
     table_image_width = 256
@@ -50,16 +42,16 @@ class BreakAndEstimateEnvConfig(Config):
     tile_width = 16
     tile_height = 16
     
-    check_collision = True
-    include_pose = False
+    num_bricks = 1
+    randomize_brick_orientation = True
+    num_distractor_bricks = 0
+    randomize_distractor_brick_orientation = True
     
-    # expert
-    max_instructions = 2048
-    shuffle_instructions = True
-    expert_always_add_viewpoint_actions = False
-    early_termination = False
+    num_distractor_tokens = 0
+    distractor_token_classes = 0
+    distractor_token_update_frequency = 'step'
 
-class BreakAndEstimateEnv(LtronEnv):
+class ClassifyEnv(LtronEnv):
     def __init__(
         self,
         config,
@@ -69,10 +61,6 @@ class BreakAndEstimateEnv(LtronEnv):
         print_traceback=True,
     ):
         self.include_expert = include_expert
-        self.rank = rank # ?
-        self.size = size # ?
-        
-        self.include_pose = config.include_pose # ?
         
         components = OrderedDict()
         
@@ -86,34 +74,13 @@ class BreakAndEstimateEnv(LtronEnv):
         self.make_reward_components(config, components)
         self.make_expert_components(config, components)
         
-        if self.include_pose:
-            combine_action_space = 'self_managed'
-        else:
-            combine_action_space = 'discrete_chain'
-        
         super().__init__(
             components,
-            combine_action_space=combine_action_space,
+            combine_action_space='discrete_chain',
             print_traceback=print_traceback,
-            early_termination=config.early_termination * include_expert,
+            early_termination=False,
             expert_component='expert',
         )
-        
-        # make custom action space
-        if self.include_pose:
-            mode_action_space = self.make_discrete_chain_action_space(
-                self.components, strict=False)
-            pose_action_space = (
-                self.components['insert'].action_space['pose'])
-            self.action_space = Dict({
-                'mode' : mode_action_space,
-                'pose' : pose_action_space,
-            })
-            self.metadata['action_space'] = self.action_space
-    
-    def self_managed_component_actions(self, action):
-        mode = action['mode']
-        pose = action['pose']
     
     def make_scene_components(self, config, components):
         # scenes
@@ -123,7 +90,7 @@ class BreakAndEstimateEnv(LtronEnv):
             self.dataset_info['max_instances_per_scene'],
             self.dataset_info['max_edges_per_scene'],
             track_snaps=True,
-            collision_checker=config.check_collision,
+            collision_checker=False,
         )
         components['estimate_scene'] = EmptySceneComponent(
             self.dataset_info['shape_ids'],
@@ -131,62 +98,55 @@ class BreakAndEstimateEnv(LtronEnv):
             self.dataset_info['max_instances_per_scene'],
             self.dataset_info['max_edges_per_scene'],
             track_snaps=True,
-            collision_checker=config.check_collision,
+            collision_checker=False,
         )
-        
-        '''
-        # loader
-        components['dataset'] = DatasetLoaderComponent(
-            components['table_scene'],
-            config.dataset,
-            config.split,
-            subset=config.subset,
-            rank=self.rank,
-            size=self.size,
-            shuffle=config.shuffle,
-            shuffle_buffer=config.shuffle_buffer,
-            repeat=config.repeat,
-        ) # ?
-        
-        # uprightify
-        components['upright'] = UprightSceneComponent(
-            scene_component = components['table_scene']) # ?
-        '''
         
         components['random_insert'] = RandomBrickInserter(
             components['table_scene'],
             self.dataset_info['shape_ids'],
             self.dataset_info['color_ids'],
             insert_frequency='reset',
+            randomize_orientation=config.randomize_brick_orientation,
         )
-
-        upright = components['table_scene'].brick_scene.upright
-        transform = numpy.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 100],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ]) @ upright
-        components['random_insert_2'] = RandomBrickInserter(
-            components['table_scene'],
-            self.dataset_info['shape_ids'],
-            self.dataset_info['color_ids'],
-            insert_frequency='reset',
-            transform = transform,
-            clear_on_insert = False,
-        )
+        
+        if config.num_bricks > 1:
+            upright = components['table_scene'].brick_scene.upright
+            transform = numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 100],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]) @ upright
+            components['random_insert_2'] = RandomBrickInserter(
+                components['table_scene'],
+                self.dataset_info['shape_ids'],
+                self.dataset_info['color_ids'],
+                insert_frequency='reset',
+                transform = transform,
+                clear_on_insert = False,
+                randomize_orientation=config.randomize_brick_orientation,
+            )
+        
+        if config.num_bricks > 2:
+            upright = components['table_scene'].brick_scene.upright
+            transform = numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 100],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]) @ upright
+            components['random_insert_2'] = RandomBrickInserter(
+                components['table_scene'],
+                self.dataset_info['shape_ids'],
+                self.dataset_info['color_ids'],
+                insert_frequency='reset',
+                transform = transform,
+                clear_on_insert = False,
+                randomize_orientation=config.randomize_brick_orientation,
+            )
         
         # time step
-        components['step'] = TimeStepComponent(
-            config.max_episode_length, observe_step=True)
-        
-        # color randomization
-        if config.randomize_colors:
-            components['color_randomization'] = RandomizeColorsComponent(
-                self.dataset_info['color_ids'],
-                components['table_scene'],
-                randomize_frequency='reset',
-            )
+        components['step'] = TimeStepComponent(4, observe_step=True)
     
     def make_target_components(self, config, components):
         # target assembly
@@ -199,6 +159,48 @@ class BreakAndEstimateEnv(LtronEnv):
             update_frequency='reset',
             observable=False,
         )
+        
+        if config.num_distractor_bricks:
+            upright = components['table_scene'].brick_scene.upright
+            transform = numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 100],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]) @ upright
+            components['random_insert_2'] = RandomBrickInserter(
+                components['table_scene'],
+                #self.dataset_info['shape_ids'],
+                #self.dataset_info['color_ids'],
+                {'2436.dat':1},
+                {'1':1},
+                insert_frequency='reset',
+                transform = transform,
+                clear_on_insert = False,
+                randomize_orientation=
+                    config.randomize_distractor_brick_orientation,
+            )
+        
+        if config.num_distractor_bricks > 1:
+            upright = components['table_scene'].brick_scene.upright
+            transform = numpy.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, -100],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1],
+            ]) @ upright
+            components['random_insert_3'] = RandomBrickInserter(
+                components['table_scene'],
+                #self.dataset_info['shape_ids'],
+                #self.dataset_info['color_ids'],
+                {'2436.dat':1},
+                {'1':1},
+                insert_frequency='reset',
+                transform = transform,
+                clear_on_insert = False,
+                randomize_orientation=
+                    config.randomize_distractor_brick_orientation,
+            )
     
     def make_observation_components(self, config, components):
         
@@ -232,9 +234,19 @@ class BreakAndEstimateEnv(LtronEnv):
         
         if config.tile_color_render:
             components['table_color_tiles'] = DeduplicateTileMaskComponent(
+            #components['table_color_tiles'] = TileMaskComponent(
                 config.tile_width,
                 config.tile_height,
                 components['table_color_render'],
+                #background=0,
+            )
+        
+        if config.num_distractor_tokens:
+            components['distractor'] = DistractorComponent(
+                config.num_distractor_tokens,
+                config.distractor_token_classes,
+                config.distractor_token_update_frequency,
+                observable=True,
             )
     
     def make_action_components(self, config, components):
@@ -244,18 +256,12 @@ class BreakAndEstimateEnv(LtronEnv):
             components['estimate_scene'],
             self.dataset_info['shape_ids'],
             self.dataset_info['color_ids'],
-            include_pose=self.include_pose, # DO THIS NEXT
             clear_scene=False,
         )
         
         scene_components = {
             'table':components['table_scene'],
         }
-        #components['pick_and_remove'] = PickAndRemove(
-        #    scene_components,
-        #    components['pick_cursor'],
-        #    check_collision=config.check_collision,
-        #)
         
         # phase
         components['phase'] = PhaseSwitch(
@@ -276,6 +282,7 @@ class BreakAndEstimateEnv(LtronEnv):
         for name, scene_component in scene_components.items():
             scene_height, scene_width = scene_shapes[name]
             
+            '''
             # Utility Rendering Components -------------------------------------
             components['%s_pos_snap_render'%name] = SnapRenderComponent(
                 scene_height,
@@ -293,6 +300,7 @@ class BreakAndEstimateEnv(LtronEnv):
                 update_frequency='always',#'on_demand',
                 observable=False,
             )
+            '''
             
             # Viewpoint --------------------------------------------------------
             elevation_range = [math.radians(-30), math.radians(30)]
@@ -314,7 +322,7 @@ class BreakAndEstimateEnv(LtronEnv):
                     distance_steps=1,
                     aspect_ratio=scene_width/scene_height, # wuh?
                     start_position=start_position,
-                    auto_frame='reset',
+                    auto_frame='none', #'reset',
                     frame_button=True,
                 )
             )
@@ -345,68 +353,24 @@ class BreakAndEstimateEnv(LtronEnv):
             #    'table': components['table_assembly'],
             #    'estimate' : components['estimate_assembly'],
             #}
-            components['expert'] = EstimateExpert(
+            components['expert'] = ClassifyExpert(
                 self,
                 #scene_components,
-                components['table_scene'],
-                components['estimate_scene'],
+                #components['table_scene'],
+                #components['estimate_scene'],
                 components['target_assembly'],
-                components['table_assembly'],
+                #components['table_assembly'],
                 components['estimate_assembly'],
                 self.dataset_info['shape_ids'],
-                include_pose=self.include_pose,
-                max_instructions=config.max_instructions,
-                shuffle_instructions=config.shuffle_instructions,
-                always_add_viewpoint_actions=
-                    config.expert_always_add_viewpoint_actions,
-                terminate_on_empty=True,
             )
     
-    def get_pick_snap(self):
-        return self.components['pick_cursor'].get_selected_snap()
+    def action_to_insert_brick(self, shape, color, pose=None):
+        component = self.components['insert']
+        s, c = component.actions_to_insert_brick(shape, color)
+        return self.action_space.ravel('insert', s, c)
     
     def finish_actions(self):
         current_phase = self.components['phase'].phase
         finish_action = 1
         return [self.action_space.ravel('phase', finish_action)]
-    
-    def actions_to_select_snap(self, cursor, *args, **kwargs):
-        actions = self.components[cursor].actions_to_select_snap(
-            *args, **kwargs)
-        result = [
-            self.action_space.ravel(cursor, *a)
-            for a in actions
-        ]
-        return result
-    
-    def actions_to_pick_snap(self, *args, **kwargs):
-        return self.actions_to_select_snap('pick_cursor', *args, **kwargs)
-    
-    def actions_to_deselect(self, cursor, *args, **kwargs):
-        actions = self.components[cursor].actions_to_deselect(*args, **kwargs)
-        return [self.action_space.ravel(cursor, *a) for a in actions]
-    
-    def actions_to_deselect_pick(self, *args, **kwargs):
-        return self.actions_to_deselect('pick_cursor', *args, **kwargs)
-    
-    def all_component_actions(self, component, include_no_op=True):
-        start, stop = self.action_space.name_range(component)
-        if include_no_op:
-            return list(range(start, stop))
-        else:
-            return [r for r in range(start, stop)
-                if r != start + self.components[component].no_op_action()]
-    
-    def pick_and_remove_action(self, p):
-        return self.action_space.ravel('pick_and_remove', p)
-    
-    def actions_to_insert_brick(self, shape, color, pose=None):
-        if self.include_pose:
-            component = self.components['insert']
-            s, c, p = component.actions_to_insert_brick(shape, color, pose)
-            return self.action_space['mode'].ravel(
-                'insert', 'shape_color', s, c), p
-        else:
-            component = self.components['insert']
-            s, c = component.actions_to_insert_brick(shape, color)
-            return self.action_space.ravel('insert', s, c)
+

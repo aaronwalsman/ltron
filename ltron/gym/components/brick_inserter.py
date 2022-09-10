@@ -1,7 +1,66 @@
+import random
+import math
+
 from gym.spaces import Dict, Discrete
-from ltron.gym.spaces import BrickShapeColorSpace
+
+from pyquaternion import Quaternion
+
+from ltron.gym.spaces import BrickShapeColorSpace, BrickShapeColorPoseSpace
 
 from ltron.gym.components.ltron_gym_component import LtronGymComponent
+
+class RandomBrickInserter(LtronGymComponent):
+    def __init__(
+        self,
+        scene_component,
+        shape_ids,
+        color_ids,
+        insert_frequency='reset',
+        transform=None,
+        clear_on_insert=True,
+        randomize_orientation=False,
+    ):
+        self.scene_component = scene_component
+        self.brick_shape_to_id = shape_ids
+        self.brick_color_to_id = color_ids
+        self.insert_frequency = insert_frequency
+        if transform is None:
+            scene = self.scene_component.brick_scene
+            transform = scene.upright
+        self.transform = transform
+        self.clear_on_insert = clear_on_insert
+        self.randomize_orientation = randomize_orientation
+    
+    def reset(self):
+        if self.insert_frequency == 'reset' or self.insert_frequency == 'step':
+            self.insert_brick()
+        
+        return None
+    
+    def step(self, action):
+        if self.insert_frequency == 'step':
+            self.insert_brick()
+        return None, 0., False, {}
+    
+    def insert_brick(self):
+        shape = random.choice(list(self.brick_shape_to_id.keys()))
+        color = random.choice(list(self.brick_color_to_id.keys()))
+        scene = self.scene_component.brick_scene
+        if self.clear_on_insert:
+            scene.clear_instances()
+        if self.randomize_orientation:
+            orientation = Quaternion.random().transformation_matrix
+            # TMP
+            #orientation = Quaternion.random()
+            #random_axis = orientation.rotation_matrix @ [0,1,0]
+            #random_angle = random.random() * math.radians(20)
+            #orientation = Quaternion(
+            #    axis=random_axis, angle=random_angle).transformation_matrix
+            # TMP
+            transform = self.transform @ orientation
+        else:
+            transform = self.transform
+        scene.add_instance(shape, color, transform)
 
 class BrickInserter(LtronGymComponent):
     def __init__(
@@ -21,10 +80,11 @@ class BrickInserter(LtronGymComponent):
         self.clear_scene = clear_scene
         
         if self.include_pose:
-            self.action_space = Dict({
-                'shape_color' : BrickShapeColorSpace(shape_ids, color_ids),
-                'pose' : SE3Space(),
-            })
+            #self.action_space = Dict({
+            #    'shape_color' : BrickShapeColorSpace(shape_ids, color_ids),
+            #    'pose' : SE3Space(),
+            #})
+            self.action_space = BrickShapeColorPoseSpace(shape_ids, color_ids)
         else:
             self.action_space = BrickShapeColorSpace(shape_ids, color_ids)
     
@@ -53,8 +113,11 @@ class BrickInserter(LtronGymComponent):
     def no_op_action(self):
         return (0,0)
     
-    def actions_to_insert_brick(self, shape, color):
-        return shape, color
+    def actions_to_insert_brick(self, shape, color, pose=None):
+        if self.include_pose:
+            return shape, color, pose
+        else:
+            return shape, color
 
 class HandspaceBrickInserter(LtronGymComponent):
     def __init__(

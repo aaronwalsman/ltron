@@ -1,5 +1,3 @@
-from gym.spaces import Dict
-
 from ltron.bricks.brick_scene import TooManyInstancesError, make_empty_assembly
 from ltron.gym.spaces import AssemblySpace
 from ltron.gym.components.sensor_component import SensorComponent

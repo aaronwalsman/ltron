@@ -5,16 +5,43 @@ import tqdm
 from ltron.hierarchy import stack_numpy_hierarchies
 from ltron.gym.rollout_storage import RolloutStorage
 
+'''
+def default_sampler_fn(distribution, rollout_mode='sample'):
+    b, n = distribution.shape
+    if rollout_mode == 'sample':
+        actions = [
+            numpy.random.choice(range(n), p=d) for d in distribution
+        ]
+    elif rollout_mode == 'max':
+        actions = numpy.argmax(distribution, axis=-1).tolist()
+    
+    return actions
+'''
+
+def default_categorical_sampler_fn(distribution):
+    #b, n = distribution.shape
+    b = len(distribution)
+    n = len(distribution[0])
+    actions = [
+        numpy.random.choice(range(n), p=d) for d in distribution
+    ]
+    return actions
+
+def default_max_sampler_fn(distribution):
+    actions = numpy.argmax(distribution, axis=-1).tolist()
+    return actions
+
 def rollout(
     episodes,
     env,
     actor_fn,
+    sampler_fn=default_categorical_sampler_fn,
     initial_memory=None,
     store_observations=True,
     store_actions=True,
     store_distributions=True,
     store_rewards=True,
-    rollout_mode='sample',
+    #rollout_mode='sample',
 ):
     
     # initialize storage for observations, actions, rewards and distributions
@@ -64,13 +91,8 @@ def rollout(
                 observation, terminal, memory)
             #s, b, n = distribution.shape
             #distribution = distribution.reshape(b, n)
-            b, n = distribution.shape
-            if rollout_mode == 'sample':
-                actions = [
-                    numpy.random.choice(range(n), p=d) for d in distribution
-                ]
-            elif rollout_mode == 'max':
-                actions = numpy.argmax(distribution, axis=-1).tolist()
+            #actions = sampler_fn(distribution, rollout_mode)
+            actions = sampler_fn(distribution)
             
             # step
             observation, reward, terminal, info = env.step(actions)
@@ -81,6 +103,7 @@ def rollout(
                 storage['action'].append_batch(action=a)
             
             if store_distributions:
+                distribution = numpy.array(distribution)
                 storage['distribution'].append_batch(distribution=distribution)
             
             if store_rewards:

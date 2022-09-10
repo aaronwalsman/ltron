@@ -59,14 +59,8 @@ class LtronEnv(gym.Env):
             self.action_space = Dict(action_space)
         
         elif self.combine_action_space == 'discrete_chain':
-            subspaces = {}
-            #subspaces = {'NO_OP':Discrete(1)}
-            #ignore = {'NO_OP':[]}
-            for component_name, component in self.components.items():
-                if hasattr(component, 'action_space'):
-                    subspaces[component_name] = component.action_space
-                    #ignore[component_name] = [component.no_op_action()]
-            self.action_space = DiscreteChain(subspaces) #, ignore)
+            self.action_space = self.make_discrete_chain_action_space(
+                self.components)
         elif self.combine_action_space == 'single':
             action_components = [
                 c for c in self.components.values()
@@ -75,9 +69,11 @@ class LtronEnv(gym.Env):
             assert len(action_components) == 1
             self.action_component = action_components[0]
             self.action_space = self.action_component.action_space
+        elif self.combine_action_space == 'self_managed':
+            pass
         else:
             raise ValueError('combine_action_space argument must be either '
-                '"dict", "discrete_chain" or "single"')
+                '"dict", "discrete_chain", "single" or "self_managed"')
         
         # build the metadata
         self.metadata = {}
@@ -92,6 +88,14 @@ class LtronEnv(gym.Env):
         self.metadata['observation_space'] = self.observation_space
         self.metadata['action_space'] = self.action_space
         self.metadata['no_op_action'] = self.no_op_action()
+    
+    @traceback_decorator
+    def make_discrete_chain_action_space(self, components, strict=True):
+        subspaces = {}
+        for component_name, component in self.components.items():
+            if hasattr(component, 'action_space'):
+                subspaces[component_name] = component.action_space
+        return DiscreteChain(subspaces, strict=strict)
     
     @traceback_decorator
     def reset(self):
@@ -179,6 +183,8 @@ class LtronEnv(gym.Env):
             component_actions = self.discrete_chain_component_actions(action)
         elif self.combine_action_space == 'single':
             component_actions = self.single_component_actions(action)
+        elif self.combine_action_space == 'self_managed':
+            component_actions = self.self_managed_component_actions(action)
         
         observation = {}
         reward = 0.
@@ -237,12 +243,15 @@ class LtronEnv(gym.Env):
                 if hasattr(component, 'action_space'):
                     action[component_name] = component.no_op_action()
             return action
-        elif self.combine_action_space == 'chained_discrete':
+        elif self.combine_action_space == 'discrete_chain':
             return 0
-        else:
+        elif self.combine_action_space == 'single':
             for component_name, component in self.components.items():
                 if hasattr(component, 'action_space'):
                     return component.no_op_action()
+        else:
+            raise ValueError(
+                'bad combine_action_space: %s'%self.combine_action_space)
     
     @traceback_decorator
     def close(self):

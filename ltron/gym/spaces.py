@@ -406,20 +406,36 @@ class DiscreteChain(DiscreteLayoutSpace):
     Used by:
     envs.ltron_env.LtronEnv (action_space)
     '''
-    def __init__(self, subspaces):
+    def __init__(self, subspaces, strict=True):
         self.subspaces = subspaces
         layout = NameSpan()
-        for name, subspace in self.subspaces.items():
-            if isinstance(subspace, DiscreteLayoutSpace):
-                shape = subspace.layout
-            elif isinstance(subspace, Discrete):
-                shape = subspace.n
-            elif isinstance(subspace, MultiDiscrete):
-                shape = subspace.nvec
+        
+        def get_shape(name, space, strict=True):
+            if isinstance(space, DiscreteLayoutSpace):
+                return space.layout
+            elif isinstance(space, Discrete):
+                return space.n
+            elif isinstance(space, MultiDiscrete):
+                return space.nvec
+            elif isinstance(space, Dict):
+                shape = NameSpan()
+                for subname, subspace in space.items():
+                    subshape = get_shape(subname, subspace, strict=strict)
+                    if subshape is not None:
+                        shape.add_names(**{subname:subshape})
+                return shape
             else:
-                raise ValueError('DiscreteChain accepts '
-                    'Discrete, MultiDiscrete spaces only')
-            layout.add_names(**{name:shape})
+                if strict:
+                    raise ValueError('DiscreteChain accepts '
+                        'Discrete, MultiDiscrete spaces only, got: %s for %s'%
+                        (space, name))
+                else:
+                    return None
+            
+        for name, subspace in self.subspaces.items():
+            shape = get_shape(name, subspace, strict=strict)
+            if shape is not None:
+                layout.add_names(**{name:shape})
         
         super().__init__(layout)
 
@@ -436,3 +452,10 @@ class BrickShapeColorSpace(MultiDiscrete):
         self.num_shapes = max(shape_ids.values())+1
         self.num_colors = max(color_ids.values())+1
         super().__init__((self.num_shapes, self.num_colors))
+
+class BrickShapeColorPoseSpace(Dict):
+    def __init__(self, shape_ids, color_ids, world_bbox=WORLD_BBOX):
+        super().__init__({
+            'shape_color' : BrickShapeColorSpace(shape_ids, color_ids),
+            'pose' : SE3Space(world_bbox=world_bbox),
+        })

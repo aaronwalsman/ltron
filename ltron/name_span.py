@@ -43,6 +43,10 @@ class NameSpan:
     def name_range(self, name):
         return self.spans[name]['start'], self.spans[name]['end']
     
+    def name_size(self, name):
+        start, end = self.name_range(name)
+        return end - start
+    
     def get_shape(self, name):
         return self.spans[name]['shape']
     

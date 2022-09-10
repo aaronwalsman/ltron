@@ -2,10 +2,14 @@ from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 class SensorComponent(LtronGymComponent):
     def __init__(self, update_frequency='step', observable=True):
-        assert update_frequency in ('reset', 'step', 'on_demand', 'always')
+        assert update_frequency in (
+            'init', 'reset', 'step', 'on_demand', 'always')
         self.update_frequency = update_frequency
         self.observable = observable
         self.stale = True
+        
+        if update_frequency in ('init',):
+            self.observe()
     
     def observe(self):
         if self.stale:
@@ -15,7 +19,8 @@ class SensorComponent(LtronGymComponent):
         return self.observation
     
     def reset(self):
-        self.stale = True
+        if self.update_frequency not in ('init',):
+            self.stale = True
         if self.update_frequency in ('step', 'reset', 'always'):
             self.observe()
         if self.observable:
