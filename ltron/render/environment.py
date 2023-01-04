@@ -6,8 +6,6 @@ from splendor.core import SplendorRender
 import splendor.camera as camera
 import splendor.masks as masks
 
-import ltron.settings as settings
-
 default_projection = camera.projection_matrix(
     math.radians(60.),
     aspect_ratio=1.,

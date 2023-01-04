@@ -50,6 +50,8 @@ class ClassifyEnvConfig(Config):
     num_distractor_tokens = 0
     distractor_token_classes = 0
     distractor_token_update_frequency = 'step'
+    
+    camera_distance = 320
 
 class ClassifyEnv(LtronEnv):
     def __init__(
@@ -275,7 +277,7 @@ class ClassifyEnv(LtronEnv):
             'table':(config.table_image_height, config.table_image_width),
         }
         viewpoint_distances = {
-            'table':320,
+            'table':config.camera_distance,
         }
         azimuth_steps = 8
         elevation_steps = 2

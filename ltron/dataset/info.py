@@ -13,7 +13,6 @@ from ltron.exceptions import LtronMissingDatasetException
 
 def get_dataset_info(dataset):
     try:
-        #return json.load(open(get_dataset_path(dataset_path)))
         return json.load(open(settings.datasets[dataset]))
     except KeyError:
         raise LtronMissingDatasetException(dataset)

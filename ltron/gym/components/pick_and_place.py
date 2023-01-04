@@ -2,41 +2,45 @@ import numpy
 
 from gym.spaces import Discrete, Dict
 
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
+from supermecha import SuperMechaComponent
+
+#from ltron.gym.components.ltron_gym_component import LtronGymComponent
 from ltron.exceptions import ThisShouldNeverHappen
 
-class PickAndRemove(LtronGymComponent):
+class RemoveBrickComponent(SuperMechaComponent):
     def __init__(self,
-        scene_components,
-        pick_cursor_component,
+        scene_component,
+        cursor_component,
         check_collision=False,
     ):
-        self.scene_components = scene_components
-        self.pick_cursor_component = pick_cursor_component
+        self.scene_component = scene_component
+        self.cursor_component = cursor_component
         self.check_collision = check_collision
+        
+        self.action_space = Discrete(2)
         
     def step(self, action):
         
         # if no action was taken, return
         if not action:
-            return None, 0., False, {}
+            return None, 0., False, False, None
         
-        # get teh pick scene/instance/snap
-        pick_n, pick_i, pick_s = self.pick_cursor_component.get_selected_snap()
+        # get the pick scene/instance/snap
+        pick_i, pick_s = self.pick_cursor_component.get_selected_snap()
         
         # if nothing is picked, return
         if pick_i == 0:
-            return None, 0., False, {}
+            return None, 0., False, False, None
         
         # pick and remove
-        self.pick_and_remove(pick_n, pick_i, pick_s)
+        self.pick_and_remove(pick_i, pick_s)
         
-        return None, 0., False, {}
+        return None, 0., False, False, None
     
-    def pick_and_remove(self, pick_n, pick_i, pick_s):
+    def pick_and_remove(self, pick_i, pick_s):
         
         # get the pick scene and instance
-        pick_scene = self.scene_components[pick_n].brick_scene
+        pick_scene = self.scene_component.brick_scene
         pick_instance = pick_scene.instances[pick_i]
         
         # check if the picked brick can be removed without colliding

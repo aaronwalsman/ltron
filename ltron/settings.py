@@ -14,7 +14,6 @@ def resolve_path(path):
 
 paths = {}
 datasets = {}
-#collections = {}
 shards = {}
 urls = {}
 render = {}

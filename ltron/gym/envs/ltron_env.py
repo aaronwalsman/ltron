@@ -8,8 +8,6 @@ from gym.vector.async_vector_env import AsyncVectorEnv
 from gym.vector.sync_vector_env import SyncVectorEnv
 from gym.spaces import Dict, Discrete, MultiDiscrete
 
-from ltron.config import Config
-from ltron.bricks.brick_scene import BrickScene
 from ltron.gym.spaces import DiscreteChain
 
 def traceback_decorator(f):
@@ -30,16 +28,16 @@ class LtronEnv(gym.Env):
         self,
         components,
         combine_action_space='dict',
-        early_termination=False,
-        expert_component=None,
+        #early_termination=False,
+        #expert_component=None,
         print_traceback=False,
     ):
         self.components = components
         self.combine_action_space = combine_action_space
-        self.early_termination = early_termination
-        self.expert_component = expert_component
-        if early_termination:
-            assert self.expert_component is not None
+        #self.early_termination = early_termination
+        #self.expert_component = expert_component
+        #if early_termination:
+        #    assert self.expert_component is not None
         self.print_traceback = print_traceback
         
         # build the observation space
@@ -105,23 +103,23 @@ class LtronEnv(gym.Env):
             if component_name in self.observation_space.spaces:
                 observation[component_name] = component_observation
         
-        if self.early_termination:
-            self.early_termination_mistakes = 0
-            self.update_early_termination_actions(observation)
+        #if self.early_termination:
+        #    self.early_termination_mistakes = 0
+        #    self.update_early_termination_actions(observation)
         
         return observation
     
-    @traceback_decorator
-    def update_early_termination_actions(self, observation):
-        self.expert_actions = observation[self.expert_component]
+    #@traceback_decorator
+    #def update_early_termination_actions(self, observation):
+    #    self.expert_actions = observation[self.expert_component]
     
-    @traceback_decorator
-    def check_early_termination(self, action):
-        self.early_termination_mistakes += action not in self.expert_actions
-        if self.early_termination_mistakes >= self.early_termination:
-            return True
-        
-        return False
+    #@traceback_decorator
+    #def check_early_termination(self, action):
+    #    self.early_termination_mistakes += action not in self.expert_actions
+    #    if self.early_termination_mistakes >= self.early_termination:
+    #        return True
+    #    
+    #    return False
     
     @traceback_decorator
     def check_action(self, action):
@@ -189,25 +187,27 @@ class LtronEnv(gym.Env):
         observation = {}
         reward = 0.
         terminal = False
+        truncate = False
         info = {}
         for component_name, component in self.components.items():
             component_action = component_actions[component_name]
             try:
-                o,r,t,i = component.step(component_action)
+                obs,rew,term,trunc,inf = component.step(component_action)
             except:
                 print('step failed for %s'%component_name)
                 raise
             if component_name in self.observation_space.spaces:
-                observation[component_name] = o
-            reward += r
-            terminal |= t
-            if i is not None:
-                info[component_name] = i
+                observation[component_name] = obs
+            reward += rew
+            terminal |= term
+            truncate |= truc
+            if inf is not None:
+                info[component_name] = inf
         
-        if self.early_termination:
-            terminate_early = self.check_early_termination(action)
-            self.update_early_termination_actions(observation)
-            terminal |= terminate_early
+        #if self.early_termination:
+        #    terminate_early = self.check_early_termination(action)
+        #    self.update_early_termination_actions(observation)
+        #    terminal |= terminate_early
         
         return observation, reward, terminal, info
     
