@@ -70,6 +70,8 @@ class CursorRemoveBrickComponent(RemoveBrickComponent):
         if action:
             i, s = self.cursor_component.get_selected_snap()
             self.disassemble(i, s)
+        
+        return None, 0., False, False, None
     
     def no_op_action(self):
         return 0

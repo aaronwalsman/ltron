@@ -30,8 +30,8 @@ class ScreenCursor(SuperMechaComponent):
         }
         self.action_space = Dict(action_space)
     
-    def reset(self, seed=None, rng=None):
-        super().reset(seed=seed, rng=rng)
+    def reset(self, seed=None, rng=None, options=None):
+        super().reset(seed=seed, rng=rng, options=options)
         self.y = 0
         self.x = 0
         self.polarity = 0
@@ -45,7 +45,7 @@ class ScreenCursor(SuperMechaComponent):
         return None, 0., False, False, None
     
     def get_selected_snap(self):
-        snap_map = self.snap_render_component.observe(polarity=self.polarity)
+        snap_map, _ = self.snap_render_component.observe(polarity=self.polarity)
         instance, snap = snap_map[self.y,self.x]
         return instance, snap
     
@@ -169,6 +169,8 @@ class RelativeScreenCursor(ScreenCursor):
 '''
 
 class PickAndPlaceCursor(SuperMechaContainer):
+    allow_none_info = True
+    
     def __init__(self,
         pick_component,
         place_component,

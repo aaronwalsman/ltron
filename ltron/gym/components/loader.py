@@ -38,8 +38,8 @@ class DatasetLoader(SuperMechaComponent):
             'finished':False,
         })
     
-    def reset(self, seed=None, rng=None):
-        super().reset(seed=seed, rng=rng)
+    def reset(self, seed=None, rng=None, options=None):
+        super().reset(seed=seed, rng=rng, options=options)
         
         # clear the scene
         self.scene_component.clear_scene()

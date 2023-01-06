@@ -32,7 +32,7 @@ class ViewpointComponent(SuperMechaComponent):
         far_clip=50000.,
         frame_action=False,
         observable=True,
-        observation_format='coordinates',
+        observation_format='matrix',
     ):
         
         self.scene_component = scene_component
@@ -120,8 +120,8 @@ class ViewpointComponent(SuperMechaComponent):
             
             return self.observation
     
-    def reset(self, seed=None, rng=None):
-        super().reset(seed=seed, rng=rng)
+    def reset(self, seed=None, rng=None, options=None):
+        super().reset(seed=seed, rng=rng, options=None)
         if self.reset_mode == 'random':
             self.azimuth = self.np_random.integers(0, self.azimuth_steps)
             self.elevation = self.np_random.integers(0, self.elevation_steps)
@@ -199,9 +199,9 @@ class ViewpointComponent(SuperMechaComponent):
                 self.distance * self.distance_step_size +
                 self.distance_range[0]
             )
-            self.camera_pose = camera.azimuthal_parameters_to_matrix(
+            self.camera_matrix = camera.azimuthal_parameters_to_matrix(
                 azimuth, elevation, 0, distance, 0, 0, self.x, self.y, self.z)
-            self.view_matrix = numpy.linalg.inv(self.camera_pose)
+            self.view_matrix = numpy.linalg.inv(self.camera_matrix)
             scene.set_view_matrix(self.view_matrix)
     
     def no_op_action(self):

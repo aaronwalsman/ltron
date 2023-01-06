@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from supermecha import (
     SuperMechaComponent,
-    SuperMechaContainer,
+    SuperMechaEnv,
     TimeStepComponent,
 )
 
@@ -50,7 +50,7 @@ class BreakEnvRenderBasedReward(SuperMechaComponent):
         
         return None, reward, False, False, {}
 
-class BreakEnv(SuperMechaContainer):
+class BreakEnv(SuperMechaEnv):
     
     allow_none_info = False
     

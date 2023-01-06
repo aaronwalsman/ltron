@@ -35,8 +35,8 @@ class EmptySceneComponent(SuperMechaComponent):
     def clear_scene(self):
         self.brick_scene.clear_instances()
     
-    def reset(self, seed=None, rng=None):
-        super().reset(seed=seed, rng=rng)
+    def reset(self, seed=None, rng=None, options=None):
+        super().reset(seed=seed, rng=rng, options=options)
         if self.clear_frequency in ('step', 'reset'):
             self.clear_scene()
         return None, None
