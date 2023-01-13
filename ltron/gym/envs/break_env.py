@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from supermecha import (
     SuperMechaComponent,
-    SuperMechaEnv,
+    SuperMechaContainer,
     TimeStepComponent,
 )
 
@@ -12,11 +12,15 @@ from ltron.gym.components import (
     DatasetLoader,
     VisualInterfaceConfig,
     VisualInterface,
+    ColorRenderComponent,
 )
 
 class BreakEnvConfig(VisualInterfaceConfig):
     max_time_steps = 20
+    image_height = 256
+    image_width = 256
 
+'''
 class BreakEnvRenderBasedReward(SuperMechaComponent):
     def __init__(self,
         scene_component,
@@ -49,10 +53,9 @@ class BreakEnvRenderBasedReward(SuperMechaComponent):
         reward = (final_instances - initial_instances) * reward_scale
         
         return None, reward, False, False, {}
+'''
 
-class BreakEnv(SuperMechaEnv):
-    
-    allow_none_info = False
+class BreakEnv(SuperMechaContainer):
     
     def __init__(self,
         config,
@@ -61,6 +64,7 @@ class BreakEnv(SuperMechaEnv):
         dataset_subset=None,
         dataset_repeat=1,
         dataset_shuffle=True,
+        train=True,
     ):
         components = OrderedDict()
         dataset_info = get_dataset_info(dataset_name)
@@ -94,16 +98,22 @@ class BreakEnv(SuperMechaEnv):
         components['interface'] = VisualInterface(
             config,
             components['scene'],
-            dataset_info['max_instances_per_scene'],
-            include_manipulation=True,
-            include_floating_pane=False,
-            include_brick_removal=True,
+            #include_viewpoint=True,
+            #include_manipulation=True,
+            #include_brick_removal=True,
+            train=train,
         )
         
-        ## reward
-        # this is computed as a wrapper
-        #components['reward'] = BreakEnvReward(
-        #    components['scene'],
-        #)
+        # color render
+        components['image'] = ColorRenderComponent(
+            components['scene'],
+            config.image_height,
+            config.image_width,
+            anti_alias=True,
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=True,
+            observable=True,
+        )
         
         super().__init__(components)
