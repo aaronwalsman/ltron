@@ -13,50 +13,16 @@ from ltron.gym.components import (
     VisualInterfaceConfig,
     VisualInterface,
     ColorRenderComponent,
+    AssemblyComponent,
 )
 
 class BreakEnvConfig(VisualInterfaceConfig):
     max_time_steps = 20
     image_height = 256
     image_width = 256
-
-'''
-class BreakEnvRenderBasedReward(SuperMechaComponent):
-    def __init__(self,
-        scene_component,
-        instance_render_component,
-        target_assembly_component,
-    ):
-        self.scene_component = scene_component
-        self.instance_render_component = instance_render_component
-    
-    def update_observed_instances(self):
-        instance_map = self.instance_render_component.observe()
-        visible_instances = set(numpy.unique(instance_map))
-        self.observed_instances |= visible_instances
-    
-    def reset(self, seed, rng):
-        super().reset(self, seed, rng)
-        target_assembly = self.target_assembly_component.observe()
-        target_instances = numpy.where(target_assembly['shape'])
-        self.target_instances = set()
-        self.observed_instances = set()
-        self.update_observed_instances()
-        
-        return None, {}
-    
-    def step(self, action):
-        initial_instances = len(self.observed_instances)
-        self.update_observed_instances()
-        final_instances = len(self.observed_instances)
-        reward_scale = 1. / len(self.target_instances)
-        reward = (final_instances - initial_instances) * reward_scale
-        
-        return None, reward, False, False, {}
-'''
+    render_mode = 'egl'
 
 class BreakEnv(SuperMechaContainer):
-    
     def __init__(self,
         config,
         dataset_name,
@@ -70,11 +36,22 @@ class BreakEnv(SuperMechaContainer):
         dataset_info = get_dataset_info(dataset_name)
         
         # scene
+        if config.render_mode == 'egl':
+            render_args = None
+        elif config.render_mode == 'glut':
+            render_args = {
+                'opengl_mode' : 'glut',
+                'window_width' : config.image_width,
+                'window_height' : config.image_height,
+                'load_scene' : 'front_light',
+            }
         components['scene'] = EmptySceneComponent(
             dataset_info['shape_ids'],
             dataset_info['color_ids'],
             dataset_info['max_instances_per_scene'],
             dataset_info['max_edges_per_scene'],
+            renderable=True,
+            render_args=render_args,
             track_snaps=True,
             collision_checker=True,
         )
@@ -98,9 +75,6 @@ class BreakEnv(SuperMechaContainer):
         components['interface'] = VisualInterface(
             config,
             components['scene'],
-            #include_viewpoint=True,
-            #include_manipulation=True,
-            #include_brick_removal=True,
             train=train,
         )
         
@@ -116,4 +90,21 @@ class BreakEnv(SuperMechaContainer):
             observable=True,
         )
         
+        components['assembly'] = AssemblyComponent(
+            components['scene'],
+            dataset_info['shape_ids'],
+            dataset_info['color_ids'],
+            dataset_info['max_instances_per_scene'],
+            dataset_info['max_edges_per_scene'],
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=True,
+            observable=True,
+        )
+        
         super().__init__(components)
+    
+    #def step(self, *args, **kwargs):
+    #    o,r,t,u,i = super().step(*args, **kwargs)
+    #    print('reward: %.04f'%r)
+    #    return o,r,t,u,i

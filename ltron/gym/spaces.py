@@ -8,7 +8,7 @@ from gymnasium.spaces import Box, Discrete, MultiDiscrete, Dict
 
 import splendor.masks as masks
 
-from supermecha.gym.spaces import IntegerMaskSpace
+from supermecha.gym.spaces import IntegerMaskSpace, SE3Space, MultiSE3Space
 
 from ltron.constants import MAX_SNAPS_PER_BRICK, DEFAULT_WORLD_BBOX
 from ltron.name_span import NameSpan

@@ -44,8 +44,12 @@ def get_mpd_webdataset_from_shards(
 ):
     # shardshuffle is set to len(shards) because the data distribution across
     # shards may not be uniform in LTRON
+    if shuffle:
+        shardshuffle=len(shards)
+    else:
+        shardshuffle=None
     dataset = WebDataset(
-        shards, shardshuffle=len(shards)).rename(mpd='mpd;ldr;l3b')
+        shards, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
     dataset = standard_transforms(dataset, shuffle=shuffle, **kwargs)
     
     return dataset

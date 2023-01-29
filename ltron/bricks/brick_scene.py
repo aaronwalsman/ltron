@@ -528,7 +528,12 @@ class BrickScene:
         
         return unoccupied_snaps
     
-    def all_pick_and_place_transforms(self, pick, place, check_collision=False):
+    def all_pick_and_place_transforms(self,
+        pick,
+        place,
+        check_collision=False,
+        ignore_collision_instances=None
+    ):
         if check_collision:
             assert self.collision_checker is not None
         
@@ -546,6 +551,7 @@ class BrickScene:
                 collision = self.check_snap_collision(
                     [pick.brick_instance],
                     pick,
+                    ignore_instances=ignore_collision_instances,
                 )
                 self.move_instance(pick.brick_instance, pick_instance_transform)
                 if not collision:
@@ -614,10 +620,15 @@ class BrickScene:
         pick,
         place,
         check_collision=False,
+        ignore_collision_instances=None,
     ):
         
         pick_and_place_transforms = self.all_pick_and_place_transforms(
-            pick, place, check_collision=check_collision)
+            pick,
+            place,
+            check_collision=check_collision,
+            ignore_collision_instances=ignore_collision_instances,
+        )
         
         inv_pick_instance_transform = numpy.linalg.inv(
             pick.brick_instance.transform)
@@ -638,15 +649,24 @@ class BrickScene:
         place,
         check_pick_collision=False,
         check_place_collision=False,
+        ignore_collision_instances=None,
     ):
         pick_instance = pick.brick_instance
         if check_pick_collision:
-            collision = self.check_snap_collision([pick_instance], pick)
+            collision = self.check_snap_collision(
+                [pick_instance],
+                pick,
+                ignore_instances=ignore_collision_instances,
+            )
             if collision:
                 return False
         
         transform = self.pick_and_place_snap_transform(
-            pick, place, check_collision=check_place_collision)
+            pick,
+            place,
+            check_collision=check_place_collision,
+            ignore_collision_instances=ignore_collision_instances,
+        )
         if transform is None:
             return False
         else:

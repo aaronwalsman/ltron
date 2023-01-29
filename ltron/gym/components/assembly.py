@@ -1,6 +1,9 @@
+import numpy
+
+from supermecha import SensorComponent
+
 from ltron.bricks.brick_scene import TooManyInstancesError, make_empty_assembly
 from ltron.gym.spaces import AssemblySpace
-from ltron.gym.components.sensor_component import SensorComponent
 
 class AssemblyComponent(SensorComponent):
     def __init__(self,
@@ -9,11 +12,15 @@ class AssemblyComponent(SensorComponent):
         color_ids,
         max_instances,
         max_edges,
-        update_frequency,
-        observable,
+        update_on_init=False,
+        update_on_reset=False,
+        update_on_step=False,
+        observable=True,
     ):
         super().__init__(
-            update_frequency=update_frequency,
+            update_on_init=update_on_init,
+            update_on_reset=update_on_reset,
+            update_on_step=update_on_step,
             observable=observable,
         )
         
@@ -31,13 +38,15 @@ class AssemblyComponent(SensorComponent):
                 self.max_edges,
             )
     
-    def update_observation(self):
-        self.observation = self.scene_component.brick_scene.get_assembly(
+    def compute_observation(self):
+        assembly = self.scene_component.brick_scene.get_assembly(
             self.shape_ids,
             self.color_ids,
             self.max_instances,
             self.max_edges,
         )
+        assembly['pose'] = assembly['pose'].astype(numpy.float32)
+        return assembly, {}
 
 class DeduplicateAssemblyComponent(SensorComponent):
     def __init__(self,

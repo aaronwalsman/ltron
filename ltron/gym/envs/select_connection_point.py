@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+from steadfast.hierarchy import hierarchy_getitem
+
 from supermecha import (
     SuperMechaComponent,
     SuperMechaContainer,
@@ -12,10 +14,13 @@ from ltron.gym.components import (
     DatasetLoader,
     VisualInterfaceConfig,
     VisualInterface,
+    ColorRenderComponent
 )
 
 class SelectConnectionPointConfig(VisualInterfaceConfig):
-    pass
+    max_time_steps = 20
+    image_height = 256
+    image_width = 256
 
 class SelectConnectionPointReward(SuperMechaComponent):
     def __init__(self, scene_component, cursor_component):
@@ -23,13 +28,14 @@ class SelectConnectionPointReward(SuperMechaComponent):
         self.cursor_component = cursor_component
     
     def step(self, action):
-        instance, snap = cursor_component.get_selected_snap()
+        instance, snap = self.cursor_component.click_snap
         if instance != 0:
-            return None, 1., True, False, None
+            return None, 1., True, False, {}
         else:
-            return None, 0., False, False, None
+            return None, 0., False, False, {}
 
 class SelectConnectionPointEnv(SuperMechaContainer):
+    
     def __init__(self,
         config,
         dataset_name,
@@ -37,6 +43,7 @@ class SelectConnectionPointEnv(SuperMechaContainer):
         dataset_subset=None,
         dataset_repeat=1,
         dataset_shuffle=True,
+        train=True,
     ):
         components = OrderedDict()
         dataset_info = get_dataset_info(dataset_name)
@@ -70,15 +77,24 @@ class SelectConnectionPointEnv(SuperMechaContainer):
             config,
             components['scene'],
             dataset_info['max_instances_per_scene'],
-            include_manipulation=True,
-            include_floating_pane=False,
-            include_removal=False,
         )
         
-        # shape_prediction
+        # color render
+        components['image'] = ColorRenderComponent(
+            components['scene'],
+            config.image_height,
+            config.image_width,
+            anti_alias=True,
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=True,
+            observable=True,
+        )
+        
+        # reward
         components['reward'] = SelectConnectionPointReward(
             components['scene'],
-            components['interface'].components['cursor'].components['pick'],
+            components['interface'].components['cursor'],
         )
         
         super().__init__(components)

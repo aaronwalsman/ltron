@@ -1,11 +1,12 @@
 import numpy
 
 from splendor.frame_buffer import FrameBufferWrapper
-from splendor.masks import color_byte_to_index
+from splendor.masks import color_byte_to_index, NUM_MASKS
 
 from supermecha.gym.components.sensor_component import SensorComponent
 from supermecha.gym.spaces import ImageSpace
 
+from ltron.constants import MAX_SNAPS_PER_BRICK
 from ltron.gym.spaces import InstanceMaskSpace, SnapMaskSpace
 
 class RenderComponent(SensorComponent):
@@ -17,15 +18,13 @@ class RenderComponent(SensorComponent):
         update_on_init=False,
         update_on_reset=False,
         update_on_step=False,
-        cache_observation=True,
-        observable=False,
+        observable=True,
     ):
         # setup the sensor
         super().__init__(
             update_on_init=update_on_init,
             update_on_reset=update_on_reset,
             update_on_step=update_on_step,
-            cache_observation=cache_observation,
             observable=observable,
         )
         
@@ -51,8 +50,7 @@ class ColorRenderComponent(RenderComponent):
         update_on_init=False,
         update_on_reset=False,
         update_on_step=False,
-        cache_observation=False,
-        observable=False,
+        observable=True,
     ):
         super().__init__(
             scene_component,
@@ -62,7 +60,6 @@ class ColorRenderComponent(RenderComponent):
             update_on_init=update_on_init,
             update_on_reset=update_on_reset,
             update_on_step=update_on_step,
-            cache_observation=cache_observation,
             observable=observable,
         )
         
@@ -75,9 +72,9 @@ class ColorRenderComponent(RenderComponent):
         scene.viewport_scissor(0, 0, self.width, self.height)
         scene.color_render()
         observation = self.frame_buffer.read_pixels()
-        return observation, None
+        return observation, {}
 
-class InstanceRenderComponent(RenderComponent):
+class InstanceMaskRenderComponent(RenderComponent):
     def __init__(self,
         scene_component,
         width,
@@ -85,8 +82,7 @@ class InstanceRenderComponent(RenderComponent):
         update_on_init=False,
         update_on_reset=False,
         update_on_step=False,
-        cache_observation=False,
-        observable=False,
+        observable=True,
     ):
         
         super().__init__(
@@ -97,12 +93,12 @@ class InstanceRenderComponent(RenderComponent):
             update_on_init=update_on_init,
             update_on_reset=update_on_reset,
             update_on_step=update_on_step,
-            cache_observation=cache_observation,
             observable=observable,
         )
         
         if observable:
-            self.observation_space = InstanceMaskSpace(self.width, self.height)
+            self.observation_space = InstanceMaskSpace(
+                self.width, self.height, NUM_MASKS)
     
     def compute_observation(self):
         scene = self.scene_component.brick_scene
@@ -111,9 +107,9 @@ class InstanceRenderComponent(RenderComponent):
         scene.mask_render()
         mask = self.frame_buffer.read_pixels()
         observation = color_byte_to_index(mask)
-        return observation, None
+        return observation, {}
 
-class SnapRenderComponent(RenderComponent):
+class SnapMaskRenderComponent(RenderComponent):
     def __init__(self,
         scene_component,
         width,
@@ -123,8 +119,7 @@ class SnapRenderComponent(RenderComponent):
         update_on_init=False,
         update_on_reset=False,
         update_on_step=False,
-        cache_observation=False,
-        observable=False,
+        observable=True,
     ):
         
         super().__init__(
@@ -135,7 +130,6 @@ class SnapRenderComponent(RenderComponent):
             update_on_init=update_on_init,
             update_on_reset=update_on_reset,
             update_on_step=update_on_step,
-            cache_observation=cache_observation,
             observable=observable,
         )
         
@@ -171,4 +165,43 @@ class SnapRenderComponent(RenderComponent):
         
         self.observation = numpy.stack((instance_ids, snap_ids), axis=-1)
         
-        return self.observation, None
+        return self.observation, {}
+
+class SnapIslandRenderComponent(SensorComponent):
+    def __init__(self,
+        scene_component,
+        snap_render_component,
+        width,
+        height,
+        update_on_init=False,
+        update_on_reset=False,
+        update_on_step=False,
+        observable=True,
+    ):
+        # setup the sensor
+        super().__init__(
+            update_on_init=update_on_init,
+            update_on_reset=update_on_reset,
+            update_on_step=update_on_step,
+            observable=observable,
+        )
+        
+        # store the inputs
+        self.scene_component = scene_component
+        self.snap_render_component = snap_render_component
+        self.width = width
+        self.height = height
+        
+        if observable:
+            self.observation_space = InstanceMaskSpace(
+                self.width, self.height, self.width*self.height)
+    
+    def compute_observation(self):
+        snap_map = self.snap_render_component.observation
+        islands = snap_map[:,:,0] * MAX_SNAPS_PER_BRICK + snap_map[:,:,1]
+        _, islands = numpy.unique(islands, return_inverse=True)
+        islands = islands.reshape(self.height, self.width)
+        
+        self.observation = islands
+        
+        return self.observation, {}

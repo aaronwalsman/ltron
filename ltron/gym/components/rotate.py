@@ -1,94 +1,52 @@
+import math
+
 import numpy
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
-from gym.spaces import (
+
+from pyquaternion import Quaternion
+
+from gymnasium.spaces import (
     Discrete,
     Tuple,
     Dict,
-    MultiDiscrete
+    MultiDiscrete,
 )
-from ltron.geometry.collision import check_collision
-import math
 
-class CursorRotateAboutSnap(LtronGymComponent):
+from supermecha import SuperMechaComponent
+from ltron.geometry.collision import check_collision
+
+class SnapRotateComponent(SuperMechaComponent):
     def __init__(
         self,
         scene_component,
-        cursor_component,
+        overlay_component,
         check_collision,
-        rotation_steps = 4,
-        allow_snap_flip = False,
+        rotate_step=3,
+        rotate_axis=(0,1,0),
     ):
         self.scene_component = scene_component
-        self.cursor_component = cursor_component
+        self.overlay_component = overlay_component
         self.check_collision = check_collision
-        self.rotation_steps = rotation_steps
-        self.allow_snap_flip = allow_snap_flip
-        #self.action_space = Dict({
-            #'activate':Discrete(2),
-        #    'rotation':Discrete(self.rotation_steps),
-        #})
-        if allow_snap_flip:
-            self.action_space = Discrete(self.rotation_steps*2)
-        else:
-            self.action_space = Discrete(self.rotation_steps)
-
-        self.observation_space = Dict({'success': Discrete(2)})
-
-    def reset(self):
-        return {'success':0}
-
-    def step(self, action):
-        
-        if not action:
-            return {'success' : 0}, 0, False, None
-
-        #activate = action['activate']
-        #if not activate:
-        #    return {'success':0}, 0, False, None
-        
-        #discrete_rotate = action['rotation']
-        a = action % self.rotation_steps
-        degree = a * math.pi * 2 / self.rotation_steps
-        flip = action // self.rotation_steps
-        
-        trans = numpy.eye(4)
-        #rotate_x = numpy.copy(trans)
-        #rotate_x[1,1] = math.cos(degree)
-        #rotate_x[1,2] = -math.sin(degree)
-        #rotate_x[2:1] = math.sin(degree)
-        #rotate_x[2:2] = math.cos(degree)
-        
-        rotate_y = numpy.copy(trans)
-        rotate_y[0,0] = math.cos(degree)
-        rotate_y[0,2] = math.sin(degree)
-        rotate_y[2,0] = -math.sin(degree)
-        rotate_y[2,2] = math.cos(degree)
-        
-        if flip:
-            flip_transform = numpy.array([
-                [-1, 0, 0, 0],
-                [ 0,-1, 0, 0],
-                [ 0, 0, 1, 0],
-                [ 0, 0, 0, 1]
-            ])
-            rotate_y = rotate_y @ flip_transform
-        
-        #rotate_z = numpy.copy(trans)
-        #rotate_z[0,0] = math.cos(degree)
-        #rotate_z[0,1] = -math.sin(degree)
-        #rotate_z[1,0] = math.sin(degree)
-        #rotate_z[1,1] = math.cos(degree)
-        
-        instance_id = self.cursor_component.instance_id
-        snap_id = self.cursor_component.snap_id
+        self.rotate_steps = rotate_steps
+        self.rotate_step_size = numpy.pi * 2 / rotate_steps
+        self.action_space = Discrete(self.rotate_steps)
+    
+    def rotate_snap(self, instance_id, snap_id, action):
+        success = False
         if instance_id == 0:
-            return {'success' : 0}, 0, False, None
+            return success
+        
+        angle = self.rotate_step_size*action
+        rotation = Quaternion(
+            axis=self.axis, angle=angle).transformation_matrix
         
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]
         original_instance_transform = instance.transform
+        if snap_id >= len(instance.snaps):
+            return False
+        
         snap = instance.snaps[snap_id]
-        scene.transform_about_snap([instance], snap, rotate_y)
+        scene.transform_about_snap([instance], snap, rotation)
         
         if self.check_collision:
             transform = instance.transform
@@ -98,13 +56,46 @@ class CursorRotateAboutSnap(LtronGymComponent):
             if collision:
                 self.scene_component.brick_scene.move_instance(
                     instance, original_instance_transform)
-                return {'success' : 0}, 0, False, None
+                return False
         
-        return {'success' : 1}, 0, False, None
+        return True
+
+class CursorSnapRotateComponent(SnapRotateComponent):
+    def __init__(self,
+        scene_component,
+        cursor_component,
+        overlay_component,
+        check_collision=True,
+        rotate_step_size=math.radians(90.),
+        rotate_axis=(0,1,0),
+    ):
+        super().__init__(
+            scene_component,
+            overlay_component,
+            check_collision=check_collision,
+            rotate_step_size=rotate_step_size,
+            rotate_axis=rotate_axis,
+        )
+        self.cursor_component = cursor_component
+    
+    def step(self, action):
+        
+        if not action:
+            return None, 0, False, False, {}
+        
+        instance_id = self.cursor_component.instance_id
+        snap_id = self.cursor_component.snap_id
+        
+        super().rotate(instance_id, snap_id, action)
+        
+        return None, 0., False, False, {}
     
     def no_op_action(self):
         return 0
 
+
+
+'''
 class RotateAboutSnap(LtronGymComponent):
     def __init__(
         self,
@@ -191,3 +182,4 @@ class RotateAboutSnap(LtronGymComponent):
     
     def no_op_action(self):
         return 0
+'''

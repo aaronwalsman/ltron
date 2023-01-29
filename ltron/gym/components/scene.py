@@ -25,6 +25,8 @@ class EmptySceneComponent(SuperMechaComponent):
         if render_args is None:
             render_args = {'opengl_mode':'egl', 'load_scene':'front_light'}
         
+        print(render_args)
+        
         self.brick_scene = BrickScene(
             renderable=renderable,
             render_args=render_args,
@@ -39,19 +41,19 @@ class EmptySceneComponent(SuperMechaComponent):
         super().reset(seed=seed, rng=rng, options=options)
         if self.clear_frequency in ('step', 'reset'):
             self.clear_scene()
-        return None, None
+        return None, {}
     
     def step(self, action):
         if self.clear_frequency in ('step',):
             self.clear_scene()
-        return None, 0., False, False, None
+        return None, 0., False, False, {}
     
     def set_state(self, state):
         self.brick_scene.clear_instances()
         self.brick_scene.set_assembly(
             state, self.shape_ids, self.color_ids)
         
-        return None, None
+        return None, {}
     
     def get_state(self):
         state = self.brick_scene.get_assembly(
