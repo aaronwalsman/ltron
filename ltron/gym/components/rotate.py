@@ -14,64 +14,57 @@ from gymnasium.spaces import (
 from supermecha import SuperMechaComponent
 from ltron.geometry.collision import check_collision
 
-class SnapRotateComponent(SuperMechaComponent):
+class RotateSnapComponent(SuperMechaComponent):
     def __init__(
         self,
         scene_component,
-        overlay_component,
+        #overlay_component,
         check_collision,
-        rotate_step=3,
+        rotate_step_size=math.radians(90.),
         rotate_axis=(0,1,0),
     ):
         self.scene_component = scene_component
-        self.overlay_component = overlay_component
+        #self.overlay_component = overlay_component
         self.check_collision = check_collision
-        self.rotate_steps = rotate_steps
-        self.rotate_step_size = numpy.pi * 2 / rotate_steps
-        self.action_space = Discrete(self.rotate_steps)
+        self.rotate_step_size = rotate_step_size
+        self.rotate_axis = rotate_axis
+        self.action_space = Discrete(3)
     
     def rotate_snap(self, instance_id, snap_id, action):
         success = False
         if instance_id == 0:
             return success
         
+        if action == 2:
+            action = -1
         angle = self.rotate_step_size*action
         rotation = Quaternion(
-            axis=self.axis, angle=angle).transformation_matrix
+            axis=self.rotate_axis, angle=angle).transformation_matrix
         
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]
-        original_instance_transform = instance.transform
         if snap_id >= len(instance.snaps):
             return False
-        
         snap = instance.snaps[snap_id]
-        scene.transform_about_snap([instance], snap, rotation)
         
-        if self.check_collision:
-            transform = instance.transform
-            snap = instance.snaps[snap_id]
-            collision = self.scene_component.brick_scene.check_snap_collision(
-                target_instances=[instance], snap=snap)
-            if collision:
-                self.scene_component.brick_scene.move_instance(
-                    instance, original_instance_transform)
-                return False
+        scene.transform_about_snap(
+            [instance], snap, rotation, check_collision=self.check_collision)
         
-        return True
+    def no_op_action(self):
+        return 0
 
-class CursorSnapRotateComponent(SnapRotateComponent):
+class CursorRotateSnapComponent(RotateSnapComponent):
     def __init__(self,
         scene_component,
         cursor_component,
-        overlay_component,
+        #overlay_component,
         check_collision=True,
         rotate_step_size=math.radians(90.),
         rotate_axis=(0,1,0),
     ):
         super().__init__(
             scene_component,
-            overlay_component,
+            #overlay_component,
             check_collision=check_collision,
             rotate_step_size=rotate_step_size,
             rotate_axis=rotate_axis,
@@ -83,10 +76,9 @@ class CursorSnapRotateComponent(SnapRotateComponent):
         if not action:
             return None, 0, False, False, {}
         
-        instance_id = self.cursor_component.instance_id
-        snap_id = self.cursor_component.snap_id
+        instance_id, snap_id = self.cursor_component.click_snap
         
-        super().rotate(instance_id, snap_id, action)
+        super().rotate_snap(instance_id, snap_id, action)
         
         return None, 0., False, False, {}
     

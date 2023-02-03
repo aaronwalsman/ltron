@@ -13,10 +13,11 @@ from ltron.gym.components import (
     SnapCursorComponent,
     CursorRemoveBrickComponent,
     CursorPickAndPlaceComponent,
+    CursorRotateSnapComponent,
     DoneComponent,
     SnapMaskRenderComponent,
-    SnapIslandRenderComponent,
-    OverlayBrickComponent,
+    InsertBrickComponent,
+    #SnapIslandRenderComponent,
 )
 
 class VisualInterfaceConfig(Config):
@@ -54,12 +55,13 @@ class VisualInterface(SuperMechaContainer):
     def __init__(self,
         config,
         scene_component,
+        dataset_info,
         train=True,
     ):
         components = OrderedDict()
         mode_components = OrderedDict()
         
-        # cursor
+        # snap render
         pos_snap_render_component = SnapMaskRenderComponent(
             scene_component,
             config.image_height,
@@ -68,7 +70,7 @@ class VisualInterface(SuperMechaContainer):
             update_on_init=False,
             update_on_reset=True,
             update_on_step=True,
-            observable=False,
+            observable=train,
         )
         neg_snap_render_component = SnapMaskRenderComponent(
             scene_component,
@@ -78,9 +80,10 @@ class VisualInterface(SuperMechaContainer):
             update_on_init=False,
             update_on_reset=True,
             update_on_step=True,
-            observable=False,
+            observable=train,
         )
         
+        # cursor
         components['cursor'] = SnapCursorComponent(
             scene_component,
             pos_snap_render_component,
@@ -90,9 +93,9 @@ class VisualInterface(SuperMechaContainer):
             train=train,
         )
         
-        # table viewpoint
+        # viewpoint
         aspect_ratio = config.image_width / config.image_height
-        mode_components['table_viewpoint'] = ViewpointComponent(
+        mode_components['viewpoint'] = ViewpointComponent(
             scene_component=scene_component,
             azimuth_steps=config.viewpoint_azimuth_steps,
             elevation_steps=config.viewpoint_elevation_steps,
@@ -110,34 +113,41 @@ class VisualInterface(SuperMechaContainer):
             observable=config.viewpoint_observable,
         )
         
-        # hand viewpoint
-        mode_components['hand_viewpoint'] = ViewpointComponent(
-            scene_component=None,
-            azimuth_steps=config.viewpoint_azimuth_steps,
-            elevation_steps=config.viewpoint_elevation_steps,
-            elevation_range=config.viewpoint_elevation_range,
-            distance_steps=config.viewpoint_distance_steps,
-            distance_range=config.viewpoint_distance_range,
-            reset_mode=config.viewpoint_reset_mode,
-            world_bbox=config.world_bbox, #TODO: should be a separate bbox
-            allow_translate=False,
-            #translate_step_size=config.viewpoint_translate_step_size,
-            field_of_view=config.viewpoint_field_of_view,
-            observable=config.viewpoint_observable,
-        )
+        ## hand viewpoint
+        #mode_components['hand_viewpoint'] = ViewpointComponent(
+        #    scene_component=None,
+        #    azimuth_steps=config.viewpoint_azimuth_steps,
+        #    elevation_steps=config.viewpoint_elevation_steps,
+        #    elevation_range=config.viewpoint_elevation_range,
+        #    distance_steps=config.viewpoint_distance_steps,
+        #    distance_range=config.viewpoint_distance_range,
+        #    reset_mode=config.viewpoint_reset_mode,
+        #    world_bbox=config.world_bbox, #TODO: should be a separate bbox
+        #    allow_translate=False,
+        #    #translate_step_size=config.viewpoint_translate_step_size,
+        #    field_of_view=config.viewpoint_field_of_view,
+        #    observable=config.viewpoint_observable,
+        #)
         
         # overlay brick
-        mode_components['overlay_brick'] = OverlayBrickComponent(
-            scene_component,
-            mode_components['table_viewpoint'],
-            mode_components['hand_viewpoint'],
-        )
+        #mode_components['overlay_brick'] = OverlayBrickComponent(
+        #    scene_component,
+        #    mode_components['table_viewpoint'],
+        #    mode_components['hand_viewpoint'],
+        #)
         
         # pick and place
         mode_components['pick_and_place'] = CursorPickAndPlaceComponent(
             scene_component,
             components['cursor'],
-            overlay_brick_component = mode_components['overlay_brick'],
+            #overlay_brick_component = mode_components['overlay_brick'],
+            check_collision=config.check_collision,
+        )
+        
+        # rotate
+        mode_components['rotate'] = CursorRotateSnapComponent(
+            scene_component,
+            components['cursor'],
             check_collision=config.check_collision,
         )
         
@@ -146,6 +156,13 @@ class VisualInterface(SuperMechaContainer):
             scene_component,
             components['cursor'],
             check_collision=config.check_collision,
+        )
+        
+        # insert
+        mode_components['insert'] = InsertBrickComponent(
+            scene_component,
+            dataset_info['shape_ids'],
+            dataset_info['color_ids'],
         )
         
         # done
@@ -157,25 +174,25 @@ class VisualInterface(SuperMechaContainer):
         
         components['pos_snap_render'] = pos_snap_render_component
         components['neg_snap_render'] = neg_snap_render_component
-        components['pos_equivalence'] = SnapIslandRenderComponent(
-            scene_component,
-            pos_snap_render_component,
-            config.image_height,
-            config.image_width,
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=True,
-            observable=True,
-        )
-        components['neg_equivalence'] = SnapIslandRenderComponent(
-            scene_component,
-            neg_snap_render_component,
-            config.image_height,
-            config.image_width,
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=True,
-            observable=True,
-        )
+        #components['pos_equivalence'] = SnapIslandRenderComponent(
+        #    scene_component,
+        #    pos_snap_render_component,
+        #    config.image_height,
+        #    config.image_width,
+        #    update_on_init=False,
+        #    update_on_reset=True,
+        #    update_on_step=True,
+        #    observable=True,
+        #)
+        #components['neg_equivalence'] = SnapIslandRenderComponent(
+        #    scene_component,
+        #    neg_snap_render_component,
+        #    config.image_height,
+        #    config.image_width,
+        #    update_on_init=False,
+        #    update_on_reset=True,
+        #    update_on_step=True,
+        #    observable=True,
+        #)
         
         super().__init__(components)

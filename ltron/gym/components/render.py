@@ -167,6 +167,7 @@ class SnapMaskRenderComponent(RenderComponent):
         
         return self.observation, {}
 
+'''
 class SnapIslandRenderComponent(SensorComponent):
     def __init__(self,
         scene_component,
@@ -205,3 +206,4 @@ class SnapIslandRenderComponent(SensorComponent):
         self.observation = islands
         
         return self.observation, {}
+'''

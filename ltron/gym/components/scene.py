@@ -25,8 +25,6 @@ class EmptySceneComponent(SuperMechaComponent):
         if render_args is None:
             render_args = {'opengl_mode':'egl', 'load_scene':'front_light'}
         
-        print(render_args)
-        
         self.brick_scene = BrickScene(
             renderable=renderable,
             render_args=render_args,

@@ -388,9 +388,14 @@ class BrickScene:
         
         self.assembly_cache = None
     
-    def get_scene_bbox(self):
+    def get_bbox(self, instances=None):
+        if instances is None:
+            instances = self.instances
+        else:
+            instances = [self.instances[i] for i in instances]
+        
         vertices = []
-        for i, instance in self.instances.items():
+        for instance in instances:
             vertices.append(instance.bbox_vertices())
         if len(vertices):
             vertices = numpy.concatenate(vertices, axis=1)
@@ -400,6 +405,25 @@ class BrickScene:
             vmin = numpy.zeros(3)
             vmax = numpy.zeros(3)
         return vmin, vmax
+    
+    def place_above_scene(self, instances, offset=48):
+        instance_ids = set(int(instance) for instance in instances)
+        background_instances = [
+            instance for i, instance in self.instances.items()
+            if i not in instance_ids
+        ]
+        background_min, background_max = self.get_bbox(background_instances)
+        instances_min, instances_max = self.get_bbox(instances)
+        
+        instances_min_y = instances_min[1]
+        background_max_y = background_max[1]
+        y_offset = background_max_y - instances_min_y + offset
+        
+        transform = numpy.eye(4)
+        transform[1,3] = y_offset
+        
+        for instance in instances:
+            self.move_instance(instance, transform @ instance.transform)
     
     
     # instance snaps -----------------------------------------------------------
@@ -673,7 +697,20 @@ class BrickScene:
             self.move_instance(pick_instance, transform)
             return True
     
-    def transform_about_snap(self, instances, snap, local_transform):
+    def transform_about_snap(self,
+        instances,
+        snap,
+        local_transform,
+        check_collision=False,
+    ):
+        
+        if check_collision:
+            collision = self.check_snap_collision(
+                target_instances=instances, snap=snap)
+            if collision:
+                return False
+        
+        original_transforms = [i.transform for i in instances]
         offset = (
             snap.transform @
             local_transform @
@@ -681,6 +718,16 @@ class BrickScene:
         )
         for instance in instances:
             self.move_instance(instance, offset @ instance.transform)
+        
+        if check_collision:
+            collision = self.check_snap_collision(
+                target_instances=instances, snap=snap)
+            if collision:
+                for instance, transform in zip(instances, original_transforms):
+                    self.move_instance(instance, transform)
+                return False
+        
+        return True
     
     
     # materials ----------------------------------------------------------------

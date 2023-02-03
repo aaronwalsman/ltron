@@ -7,6 +7,11 @@ def register_ltron_envs():
     )
     
     register(
+        id='LTRON/Interface-v0',
+        entry_point='ltron.gym.envs:InterfaceEnv',
+    )
+    
+    register(
         id='LTRON/Break-v0',
         entry_point='ltron.gym.envs:BreakEnv',
     )

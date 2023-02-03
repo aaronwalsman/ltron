@@ -4,6 +4,17 @@ from supermecha import SuperMechaComponent
 
 from ltron.dataset.webdataset import get_mpd_webdataset
 
+class SingleFileLoader(SuperMechaComponent):
+    def __init__(self, scene_component, file_path):
+        self.scene_component = scene_component
+        self.file_path = file_path
+    
+    def reset(self, seed=None, options=None):
+        self.scene_component.clear_scene()
+        self.scene_component.brick_scene.import_ldraw(self.file_path)
+        
+        return None, {}
+
 class DatasetLoader(SuperMechaComponent):
     def __init__(self,
         scene_component,

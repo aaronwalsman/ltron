@@ -1,10 +1,10 @@
 from ltron.gym.components.scene import EmptySceneComponent
-from ltron.gym.components.loader import DatasetLoader
+from ltron.gym.components.loader import SingleFileLoader, DatasetLoader
 from ltron.gym.components.render import (
     ColorRenderComponent,
     InstanceMaskRenderComponent,
     SnapMaskRenderComponent,
-    SnapIslandRenderComponent,
+    #SnapIslandRenderComponent,
 )
 from ltron.gym.components.viewpoint import (
     ViewpointActions,
@@ -16,14 +16,20 @@ from ltron.gym.components.viewpoint import (
     #PickAndPlaceCursor,
 #    SnapCursorComponent,
 #)
-from ltron.gym.components.floating_brick import (
-    FloatingBrickComponent,
-)
+#from ltron.gym.components.floating_brick import (
+#    FloatingBrickComponent,
+#)
 from ltron.gym.components.remove_brick import (
     CursorRemoveBrickComponent,
 )
 from ltron.gym.components.pick_and_place import (
     CursorPickAndPlaceComponent,
+)
+from ltron.gym.components.rotate import (
+    CursorRotateSnapComponent,
+)
+from ltron.gym.components.insert import (
+    InsertBrickComponent,
 )
 from ltron.gym.components.done import DoneComponent
 from ltron.gym.components.snap_cursor import SnapCursorComponent

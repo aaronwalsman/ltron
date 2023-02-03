@@ -11,10 +11,12 @@ class PickAndPlaceComponent(SuperMechaComponent):
         scene_component,
         #overlay_brick_component=None,
         check_collision=True,
+        place_above_scene_offset=48,
     ):
         self.scene_component = scene_component
         #self.overlay_brick_component = overlay_brick_component
         self.check_collision = check_collision
+        self.place_above_scene_offset = place_above_scene_offset
         if self.check_collision:
             scene = self.scene_component.brick_scene
             assert scene.collision_checker is not None
@@ -78,13 +80,19 @@ class PickAndPlaceComponent(SuperMechaComponent):
         #    if not success:
         #        scene.move_instance(pick_instance, original_transform)
         #    self.overlay_brick_component.set_overlay_instance(0)
-        if place_instance is not None:
+        if place_instance is None:
+            if self.check_collision:
+                if scene.check_snap_collision([pick_instance], pick_snap):
+                    return False
+            scene.place_above_scene(
+                [pick_instance], offset=self.place_above_scene_offset)
+        else:
             success = scene.pick_and_place_snap(
                 pick_snap,
                 place_snap,
-                check_pick_collision = self.check_collision,
-                check_place_collision = self.check_collision,
-                ignore_collision_instances = [overlay_instance],
+                check_pick_collision=self.check_collision,
+                check_place_collision=self.check_collision,
+                #ignore_collision_instances = [overlay_instance],
             )
         #else:
         #    self.overlay_brick_component.set_overlay_instance(
@@ -97,12 +105,12 @@ class CursorPickAndPlaceComponent(PickAndPlaceComponent):
     def __init__(self,
         scene_component,
         cursor_component,
-        overlay_brick_component=None,
+        #overlay_brick_component=None,
         check_collision=False,
     ):
         super().__init__(
             scene_component,
-            overlay_brick_component=overlay_brick_component,
+            #overlay_brick_component=overlay_brick_component,
             check_collision=check_collision,
         )
         self.cursor_component = cursor_component

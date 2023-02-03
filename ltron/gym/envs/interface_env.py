@@ -9,27 +9,24 @@ from supermecha import (
 from ltron.dataset.info import get_dataset_info
 from ltron.gym.components import (
     EmptySceneComponent,
-    DatasetLoader,
+    SingleFileLoader,
     VisualInterfaceConfig,
     VisualInterface,
     ColorRenderComponent,
     AssemblyComponent,
 )
 
-class BreakEnvConfig(VisualInterfaceConfig):
+class InterfaceEnvConfig(VisualInterfaceConfig):
+    load_scene = None
     max_time_steps = 20
     image_height = 256
     image_width = 256
     render_mode = 'egl'
 
-class BreakEnv(SuperMechaContainer):
+class InterfaceEnv(SuperMechaContainer):
     def __init__(self,
         config,
         dataset_name,
-        dataset_split,
-        dataset_subset=None,
-        dataset_repeat=1,
-        dataset_shuffle=True,
         train=True,
     ):
         components = OrderedDict()
@@ -57,14 +54,9 @@ class BreakEnv(SuperMechaContainer):
         )
         
         # dataset loader
-        components['loader'] = DatasetLoader(
+        components['loader'] = SingleFileLoader(
             components['scene'],
-            dataset_name,
-            dataset_split,
-            subset=dataset_subset,
-            shuffle=dataset_shuffle,
-            shuffle_buffer=1000,
-            repeat=dataset_repeat,
+            config.load_scene,
         )
         
         # time step
