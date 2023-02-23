@@ -27,7 +27,7 @@ def non_variant(brick_shape, all_brick_shapes):
 
 def make_brick_variant_tables():
     # get all parts
-    parts_path = os.path.join(settings.paths['ldraw'], 'parts', '*.dat')
+    parts_path = os.path.join(settings.PATHS['ldraw'], 'parts', '*.dat')
     all_brick_shapes = set(os.path.split(p)[-1] for p in glob.glob(parts_path))
     
     # build the tables

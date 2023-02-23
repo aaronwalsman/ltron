@@ -333,4 +333,4 @@ def sample_dataset(
 
 if __name__ == '__main__':
     random.seed(1234)
-    sample_dataset(settings.paths['random_stack'])
+    sample_dataset(settings.PATHS['random_stack'])

@@ -13,7 +13,8 @@ from ltron.gym.components import (
     EmptySceneComponent,
     DatasetLoader,
     VisualInterfaceConfig,
-    VisualInterface,
+    #VisualInterface,
+    make_visual_interface,
     ColorRenderComponent
 )
 

@@ -1,5 +1,6 @@
 import os
 import configparser
+import json
 
 from ltron.home import get_ltron_home
 
@@ -12,57 +13,42 @@ def resolve_path(path):
     else:
         return os.path.abspath(path.format(HOME=home_path))
 
-paths = {}
-datasets = {}
-shards = {}
-urls = {}
-render = {}
+PATHS = {}
+DATASETS = {}
+SHARDS = {}
+URLS = {}
 
 def reload_settings():
     if os.path.exists(settings_cfg_path):
         settings_parser = configparser.ConfigParser()
         settings_parser.read(settings_cfg_path)
         
-        paths.clear()
-        paths.update({
+        PATHS.clear()
+        PATHS.update({
             key : resolve_path(value)
             for key, value in dict(settings_parser['paths']).items()
         })
 
-        datasets.clear()
+        DATASETS.clear()
         datasets_path = resolve_path(settings_parser['paths']['datasets'])
-        datasets.update({
+        DATASETS.update({
             fname.replace('.json', '') : os.path.join(datasets_path, fname)
             for fname in os.listdir(datasets_path)
             if fname.endswith('.json')
         })
         
-        #collections.clear()
-        #collections_path = resolve_path(settings_parser['paths']['collections'])
-        #collections.update({
-        #    fname.replace('.tar', '') : os.path.join(collections_path, fname)
-        #    for fname in os.listdir(collections_path)
-        #    if fname.endswith('.tar')
-        #})
-        shards.clear()
+        SHARDS.clear()
         shards_path = resolve_path(settings_parser['paths']['shards'])
-        shards.update({
+        SHARDS.update({
             os.path.splitext(fname)[0] : os.path.join(shards_path, fname)
             for fname in os.listdir(shards_path)
             if '.tar' in fname
         })
         
-        urls.clear()
-        urls.update({
+        URLS.clear()
+        URLS.update({
             key : url
             for key, url in dict(settings_parser['urls']).items()
-            if key not in settings_parser['DEFAULT']
-        })
-        
-        render.clear()
-        render.update({
-            key : value
-            for key, value in dict(settings_parser['render']).items()
             if key not in settings_parser['DEFAULT']
         })
 

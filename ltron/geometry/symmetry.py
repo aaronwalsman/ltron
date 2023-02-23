@@ -315,8 +315,6 @@ def build_symmetry_table(
     tolerance=default_tolerance,
     error_handling='raise',
 ):
-    #all_brick_shapes = glob.glob(
-    #    os.path.join(settings.paths['ldraw'], 'parts', '*.dat'))
     
     if bricks is None:
         bricks = LDRAW_PARTS

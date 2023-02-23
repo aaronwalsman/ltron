@@ -8,8 +8,6 @@ def get_ltron_home():
 
 def make_ltron_home():
     home = get_ltron_home()
-    print('HOME')
-    print(home)
-    print(os.path.exists(home))
     if not os.path.exists(home):
+        print('Making ltron home: %s'%home)
         os.makedirs(home)

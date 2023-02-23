@@ -9,7 +9,7 @@ import tqdm
 import ltron.settings as settings
 from ltron.bricks.brick_scene import BrickScene
 
-omr_ldraw_directory = os.path.join(settings.paths['omr'], 'ldraw')
+omr_ldraw_directory = os.path.join(settings.PATHS['omr'], 'ldraw')
 
 file_names = list(sorted(os.listdir(omr_ldraw_directory)))
 
@@ -51,6 +51,6 @@ for file_name in tqdm.tqdm(file_names):
             path_data[file_name]['edge_data'][edge_string] = []
         path_data[file_name]['edge_data'][edge_string].append(ab.tolist())
 
-with open(os.path.join(settings.paths['omr'], 'scene_data.json'), 'w') as f:
+with open(os.path.join(settings.PATHS['omr'], 'scene_data.json'), 'w') as f:
     json.dump(path_data, f, indent=2)
 

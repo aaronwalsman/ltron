@@ -20,23 +20,25 @@ class RotateSnapComponent(SuperMechaComponent):
         scene_component,
         #overlay_component,
         check_collision,
-        rotate_step_size=math.radians(90.),
+        #rotate_step_size=math.radians(90.),
+        rotate_steps=4,
         rotate_axis=(0,1,0),
     ):
         self.scene_component = scene_component
         #self.overlay_component = overlay_component
         self.check_collision = check_collision
+        rotate_step_size = math.pi * 2 / rotate_steps
         self.rotate_step_size = rotate_step_size
         self.rotate_axis = rotate_axis
-        self.action_space = Discrete(3)
+        self.action_space = Discrete(rotate_steps)
     
     def rotate_snap(self, instance_id, snap_id, action):
         success = False
         if instance_id == 0:
             return success
         
-        if action == 2:
-            action = -1
+        #if action == 2:
+        #    action = -1
         angle = self.rotate_step_size*action
         rotation = Quaternion(
             axis=self.rotate_axis, angle=angle).transformation_matrix
@@ -59,14 +61,15 @@ class CursorRotateSnapComponent(RotateSnapComponent):
         cursor_component,
         #overlay_component,
         check_collision=True,
-        rotate_step_size=math.radians(90.),
+        #rotate_step_size=math.radians(90.),
+        rotate_steps=4,
         rotate_axis=(0,1,0),
     ):
         super().__init__(
             scene_component,
             #overlay_component,
             check_collision=check_collision,
-            rotate_step_size=rotate_step_size,
+            rotate_steps=rotate_steps,
             rotate_axis=rotate_axis,
         )
         self.cursor_component = cursor_component

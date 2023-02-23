@@ -27,14 +27,94 @@ ViewpointActions = Enum('ViewpointActions', [
     'Y_NEG',
 ], start=0)
 
+class FixedViewpointComponent(SuperMechaComponent):
+    def __init__(self,
+        scene_component=None,
+        azimuth=0,
+        azimuth_steps=16,
+        elevation=0,
+        elevation_steps=5,
+        elevation_range=(radians(-60.), radians(60.)),
+        distance=0,
+        distance_steps=4,
+        distance_range=(150.,600.),
+        center=(0.,0.,0.),
+        world_bbox=DEFAULT_WORLD_BBOX,
+        field_of_view=radians(60.),
+        aspect_ratio=1.,
+        near_clip=10.,
+        far_clip=50000.,
+    ):
+        self.scene_component = scene_component
+        self.azimuth = azimuth
+        self.azimuth_steps = azimuth_steps
+        self.azimuth_step_size = pi * 2 / azimuth_steps
+        self.elevation = elevation
+        self.elevation_steps = elevation_steps
+        self.elevation_range = elevation_range
+        self.elevation_step_size = (
+            elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
+        self.distance = distance
+        self.distance_steps = distance_steps
+        self.distance_range = distance_range
+        self.distance_step_size = (
+            distance_range[1] - distance_range[0]) / (distance_steps-1)
+        self.x, self.y, self.z = center
+        self.world_bbox = world_bbox
+        self.field_of_view = field_of_view
+        self.aspect_ratio = aspect_ratio
+        self.near_clip = near_clip
+        self.far_clip = far_clip
+    
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed, options=None)
+        self.set_camera()
+        return None, {}
+    
+    def set_camera(self):
+        
+        # compute the projection matrix
+        self.projection = camera.projection_matrix(
+            self.field_of_view,
+            self.aspect_ratio,
+            self.near_clip,
+            self.far_clip,
+        )
+        
+        # compute the view matrix
+        azimuth = self.azimuth * self.azimuth_step_size
+        elevation = (
+            self.elevation * self.elevation_step_size +
+            self.elevation_range[0]
+        )
+        distance = (
+            self.distance * self.distance_step_size +
+            self.distance_range[0]
+        )
+        self.camera_matrix = camera.azimuthal_parameters_to_matrix(
+            azimuth, elevation, 0, distance, 0, 0, self.x, self.y, self.z)
+        self.view_matrix = numpy.linalg.inv(self.camera_matrix)
+        
+        # set the projection and view matrix
+        if self.scene_component is not None:
+            scene = self.scene_component.brick_scene
+            scene.set_projection(self.projection)
+            scene.set_view_matrix(self.view_matrix)
+    
+    # TODO get/set state
+    
+    def no_op_action(self):
+        return 0
+        
+
 class ViewpointComponent(SuperMechaComponent):
     def __init__(self,
         scene_component=None,
         azimuth_steps=16,
         elevation_steps=5,
         elevation_range=(radians(-60.), radians(60.)),
-        distance_steps=3,
-        distance_range=(150.,450.),
+        distance_steps=4,
+        distance_range=(150.,600.),
         reset_mode='random',
         center_reset_range=((0.,0.,0.),(0.,0.,0.)),
         world_bbox=DEFAULT_WORLD_BBOX,
@@ -112,8 +192,8 @@ class ViewpointComponent(SuperMechaComponent):
             
             return self.observation, {}
     
-    def reset(self, seed=None, rng=None, options=None):
-        super().reset(seed=seed, rng=rng, options=None)
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed, options=None)
         if self.reset_mode == 'random':
             self.azimuth = self.np_random.integers(0, self.azimuth_steps)
             self.elevation = self.np_random.integers(0, self.elevation_steps)

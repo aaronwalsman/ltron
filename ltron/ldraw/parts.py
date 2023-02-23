@@ -3,9 +3,12 @@ import os
 import zipfile
 import json
 
+from splendor.assets import AssetLibrary
+
 from ltron.exceptions import LtronException
 from ltron.home import get_ltron_home
 import ltron.settings as settings
+import ltron.constants as constants
 from ltron.ldraw.exceptions import LtronException
 
 def get_reference_name(path):
@@ -20,6 +23,8 @@ LDRAW_BLACKLIST_ALL = set(blacklist_data['all'])
 
 ldraw_zip_path = os.path.join(get_ltron_home(), 'complete.zip')
 ldraw_zip = zipfile.ZipFile(ldraw_zip_path, 'r')
+
+ltron_splendor_assets = AssetLibrary(asset_packages='ltron_assets')
 
 LDRAW_PARTS = set()
 LDRAW_PARTS_S = set()
@@ -49,7 +54,26 @@ for info in ldraw_zip.infolist():
         partition.add(reference_name)
         LDRAW_PATHS[reference_name] = zip_path
 
-shadow_zip_path = os.path.join(settings.paths['ldcad'], 'seeds', 'shadow.sf')
+LDRAW_PARTS_WITHOUT_MESHES = set(
+    part for part in LDRAW_PARTS
+    if part.replace('.dat', '.obj').replace('.ldr', '.obj') not in
+    ltron_splendor_assets['meshes']
+)
+
+LDRAW_BLACKLIST_ALL |= LDRAW_PARTS_WITHOUT_MESHES
+
+def regenerate_shape_class_labels():
+    shape_class_labels = {
+        part : i+1 for i, part in
+        enumerate(sorted(LDRAW_PARTS - LDRAW_BLACKLIST_ALL))
+    }
+    class_labels = json.load(open(settings.PATHS['class_labels']))
+    class_labels['shape'] = shape_class_labels
+    with open(settings.PATHS['class_labels'], 'w') as f:
+        json.dump(class_labels, f, indent=2)
+    constants.reload_class_labels()
+
+shadow_zip_path = os.path.join(settings.PATHS['ldcad'], 'seeds', 'shadow.sf')
 shadow_zip = zipfile.ZipFile(shadow_zip_path, 'r')
 offlib_csl_path = 'offLib/offLibShadow.csl'
 offlib_csl = zipfile.ZipFile(

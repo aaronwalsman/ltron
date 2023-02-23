@@ -7,10 +7,9 @@ import ltron.settings as settings
 from ltron.bricks.brick_scene import BrickScene
 from ltron.ldraw.documents import LDrawDocument, LDrawMPDMainFile
 from ltron.ldraw.commands import LDrawImportCommand
-#from ltron.ldraw.paths import LDRAW_FILES
 from ltron.ldraw.parts import LDRAW_PATHS
 
-omr_directory = os.path.join(settings.paths['omr'], 'ldraw')
+omr_directory = os.path.join(settings.PATHS['omr'], 'ldraw')
 model_files = os.listdir(omr_directory)
 
 min_parts = 1

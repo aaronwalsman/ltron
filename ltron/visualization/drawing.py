@@ -167,7 +167,7 @@ def write_text(
 ):
     image = Image.fromarray(image)
     draw = ImageDraw.Draw(image)
-    font_path = settings.paths['font']
+    font_path = settings.PATHS['font']
     font = ImageFont.truetype(font_path, size)
     #color = 'rgb(%i, %i, %i)'%color
     draw.text(location, text, color, font)

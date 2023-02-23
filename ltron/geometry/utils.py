@@ -17,12 +17,6 @@ def matrix_angle_close_enough(a, b, max_angular_distance):
 
 def matrix_rotation_axis(a):
     a = a[:3,:3]
-    #s = a - a.T
-    #axis = numpy.array([a[2,1], a[0,2], a[1,0]])
-    #if numpy.all(axis == 0):
-    #    return axis
-    #else:
-    #    return axis / numpy.linalg.norm(axis)
     w, v = numpy.linalg.eig(a)
     tol = 1e-5
     i = numpy.where(

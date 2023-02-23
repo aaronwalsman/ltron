@@ -1,13 +1,13 @@
 from gymnasium.envs.registration import register
 
 def register_ltron_envs():
-    register(
-        id='LTRON/SelectConnectionPoint-v0',
-        entry_point='ltron.gym.envs:SelectConnectionPointEnv',
-    )
+    #register(
+    #    id='LTRON/SelectConnectionPoint-v0',
+    #    entry_point='ltron.gym.envs:SelectConnectionPointEnv',
+    #)
     
     register(
-        id='LTRON/Interface-v0',
+        id='LTRON/Freebuild-v0',
         entry_point='ltron.gym.envs:InterfaceEnv',
     )
     
@@ -15,8 +15,23 @@ def register_ltron_envs():
         id='LTRON/Break-v0',
         entry_point='ltron.gym.envs:BreakEnv',
     )
+    #register(
+    #    id='LTRON/BreakEval-v0',
+    #    entry_point='ltron.gym.envs:BreakEnv',
+    #    kwargs={'train':False},
+    #)
+    #register(
+    #    id='LTRON/BreakTrain-v0',
+    #    entry_point='ltron.gym.wrappers.build_expert:wrapped_build_expert',
+    #    kwargs={'env_name':'LTRON/Break-v0', 'train':True},
+    #)
     
     register(
-        id='LTRON/IdentifyRedBrick-v0',
-        entry_point='ltron.gym.envs:ColoredBrickPrediction',
+        id='LTRON/Make-v0',
+        entry_point='ltron.gym.envs:MakeEnv',
     )
+    
+    #register(
+    #    id='LTRON/IdentifyRedBrick-v0',
+    #    entry_point='ltron.gym.envs:ColoredBrickPrediction',
+    #)

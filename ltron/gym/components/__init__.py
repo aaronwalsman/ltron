@@ -1,5 +1,11 @@
 from ltron.gym.components.scene import EmptySceneComponent
-from ltron.gym.components.loader import SingleFileLoader, DatasetLoader
+from ltron.gym.components.loader import (
+    ClearScene,
+    SingleSceneLoader,
+    DatasetLoader,
+    LoaderConfig,
+    make_loader,
+)
 from ltron.gym.components.render import (
     ColorRenderComponent,
     InstanceMaskRenderComponent,
@@ -8,6 +14,7 @@ from ltron.gym.components.render import (
 )
 from ltron.gym.components.viewpoint import (
     ViewpointActions,
+    FixedViewpointComponent,
     ViewpointComponent,
 )
 #from ltron.gym.components.cursor import (
@@ -35,6 +42,8 @@ from ltron.gym.components.done import DoneComponent
 from ltron.gym.components.snap_cursor import SnapCursorComponent
 from ltron.gym.components.visual_interface import (
     VisualInterfaceConfig,
-    VisualInterface,
+    #VisualInterface,
+    make_visual_interface,
 )
 from ltron.gym.components.assembly import AssemblyComponent
+from ltron.gym.components.build_score import BuildScore

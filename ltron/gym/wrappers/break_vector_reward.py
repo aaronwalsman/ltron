@@ -53,10 +53,13 @@ class BreakVectorEnvAssemblyRewardWrapper:
         done = term | trunc
         
         diff = self.previous_instance_count - instance_count
-        rew += diff * 1./self.initial_instance_count * ~done #self.mask
-        if numpy.any(rew < 0.):
-            breakpoint()
-        
+        rew += diff * 1./self.initial_instance_count * ~done
+        '''
+        bonus = diff * 1./self.initial_instance_count #self.mask
+        print(bonus)
+        #bonus = bonus * 2 - 1./self.initial_instance_count # TEMP
+        rew = rew + bonus * ~done
+        '''
         self.previous_instance_count = instance_count
         self.initial_instance_count = (
             self.initial_instance_count * ~done +
@@ -66,6 +69,8 @@ class BreakVectorEnvAssemblyRewardWrapper:
         
         rew += term * (self.previous_instance_count == 0)
         rew -= term * (self.previous_instance_count != 0)
+        
+        #term = term | (instance_count == 0)
         
         return obs, rew, term, trunc, info
         

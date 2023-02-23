@@ -15,12 +15,10 @@ class SnapCursorComponent(CursorComponent):
         neg_render_component,
         height,
         width,
-        train
     ):
         super().__init__(height, width)
         self.pos_render_component = pos_render_component
         self.neg_render_component = neg_render_component
-        self.train = train
         self.click_snap = numpy.array([0,0])
         self.release_snap = numpy.array([0,0])
         
@@ -37,8 +35,8 @@ class SnapCursorComponent(CursorComponent):
             'release_snap' : numpy.array(self.release_snap),
         }
     
-    def reset(self, seed=None, rng=None, options=None):
-        o,i = super().reset(seed=seed, rng=rng, options=options)
+    def reset(self, seed=None, options=None):
+        o,i = super().reset(seed=seed, options=options)
         o = self.compute_observation()
         
         self.click_snap = numpy.array([0,0])

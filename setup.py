@@ -42,6 +42,10 @@ setuptools.setup(
             'ltron_generate_episode_collection='
                 'ltron.dataset.generate_episode_collection:'
                 'generate_episode_collection',
+            'ltron_env_interface='
+                'ltron.gym.ltron_env_interface:ltron_env_interface',
+            'ltron_regenerate_class_labels='
+                'ltron.dataset.class_labels:regenerate_class_labels',
         ],
         'gymnasium.envs' : [
             '__root__ = ltron.gym.register:register_ltron_envs',

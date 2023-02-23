@@ -12,7 +12,7 @@ iterate = tqdm.tqdm(paths['mpd'])
 for path in iterate:
     scene = BrickScene()
     scene.import_ldraw(path)
-    vmin, vmax = scene.get_scene_bbox()
+    vmin, vmax = scene.get_bbox()
     offset = vmax - vmin
     max_offset = max(offset)
     if max_offset > max_dim:

@@ -79,7 +79,7 @@ if __name__ == '__main__':
             for class_name in info['shape_ids']]
     
     ldraw_path = os.path.join(
-            settings.paths['data'], 'rando_tt3', 'ldraw')
+            settings.PATHS['data'], 'rando_tt3', 'ldraw')
     if not os.path.isdir(ldraw_path):
         os.makedirs(ldraw_path)
     

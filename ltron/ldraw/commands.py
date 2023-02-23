@@ -2,7 +2,6 @@ import re
 
 import numpy
 from ltron.ldraw.exceptions import LDrawException
-#import ltron.ldraw.paths as ldraw_paths
 from ltron.ldraw.parts import get_reference_name
 
 class InvalidLDrawCommand(LDrawException):

@@ -2,8 +2,7 @@ import collections
 
 import numpy
 
-import ltron.ldraw.colors as ldraw_colors
-#import ltron.ldraw.paths as ldraw_paths
+from ltron.ldraw.colors import COLOR_INDEX_TO_RGB
 from ltron.ldraw.parts import LDRAW_PARTS
 from ltron.ldraw.commands import LDrawImportCommand
 from ltron.ldraw.documents import (
@@ -68,7 +67,7 @@ class BrickColor:
     def __init__(self, color):
         self.color_index = int(color)
         self.color_name = str(color)
-        self.color_byte = ldraw_colors.get_color_rgb(
+        self.color_byte = COLOR_INDEX_TO_RGB.get(
             self.color_index, (128,128,128))
     
     def splendor_material_args(self):

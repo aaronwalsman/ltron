@@ -1,6 +1,11 @@
-from ltron.gym.envs.select_connection_point import (
-    SelectConnectionPointConfig,
-    SelectConnectionPointEnv,
+#from ltron.gym.envs.select_connection_point import (
+#    SelectConnectionPointConfig,
+#    SelectConnectionPointEnv,
+#)
+
+from ltron.gym.envs.freebuild_env import (
+    FreebuildEnvConfig,
+    FreebuildEnv,
 )
 
 from ltron.gym.envs.break_env import (
@@ -8,7 +13,7 @@ from ltron.gym.envs.break_env import (
     BreakEnv,
 )
 
-from ltron.gym.envs.interface_env import (
-    InterfaceEnvConfig,
-    InterfaceEnv,
+from ltron.gym.envs.make_env import (
+    MakeEnvConfig,
+    MakeEnv,
 )

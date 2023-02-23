@@ -9,7 +9,7 @@ from supermecha import (
 from ltron.dataset.info import get_dataset_info
 from ltron.gym.components import (
     EmptySceneComponent,
-    #DatasetLoader,
+    LoaderConfig,
     make_loader,
     VisualInterfaceConfig,
     make_visual_interface,
@@ -17,32 +17,18 @@ from ltron.gym.components import (
     AssemblyComponent,
 )
 
-class BreakEnvConfig(VisualInterfaceConfig):
-    load_scene = None
-    train_dataset_name = None
-    train_split = None
-    eval_dataset_name = None
-    eval_split = None
-    dataset_subset = None
-    dataset_repeat = 1
-    dataset_shuffle = True
-    
+class FreebuildEnvConfig(VisualInterfaceConfig, LoaderConfig):
     max_time_steps = 20
-    
     image_height = 256
     image_width = 256
     render_mode = 'egl'
-    
-    shape_class_labels = None
-    color_class_labels = None
 
-class BreakEnv(SuperMechaContainer):
+class FreebuildEnv(SuperMechaContainer):
     def __init__(self,
         config,
-        train=True,
+        train=False,
     ):
         components = OrderedDict()
-        #dataset_info = get_dataset_info(dataset_name)
         
         # scene
         if config.render_mode == 'egl':
@@ -61,35 +47,16 @@ class BreakEnv(SuperMechaContainer):
             collision_checker=True,
         )
         
-        #if train:
-        #    components['target_assembly'] = AssemblyComponent(
-        #        components['scene'],
-        #        shape_class_labels=config.shape_class_labels,
-        #        color_class_labels=config.color_class_labels,
-        #        #max_instances=dataset_info['max_instances_per_scene'],
-        #        #max_edges=dataset_info['max_edges_per_scene'],
-        #        update_on_init=False,
-        #        update_on_reset=True,
-        #        update_on_step=False,
-        #        observable=True,
-        #    )
-        
         # loader
-        components['loader'] = make_loader(
-            config, components['scene'], train=train)
-        #components['loader'] = DatasetLoader(
-        #    components['scene'],
-        #    dataset_name,
-        #    dataset_split,
-        #    subset=dataset_subset,
-        #    shuffle=dataset_shuffle,
-        #    shuffle_buffer=1000,
-        #    repeat=dataset_repeat,
-        #)
+        if config.load_scene is not None:
+            components['loader'] = SingleFileLoader(
+                components['scene'],
+                config.load_scene,
+            )
         
         # time step
         components['time'] = TimeStepComponent(
-            config.max_time_steps, observe_step=True)
+            config.max_time_steps, observe_step=False)
         
         # visual interface
         interface_components = make_visual_interface(
@@ -110,13 +77,8 @@ class BreakEnv(SuperMechaContainer):
             update_on_step=True,
             observable=True,
         )
-        
         components['assembly'] = AssemblyComponent(
             components['scene'],
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
-            #max_instances=dataset_info['max_instances_per_scene'],
-            #max_edges=dataset_info['max_edges_per_scene'],
             update_on_init=False,
             update_on_reset=True,
             update_on_step=True,

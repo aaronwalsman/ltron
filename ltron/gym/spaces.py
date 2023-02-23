@@ -10,7 +10,14 @@ import splendor.masks as masks
 
 from supermecha.gym.spaces import IntegerMaskSpace, SE3Space, MultiSE3Space
 
-from ltron.constants import MAX_SNAPS_PER_BRICK, DEFAULT_WORLD_BBOX
+from ltron.constants import (
+    MAX_SNAPS_PER_BRICK,
+    DEFAULT_WORLD_BBOX,
+    SHAPE_CLASS_LABELS,
+    COLOR_CLASS_LABELS,
+    MAX_INSTANCES_PER_SCENE,
+    MAX_EDGES_PER_SCENE,
+)
 from ltron.name_span import NameSpan
 
 DEFAULT_LDU_MIN = -100000
@@ -258,17 +265,23 @@ class AssemblySpace(Dict):
     '''
     def __init__(
         self,
-        shape_ids,
-        color_ids,
-        max_instances,
-        max_edges,
+        #shape_ids,
+        #color_ids,
+        max_instances=None,
+        max_edges=None,
         world_bbox=DEFAULT_WORLD_BBOX,
     ):
-        self.shape_ids = shape_ids
-        num_shapes = max(self.shape_ids.values())
-        self.color_ids = color_ids
-        num_colors = max(self.color_ids.values())
+        #self.shape_ids = shape_ids
+        #num_shapes = max(self.shape_ids.values())
+        #self.color_ids = color_ids
+        #num_colors = max(self.color_ids.values())
+        num_shapes = len(SHAPE_CLASS_LABELS)
+        num_colors = len(COLOR_CLASS_LABELS)
+        if max_instances is None:
+            max_instances = MAX_INSTANCES_PER_SCENE
         self.max_instances = max_instances
+        if max_edges is None:
+            max_edges = MAX_EDGES_PER_SCENE
         self.max_edges = max_edges
         
         self.space_dict = {
@@ -291,12 +304,12 @@ class AssemblySpace(Dict):
         super().__init__(self.space_dict)
     
     def from_scene(self, scene):
-        return scene.get_assembly(
-            self.shape_ids,
-            self.color_ids,
-            self.max_instances,
-            self.max_edges,
-        )
+        return scene.get_assembly()
+            #self.shape_ids,
+            #self.color_ids,
+            #self.max_instances,
+            #self.max_edges,
+        #)
 
 class MaskedAssemblySpace(Box):
     '''

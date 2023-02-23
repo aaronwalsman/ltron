@@ -5,8 +5,8 @@ from ltron.matching import match_assemblies, match_lookup
 def f1(tp, fp, fn):
     return tp / (tp + 0.5 * (fp + fn))
 
-def score_assemblies(proposal, target, part_lookup):
-    matching, offset = match_assemblies(proposal, target, part_lookup)
+def score_assemblies(proposal, target, radius=0.01):
+    matching, offset = match_assemblies(proposal, target, radius=0.01)
     tp, _, fp, fn = match_lookup(matching, proposal, target)
     score = f1(len(tp), len(fp), len(fn))
     
@@ -15,7 +15,6 @@ def score_assemblies(proposal, target, part_lookup):
 def edit_distance(
     assembly_a,
     assembly_b,
-    shape_names,
     radius=0.01,
     miss_a_penalty=1,
     miss_b_penalty=1,
@@ -36,13 +35,12 @@ def edit_distance(
             b['shape'][bb] = 0
             b['color'][bb] = 0
         
-        match, offset = match_assemblies(a, b, shape_names, radius=radius)
+        match, offset = match_assemblies(a, b, radius=radius)
         a_to_b, b_to_a, miss_a, miss_b = match_lookup(match, a, b)
         
         return a, b, a_to_b, miss_a, miss_b
     
-    first_match, _ = match_assemblies(
-        assembly_a, assembly_b, shape_names, radius=radius)
+    first_match, _ = match_assemblies(assembly_a, assembly_b, radius=radius)
     a_to_b, b_to_a, miss_a, miss_b = match_lookup(
         first_match, assembly_a, assembly_b)
     running_a_to_b.update(a_to_b)

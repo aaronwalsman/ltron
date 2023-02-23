@@ -44,8 +44,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return license
 
 def ldraw_license():
-    readme_path = os.path.join(settings.paths['ldraw'], 'CAreadme.txt')
-    license_path = os.path.join(settings.paths['ldraw'], 'CAlicense.txt')
+    readme_path = os.path.join(settings.PATHS['ldraw'], 'CAreadme.txt')
+    license_path = os.path.join(settings.PATHS['ldraw'], 'CAlicense.txt')
     license = '''LDraw
 Source: %s
 --------------------------------------------------------------------------------
