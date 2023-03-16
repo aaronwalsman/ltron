@@ -101,8 +101,8 @@ class DatasetLoaderComponent(LtronGymComponent):
                 self.finished = True
             else:
                 text = datapoint['mpd']
-                self.scene_component.brick_scene.import_text(
-                    datapoint['__key__'] + '.mpd', text)
+                data_name = datapoint['__key__'] + '.mpd'
+                self.scene_component.brick_scene.import_text(data_name, text)
         
         return None
 
