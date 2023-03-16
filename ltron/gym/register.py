@@ -15,6 +15,14 @@ def register_ltron_envs():
         id='LTRON/Break-v0',
         entry_point='ltron.gym.envs:BreakEnv',
     )
+    
+    register(
+        id='LTRON/BreakWithExpert-v0',
+        entry_point='ltron.gym.wrappers.build_step_expert:'
+            'wrapped_build_step_expert',
+        kwargs={'env_name':'LTRON/Break-v0'},
+    )
+    
     #register(
     #    id='LTRON/BreakEval-v0',
     #    entry_point='ltron.gym.envs:BreakEnv',
@@ -29,6 +37,13 @@ def register_ltron_envs():
     register(
         id='LTRON/Make-v0',
         entry_point='ltron.gym.envs:MakeEnv',
+    )
+    
+    register(
+        id='LTRON/MakeWithExpert-v0',
+        entry_point='ltron.gym.wrappers.build_step_expert:'
+            'wrapped_build_step_expert',
+        kwargs={'env_name':'LTRON/Make-v0'},
     )
     
     #register(

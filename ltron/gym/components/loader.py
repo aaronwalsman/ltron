@@ -17,14 +17,19 @@ class ClearScene(SuperMechaComponent):
         return None, {}
 
 class SingleSceneLoader(SuperMechaComponent):
-    def __init__(self, scene_component, file_path):
+    def __init__(self, scene_component, file_paths):
         self.scene_component = scene_component
-        self.file_path = file_path
+        self.file_paths = file_paths.split(',')
+        self.loads = 0
     
     def reset(self, seed=None, options=None):
         super().reset(seed)
         self.scene_component.clear_scene()
-        self.scene_component.brick_scene.import_ldraw(self.file_path)
+        #file_path = self.file_paths[self.loads%len(self.file_paths)]
+        file_path = self.np_random.choice(self.file_paths)
+        #print(file_path)
+        self.scene_component.brick_scene.import_ldraw(file_path)
+        self.loads += 1
         
         return None, {}
 
@@ -116,7 +121,7 @@ class LoaderConfig(Config):
     eval_split = None
     eval_subset = None
     eval_repeat = 1
-    eval_shuffle = False
+    eval_shuffle = True
 
 def make_loader(config, scene_component, train=False, load_key='load_scene'):
     load_scene = getattr(config, load_key)

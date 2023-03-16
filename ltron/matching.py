@@ -286,9 +286,9 @@ def compute_misaligned(assembly_a, assembly_b, matches):
                         # TODO TODO TODO TODO TODO
                         if a_to_b[ai2] == bi2 and as1 == bs1 and as2 == bs2:
                             misaligned_connected_a.setdefault(a, set())
-                            misaligned_connected_a[a].add((b, as1, as2))
+                            misaligned_connected_a[a].add((b, as1, bi2, as2))
                             misaligned_connected_b.setdefault(b, set())
-                            misaligned_connected_b[b].add((a, bs1, bs2))
+                            misaligned_connected_b[b].add((a, bs1, ai2, bs2))
     
     misaligned_disconnected_a = {
         k:v for k,v in shape_color_match_a.items()

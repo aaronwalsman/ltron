@@ -38,13 +38,14 @@ class VisualInterfaceConfig(Config):
     include_rotate = True
     include_remove = True
     include_insert = True
+    include_done = True
     
     # viewpoint
     viewpoint_azimuth_steps = 16
     viewpoint_elevation_steps = 5
     viewpoint_elevation_range = (radians(-60.), radians(60.))
-    viewpoint_distance_steps = 4
-    viewpoint_distance_range = (150.,600.)
+    viewpoint_distance_steps = 3
+    viewpoint_distance_range = (300.,600.)
     viewpoint_reset_mode = 'random'
     viewpoint_center_reset = ((0.,0.,0.),(0.,0.,0.))
     viewpoint_translate_step_size = 40.
@@ -171,7 +172,8 @@ def make_visual_interface(
         )
     
     # done
-    #action_primitives['done'] = DoneComponent()
+    if config.include_done:
+        action_primitives['done'] = DoneComponent()
     
     # make the mode switch
     components['action_primitives'] = SuperMechaComponentSwitch(

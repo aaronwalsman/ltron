@@ -424,6 +424,10 @@ class BrickScene:
         return vmin, vmax
     
     def place_above_scene(self, instances, offset=48):
+        try:
+            _ = len(offset)
+        except TypeError:
+            offset = (0,offset,0)
         instance_ids = set(int(instance) for instance in instances)
         background_instances = [
             instance for i, instance in self.instances.items()
@@ -434,10 +438,15 @@ class BrickScene:
         
         instances_min_y = instances_min[1]
         background_max_y = background_max[1]
-        y_offset = background_max_y - instances_min_y + offset
+        #y_offset = background_max_y - instances_min_y + offset
+        offset = (
+            offset[0],
+            offset[1] + background_max_y - instances_min_y,
+            offset[2],
+        )
         
         transform = numpy.eye(4)
-        transform[1,3] = y_offset
+        transform[:3,3] = offset
         
         for instance in instances:
             self.move_instance(instance, transform @ instance.transform)

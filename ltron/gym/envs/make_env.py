@@ -16,15 +16,16 @@ from ltron.gym.components import (
     make_visual_interface,
     ColorRenderComponent,
     AssemblyComponent,
-    BuildScore
+    BuildScore,
+    PlaceAboveScene,
 )
 
 class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     load_scene = None
     load_start_scene = None
-    train_dataset_name = None
+    train_dataset = None
     train_split = None
-    eval_dataset_name = None
+    eval_dataset = None
     eval_split = None
     dataset_subset = None
     dataset_repeat = 1
@@ -38,6 +39,9 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     
     shape_class_labels = None
     color_class_labels = None
+    
+    image_based_target = False
+    use_place_above_for_start = False
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -67,26 +71,6 @@ class MakeEnv(SuperMechaContainer):
         # loader
         components['loader'] = make_loader(
             config, components['scene'], train=train)
-        components['target_assembly'] = AssemblyComponent(
-            components['scene'],
-            #dataset_info['max_instances_per_scene'],
-            #dataset_info['max_edges_per_scene'],
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=False,
-            observable=True,
-        )
-        if config.load_start_scene is None:
-            components['clear_scene'] = ClearScene(components['scene'])
-        else:
-            components['start_loader'] = make_loader(
-                config,
-                components['scene'],
-                train=train,
-                load_key='load_start_scene',
-            )
         
         # time step
         components['time'] = TimeStepComponent(
@@ -98,7 +82,52 @@ class MakeEnv(SuperMechaContainer):
             components['scene'],
             train=train,
         )
-        components.update(interface_components)
+        render_components = {
+            k:v for k,v in interface_components.items()
+            if 'render' in k
+        }
+        nonrender_components = {
+            k:v for k,v in interface_components.items()
+            if 'render' not in k
+        }
+        components.update(nonrender_components)
+        
+        if config.image_based_target:
+            components['target_image'] = ColorRenderComponent(
+            components['scene'],
+            config.image_height,
+            config.image_width,
+            anti_alias=True,
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=False,
+            observable=True,
+        )
+        components['target_assembly'] = AssemblyComponent(
+            components['scene'],
+            #dataset_info['max_instances_per_scene'],
+            #dataset_info['max_edges_per_scene'],
+            shape_class_labels=config.shape_class_labels,
+            color_class_labels=config.color_class_labels,
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=False,
+            observable=True,
+        )
+        
+        if config.use_place_above_for_start:
+            components['place_above_scene'] = PlaceAboveScene(
+                components['scene'], offset=(-96,48,-96))
+        else:
+            if config.load_start_scene is None:
+                components['clear_scene'] = ClearScene(components['scene'])
+            else:
+                components['start_loader'] = make_loader(
+                    config,
+                    components['scene'],
+                    train=train,
+                    load_key='load_start_scene',
+                )
         
         # color render
         components['image'] = ColorRenderComponent(
@@ -122,6 +151,7 @@ class MakeEnv(SuperMechaContainer):
             update_on_step=True,
             observable=True,
         )
+        components.update(render_components)
         components['score'] = BuildScore(
             components['target_assembly'],
             components['assembly'],

@@ -33,8 +33,8 @@ class CursorComponent(SuperMechaComponent):
     def no_op_action(self):
         return {
             'button' : 0
-            'click' : (0,0),
-            'release' : (0,0),
+            'click' : numpy.zeros(2, dtype=numpy.int64),
+            'release' : numpy.zeros(2, dtype=numpy.int64),
         }
 
 '''

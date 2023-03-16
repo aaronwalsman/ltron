@@ -443,7 +443,7 @@ def rotate_first_brick(
         # pickable maps (i,s) in current assembly to [(i,ci,cs)] in target
         pickable = {}
         for tgt_i, cur_set in targets_to_fix.items():
-            for cur_i, cur_s, cur_con_s in cur_set:
+            for cur_i, cur_s, cur_con_i, cur_con_s in cur_set:
                 fn_edge_indices = matching_edges(
                     target_assembly, i1=tgt_i, s1=cur_s, s2=cur_con_s)
                 fn_edges = target_assembly['edges'][:,fn_edge_indices]

@@ -14,14 +14,13 @@ from ltron.constants import (
     MAX_SNAPS_PER_BRICK,
     DEFAULT_WORLD_BBOX,
     SHAPE_CLASS_LABELS,
+    NUM_SHAPE_CLASSES,
     COLOR_CLASS_LABELS,
+    NUM_COLOR_CLASSES,
     MAX_INSTANCES_PER_SCENE,
     MAX_EDGES_PER_SCENE,
 )
 from ltron.name_span import NameSpan
-
-DEFAULT_LDU_MIN = -100000
-DEFAULT_LDU_MAX = 100000
 
 # utility spaces ---------------------------------------------------------------
 class DiscreteLayoutSpace(Discrete):
@@ -265,18 +264,10 @@ class AssemblySpace(Dict):
     '''
     def __init__(
         self,
-        #shape_ids,
-        #color_ids,
         max_instances=None,
         max_edges=None,
         world_bbox=DEFAULT_WORLD_BBOX,
     ):
-        #self.shape_ids = shape_ids
-        #num_shapes = max(self.shape_ids.values())
-        #self.color_ids = color_ids
-        #num_colors = max(self.color_ids.values())
-        num_shapes = len(SHAPE_CLASS_LABELS)
-        num_colors = len(COLOR_CLASS_LABELS)
         if max_instances is None:
             max_instances = MAX_INSTANCES_PER_SCENE
         self.max_instances = max_instances
@@ -287,13 +278,13 @@ class AssemblySpace(Dict):
         self.space_dict = {
             'shape' : Box(
                 low=0,
-                high=num_shapes,
+                high=NUM_SHAPE_CLASSES,
                 shape=(max_instances+1,),
                 dtype=numpy.long,
             ),
             'color' : Box(
                 low=0,
-                high=num_colors,
+                high=NUM_COLOR_CLASSES,
                 shape=(max_instances+1,),
                 dtype=numpy.long,
             ),
