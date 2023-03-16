@@ -19,7 +19,7 @@ def get_model_sizes(dataset, split, max_bricks=None):
         bs.instances.clear()
         bs.import_ldraw(path)
         if max_bricks is None or len(bs.instances) <= max_bricks:
-            bbox_min, bbox_max = bs.get_scene_bbox()
+            bbox_min, bbox_max = bs.get_bbox()
             bbox_dimensions = bbox_max - bbox_min
             bboxes[path] = bbox_dimensions
             max_dimensions[path] = max(bbox_dimensions)

@@ -11,7 +11,7 @@ from ltron.bricks.brick_scene import BrickScene
 random.seed(1234567890)
 
 existing_sets = {}
-lte_500_path = settings.datasets['lte_500']
+lte_500_path = settings.DATASETS['lte_500']
 omr_ldraw = os.path.join(os.path.dirname(lte_500_path), 'ldraw')
 all_sets = sorted(os.listdir(omr_ldraw))
 good_sets = []

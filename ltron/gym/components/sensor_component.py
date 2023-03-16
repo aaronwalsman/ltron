@@ -24,9 +24,9 @@ class SensorComponent(LtronGymComponent):
         if self.update_frequency in ('step', 'reset', 'always'):
             self.observe()
         if self.observable:
-            return self.observation
+            return self.observation, None
         else:
-            return None
+            return None, None
     
     def step(self, action):
         if self.update_frequency in ('step', 'on_demand', 'always'):
@@ -34,9 +34,9 @@ class SensorComponent(LtronGymComponent):
         if self.update_frequency in ('step', 'always'):
             self.observe()
         if self.observable:
-            return self.observation, 0., False, None
+            return self.observation, 0., False, False, None
         else:
-            return None, 0., False, None
+            return None, 0., False, False, None
     
     def get_state(self):
         return self.observation, self.stale

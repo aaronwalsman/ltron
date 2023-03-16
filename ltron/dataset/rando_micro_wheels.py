@@ -100,7 +100,7 @@ samplers = [
 ]
 
 ldraw_path = os.path.join(
-        settings.paths['data'], 'rando_micro_wheels', 'ldraw_new')
+        settings.PATHS['data'], 'rando_micro_wheels', 'ldraw_new')
 if not os.path.isdir(ldraw_path):
     os.makedirs(ldraw_path)
 

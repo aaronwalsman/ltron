@@ -10,7 +10,6 @@ from ltron.ldraw.commands import (
     LDrawContentCommand,
 )
 
-#import ltron.ldraw.paths as ldraw_paths
 from ltron.ldraw.parts import LDRAW_PARTS
 from ltron.ldraw.documents import (
     LDrawDocument,

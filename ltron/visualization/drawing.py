@@ -56,7 +56,7 @@ def draw_vector_field(image, vector_field, weight, color):
 #    yy, xx = line(start_y, start_x, dest_y, dest_x)
 #    image[yy, xx] = color
 
-def draw_line(image, x0, y0, x1, y1, color):
+def draw_line(image, y0, x0, y1, x1, color):
     x0r = int(round(x0))
     y0r = int(round(y0))
     x1r = int(round(x1))
@@ -116,29 +116,46 @@ def clamp(x, min_x, max_x):
         return x
 
 def draw_crosshairs(image, y, x, size, color):
+    start_y = clamp(round(y-size), 0, image.shape[0]-1)
+    center_y = clamp(round(y), 0, image.shape[0]-1)
+    end_y = clamp(round(y+size+1), 0, image.shape[0]-1)
     
     start_x = clamp(round(x-size), 0, image.shape[1]-1)
     center_x = clamp(round(x), 0, image.shape[1]-1)
     end_x = clamp(round(x+size+1), 0, image.shape[1]-1)
     
-    start_y = clamp(round(y-size), 0, image.shape[0]-1)
-    center_y = clamp(round(y), 0, image.shape[0]-1)
-    end_y = clamp(round(y+size+1), 0, image.shape[0]-1)
-    
+    original_center = image[center_y, center_x].copy()
     image[center_y, start_x:end_x] = color
     image[start_y:end_y, center_x] = color
+    image[center_y, center_x] = original_center
 
-def draw_square(image, x, y, size, color):
+def draw_square(image, y, x, size, color):
+    start_y = clamp(round(y-size), 0, image.shape[0]-1)
+    end_y = clamp(round(y+size), 0, image.shape[0]-1)
+    
     start_x = clamp(round(x-size), 0, image.shape[1]-1)
-    end_x = clamp(round(x+size+1), 0, image.shape[1]-1)
+    end_x = clamp(round(x+size), 0, image.shape[1]-1)
     
-    start_y = clamp(round(x-size), 0, image_shape[0]-1)
-    end_y = clamp(round(x-size), 0, image_shape[0]-1)
-    
-    image[start_x, start_y:end_y] = color
-    image[end_x, start_y:end_y] = color
-    image[start_x:end_x, start_y] = color
-    image[start_x:end_x, end_y] = color
+    image[start_y, start_x:end_x+1] = color
+    image[end_y, start_x:end_x+1] = color
+    image[start_y:end_y+1, start_x] = color
+    image[start_y:end_y+1, end_x] = color
+
+def heatmap_overlay(
+    background,
+    heatmap,
+    color,
+    background_scale=0.5,
+    max_normalize=False,
+):
+    if max_normalize:
+        heatmap_max = numpy.max(heatmap)
+        heatmap /= heatmap_max
+    overlay = (
+        heatmap * [[color]] +
+        background * background_scale * (1. - heatmap)
+    ).astype(numpy.uint8)
+    return overlay
 
 def write_text(
     image,
@@ -150,7 +167,7 @@ def write_text(
 ):
     image = Image.fromarray(image)
     draw = ImageDraw.Draw(image)
-    font_path = settings.paths['font']
+    font_path = settings.PATHS['font']
     font = ImageFont.truetype(font_path, size)
     #color = 'rgb(%i, %i, %i)'%color
     draw.text(location, text, color, font)

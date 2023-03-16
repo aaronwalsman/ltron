@@ -40,7 +40,6 @@ class CollisionChecker:
         self,
         target_instances,
         render_transform,
-        scene_instances=None,
         **kwargs,
     ):
         return check_collision(
@@ -140,6 +139,7 @@ def check_collision(
     target_instances,
     render_transform,
     scene_instances=None,
+    ignore_instances=None,
     frame_buffers=None,
     update_frame_buffers=False,
     max_intersection=1, #=4
@@ -163,6 +163,10 @@ def check_collision(
     else:
         scene_instance_names = set(
             str(scene_instance) for scene_instance in scene_instances)
+    
+    if ignore_instances is not None:
+        target_instance_names -= set(ignore_instances)
+        scene_instance_names -= set(ignore_instances)
     
     # initialize frame_buffers if necessary
     if frame_buffers is None:

@@ -1,102 +1,92 @@
 import random
 
-import numpy
+from steadfast.config import Config
 
-#from ltron.dataset.paths import get_tar_paths, get_dataset_info
-from ltron.dataset.info import get_dataset_info
+from supermecha import SuperMechaComponent
+
 from ltron.dataset.webdataset import get_mpd_webdataset
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
-class DatasetLoaderComponent(LtronGymComponent):
+class ClearScene(SuperMechaComponent):
+    def __init__(self, scene_component):
+        self.scene_component = scene_component
+    
+    def reset(self, seed=None, options=None):
+        super().reset(seed)
+        self.scene_component.clear_scene()
+        
+        return None, {}
+
+class SingleSceneLoader(SuperMechaComponent):
+    def __init__(self, scene_component, file_paths):
+        self.scene_component = scene_component
+        self.file_paths = file_paths.split(',')
+        self.loads = 0
+    
+    def reset(self, seed=None, options=None):
+        super().reset(seed)
+        self.scene_component.clear_scene()
+        #file_path = self.file_paths[self.loads%len(self.file_paths)]
+        file_path = self.np_random.choice(self.file_paths)
+        #print(file_path)
+        self.scene_component.brick_scene.import_ldraw(file_path)
+        self.loads += 1
+        
+        return None, {}
+
+class DatasetLoader(SuperMechaComponent):
     def __init__(self,
         scene_component,
-        dataset,
+        dataset_name,
         split,
         subset=None,
         rank=0,
         size=1,
-        #sample_mode='uniform',
         shuffle=False,
-        shuffle_buffer=100,
+        shuffle_buffer=1000,
         repeat=False,
     ):
         self.scene_component = scene_component
-        self.dataset = dataset
+        self.dataset_name = dataset_name
         self.split = split
         self.subset = subset
-        self.rank = rank
-        self.size = size
+        self.rank = 0
+        self.size = 1
         self.shuffle = shuffle
         self.shuffle_buffer = shuffle_buffer
         self.repeat = repeat
-        #self.sample_mode = sample_mode
-        #self.dataset_info = get_dataset_info(self.dataset)
         
-        #self.tarfiles, self.dataset_paths = get_tar_paths(
-        #    dataset, split, subset)
+        self.initialized = False
         
-        #self.length = len(self.dataset_paths)
-        #if sample_mode == 'uniform':
-        #    self.dataset_ids = range(self.length)
-        #else:
-        #    self.dataset_ids = range(self.rank, self.length, self.size)
-        
-        self.dataset = get_mpd_webdataset(
-            self.dataset,
-            self.split,
-            subset=self.subset,
-            rank=self.rank,
-            size=self.size,
-            shuffle=self.shuffle,
-            shuffle_buffer=self.shuffle_buffer,
-            repeat=self.repeat,
-        )
-        self.iter = iter(self.dataset)
-        
-        self.set_state({
-            'finished':False,
-            #'episode_id':None,
-            #'dataset_id':None,
-        })
+        self.loaded_scenes = 0
+        self.finished = False
     
-    def reset(self):
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed, options=options)
+        
+        if seed is not None or not self.initialized:
+            random.seed(seed)
+            
+            self.dataset = get_mpd_webdataset(
+                self.dataset_name,
+                self.split,
+                subset=self.subset,
+                rank=self.rank,
+                size=self.size,
+                shuffle=self.shuffle,
+                shuffle_buffer=self.shuffle_buffer,
+                repeat=self.repeat,
+            )
+            self.iter = iter(self.dataset)
+            self.initialized = True
+            self.loaded_scenes = 0
         
         # clear the scene
         self.scene_component.clear_scene()
         
-        # increment the episode id
-        #if self.episode_id is None:
-        #    self.episode_id = 0
-        #else:
-        #    self.episode_id += 1
-        
-        # pick the dataset id according to the sample_mode
-        '''
-        if self.sample_mode == 'uniform':
-            self.dataset_id = random.choice(self.dataset_ids)
-        elif self.sample_mode in ('sequential', 'multi_pass'):
-            index = self.episode_id % len(self.dataset_ids)
-            self.dataset_id = self.dataset_ids[index]
-        elif self.sample_mode == 'single_pass':
-            if self.episode_id < len(self.dataset_paths):
-                self.dataset_id = self.dataset_ids[self.episode_id]
-            else:
-                self.finished = True
-        else:
-            raise ValueError('Unknown sample mode "%s"'%self.sample_mode)
-        '''
-        
         if not self.finished:
-            #self.dataset_item = self.dataset_paths[self.dataset_id]
-            #self.scene_component.brick_scene.import_ldraw(
-            #    self.zipfile.open(self.dataset_paths[self.dataset_id]))
-            
-            #tar_source, file_path = self.dataset_paths[self.dataset_id]
-            #text = self.tarfiles[tar_source].extractfile(file_path).read()
-            #self.scene_component.brick_scene.import_text(file_path, text)
-            
             try:
                 datapoint = next(self.iter)
+                self.loaded_scenes += 1
             except StopIteration:
                 self.finished = True
             else:
@@ -104,21 +94,59 @@ class DatasetLoaderComponent(LtronGymComponent):
                 data_name = datapoint['__key__'] + '.mpd'
                 self.scene_component.brick_scene.import_text(data_name, text)
         
-        return None
-
-    def step(self, action):
-        return None, 0., False, None
-
+        return None, {}
+    
     def get_state(self):
+        print('WARNING: LOADER GET_STATE DOES NOT ACTUALLY WORK, NO RNG SAVED')
         state = {
+            'loaded_scenes':self.loaded_scenes,
             'finished':self.finished,
-            #'episode_id':self.episode_id,
-            #'dataset_id':self.dataset_id,
         }
-
+        
         return state
-
+    
     def set_state(self, state):
+        self.loaded_scenes = state['loaded_scenes']
         self.finished = state['finished']
-        #self.episode_id = state['episode_id']
-        #self.dataset_id = state['dataset_id']
+        return None, {}
+
+class LoaderConfig(Config):
+    load_scene = None
+    train_dataset = None
+    train_split = None
+    train_subset = None
+    train_repeat = 1
+    train_shuffle = True
+    eval_dataset = None
+    eval_split = None
+    eval_subset = None
+    eval_repeat = 1
+    eval_shuffle = True
+
+def make_loader(config, scene_component, train=False, load_key='load_scene'):
+    load_scene = getattr(config, load_key)
+    if load_scene is not None:
+        return SingleSceneLoader(scene_component, load_scene)
+    
+    if train:
+        if config.train_dataset is not None:
+            return DatasetLoader(
+                scene_component,
+                config.train_dataset,
+                config.train_split,
+                subset=config.train_subset,
+                repeat=config.train_repeat,
+                shuffle=config.train_shuffle,
+            )
+    else:
+        if config.eval_dataset is not None:
+            return DatasetLoader(
+                scene_component,
+                config.eval_dataset,
+                config.eval_split,
+                subset=config.eval_subset,
+                repeat=config.eval_repeat,
+                shuffle=config.eval_shuffle,
+            )
+    
+    return ClearScene(scene_component)

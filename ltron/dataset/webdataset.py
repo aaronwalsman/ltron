@@ -34,7 +34,7 @@ def get_mpd_webdataset(
     **kwargs
 ):
     shards = get_split_shards(dataset, split)
-    shards = [settings.shards[shard] for shard in shards]
+    shards = [settings.SHARDS[shard] for shard in shards]
     return get_mpd_webdataset_from_shards(shards, **kwargs)
 
 def get_mpd_webdataset_from_shards(
@@ -44,8 +44,12 @@ def get_mpd_webdataset_from_shards(
 ):
     # shardshuffle is set to len(shards) because the data distribution across
     # shards may not be uniform in LTRON
+    if shuffle:
+        shardshuffle=len(shards)
+    else:
+        shardshuffle=None
     dataset = WebDataset(
-        shards, shardshuffle=len(shards)).rename(mpd='mpd;ldr;l3b')
+        shards, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
     dataset = standard_transforms(dataset, shuffle=shuffle, **kwargs)
     
     return dataset
@@ -57,7 +61,7 @@ def get_episode_webdataset(
     **kwargs,
 ):
     shards = get_split_shards(dataset, split)
-    shards = [settings.shards[shard] for shard in shards]
+    shards = [seattings.SHARDS[shard] for shard in shards]
     return get_episode_dataset_from_shards(**kwargs)
 
 def get_episode_webdataset_from_shards(

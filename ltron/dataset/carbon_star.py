@@ -9,7 +9,7 @@ import ltron.settings as settings
 from ltron.bricks.brick_scene import BrickScene
 
 dataset_scenes = ['8661-1 - Carbon Star.mpd']
-carbon_star_path = settings.datasets['carbon_star']
+carbon_star_path = settings.DATASETS['carbon_star']
 omr_ldraw = os.path.join(os.path.dirname(carbon_star_path), 'ldraw')
 
 scene = BrickScene()

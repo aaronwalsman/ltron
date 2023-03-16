@@ -22,7 +22,7 @@ def install_ldraw(overwrite=False):
     print('-'*80)
     complete_zip_path = os.path.join(ltron_home, 'complete.zip')
     downloaded_path = download(
-        settings.urls['ldraw'],
+        settings.URLS['ldraw'],
         complete_zip_path,
         overwrite=overwrite,
     )
@@ -51,7 +51,7 @@ def install_ldcad(overwrite=True):
     print('-'*80)
     
     # download
-    ldcad_url = settings.urls['ldcad']
+    ldcad_url = settings.URLS['ldcad']
     ldcad_bz2_filename = ldcad_url.split('/')[-1]
     ldcad_bz2_path = os.path.join(ltron_home, ldcad_bz2_filename)
     download(ldcad_url, ldcad_bz2_path, overwrite=overwrite)
@@ -105,15 +105,15 @@ def install_collection(name, overwrite=False):
     print('Installing %s Data Collection'%name)
     
     print('-'*80)
-    zip_path = os.path.join(settings.paths['collections'], '%s.zip'%name)
-    download(settings.urls[name], zip_path, overwrite=overwrite)
+    zip_path = os.path.join(settings.PATHS['collections'], '%s.zip'%name)
+    download(settings.URLS[name], zip_path, overwrite=overwrite)
     
     print('-'*80)
     print('Extracting collection %s'%name)
-    extract_path = os.path.join(settings.paths['collections'], name)
+    extract_path = os.path.join(settings.PATHS['collections'], name)
     if not os.path.exists(extract_path) or overwrite:
         with zipfile.ZipFile(zip_path, 'r') as z:
-            z.extractall(settings.paths['collections'])
+            z.extractall(settings.PATHS['collections'])
     else:
         print('Already extracted.')
 
@@ -122,7 +122,7 @@ def install_splendor_meshes(resolution, overwrite=False):
     print('Installing Splendor Meshes (%s)'%resolution)
     print('-'*80)
     asset_name = 'ltron_assets_%s'%resolution
-    install_assets(settings.urls[asset_name], asset_name, overwrite=overwrite)
+    install_assets(settings.URLS[asset_name], asset_name, overwrite=overwrite)
     splendor_home = get_splendor_home()
     resolution_path = os.path.join(splendor_home, asset_name)
     resolution_cfg_path = resolution_path + '.cfg'

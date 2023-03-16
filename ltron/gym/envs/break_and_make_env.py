@@ -1,9 +1,10 @@
 import math
 from collections import OrderedDict
 
-from ltron.config import Config
+from steadfast.config import Config
+from steadfast.gym.component_env import ComponentEnv
+
 from ltron.dataset.info import get_dataset_info
-from ltron.gym.envs.ltron_env import LtronEnv
 from ltron.gym.components.scene import EmptySceneComponent
 from ltron.gym.components.time_step import TimeStepComponent
 from ltron.gym.components.loader import DatasetLoaderComponent
@@ -34,7 +35,6 @@ class BreakAndMakeEnvConfig(Config):
     
     max_episode_length = 32
     
-    #dataset_sample_mode = 'uniform'
     shuffle = True
     shuffle_buffer = 100
     repeat = True
@@ -61,7 +61,7 @@ class BreakAndMakeEnvConfig(Config):
     expert_align_orientation = False
     early_termination = False
 
-class BreakAndMakeEnv(LtronEnv):
+class BreakAndMakeEnv(ComponentEnv):
     def __init__(
         self,
         config,
@@ -88,10 +88,10 @@ class BreakAndMakeEnv(LtronEnv):
         
         super().__init__(
             components,
-            combine_action_space='discrete_chain',
-            print_traceback=print_traceback,
-            early_termination=config.early_termination * include_expert,
-            expert_component='expert',
+            #combine_action_space='discrete_chain',
+            #print_traceback=print_traceback,
+            #early_termination=config.early_termination * include_expert,
+            #expert_component='expert',
         )
     
     def make_scene_components(self, config, components):
@@ -124,7 +124,6 @@ class BreakAndMakeEnv(LtronEnv):
             shuffle=config.shuffle,
             shuffle_buffer=config.shuffle_buffer,
             repeat=config.repeat,
-            #sample_mode=config.dataset_sample_mode,
         )
         
         # uprightify

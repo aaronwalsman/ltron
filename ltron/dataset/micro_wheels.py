@@ -24,7 +24,7 @@ import random
 brick_shapes = {}
 for path in dataset_paths:
     scene = BrickScene()
-    scene.import_ldraw(os.path.join(settings.paths['omr'], 'ldraw', path))
+    scene.import_ldraw(os.path.join(settings.PATHS['omr'], 'ldraw', path))
     brick_shapes[path] = set()
     for instance_id, instance in scene.instances.items():
         brick_shape = str(instance.brick_shape)
@@ -49,4 +49,4 @@ while True:
         break
 
 test_set = [os.path.join('ldraw', path) for path in test_set]
-build_dataset('micro_wheels', settings.paths['omr'], dataset_paths, test_set)
+build_dataset('micro_wheels', settings.PATHS['omr'], dataset_paths, test_set)

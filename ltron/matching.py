@@ -6,13 +6,18 @@ import tqdm
 
 from scipy.spatial import cKDTree
 
+from ltron.constants import SHAPE_CLASS_LABELS
+SHAPE_LABEL_NAMES = {value:key for key, value in SHAPE_CLASS_LABELS.items()}
 #from ltron.geometry.utils import default_allclose
 from ltron.geometry.symmetry import brick_pose_match_under_symmetry
+
+def initialize_kd_tree(assembly):
+    return cKDTree(assembly['pose'][:,:3,3])
 
 def match_assemblies(
     assembly_a,
     assembly_b,
-    part_names,
+    #part_names,
     kdtree=None,
     radius=0.01,
 ):
@@ -29,7 +34,7 @@ def match_assemblies(
     
     # Build the kdtree if one was not passed in.
     if kdtree is None:
-        kdtree = cKDTree(assembly_b['pose'][:,:3,3])
+        kd_tree = initialize_kd_tree(assembly_b)
     
     # Initialize the set of matches that have been tested already.
     ab_tested_matches = set()
@@ -99,7 +104,7 @@ def match_assemblies(
                         valid_matches = find_matches_under_transform(
                             assembly_a,
                             assembly_b,
-                            part_names,
+                            #part_names,
                             a_to_b,
                             kdtree,
                             radius,
@@ -152,13 +157,17 @@ def match_assemblies(
 def find_matches_under_transform(
     assembly_a,
     assembly_b,
-    part_names,
+    #part_names,
     a_to_b,
-    kdtree,
+    kdtree=None,
     radius=0.01,
     min_matches=-1,
 ):
     transformed_a = numpy.matmul(a_to_b, assembly_a['pose'])
+    
+    # initialize the kdtree if necessary
+    if kdtree is None:
+        kdtree = initialize_kd_tree(assembly_b)
     
     # Compute the closeset points.
     pos_a = transformed_a[:,:3,3]
@@ -175,11 +184,11 @@ def find_matches_under_transform(
     
     # Validate the matches.
     valid_matches = validate_matches(
-        assembly_a, assembly_b, matches, a_to_b, part_names)
+        assembly_a, assembly_b, matches, a_to_b) #, part_names)
     
     return valid_matches
 
-def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
+def validate_matches(assembly_a, assembly_b, matches, a_to_b): #, part_names):
     # Ensure that shapes match, colors match, poses match and that each brick
     # is only matched to one other.
     valid_matches = set()
@@ -206,7 +215,7 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b, part_names):
             transformed_pose_a = a_to_b @ assembly_a['pose'][a]
             pose_b = assembly_b['pose'][b]
             if not brick_pose_match_under_symmetry(
-                part_names[shape_a], transformed_pose_a, pose_b
+                SHAPE_LABEL_NAMES[shape_a], transformed_pose_a, pose_b
             ):
                 continue
             
@@ -277,9 +286,9 @@ def compute_misaligned(assembly_a, assembly_b, matches):
                         # TODO TODO TODO TODO TODO
                         if a_to_b[ai2] == bi2 and as1 == bs1 and as2 == bs2:
                             misaligned_connected_a.setdefault(a, set())
-                            misaligned_connected_a[a].add((b, as1, as2))
+                            misaligned_connected_a[a].add((b, as1, bi2, as2))
                             misaligned_connected_b.setdefault(b, set())
-                            misaligned_connected_b[b].add((a, bs1, bs2))
+                            misaligned_connected_b[b].add((a, bs1, ai2, bs2))
     
     misaligned_disconnected_a = {
         k:v for k,v in shape_color_match_a.items()

@@ -25,7 +25,7 @@ from ltron.ldraw.exceptions import LDrawException
 ldraw_zip_path = os.path.join(get_ltron_home(), 'complete.zip')
 ldraw_zip = zipfile.ZipFile(ldraw_zip_path, 'r')
 
-shadow_zip_path = os.path.join(settings.paths['ldcad'], 'seeds', 'shadow.sf')
+shadow_zip_path = os.path.join(settings.PATHS['ldcad'], 'seeds', 'shadow.sf')
 shadow_zip = zipfile.ZipFile(shadow_zip_path, 'r')
 offlib_csl_path = 'offLib/offLibShadow.csl'
 offlib_csl = zipfile.ZipFile(
@@ -153,19 +153,6 @@ class LDrawDocument:
         else:
             self.reference_table['ldraw'][self.reference_name] = self
     
-    '''
-    def resolve_file_path(self, file_path):
-        try:
-            self.resolved_file_path = get_reference_path(file_path, self.shadow)
-        except LtronReferenceException as e:
-            raise LtronReferenceException
-        #if self.shadow:
-            #self.resolved_file_path = ldraw_paths.resolve_shadow_path(
-            #    file_path)
-        #else:
-            #self.resolved_file_path = ldraw_paths.resolve_ldraw_path(file_path)
-    '''
-    
     def import_references(self):
         for command in self.commands:
             # ldraw import commands
@@ -189,7 +176,6 @@ class LDrawDocument:
         # shadow
         if not self.shadow:
             if self.reference_name not in self.reference_table['shadow']:
-                #if self.reference_name in ldraw_paths.SHADOW_FILES:
                 if self.reference_name in SHADOW_PATHS:
                     try:
                         LDrawDocument.parse_document(

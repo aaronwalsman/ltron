@@ -1,7 +1,7 @@
 import setuptools
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+with open("README.md", "r") as f:
+    long_description = f.read()
 
 setuptools.setup(
     name="ltron",
@@ -14,7 +14,9 @@ setuptools.setup(
     url="https://github.com/aaronwalsman/ltron",
     install_requires = [
         #'gym==0.17.3',
-        'gym==0.21.0',
+        #'gym==0.21.0',
+        #'gym==0.26.0',
+        'gymnasium>=0.26.3',
         'numpy',
         'scipy',
         'pyquaternion',
@@ -40,6 +42,13 @@ setuptools.setup(
             'ltron_generate_episode_collection='
                 'ltron.dataset.generate_episode_collection:'
                 'generate_episode_collection',
+            'ltron_env_interface='
+                'ltron.gym.ltron_env_interface:ltron_env_interface',
+            'ltron_regenerate_class_labels='
+                'ltron.dataset.class_labels:regenerate_class_labels',
+        ],
+        'gymnasium.envs' : [
+            '__root__ = ltron.gym.register:register_ltron_envs',
         ]
     },
     classifiers = [

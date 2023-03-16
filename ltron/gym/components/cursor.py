@@ -1,242 +1,213 @@
-import random
+from collections import OrderedDict
 
-import numpy
+from gymnasium.spaces import Dict, Discrete, MultiDiscrete
 
-from gym.spaces import Dict, Discrete
-from ltron.gym.spaces import (
-    MultiScreenPixelSpace,
-    MultiScreenInstanceSnapSpace,
-    SymbolicSnapSpace,
-)
+from supermecha import SuperMechaContainer, SuperMechaComponent
+from supermecha.gym.spaces import IgnoreSpace
 
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
-
-class CursorComponent(LtronGymComponent):
-    def __init__(self,
-        randomize_starting_position=True,
-        observe_selected=True,
-    ):
-        self.randomize_starting_position = randomize_starting_position
-        self.observe_selected=observe_selected
+class CursorComponent(SuperMechaComponent):
+    def __init__(self, height, width):
+        self.height = height
+        self.width = width
+        
+        action_space = OrderedDict()
+        action_space['button'] = Discrete(3)
+        action_space['click'] = MultiDiscrete((self.height, self.width))
+        action_space['release'] = MultiDiscrete((self.height, self.width))
+        self.action_space = Dict(action_space)
     
-    def reset(self):
-        if self.randomize_starting_position:
-            # NO_OP is always element 0, so start at 1
-            action = random.randint(1, self.action_space.n-1)
-            coords = self.action_space.unravel(action)
-            self.set_cursor(*coords)
-        else:
-            self.set_cursor(*self.zero)
-        return self.observe()
+    def reset(self, seed=None, rng=None, options=None):
+        super().reset(seed=seed, rng=rng, options=options)
+        self.button = 0
+        self.click = 0,0
+        self.release = 0,0
+        
+        return None, {}
     
     def step(self, action):
-        if action:
-            coords = self.action_space.unravel(action)
-            self.set_cursor(*coords)
-        observation = self.observe()
-        return observation, 0, False, {}
-
-    def set_cursor(self, *coords):
-        # test to make sure coords are compatible with the action space
-        a = self.action_space.ravel(*coords)
-        self.coords = coords
+        self.button = action['button']
+        self.click = action['click']
+        self.release = action['release']
+        return None, 0., False, False, {}
     
-    def observe(self):
-        self.observation = {
-            'position':self.observation_space['position'].ravel(*self.coords)
-        }
-        if self.observe_selected:
-            nis = self.get_selected_snap()
-            i = nis[-2]
-            self.observation['selected'] = i != 0
-        return self.observation
-    
-    def get_state(self):
-        return self.coords
-    
-    def set_state(self, coords):
-        self.coords = coords
-
     def no_op_action(self):
-        return 0
+        return {
+            'button' : 0
+            'click' : numpy.zeros(2, dtype=numpy.int64),
+            'release' : numpy.zeros(2, dtype=numpy.int64),
+        }
 
-class SymbolicCursor(CursorComponent):
+'''
+class ScreenCursor(SuperMechaComponent):
     def __init__(self,
-        #assembly_components,
-        scene_components,
-        max_instances_per_scene,
-        randomize_starting_position=True,
-        observe_selected=True,
+        scene_component,
+        snap_render_component,
+        observe_selected=False,
+        observe_snap_map=False,
     ):
-        super().__init__(
-            randomize_starting_position=randomize_starting_position,
-            observe_selected=observe_selected,
-        )
-        self.scene_components = scene_components
-        self.assembly_order = list(self.scene_components.keys())
-        self.max_instances_per_scene = max_instances_per_scene
-        self.zero = next(iter(scene_components.keys())), 0, 0
+        self.scene_component = scene_component
+        self.snap_render_component = snap_render_component
         
-        self.action_space = SymbolicSnapSpace({
-            name:max_instances_per_scene for name in self.assembly_order})
-        observation_space = {
-            'position':MultiScreenInstanceSnapSpace(
-                self.assembly_order, max_instances_per_scene)
-        }
-        if self.observe_selected:
-            observation_space['selected'] = Discrete(2)
-        self.observation_space = Dict(observation_space)
-
-    def get_selected_snap(self):
-        name = self.coords[0]
-        if name == 'NO_OP':
-            return self.name, 0, 0
-        i,s = self.coords[1:]
-        #assembly = self.assembly_components[name].observe()
-        try:
-            instance = self.scene_components[name].brick_scene.instances[i]
-            snap = instance.snaps[s]
-            return name, i, s
-        except (KeyError, IndexError):
-            return name, 0, 0
+        self.screen_height = snap_render_component.height
+        self.screen_width = snap_render_component.width
         
-        #if assembly['shape'][i] == 0:
-        #    return name, 0, 0
-        #else:
-        #    return name, i, s
-
-    def actions_to_select_snap(self, name, instance_id, snap_id):
-        #assembly = self.assembly_components[name].observe()
-        #if assembly['shape'][instance_id] == 0:
-        #    return []
+        self.observe_selected = observe_selected
+        self.observe_snap_map = observe_snap_map
         
-        #return [(name, instance_id, snap_id)]
-        scene_component = self.scene_components[name]
-        try:
-            instance = scene_component.brick_scene.instances[instance_id]
-            snap = instance.snaps[snap_id]
-            return [(name, instance_id, snap_id)]
-        except (IndexError, KeyError):
-            return []
-    
-    def actions_to_deselect(self, name=None):
-        if name is None:
-            name = self.coords[0]
-        return [(name, 0, 0)]
-    
-    def visible_snaps(self, names=None):
-        snaps = []
-        if names is None:
-            #names = self.assembly_components.keys()
-            names = self.scene_components.keys()
-        for name in names:
-            #component = self.assembly_components[name]
-            #assembly = component.observe()
-            #scene = component.scene_component.brick_scene
-            scene = self.scene_components[name].brick_scene
-            for i, shape in enumerate(assembly['shape']):
-                if shape != 0:
-                    instance = scene.instances[i]
-                    for snap in instance.snaps:
-                        snaps.append((name, i, int(snap.snap_style)))
-        
-        return snaps
-
-class MultiScreenPixelCursor(CursorComponent):
-    def __init__(self,
-        max_instances_per_scene,
-        pos_render_components,
-        neg_render_components,
-        randomize_starting_position=True,
-        observe_selected=True,
-    ):
-        super().__init__(
-            randomize_starting_position=randomize_starting_position,
-            observe_selected=observe_selected,
-        )
-        self.max_instances_per_scene = max_instances_per_scene
-        self.pos_render_components = pos_render_components
-        self.neg_render_components = neg_render_components
-        self.zero = next(iter(pos_render_components.keys())), 'deselect', 0
-        
-        screen_dimensions = {
-            n : (c.height, c.width, 2)
-            for n, c in pos_render_components.items()
-        }
-        assert all(
-            (c.height, c.width, 2) == screen_dimensions[n]
-            for n, c in neg_render_components.items()
-        )
-        self.action_space = MultiScreenPixelSpace(
-            screen_dimensions, include_no_op=True)
-        observation_space = {
-            'position' : MultiScreenPixelSpace(screen_dimensions)
-        }
+        observation_space = {}
         if observe_selected:
-            observation_space['selected'] = Discrete(2)
-        self.observation_space = Dict(observation_space)
+            raise NotImplementedError
+            #self.observation_space = Dict({'selected' : Discrete(2)})
+        
+        if len(observation_space):
+            self.observation_space = Dict(observation_space)
+        
+        action_space = OrderedDict()
+        action_space['activate'] = Discrete(2)
+        action_space['coords'] = MultiDiscrete(
+            (self.screen_height, self.screen_width))
+        action_space['polarity'] = Discrete(2)
+        self.action_space = CursorActionSpace(action_space)
+    
+    def compute_observation(self):
+        self.snap_map, _ = self.snap_render_component.observe(
+            polarity=self.polarity)
+        self.observation = {}
+        if self.observe_snap_map:
+            self.observation['snap_map'] = self.snap_map
+        if not len(self.observation):
+            self.observation = None
+    
+    def reset(self, seed=None, rng=None, options=None):
+        super().reset(seed=seed, rng=rng, options=options)
+        self.y = 0
+        self.x = 0
+        self.polarity = 0
+        
+        self.compute_observation()
+        return self.observation, None
+    
+    def step(self, action):
+        if action['activate']:
+            self.y, self.x, self.polarity = self.action_to_coordinates(action)
+        
+        self.compute_observation()
+        return self.observation, 0., False, False, None
     
     def get_selected_snap(self):
-        name, mode = self.coords[:2]
-        #if name.startswith('DESELECT_'):
-        #    screen = name.replace('DESELECT_', '')
-        #    return screen, 0, 0
-        if mode == 'deselect':
-            return name, 0, 0
-        
-        name, mode, y, x, p = self.coords
-        if p:
-            render_component = self.pos_render_components[name]
-        else:
-            render_component = self.neg_render_components[name]
-        
-        snap_map = render_component.observe()
-        instance_id, snap_id = snap_map[y, x]
-        return name, instance_id, snap_id
+        instance, snap = self.snap_map[self.y,self.x]
+        return instance, snap
     
-    def actions_to_select_snap(self, screen_name, instance, snap):
+    def actions_to_select_snap(self, instance, snap):
         actions = []
-        pos_component = self.pos_render_components[screen_name]
-        neg_component = self.neg_render_components[screen_name]
-        for p, component in (1, pos_component), (0, neg_component):
-            snap_map = component.observe()
-            ys, xs = numpy.where(
-                (snap_map[:,:,0] == instance) &
-                (snap_map[:,:,1] == snap)
-            )
-            for y, x in zip(ys, xs):
-                #actions.append(self.action_space.ravel(screen_name, y, x, p))
-                actions.append((screen_name, 'screen', y, x, p))
+        snap = self.scene_component.brick_scene.instances[instance].snaps[snap]
+        snap_map = self.snap_render_component.observe(polarity=snap.polarity)
+        ys, xs = numpy.where(
+            (snap_map[:,:,0] == instance) & (snap_map[:,:,1] == snap)
+        )
+        for y, x in zip(ys, xs):
+            actions.append(self.coordinates_to_action(y, x))
         
         return actions
     
-    def actions_to_deselect(self, name=None):
-        if name is None:
-            name = self.coords[0]
-        return [(name, 'deselect', 0)]
-        #if not name.startswith('DESELECT_'):
-        #    name = 'DESELECT_%s'%name
-        #return [(name, 0)]
+    def action_to_coordinates(self, action):
+        y, x = action['coords']
+        polarity = action['polarity']
+        return y, x, polarity
     
-    def visible_snaps(self, names=None):
-        snaps = set()
-        o = self.max_instances_per_scene + 1
-        for comps in (self.pos_render_components, self.neg_render_components):
-            if names is None:
-                comp_names = comps.keys()
-            else:
-                comp_names = names
-            
-            for name in comp_names:
-                component = comps[name]
-                render = component.observe()
-                render = render[...,0] + render[...,1] * o
-                visible_snap_instances = numpy.unique(render)
-                visible_instances = visible_snap_instances % o
-                visible_snaps = visible_snap_instances // o
-                snaps = snaps | set(
-                    (name, i, s)
-                    for i, s in zip(visible_instances, visible_snaps)
-                )
+    def coordinates_to_action(self, y, x):
+        return {'activate':True, 'coords':(y,x)}
+    
+    def no_op_action(self):
+        return {
+            'activate' : 0,
+            'coords' : (0,0),
+            'polarity' : 0,
+        }
+    
+    def get_state(self):
+        return (self.y, self.x, self.polarity)
+    
+    def set_state(self, state):
+        self.y, self.x, self.polarity = state
+
+class TiledScreenCursor(ScreenCursor):
+    def __init__(self,
+        scene_component,
+        snap_render_component,
+        observe_selected=True,
+        tile_height=16,
+        tile_width=16,
+        observe_snap_map=False,
+    ):
+        super().__init__(
+            scene_component,
+            snap_render_component,
+            observe_selected=observe_selected,
+            observe_snap_map=observe_snap_map,
+        )
         
-        return list(snaps)
+        self.tile_height = tile_height
+        self.tile_width = tile_width
+        
+        assert self.screen_height % self.tile_height == 0
+        assert self.screen_width % self.tile_width == 0
+        
+        self.block_height = self.screen_height // self.tile_height
+        self.block_width = self.screen_width // self.tile_width
+        
+        action_space = OrderedDict()
+        action_space['activate'] = Discrete(2)
+        action_space['block_coords'] = MultiDiscrete(
+                (self.block_height, self.block_width))
+        action_space['tile_coords'] = MultiDiscrete(
+                (self.tile_height, self.tile_width))
+        action_space['polarity'] = Discrete(2)
+        self.action_space = CursorActionSpace(action_space)
+    
+    def action_to_coordinates(self, action):
+        by, bx = action['block_coords']
+        ty, tx = action['tile_coords']
+        y = by * self.tile_height + ty
+        x = bx * self.tile_width + tx
+        polarity = action['polarity']
+        return y, x, polarity
+    
+    def coordinates_to_action(self, y, x, p):
+        by = y // self.tile_height
+        bx = x // self.tile_width
+        ty = y % self.tile_height
+        tx = x % self.tile_height
+        return {
+            'activate' : True,
+            'block_coords' : (by, bx),
+            'tile_coords' : (ty, tx),
+            'polarity' : p,
+        }
+    
+    def no_op_action(self):
+        return {
+            'activate' : 0,
+            'block_coords' : (0,0),
+            'tile_coords' : (0,0),
+            'polarity' : 0,
+        }
+
+class PickAndPlaceCursor(SuperMechaContainer):
+    
+    def __init__(self,
+        pick_component,
+        place_component,
+    ):
+        components = OrderedDict()
+        components['pick'] = pick_component
+        components['place'] = place_component
+        
+        super().__init__(components)
+    
+    def actions_to_pick_snap(self, instance, snap):
+        return self.components['pick'].actions_to_select_snap(instance, snap)
+    
+    def actions_to_place_snap(self, instance, snap):
+        return self.components['place'].actions_to_select_snap(instance, snap)
+'''

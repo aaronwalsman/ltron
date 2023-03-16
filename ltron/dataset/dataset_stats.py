@@ -21,7 +21,7 @@ info = get_dataset_info(dataset)
 
 max_shape_id = max(info['shape_ids'].values())
 
-omr_path = settings.paths['omr']
+omr_path = settings.PATHS['omr']
 with open(os.path.join(omr_path, 'scene_data.json')) as f:
     scene_data = json.load(f)
 

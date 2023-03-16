@@ -1743,6 +1743,8 @@ class SnapInstance:
         return '%i_%i'%tuple(self)
     
     def connected(self, other, unidirectional=False):
+        if self.brick_instance == other.brick_instance:
+            return False
         if unidirectional and (
             int(self.brick_instance) > int(other.brick_instance)):
             return False

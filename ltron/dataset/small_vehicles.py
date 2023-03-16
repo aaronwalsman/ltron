@@ -380,4 +380,4 @@ dataset_paths = [
 
 print(len(dataset_paths))
 
-#build_dataset('small_vehicles', settings.paths['omr'], dataset_paths, 24)
+#build_dataset('small_vehicles', settings.PATHS['omr'], dataset_PATHS, 24)

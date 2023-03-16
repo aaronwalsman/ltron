@@ -6,7 +6,7 @@ import bpy
 import io_scene_importldraw.loadldraw.loadldraw as loadldraw
 
 import ltron.settings as settings
-import ltron.dataset.paths as dataset_paths
+from ltron.dataset.paths import get_dataset_info
 #from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_scene import BrickScene
 import splendor.assets as assets
@@ -14,8 +14,7 @@ import splendor.assets as assets
 # to fix a light/lamp naming issue
 loadldraw.globalLightBricks = {}
 
-part_directory = os.path.join(settings.paths['ldraw'], 'parts')
-#obj_directory = os.path.join(settings.paths['splendor'], 'meshes')
+part_directory = os.path.join(settings.PATHS['ldraw'], 'parts')
 ltron_assets = assets.AssetLibrary('ltron_assets')
 obj_directory = ltron_assets['meshes'].paths[0]
 
@@ -109,7 +108,7 @@ def export_brick(brick,
         import_brick_path = os.path.join(part_directory, brick)
         bpy.ops.import_scene.importldraw(
                 filepath = import_brick_path,
-                ldrawPath = settings.paths['ldraw'],
+                ldrawPath = settings.PATHS['ldraw'],
                 importScale = import_scale,
                 resPrims = primitive_resolution,
                 smoothParts = smooth_parts,
@@ -145,7 +144,7 @@ def export_scene_bricks(scene_path, **kwargs):
     #    export_brick(brick, **kwargs)
 
 def export_dataset_bricks(dataset, **kwargs):
-    info = dataset_paths.get_dataset_info(dataset)
+    info = get_dataset_info(dataset)
     bricks = info['shape_ids'].keys()
     for brick in bricks:
         print(brick)

@@ -72,10 +72,6 @@ class NameSpan:
     def unravel_vector(self, v, dim=0):
         result = {}
         for name, span in self.spans.items():
-            #index_tuple = tuple(
-            #    slice(None) if i != dim else slice(span['start'], span['end'])
-            #    for i, s in enumerate(v.shape)
-            #)
             index = [slice(None) for _ in v.shape]
             index[dim] = slice(span['start'], span['end'])
             index = tuple(index)

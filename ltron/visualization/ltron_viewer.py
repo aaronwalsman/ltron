@@ -272,6 +272,8 @@ def start_viewer(
                 #        transform[2,3]))
                 print('Instance Transform:')
                 print(transform)
+                print('Instance Bounding Box:')
+                print(scene.get_bbox([instance_id]))
                 
                 if snap_id is not None:
                     print('Snap ID: %i'%snap_id)

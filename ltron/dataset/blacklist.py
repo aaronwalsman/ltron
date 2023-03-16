@@ -1,26 +1,29 @@
 import os
 import glob
 from pathlib import Path
+import json
 
 import numpy
 
-from ltron.home import get_ltron_home
+import tqdm
+
+from splendor.assets import AssetLibrary
+from splendor.obj_mesh import load_mesh
+
+#from ltron.home import get_ltron_home
 from ltron import settings
 from ltron.bricks.brick_scene import BrickScene
 from ltron.bricks.brick_shape import BrickShape
+from ltron.ldraw.parts import LDRAW_PARTS
 #from ltron.dataset.submodel_extraction import blacklist_computation
-import json
-import os
 
-import tqdm
-
-def get_blacklist_path():
-    return os.path.join(get_ltron_home(), 'blacklist.json')
+#def get_blacklist_path():
+#    return os.path.join(get_ltron_home(), 'blacklist.json')
 
 def add_large_bricks_to_blacklist(threshold):
     #path = Path("~/.cache/ltron/ldraw/parts").expanduser()
     #partlist = list(path.glob("*.dat"))
-    part_path = os.path.join(settings.paths['ldraw'], 'parts')
+    part_path = os.path.join(settings.PATHS['ldraw'], 'parts')
     part_list = glob.glob(os.path.join(part_path, '*.dat'))
     
     blacklist = []
@@ -35,7 +38,8 @@ def add_large_bricks_to_blacklist(threshold):
         if max_dim > threshold:
             blacklist.append(bshape.reference_name)
     
-    blacklist_path = get_blacklist_path()
+    #blacklist_path = get_blacklist_path()
+    blacklist_path = settings.PATHS['blacklist']
     blacklist_data = json.load(open(blacklist_path))
     if 'large_%i'%threshold not in blacklist_data:
         blacklist_data['large_%i'%threshold] = []
@@ -46,6 +50,20 @@ def add_large_bricks_to_blacklist(threshold):
     
     with open(blacklist_path, 'w') as f:
         json.dump(blacklist_data, f, indent=2)
+
+def add_empty_bricks_to_blacklist():
+    assets = AssetLibrary(asset_packages='ltron_assets')
+    blacklist_data = json.load(open(settings.PATHS['blacklist']))
+    progress = tqdm.tqdm(LDRAW_PARTS)
+    for part in progress:
+        part_name = '.'.join(part.split('.')[:-1])
+        if part_name in assets['meshes']:
+            mesh = load_mesh(assets['meshes'][part_name])
+            if not len(mesh['vertices']):
+                progress.write('Adding: %s'%part)
+                blacklist_data['all'].append(part)
+    with open(settings.PATHS['blacklist'], 'w') as f:
+        json.dump(blacklist_data, f)
 
 def remove_blacklisted_parts(
     source_directory,
@@ -70,7 +88,8 @@ def remove_blacklisted_parts(
     #with open(blacklist_path, 'w') as f:
     #    json.dump(blacklist, f)
     
-    blacklist_path = get_blacklist_path()
+    #blacklist_path = get_blacklist_path()
+    settings.PATHS['blacklist']
     blacklist_data = json.load(open(blacklist_path))
     if 'large_%i'%threshold not in blacklist_data:
         add_large_bricks_to_blacklist(threshold)

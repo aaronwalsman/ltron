@@ -172,7 +172,7 @@ set_numbers = [
 '30036']
 
 existing_sets = {}
-tiny_turbos3_path = settings.datasets['tiny_turbos3']
+tiny_turbos3_path = settings.DATASETS['tiny_turbos3']
 omr_ldraw = os.path.join(os.path.dirname(tiny_turbos3_path), 'ldraw')
 all_sets = sorted(os.listdir(omr_ldraw))
 for set_number in set_numbers:

@@ -4,15 +4,23 @@ import numpy
 
 from collections import OrderedDict
 
-from gym.spaces import Box, Discrete, MultiDiscrete, Dict
+from gymnasium.spaces import Box, Discrete, MultiDiscrete, Dict
 
 import splendor.masks as masks
 
-from ltron.constants import MAX_SNAPS_PER_BRICK, WORLD_BBOX
-from ltron.name_span import NameSpan
+from supermecha.gym.spaces import IntegerMaskSpace, SE3Space, MultiSE3Space
 
-DEFAULT_LDU_MIN = -100000
-DEFAULT_LDU_MAX = 100000
+from ltron.constants import (
+    MAX_SNAPS_PER_BRICK,
+    DEFAULT_WORLD_BBOX,
+    SHAPE_CLASS_LABELS,
+    NUM_SHAPE_CLASSES,
+    COLOR_CLASS_LABELS,
+    NUM_COLOR_CLASSES,
+    MAX_INSTANCES_PER_SCENE,
+    MAX_EDGES_PER_SCENE,
+)
+from ltron.name_span import NameSpan
 
 # utility spaces ---------------------------------------------------------------
 class DiscreteLayoutSpace(Discrete):
@@ -38,51 +46,56 @@ class DiscreteLayoutSpace(Discrete):
             return super().__eq__(other)
 
 # observation spaces -----------------------------------------------------------
-class ImageSpace(Box):
-    '''
-    A height x width x channels uint8 image.
-    
-    Used by:
-    components.render.ColorRenderComponent (observation_space)
-    '''
-    def __init__(self, width, height, channels=3):
-        self.width = width
-        self.height = height
-        self.channels = channels
-        super().__init__(
-            low=0,
-            high=255,
-            shape=(height, width, channels),
-            dtype=numpy.uint8,
-        )
+# moved to supermecha
+#class ImageSpace(Box):
+#    '''
+#    A height x width x channels uint8 image.
+#    
+#    Used by:
+#    components.render.ColorRenderComponent (observation_space)
+#    '''
+#    def __init__(self, width, height, channels=3):
+#        self.width = width
+#        self.height = height
+#        self.channels = channels
+#        super().__init__(
+#            low=0,
+#            high=255,
+#            shape=(height, width, channels),
+#            dtype=numpy.uint8,
+#        )
+#
+#class BinaryMaskSpace(Box):
+#    '''
+#    A height x width bool array
+#    
+#    Used by:
+#    spaces.MaskedTiledImageSpace (component)
+#    '''
+#    def __init__(self, width, height):
+#        self.width = width
+#        self.height = height
+#        super().__init__(
+#            low=0, high=1, shape=(height, width), dtype=numpy.bool)
+#
+#class InstanceMaskSpace(Box):
+#    '''
+#    A height x width array, where each pixel contains a long refering to
+#    a segmentation index.
+#    
+#    Used by:
+#    components.render.InstanceRenderComponent (observation_space)
+#    '''
+#    def __init__(self, width, height, max_instances=masks.NUM_MASKS-1):
+#        self.width = width,
+#        self.height = height
+#        self.max_instances = max_instances
+#        super().__init__(
+#            low=0, high=max_instances, shape=(height, width), dtype=numpy.long)
 
-class BinaryMaskSpace(Box):
-    '''
-    A height x width bool array
-    
-    Used by:
-    spaces.MaskedTiledImageSpace (component)
-    '''
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        super().__init__(
-            low=0, high=1, shape=(height, width), dtype=numpy.bool)
-
-class InstanceMaskSpace(Box):
-    '''
-    A height x width array, where each pixel contains a long refering to
-    a segmentation index.
-    
-    Used by:
-    components.render.InstanceRenderComponent (observation_space)
-    '''
+class InstanceMaskSpace(IntegerMaskSpace):
     def __init__(self, width, height, max_instances=masks.NUM_MASKS-1):
-        self.width = width,
-        self.height = height
-        self.max_instances = max_instances
-        super().__init__(
-            low=0, high=max_instances, shape=(height, width), dtype=numpy.long)
+        super().__init__(width, height, max_instances)
 
 class SnapMaskSpace(Box):
     '''
@@ -124,16 +137,16 @@ class MaskedTiledImageSpace(Dict):
         tile_space = BinaryMaskSpace(self.mask_width, self.mask_height)
         super().__init__({'image':image_space, 'tile_mask':tile_space})
 
-class TimeStepSpace(Discrete):
-    '''
-    A discrete value to represent the current step index in an episode.
-    
-    Used by:
-    components.time_step.TimeStepComponent (observation_space)
-    '''
-    def __init__(self, max_steps):
-        self.max_steps = max_steps
-        super().__init__(self.max_steps)
+#class TimeStepSpace(Discrete):
+#    '''
+#    A discrete value to represent the current step index in an episode.
+#    
+#    Used by:
+#    components.time_step.TimeStepComponent (observation_space)
+#    '''
+#    def __init__(self, max_steps):
+#        self.max_steps = max_steps
+#        super().__init__(self.max_steps)
 
 class PhaseSpace(Discrete):
     '''
@@ -182,44 +195,45 @@ class SinglePixelSpace(MultiDiscrete):
         self.height = height
         super().__init__([self.height, self.width])
 
-class SE3Space(Box):
-    '''
-    A single SE3 (4x4) transform
-    
-    UNUSED (possibly to be used in viewpoint)
-    '''
-    def __init__(self, world_bbox=WORLD_BBOX):
-        shape = (4,4)
-        low = numpy.zeros(shape, dtype=numpy.float32)
-        low[:] = -1
-        low[:3,3] = world_bbox[0]
-        high = numpy.zeros(shape, dtype=numpy.float32)
-        high[:] = 1
-        high[:3,3] = world_bbox[1]
-        super().__init__(low=low, high=high, shape=shape)
-
-class MultiSE3Space(Box):
-    '''
-    Multiple SE3 (4x4) transforms
-    
-    Used by:
-    spaces.AssemblySpace (component)
-    '''
-    def __init__(self,
-        max_elements,
-        world_bbox=WORLD_BBOX,
-    ):
-        self.max_elements = max_elements
-        shape = (max_elements,4,4)
-        low = numpy.zeros(shape, dtype=numpy.float32)
-        low[:] = -1
-        low[:,:3,3] = world_bbox[0]
-        low[:,3,3] = 1
-        high = numpy.zeros(shape, dtype=numpy.float32)
-        high[:] = 1
-        high[:,3,:3] = 0
-        high[:,:3,3] = world_bbox[1]
-        super().__init__(low=low, high=high, shape=shape)
+# moved to supermecha
+#class SE3Space(Box):
+#    '''
+#    A single SE3 (4x4) transform
+#    
+#    UNUSED (possibly to be used in viewpoint)
+#    '''
+#    def __init__(self, world_bbox=DEFAULT_WORLD_BBOX):
+#        shape = (4,4)
+#        low = numpy.zeros(shape, dtype=numpy.float32)
+#        low[:] = -1
+#        low[:3,3] = world_bbox[0]
+#        high = numpy.zeros(shape, dtype=numpy.float32)
+#        high[:] = 1
+#        high[:3,3] = world_bbox[1]
+#        super().__init__(low=low, high=high, shape=shape)
+#
+#class MultiSE3Space(Box):
+#    '''
+#    Multiple SE3 (4x4) transforms
+#    
+#    Used by:
+#    spaces.AssemblySpace (component)
+#    '''
+#    def __init__(self,
+#        max_elements,
+#        world_bbox=DEFAULT_WORLD_BBOX,
+#    ):
+#        self.max_elements = max_elements
+#        shape = (max_elements,4,4)
+#        low = numpy.zeros(shape, dtype=numpy.float32)
+#        low[:] = -1
+#        low[:,:3,3] = world_bbox[0]
+#        low[:,3,3] = 1
+#        high = numpy.zeros(shape, dtype=numpy.float32)
+#        high[:] = 1
+#        high[:,3,:3] = 0
+#        high[:,:3,3] = world_bbox[1]
+#        super().__init__(low=low, high=high, shape=shape)
 
 class EdgeSpace(Box):
     '''
@@ -250,29 +264,27 @@ class AssemblySpace(Dict):
     '''
     def __init__(
         self,
-        shape_ids,
-        color_ids,
-        max_instances,
-        max_edges,
-        world_bbox=WORLD_BBOX,
+        max_instances=None,
+        max_edges=None,
+        world_bbox=DEFAULT_WORLD_BBOX,
     ):
-        self.shape_ids = shape_ids
-        num_shapes = max(self.shape_ids.values())
-        self.color_ids = color_ids
-        num_colors = max(self.color_ids.values())
+        if max_instances is None:
+            max_instances = MAX_INSTANCES_PER_SCENE
         self.max_instances = max_instances
+        if max_edges is None:
+            max_edges = MAX_EDGES_PER_SCENE
         self.max_edges = max_edges
         
         self.space_dict = {
             'shape' : Box(
                 low=0,
-                high=num_shapes,
+                high=NUM_SHAPE_CLASSES,
                 shape=(max_instances+1,),
                 dtype=numpy.long,
             ),
             'color' : Box(
                 low=0,
-                high=num_colors,
+                high=NUM_COLOR_CLASSES,
                 shape=(max_instances+1,),
                 dtype=numpy.long,
             ),
@@ -283,12 +295,12 @@ class AssemblySpace(Dict):
         super().__init__(self.space_dict)
     
     def from_scene(self, scene):
-        return scene.get_assembly(
-            self.shape_ids,
-            self.color_ids,
-            self.max_instances,
-            self.max_edges,
-        )
+        return scene.get_assembly()
+            #self.shape_ids,
+            #self.color_ids,
+            #self.max_instances,
+            #self.max_edges,
+        #)
 
 class MaskedAssemblySpace(Box):
     '''
@@ -454,7 +466,7 @@ class BrickShapeColorSpace(MultiDiscrete):
         super().__init__((self.num_shapes, self.num_colors))
 
 class BrickShapeColorPoseSpace(Dict):
-    def __init__(self, shape_ids, color_ids, world_bbox=WORLD_BBOX):
+    def __init__(self, shape_ids, color_ids, world_bbox=DEFAULT_WORLD_BBOX):
         super().__init__({
             'shape_color' : BrickShapeColorSpace(shape_ids, color_ids),
             'pose' : SE3Space(world_bbox=world_bbox),

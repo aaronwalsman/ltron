@@ -1,354 +1,294 @@
-import math
-import random
+from math import pi, radians
+from enum import Enum
 
 import numpy
 
-from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from ltron.gym.spaces import SE3Space
+from gymnasium.spaces import Dict, Discrete, MultiDiscrete, Box
 
 import splendor.camera as camera
 
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
+from supermecha import SuperMechaComponent
 
-default_field_of_view = math.radians(60.)
+from ltron.constants import DEFAULT_WORLD_BBOX
 
-class ControlledAzimuthalViewpointComponent(LtronGymComponent):
+inf = float('inf')
+
+ViewpointActions = Enum('ViewpointActions', [
+    'NO_OP',
+    'AZIMUTH_POS', 
+    'AZIMUTH_NEG',
+    'ELEVATION_POS',
+    'ELEVATION_NEG',
+    'DISTANCE_POS',
+    'DISTANCE_NEG',
+    'X_POS',
+    'X_NEG',
+    'Y_POS',
+    'Y_NEG',
+], start=0)
+
+class FixedViewpointComponent(SuperMechaComponent):
     def __init__(self,
-        scene_component,
-        azimuth_steps,
-        elevation_range,
-        elevation_steps,
-        distance_range,
-        distance_steps,
-        azimuth_offset=0.,
-        field_of_view=default_field_of_view,
+        scene_component=None,
+        azimuth=0,
+        azimuth_steps=16,
+        elevation=0,
+        elevation_steps=5,
+        elevation_range=(radians(-60.), radians(60.)),
+        distance=0,
+        distance_steps=4,
+        distance_range=(150.,600.),
+        center=(0.,0.,0.),
+        world_bbox=DEFAULT_WORLD_BBOX,
+        field_of_view=radians(60.),
         aspect_ratio=1.,
         near_clip=10.,
         far_clip=50000.,
-        start_position='uniform',
-        observe_camera_parameters=True,
-        observe_view_matrix=False,
-        scene_min=-1000,
-        scene_max=1000,
-        auto_frame='reset',
-        frame_button=False,
+    ):
+        self.scene_component = scene_component
+        self.azimuth = azimuth
+        self.azimuth_steps = azimuth_steps
+        self.azimuth_step_size = pi * 2 / azimuth_steps
+        self.elevation = elevation
+        self.elevation_steps = elevation_steps
+        self.elevation_range = elevation_range
+        self.elevation_step_size = (
+            elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
+        self.distance = distance
+        self.distance_steps = distance_steps
+        self.distance_range = distance_range
+        self.distance_step_size = (
+            distance_range[1] - distance_range[0]) / (distance_steps-1)
+        self.x, self.y, self.z = center
+        self.world_bbox = world_bbox
+        self.field_of_view = field_of_view
+        self.aspect_ratio = aspect_ratio
+        self.near_clip = near_clip
+        self.far_clip = far_clip
+    
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed, options=None)
+        self.set_camera()
+        return None, {}
+    
+    def set_camera(self):
+        
+        # compute the projection matrix
+        self.projection = camera.projection_matrix(
+            self.field_of_view,
+            self.aspect_ratio,
+            self.near_clip,
+            self.far_clip,
+        )
+        
+        # compute the view matrix
+        azimuth = self.azimuth * self.azimuth_step_size
+        elevation = (
+            self.elevation * self.elevation_step_size +
+            self.elevation_range[0]
+        )
+        distance = (
+            self.distance * self.distance_step_size +
+            self.distance_range[0]
+        )
+        self.camera_matrix = camera.azimuthal_parameters_to_matrix(
+            azimuth, elevation, 0, distance, 0, 0, self.x, self.y, self.z)
+        self.view_matrix = numpy.linalg.inv(self.camera_matrix)
+        
+        # set the projection and view matrix
+        if self.scene_component is not None:
+            scene = self.scene_component.brick_scene
+            scene.set_projection(self.projection)
+            scene.set_view_matrix(self.view_matrix)
+    
+    # TODO get/set state
+    
+    def no_op_action(self):
+        return 0
+        
+
+class ViewpointComponent(SuperMechaComponent):
+    def __init__(self,
+        scene_component=None,
+        azimuth_steps=16,
+        elevation_steps=5,
+        elevation_range=(radians(-60.), radians(60.)),
+        distance_steps=4,
+        distance_range=(150.,600.),
+        reset_mode='random',
+        center_reset_range=((0.,0.,0.),(0.,0.,0.)),
+        world_bbox=DEFAULT_WORLD_BBOX,
+        allow_translate=True,
+        translate_step_size=40.,
+        field_of_view=radians(60.),
+        aspect_ratio=1.,
+        near_clip=10.,
+        far_clip=50000.,
+        observable=True,
     ):
         
         self.scene_component = scene_component
         self.azimuth_steps = azimuth_steps
-        self.elevation_range = elevation_range
+        self.azimuth_step_size = pi * 2 / azimuth_steps
         self.elevation_steps = elevation_steps
-        self.distance_range = distance_range
+        self.elevation_range = elevation_range
+        self.elevation_step_size = (
+            elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
         self.distance_steps = distance_steps
-        self.azimuth_offset = azimuth_offset
+        self.distance_range = distance_range
+        self.distance_step_size = (
+            distance_range[1] - distance_range[0]) / (distance_steps-1)
+        self.reset_mode = reset_mode
+        self.center_reset_range = center_reset_range
+        self.world_bbox = world_bbox
+        self.translate_step_size = translate_step_size
         self.field_of_view = field_of_view
         self.aspect_ratio = aspect_ratio
         self.near_clip = near_clip
         self.far_clip = far_clip
-        self.start_position = start_position
-        self.observe_camera_parameters = observe_camera_parameters
-        self.observe_view_matrix = observe_view_matrix
-        self.auto_frame = auto_frame
-        self.frame_button = frame_button
+        self.observable = observable
         
-        self.center = [0.,0.,0.]
+        # ensure the center starting range is within the center bounds
+        assert all(
+            [r >= b for r,b in zip(center_reset_range[0], world_bbox[0])])
+        assert all(
+            [r <= b for r,b in zip(center_reset_range[1], world_bbox[1])])
         
-        #observation_space = {}
-        #if self.observe_camera_parameters:
-        #    observation_space['azimuth'] = Discrete(azimuth_steps)
-        #    observation_space['elevation'] = Discrete(elevation_steps)
-        #    observation_space['distance'] = Discrete(distance_steps)
-        #if self.observe_view_matrix:
-        #    observation_space['view_matrix'] = SE3Space(
-        #        scene_min, scene_max)
-        center_min = numpy.array([scene_min] * 3, dtype=numpy.float32)
-        center_max = numpy.array([scene_max] * 3, dtype=numpy.float32)
-        observation_space = {
-            'position' : MultiDiscrete(
-                (azimuth_steps, elevation_steps, distance_steps)),
-            'center' : Box(center_min, center_max),
-        }
-        if len(observation_space):
-            self.observation_space = Dict(observation_space)
-        
-        self.position = None
-        
-        self.azimuth_spacing = math.pi * 2 / azimuth_steps
-        if elevation_steps >= 2:
-            self.elevation_spacing = (
-                elevation_range[1] - elevation_range[0]) / (elevation_steps-1)
-        if distance_steps >= 2:
-            self.distance_spacing = (
-                distance_range[1] - distance_range[0]) / (distance_steps-1)
+        # make action space
+        if allow_translate:
+            self.action_space = Discrete(len(ViewpointActions))
         else:
-            self.distance_spacing = 0
+            self.action_space = Discrete(len(ViewpointActions)-4)
         
-        if self.frame_button:
-            num_actions = 8
-        else:
-            num_actions = 7
-        self.action_space = Discrete(num_actions)
+        # make observation space
+        if self.observable:
+            observation_space = {}
+            if self.azimuth_steps > 1:
+                observation_space['azimuth'] = Discrete(self.azimuth_steps)
+            if self.elevation_steps > 1:
+                observation_space['elevation'] = Discrete(
+                    self.elevation_steps)
+            if self.distance_steps > 1:
+                observation_space['distance'] = Discrete(
+                    self.distance_steps)
+            if self.translate_step_size:
+                observation_space['center'] = Box(
+                    numpy.array(self.world_bbox[0], dtype=numpy.float32),
+                    numpy.array(self.world_bbox[1], dtype=numpy.float32),
+                    dtype=numpy.float32,
+                )
+            
+            if len(observation_space):
+                self.observation_space = Dict(observation_space)
     
-    def observe(self):
-        self.observation = {}
-        '''
-        if self.observe_camera_parameters:
-            self.observation['azimuth'] = self.position[0]
-            self.observation['elevation'] = self.position[1]
-            self.observation['distance'] = self.position[2]
-        if self.observe_view_matrix:
-            self.observation['view_matrix'] = self.view_matrix
-        
-        if not len(self.observation):
-            self.observation = None
-        '''
-        self.observation['position'] = self.position
-        self.observation['center'] = self.center
+    def compute_observation(self):
+        if self.observable:
+            self.observation = {}
+            self.observation['azimuth'] = self.azimuth
+            self.observation['elevation'] = self.elevation
+            self.observation['distance'] = self.distance
+            self.observation['center'] = numpy.array(
+                [self.x, self.y, self.z], dtype=numpy.float32)
+            
+            return self.observation, {}
     
-    def reset(self):
-        if self.start_position == 'uniform':
-            self.position = [
-                    random.randint(0, self.azimuth_steps-1),
-                    random.randint(0, self.elevation_steps-1),
-                    random.randint(0, self.distance_steps-1)]
-        else:
-            self.position = list(self.start_position)
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed, options=None)
+        if self.reset_mode == 'random':
+            self.azimuth = self.np_random.integers(0, self.azimuth_steps)
+            self.elevation = self.np_random.integers(0, self.elevation_steps)
+            self.distance = self.np_random.integers(0, self.distance_steps)
+            self.x, self.y, self.z = [
+                self.np_random.random() *
+                (self.center_reset_range[1][i]-self.center_reset_range[0][i]) +
+                self.center_reset_range[0][i]
+                for i in range(3)
+            ]
         
-        if self.auto_frame in ('reset', 'step'):
-            self.frame_scene()
+        else:
+            (self.azimuth,
+             self.elevation,
+             self.distance,
+             self.x,
+             self.y,
+             self.z) = self.reset_mode
         
         self.set_camera()
-        
-        self.observe()
-        return self.observation
-    
-    def compute_center(self):
-        scene = self.scene_component.brick_scene
-        bbox_min, bbox_max = scene.get_scene_bbox()
-        center = (bbox_min + bbox_max) / 2.
-        return list(center)
-    
-    def frame_scene(self):
-        # this value is rounded to the nearest LDU in order to produce
-        # a tidier discrete state space
-        self.center = list(numpy.around(self.compute_center()))
+        self.compute_observation()
+        return self.observation, {}
     
     def step(self, action):
-        '''
-        if action['direction'] == 0:
-            pass
-        elif action['direction'] == 1:
-            self.position[0] -= 1
-            self.position[0] = self.position[0] % self.azimuth_steps
-        elif action['direction'] == 2:
-            self.position[0] += 1
-            self.position[0] = self.position[0] % self.azimuth_steps
-        elif action['direction'] == 3:
-            self.position[1] -= 1
-            self.position[1] = max(0, self.position[1])
-        elif action['direction'] == 4:
-            self.position[1] += 1
-            self.position[1] = min(self.elevation_steps-1, self.position[1])
-        elif action['direction'] == 5:
-            self.position[2] -= 1
-            self.position[2] = max(0, self.position[2])
-        elif action['direction'] == 6:
-            self.position[2] += 1
-            self.position[2] = min(self.distance_steps-1, self.position[2])
-        '''
+        #if 'azimuth' in action:
+        offset_vector = None
+        viewpoint_action = ViewpointActions(value=action)
+        if viewpoint_action == ViewpointActions.AZIMUTH_POS:
+            self.azimuth += 1
+        elif viewpoint_action == ViewpointActions.AZIMUTH_NEG:
+            self.azimuth -= 1
+        elif viewpoint_action == ViewpointActions.ELEVATION_POS:
+            self.elevation += 1
+        elif viewpoint_action == ViewpointActions.ELEVATION_NEG:
+            self.elevation -= 1
+        elif viewpoint_action == ViewpointActions.DISTANCE_POS:
+            self.distance += 1
+        elif viewpoint_action == ViewpointActions.DISTANCE_NEG:
+            self.distance -= 1
+        elif viewpoint_action == ViewpointActions.X_POS:
+            offset_vector = numpy.array([1.,0.,0.,0.])
+        elif viewpoint_action == ViewpointActions.X_NEG:
+            offset_vector = numpy.array([-1.,0.,0.,0.])
+        elif viewpoint_action == ViewpointActions.Y_POS:
+            offset_vector = numpy.array([0.,1.,0.,0.])
+        elif viewpoint_action == ViewpointActions.Y_NEG:
+            offset_vector = numpy.array([0.,-1.,0.,0.])
         
-        if action == 0:
-            pass
-        elif action == 1:
-            self.position[0] -= 1
-            self.position[0] = self.position[0] % self.azimuth_steps
-        elif action == 2:
-            self.position[0] += 1
-            self.position[0] = self.position[0] % self.azimuth_steps
-        elif action == 3:
-            self.position[1] -= 1
-            self.position[1] = max(0, self.position[1])
-        elif action == 4:
-            self.position[1] += 1
-            self.position[1] = min(self.elevation_steps-1, self.position[1])
-        elif action == 5:
-            self.position[2] -= 1
-            self.position[2] = max(0, self.position[2])
-        elif action == 6:
-            self.position[2] += 1
-            self.position[2] = min(self.distance_steps-1, self.position[2])
-        elif action == 7 or self.auto_frame == 'step':
-            self.frame_scene()
+        if offset_vector is not None:
+            translate_direction = (
+                self.camera_matrix @ offset_vector * self.translate_step_size)
+            self.x += translate_direction[0]
+            self.y += translate_direction[1]
+            self.z += translate_direction[2]
+        
+        self.azimuth = self.azimuth % self.azimuth_steps
+        self.elevation = numpy.clip(
+            self.elevation, 0, self.elevation_steps-1)
+        self.distance = numpy.clip(self.distance, 0, self.distance_steps-1)
         
         self.set_camera()
-        
-        self.observe()
-        return self.observation, 0., False, None
+        self.compute_observation()
+        return self.observation, 0., False, False, {}
     
     def set_camera(self):
-        scene = self.scene_component.brick_scene
-        azimuth = self.position[0] * self.azimuth_spacing + self.azimuth_offset
-        elevation = (self.position[1] * self.elevation_spacing +
-                self.elevation_range[0])
-        field_of_view = self.field_of_view
-        distance = (self.position[2] * self.distance_spacing +
-                self.distance_range[0])
         
-        # projection
+        # compute the projection matrix
         self.projection = camera.projection_matrix(
-                self.field_of_view,
-                self.aspect_ratio,
-                self.near_clip,
-                self.far_clip)
-        scene.set_projection(self.projection)
-        
-        # pose
-        self.view_matrix = numpy.linalg.inv(
-            camera.azimuthal_parameters_to_matrix(
-                azimuth, elevation, 0, distance, 0.0, 0.0, *self.center)
+            self.field_of_view,
+            self.aspect_ratio,
+            self.near_clip,
+            self.far_clip,
         )
-        scene.set_view_matrix(self.view_matrix)
+        
+        # compute the view matrix
+        azimuth = self.azimuth * self.azimuth_step_size
+        elevation = (
+            self.elevation * self.elevation_step_size +
+            self.elevation_range[0]
+        )
+        distance = (
+            self.distance * self.distance_step_size +
+            self.distance_range[0]
+        )
+        self.camera_matrix = camera.azimuthal_parameters_to_matrix(
+            azimuth, elevation, 0, distance, 0, 0, self.x, self.y, self.z)
+        self.view_matrix = numpy.linalg.inv(self.camera_matrix)
+        
+        # set the projection and view matrix
+        if self.scene_component is not None:
+            scene = self.scene_component.brick_scene
+            scene.set_projection(self.projection)
+            scene.set_view_matrix(self.view_matrix)
     
-    def get_state(self):
-        return {
-            'position':self.position,
-            'center':self.center
-        }
-    
-    def set_state(self, state):
-        self.position = list(state['position'])
-        self.center = list(state['center'])
-        self.set_camera()
-        self.observe()
-        return self.observation
+    # TODO get/set state
     
     def no_op_action(self):
         return 0
-
-class RandomizedAzimuthalViewpointComponent(LtronGymComponent):
-    def __init__(self,
-        scene_component,
-        azimuth = (0, math.pi*2),
-        elevation = (math.radians(-15), math.radians(-45)),
-        tilt = (math.radians(-45.), math.radians(45.)),
-        field_of_view = (default_field_of_view, default_field_of_view),
-        distance = (0.8, 1.2),
-        aspect_ratio = 1.,
-        near_clip = 10.,
-        far_clip = 50000.,
-        bbox_distance_scale = 3.,
-        randomize_frequency = 'reset',
-        observe_view_matrix=False,
-        scene_min=-1000,
-        scene_max=1000,
-    ):
-        
-        self.scene_component = scene_component
-        self.scene_component.brick_scene.make_renderable()
-        self.azimuth = azimuth
-        self.elevation = elevation
-        self.tilt = tilt
-        self.field_of_view = field_of_view
-        self.distance = distance
-        self.aspect_ratio = aspect_ratio
-        self.near_clip = near_clip
-        self.far_clip = far_clip
-        self.bbox_distance_scale = bbox_distance_scale
-        self.randomize_frequency = randomize_frequency
-        self.observe_view_matrix = observe_view_matrix
-        
-        observation_space = {}
-        if self.observe_view_matrix:
-            observation_space['view_matrix'] = SE3Space(
-                scene_min, scene_max)
-        if len(observation_space):
-            self.observation_space = Dict(observation_space)
-        
-        self.set_camera()
-    
-    def set_camera(self):
-        # projection
-        scene = self.scene_component.brick_scene
-        azimuth = random.uniform(*self.azimuth)
-        elevation = random.uniform(*self.elevation)
-        tilt = random.uniform(*self.tilt)
-        field_of_view = random.uniform(*self.field_of_view)
-        distance_scale = random.uniform(*self.distance)
-        
-        self.projection = camera.projection_matrix(
-                field_of_view,
-                self.aspect_ratio,
-                self.near_clip,
-                self.far_clip)
-        scene.set_projection(self.projection)
-        
-        # pose
-        bbox = scene.get_instance_center_bbox()
-        bbox_min, bbox_max = bbox
-        bbox_range = numpy.array(bbox_max) - numpy.array(bbox_min)
-        center = list(bbox_min + bbox_range * 0.5)
-        distance = distance_scale * camera.framing_distance_for_bbox(
-                bbox, self.projection, self.bbox_distance_scale)
-        self.view_matrix = numpy.linalg.inv(
-            camera.azimuthal_parameters_to_matrix(
-                azimuth, elevation, tilt, distance, 0.0, 0.0, *center)
-        )
-        scene.set_view_matrix(self.view_matrix)
-    
-    def observe(self):
-        if self.observe_view_matrix:
-            self.observation = {'view_matrix':self.view_matrix}
-        else:
-            self.observation = None
-    
-    def reset(self):
-        self.set_camera()
-        self.observe()
-        return self.observation
-    
-    def step(self, action):
-        if self.randomize_frequency == 'step':
-            self.set_camera()
-        self.observe()
-        return self.observation, 0., False, None
-    
-    #def set_state(self, state):
-    #    self.set_camera()
-
-class FixedAzimuthalViewpointComponent(RandomizedAzimuthalViewpointComponent):
-    def __init__(self,
-            scene_component,
-            azimuth,
-            elevation,
-            tilt = 0.,
-            field_of_view = default_field_of_view,
-            *args, **kwargs):
-        
-        super(FixedAzimuthalViewpointComponent, self).__init__(
-                scene_component,
-                (azimuth, azimuth),
-                (elevation, elevation),
-                (tilt, tilt),
-                (field_of_view, field_of_view),
-                *args, **kwargs)
-
-'''
-class CopyViewpointComponent(LtronGymComponent):
-    def __init__(self, from_scene_component, to_scene_component):
-        self.from_scene_component = from_scene_component
-        self.to_scene_component = to_scene_component
-    
-    def copy_camera(self):
-        view_matrix = self.from_scene_component.brick_scene.get_view_matrix()
-        projection = self.from_scene_component.brick_scene.get_projection()
-        self.to_scene_component.brick_scene.set_view_matrix(view_matrix)
-        self.to_scene_component.brick_scene.set_projection(projection)
-    
-    def reset(self):
-        self.copy_camera()
-        return None
-    
-    def step(self, action):
-        self.copy_camera()
-        return None, 0, False, None
-'''

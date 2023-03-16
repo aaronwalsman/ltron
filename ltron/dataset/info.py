@@ -6,15 +6,14 @@ from ltron.exceptions import LtronMissingDatasetException
 
 #def get_dataset_path(dataset):
 #    return os.path.expanduser(
-#        os.path.join(settings.paths['dataset'], '%s.json'%dataset))
+#        os.path.join(settings.PATHS['dataset'], '%s.json'%dataset))
 
 #def get_shard_path(shard):
-#    return os.path.expanduser(os.path.join(settings.paths['shards'], shard))
+#    return os.path.expanduser(os.path.join(settings.PATHS['shards'], shard))
 
 def get_dataset_info(dataset):
     try:
-        #return json.load(open(get_dataset_path(dataset_path)))
-        return json.load(open(settings.datasets[dataset]))
+        return json.load(open(settings.DATASETS[dataset]))
     except KeyError:
         raise LtronMissingDatasetException(dataset)
 

@@ -2,13 +2,15 @@ import random
 
 import numpy
 
-from gym.spaces import Box, Discrete, Dict
+from gymnasium.spaces import Box, Discrete, Dict
+
+from steadfast.gym.component_env import EnvComponent
 
 from ltron.hierarchy import len_hierarchy, index_hierarchy, x_like_hierarchy
 from ltron.dataset.paths import (
         get_dataset_paths, get_dataset_info, get_metadata)
 import ltron.gym.spaces as bg_spaces
-from ltron.gym.components.ltron_gym_component import LtronGymComponent
+#from ltron.gym.components.ltron_gym_component import LtronGymComponent
 
 '''
 class DatasetLoaderComponent(LtronGymComponent):

@@ -77,7 +77,7 @@ from ltron.bricks.brick_scene import BrickScene
 #    dataset_metadata['shape_ids'] = dict(zip(all_shapes, range(1, num_shapes)))
 #    dataset_metadata['color_ids'] = dict(zip(colors, range(1, len(colors)+1)))
 #    
-#    dataset_path = os.path.join(settings.paths['datasets'], '%s.json'%name)
+#    dataset_path = os.path.join(settings.PATHS['datasets'], '%s.json'%name)
 #    with open(dataset_path, 'w') as f:
 #        json.dump(dataset_metadata, f, indent=2)
 
@@ -125,7 +125,7 @@ def sample_shard(
         extension = 'tar'
         mode = 'w'
     tar_path = os.path.join(
-        settings.paths['shards'], '%s.%s'%(shard_name, extension))
+        settings.PATHS['shards'], '%s.%s'%(shard_name, extension))
     tar = tarfile.open(tar_path, mode)
     
     # build the ldraw scenes and add them to the tar file
@@ -204,7 +204,7 @@ def sample_shard(
             dataset_info['splits'][all_name]['shards'].append(shard_name)
     
     dataset_path = os.path.join(
-        settings.paths['datasets'], '%s.json'%dataset_name)
+        settings.PATHS['datasets'], '%s.json'%dataset_name)
     with open(dataset_path, 'w') as f:
         dataset_info = json.dump(dataset_info, f, indent=2)
 

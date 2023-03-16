@@ -38,9 +38,7 @@ raise Exception('Deprecated')
 #    return metadata
 
 def get_dataset_info(dataset):
-    #dataset_directory = os.path.expanduser(settings.datasets[dataset])
-    #dataset_path = os.path.join(dataset_directory, 'dataset.json')
-    dataset_path = os.path.expanduser(settings.datasets[dataset])
+    dataset_path = os.path.expanduser(settings.DATASETS[dataset])
     return json.load(open(dataset_path))
 
 def get_subset_slice(subset):

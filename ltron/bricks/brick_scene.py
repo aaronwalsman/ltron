@@ -13,6 +13,7 @@ except ImportError:
 
 #import splendor.masks as masks
 
+from ltron.constants import SHAPE_CLASS_LABELS, COLOR_CLASS_LABELS
 from ltron.ldraw.documents import LDrawDocument
 from ltron.bricks.brick_shape import BrickShapeLibrary
 from ltron.bricks.brick_instance import BrickInstanceTable
@@ -190,20 +191,32 @@ class BrickScene:
         with open(path, 'w') as f:
             f.write(text)
     
-    def set_assembly(self, assembly, shape_ids, color_ids):
+    def set_assembly(self,
+        assembly,
+        shape_class_labels=None,
+        color_class_labels=None,
+    ):
         self.clear_instances()
         self.import_assembly(
-            assembly, shape_ids, color_ids, match_instance_ids=True)
+            assembly,
+            shape_class_labels=shape_class_labels,
+            color_class_labels=color_class_labels,
+            match_instance_ids=True,
+        )
         
         self.assembly_cache = None
     
     def import_assembly(
         self,
         assembly,
-        shape_ids,
-        color_ids,
+        shape_class_labels=None,
+        color_class_labels=None,
         match_instance_ids=False,
     ):
+        if shape_class_labels is None:
+            shape_class_labels = SHAPE_CLASS_LABELS
+        if color_class_labels is None:
+            color_class_labels = COLOR_CLASS_LABELS
         for i in range(len(assembly['shape'])):
             instance_shape = assembly['shape'][i]
             if instance_shape == 0:
@@ -211,9 +224,9 @@ class BrickScene:
             instance_color = assembly['color'][i]
             instance_pose = assembly['pose'][i]
             shape_labels = {
-                value:key for key, value in shape_ids.items()}
+                value:key for key, value in shape_class_labels.items()}
             color_labels = {
-                value:key for key, value in color_ids.items()}
+                value:key for key, value in color_class_labels.items()}
             try:
                 brick_shape = shape_labels[instance_shape]
             except KeyError:
@@ -232,6 +245,7 @@ class BrickScene:
         
         self.assembly_cache = None
     
+    '''
     def make_shape_ids(self):
         brick_shapes = [str(bt) for bt in self.shape_library.values()]
         shape_ids = {bt:i+1 for i, bt in enumerate(brick_shapes)}
@@ -241,11 +255,12 @@ class BrickScene:
         colors = [int(c) for c in self.color_library.values()]
         color_ids = {str(c):i for i, c in enumerate(sorted(colors))}
         return color_ids
+    '''
     
     def get_assembly(
         self,
-        shape_ids=None,
-        color_ids=None,
+        shape_class_labels=None,
+        color_class_labels=None,
         max_instances=None,
         max_edges=None,
         unidirectional=False,
@@ -257,10 +272,10 @@ class BrickScene:
         
         assembly = {}
         
-        if shape_ids is None:
-            shape_ids = self.make_shape_ids()
-        if color_ids is None:
-            color_ids = self.make_color_ids()
+        if shape_class_labels is None:
+            shape_class_labels = SHAPE_CLASS_LABELS
+        if color_class_labels is None:
+            color_class_labels = COLOR_CLASS_LABELS
         if max_instances is None:
             if len(self.instances.keys()):
                 max_instances = max(self.instances.keys())
@@ -277,15 +292,17 @@ class BrickScene:
                         list(self.instances.keys()), max_instances))
         assembly['shape'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
         assembly['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
-        assembly['pose'] = numpy.zeros((max_instances+1, 4, 4))
+        assembly['pose'] = numpy.zeros(
+            (max_instances+1, 4, 4), dtype=numpy.float32)
         for instance_id, instance in self.instances.items():
             try:
-                assembly['shape'][instance_id] = shape_ids[
+                assembly['shape'][instance_id] = shape_class_labels[
                     str(instance.brick_shape)]
             except KeyError:
                 raise MissingClassError(instance.brick_shape)
             try:
-                assembly['color'][instance_id] = color_ids[str(instance.color)]
+                assembly['color'][instance_id] = (
+                    color_class_labels[str(instance.color)])
             except KeyError:
                 raise MissingColorError
             assembly['pose'][instance_id] = instance.transform
@@ -388,9 +405,14 @@ class BrickScene:
         
         self.assembly_cache = None
     
-    def get_scene_bbox(self):
+    def get_bbox(self, instances=None):
+        if instances is None:
+            instances = self.instances.values()
+        else:
+            instances = [self.instances[i] for i in instances]
+        
         vertices = []
-        for i, instance in self.instances.items():
+        for instance in instances:
             vertices.append(instance.bbox_vertices())
         if len(vertices):
             vertices = numpy.concatenate(vertices, axis=1)
@@ -400,6 +422,34 @@ class BrickScene:
             vmin = numpy.zeros(3)
             vmax = numpy.zeros(3)
         return vmin, vmax
+    
+    def place_above_scene(self, instances, offset=48):
+        try:
+            _ = len(offset)
+        except TypeError:
+            offset = (0,offset,0)
+        instance_ids = set(int(instance) for instance in instances)
+        background_instances = [
+            instance for i, instance in self.instances.items()
+            if i not in instance_ids
+        ]
+        background_min, background_max = self.get_bbox(background_instances)
+        instances_min, instances_max = self.get_bbox(instances)
+        
+        instances_min_y = instances_min[1]
+        background_max_y = background_max[1]
+        #y_offset = background_max_y - instances_min_y + offset
+        offset = (
+            offset[0],
+            offset[1] + background_max_y - instances_min_y,
+            offset[2],
+        )
+        
+        transform = numpy.eye(4)
+        transform[:3,3] = offset
+        
+        for instance in instances:
+            self.move_instance(instance, transform @ instance.transform)
     
     
     # instance snaps -----------------------------------------------------------
@@ -528,7 +578,12 @@ class BrickScene:
         
         return unoccupied_snaps
     
-    def all_pick_and_place_transforms(self, pick, place, check_collision=False):
+    def all_pick_and_place_transforms(self,
+        pick,
+        place,
+        check_collision=False,
+        ignore_collision_instances=None
+    ):
         if check_collision:
             assert self.collision_checker is not None
         
@@ -546,6 +601,7 @@ class BrickScene:
                 collision = self.check_snap_collision(
                     [pick.brick_instance],
                     pick,
+                    ignore_instances=ignore_collision_instances,
                 )
                 self.move_instance(pick.brick_instance, pick_instance_transform)
                 if not collision:
@@ -614,10 +670,15 @@ class BrickScene:
         pick,
         place,
         check_collision=False,
+        ignore_collision_instances=None,
     ):
         
         pick_and_place_transforms = self.all_pick_and_place_transforms(
-            pick, place, check_collision=check_collision)
+            pick,
+            place,
+            check_collision=check_collision,
+            ignore_collision_instances=ignore_collision_instances,
+        )
         
         inv_pick_instance_transform = numpy.linalg.inv(
             pick.brick_instance.transform)
@@ -638,22 +699,44 @@ class BrickScene:
         place,
         check_pick_collision=False,
         check_place_collision=False,
+        ignore_collision_instances=None,
     ):
         pick_instance = pick.brick_instance
         if check_pick_collision:
-            collision = self.check_snap_collision([pick_instance], pick)
+            collision = self.check_snap_collision(
+                [pick_instance],
+                pick,
+                ignore_instances=ignore_collision_instances,
+            )
             if collision:
                 return False
         
         transform = self.pick_and_place_snap_transform(
-            pick, place, check_collision=check_place_collision)
+            pick,
+            place,
+            check_collision=check_place_collision,
+            ignore_collision_instances=ignore_collision_instances,
+        )
         if transform is None:
             return False
         else:
             self.move_instance(pick_instance, transform)
             return True
     
-    def transform_about_snap(self, instances, snap, local_transform):
+    def transform_about_snap(self,
+        instances,
+        snap,
+        local_transform,
+        check_collision=False,
+    ):
+        
+        if check_collision:
+            collision = self.check_snap_collision(
+                target_instances=instances, snap=snap)
+            if collision:
+                return False
+        
+        original_transforms = [i.transform for i in instances]
         offset = (
             snap.transform @
             local_transform @
@@ -661,6 +744,16 @@ class BrickScene:
         )
         for instance in instances:
             self.move_instance(instance, offset @ instance.transform)
+        
+        if check_collision:
+            collision = self.check_snap_collision(
+                target_instances=instances, snap=snap)
+            if collision:
+                for instance, transform in zip(instances, original_transforms):
+                    self.move_instance(instance, transform)
+                return False
+        
+        return True
     
     
     # materials ----------------------------------------------------------------
