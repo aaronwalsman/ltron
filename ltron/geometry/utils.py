@@ -65,3 +65,24 @@ def translate_matrix(t):
     transform = numpy.eye(4)
     transform[:3,3] = t
     return transform
+
+def orthogonal_orientations():
+    orientations = []
+    for i in range(3):
+        for si in (1,-1):
+            vi = numpy.array([0,0,0])
+            vi[i] = si
+            for j in range(3):
+                if j == i:
+                    continue
+                for sj in (1,-1):
+                    vj = numpy.array([0,0,0])
+                    vj[j] = sj
+                    vk = numpy.cross(vi, vj)
+                    orientation = numpy.eye(4)
+                    orientation[:3,0] = vi
+                    orientation[:3,1] = vj
+                    orientation[:3,2] = vk
+                    orientations.append(orientation)
+    
+    return orientations
