@@ -89,13 +89,26 @@ def check_snap_collision(
             return_colliding_instances=return_colliding_instances,
             **kwargs,
         )
-        if not collision:
-            return collision
-        elif return_colliding_instances:
-            num_collision = len(collision)
-            if num_collision < min_num_collisions:
-                min_num_collisions = num_collision
-                min_collision = collision
+        
+        if return_colliding_instances:
+            if len(collision):
+                num_collision = len(collision)
+                if num_collision < min_num_collisions:
+                    min_num_collisions = num_collision
+                    min_collision = collision
+            else:
+                return collision
+        else:
+            if not collision:
+                return collision
+            
+        #if not collision:
+        #    return collision
+        #elif return_colliding_instances:
+        #    num_collision = len(collision)
+        #    if num_collision < min_num_collisions:
+        #        min_num_collisions = num_collision
+        #        min_collision = collision
     
     if return_colliding_instances:
         return min_collision
@@ -321,7 +334,7 @@ def build_collision_map(
     target_instances=None,
     scene_instances=None,
     frame_buffer=None,
-    resolution=(128,128),
+    #resolution=(128,128),
     *args,
     **kwargs,
 ):
