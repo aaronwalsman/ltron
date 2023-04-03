@@ -7,12 +7,19 @@ def squared_distance(a, b):
 def metric_close_enough(a, b, tolerance):
     return squared_distance(a,b) <= tolerance**2
 
-def matrix_angle_close_enough(a, b, max_angular_distance):
+def surrogate_angle(a, b):
     a = a[:3,:3]
     b = b[:3,:3]
-    trace_threshold = 1. + 2. * math.cos(max_angular_distance)
     r = a @ b.T
-    t = numpy.trace(r)
+    return numpy.trace(r)
+
+def matrix_angle_close_enough(a, b, max_angular_distance):
+    #a = a[:3,:3]
+    #b = b[:3,:3]
+    trace_threshold = 1. + 2. * math.cos(max_angular_distance)
+    #r = a @ b.T
+    #t = numpy.trace(r)
+    t = surrogate_angle(a, b)
     return t > trace_threshold
 
 def matrix_rotation_axis(a):
@@ -66,7 +73,12 @@ def translate_matrix(t):
     transform[:3,3] = t
     return transform
 
-def orthogonal_orientations():
+def orthogonal_orientations(offset=None):
+    if offset is None:
+        offset = numpy.eye(4)
+    else:
+        offset = offset.copy()
+        offset[:3,3] = 0
     orientations = []
     for i in range(3):
         for si in (1,-1):
@@ -83,6 +95,23 @@ def orthogonal_orientations():
                     orientation[:3,0] = vi
                     orientation[:3,1] = vj
                     orientation[:3,2] = vk
-                    orientations.append(orientation)
+                    orientations.append(offset@orientation)
     
     return orientations
+
+def local_pivot(transform):
+    return transform, numpy.linalg.inv(transform)
+
+def global_pivot(transform):
+    offset = numpy.eye(4)
+    offset[:3,3] = transform[:3,3]
+    return offset, numpy.linalg.inv(offset)
+
+def projected_global_pivot(transform, offset=None):
+    os = orthogonal_orientations()
+    sas = [surrogate_angle(transform@o, offset) for o in os]
+    i = numpy.argmax(sas)
+    closest_orthogonal = os[i]
+    offset = transform @ closest_orthogonal
+    offset[:3,3] = transform[:3,3]
+    return offset, numpy.linalg.inv(offset)

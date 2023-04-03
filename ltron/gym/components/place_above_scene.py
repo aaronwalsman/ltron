@@ -1,3 +1,5 @@
+import numpy
+
 from supermecha import SuperMechaComponent
 
 from ltron.geometry.collision import build_collision_map
@@ -25,11 +27,37 @@ class PlaceAboveScene(SuperMechaComponent):
         if len(removable_instances):
             instance = scene.instances[
                 self.np_random.choice(removable_instances)]
+            #connections = scene.get_instance_snap_connections(instance)
+            #snap, _ = self.np_random.choice(connections)
+            #snap_inv = numpy.linalg.inv(snap.transform)
             scene.place_above_scene(
                 [instance], offset=self.offset)
             if self.randomize_orientation:
                 instance_transform = instance.transform.copy()
                 orientations = orthogonal_orientations()
+                #orientations = [
+                #    #scene.upright @
+                #    #snap_inv,
+                #    numpy.eye(4),
+                #    #scene.upright @
+                #    numpy.array([
+                #        [ 0, 0, 1, 0],
+                #        [ 0, 1, 0, 0],
+                #        [-1, 0, 0, 0],
+                #        [ 0, 0, 0, 1]]) @ instance.transform,
+                #    #scene.upright @
+                #    numpy.array([
+                #        [-1, 0, 0, 0],
+                #        [ 0, 1, 0, 0],
+                #        [ 0, 0,-1, 0],
+                #        [ 0, 0, 0, 1]]) @ instance.transform,
+                #    #scene.upright @
+                #    numpy.array([
+                #        [ 0, 0,-1, 0],
+                #        [ 0, 1, 0, 0],
+                #        [ 1, 0, 0, 0],
+                #        [ 0, 0, 0, 1]]) @ instance.transform,
+                #]
                 orientation = self.np_random.choice(orientations)
                 instance_transform[:3,:3] = orientation[:3,:3]
                 scene.move_instance(instance, instance_transform)

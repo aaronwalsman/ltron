@@ -471,6 +471,9 @@ def start_viewer(
                 [0, 0, 1, 0],
                 [0, 0, 0, 1]])
             scene.move_instance(instance_id, transform)
+        
+        elif key == b'b':
+            breakpoint()
     
     def special_key(key, x, y):
         if key == glut.GLUT.GLUT_KEY_DOWN:

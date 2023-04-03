@@ -33,7 +33,9 @@ from ltron.gym.components.pick_and_place import (
     CursorPickAndPlaceComponent,
 )
 from ltron.gym.components.rotate import (
-    CursorRotateSnapComponent,
+    #CursorRotateSnapComponent,
+    CursorRotateSnapAboutAxisComponent,
+    CursorOrthogonalCameraSpaceRotationComponent,
 )
 from ltron.gym.components.insert import (
     InsertBrickComponent,

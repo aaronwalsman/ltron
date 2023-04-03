@@ -16,7 +16,13 @@ from steadfast.hierarchy import (
 from ltron.constants import SHAPE_CLASS_NAMES
 from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.snap import SnapFinger
-from ltron.geometry.utils import unscale_transform
+from ltron.geometry.utils import (
+    unscale_transform,
+    matrix_angle_close_enough,
+    orthogonal_orientations,
+    projected_global_pivot,
+    surrogate_angle,
+)
 from ltron.matching import (
     matching_edges,
     find_matches_under_transform,
@@ -75,7 +81,8 @@ class BuildStepExpert(ObservationWrapper):
         # 0. something we can't handle -> []
         # 1. no misaligned -> DONE
         # 2. connected -> rotate
-        # 3. disconnected -> pick_and_place
+        # 3. disconnected, incorrect orientation -> rotate
+        # 4. disconnected, correct orientation -> pick_and_place
         
         # this only connects bricks, and will not remove or insert them
         if len(fp) != 0 or len(fn) != 0 or num_misplaced > 1:
@@ -95,8 +102,6 @@ class BuildStepExpert(ObservationWrapper):
                 target_assembly,
                 ct_matches,
                 tc_matches,
-                ct_connected,
-                tc_connected,
                 instance_to_rotate,
                 snap_to_rotate,
                 target_instance,
@@ -104,17 +109,42 @@ class BuildStepExpert(ObservationWrapper):
             )
         
         elif num_disconnected == 1:
-            actions = self.pick_and_place_actions(
-                observation,
-                current_assembly,
-                target_assembly,
-                ct_matches,
-                tc_matches,
-                ct_disconnected,
-                tc_disconnected,
-            )
+            misplaced_current = next(iter(ct_disconnected.keys()))
+            misplaced_target = next(iter(ct_disconnected.keys()))
+            current_transform = current_assembly['pose'][misplaced_current]
+            target_transform = target_assembly['pose'][misplaced_target]
+            correct_orientation = matrix_angle_close_enough(
+                current_transform, target_transform, math.radians(30.))
+            if correct_orientation:
+                actions = self.pick_and_place_actions(
+                    observation,
+                    current_assembly,
+                    target_assembly,
+                    ct_matches,
+                    tc_matches,
+                    ct_disconnected,
+                    tc_disconnected,
+                )
+            else:
+                instance_to_rotate = misplaced_current
+                actions = []
+                for tgt_dis_i in tc_disconnected:
+                    missing_edges = matching_edges(target_assembly, tgt_dis_i)
+                    missing_edges = target_assembly['edges'][:,missing_edges]
+                    for _, tgt_con_i, dis_s, con_s in missing_edges.T:
+                        actions.extend(self.rotate_actions(
+                            observation,
+                            current_assembly,
+                            target_assembly,
+                            ct_matches,
+                            tc_matches,
+                            instance_to_rotate,
+                            dis_s,
+                            tgt_dis_i,
+                            tgt_con_i,
+                        ))
         
-        num_expert_actions = len(actions)
+        num_expert_actions = min(len(actions), self.max_instructions)
         if len(actions) == 0:
             actions.append(self.env.no_op_action())
         actions = actions[:self.max_instructions]
@@ -145,8 +175,6 @@ class BuildStepExpert(ObservationWrapper):
         target_assembly,
         ct_matches,
         tc_matches,
-        ct_connected,
-        tc_connected,
         instance_to_rotate,
         snap_to_rotate,
         target_instance,
@@ -181,7 +209,9 @@ class BuildStepExpert(ObservationWrapper):
             action['action_primitives']['rotate'] = r
             action['cursor']['button'] = p
             action['cursor']['click'] = numpy.array([y, x], dtype=numpy.int64)
-        return [action]
+            actions.append(action)
+        #return [action]
+        return actions
     
     def compute_attached_discrete_rotation(self,
         target_assembly,
@@ -210,30 +240,50 @@ class BuildStepExpert(ObservationWrapper):
         shape_id = target_assembly['shape'][target_instance]
         target_transform = connected_current_transform @ target_offset
         
-        rotate_space = self.action_space['action_primitives']['rotate']
+        #rotate_space = self.action_space['action_primitives']['rotate']
         return self.compute_discrete_rotation(
-            shape_id,
+            #shape_id,
+            current_instance,
             snap_id,
-            current_transform,
+            #current_transform,
             target_transform,
-            rotation_steps=rotate_space.n,
+            #rotation_steps=rotate_space.n,
         )
     
     def compute_discrete_rotation(self,
-        shape_id,
+        #shape_id,
+        instance_id,
         snap_id,
-        current_transform,
+        #current_transform,
         target_transform,
-        rotation_steps,
+        #rotation_steps,
     ):
-        brick_shape_name = SHAPE_CLASS_NAMES[shape_id]
-        brick_shape = BrickShape(brick_shape_name)
-        snap_transform = brick_shape.snaps[snap_id].transform
-        inv_snap_transform = numpy.linalg.inv(snap_transform)
-        current_snap_transform = current_transform @ snap_transform
+        #brick_shape_name = SHAPE_CLASS_NAMES[shape_id]
+        #brick_shape = BrickShape(brick_shape_name)
+        #snap_transform = brick_shape.snaps[snap_id].transform
+        #inv_snap_transform = numpy.linalg.inv(snap_transform)
+        #current_snap_transform = current_transform @ snap_transform
         
         target_r = unscale_transform(target_transform)[:3,:3]
         
+        scene = self.env.components['scene'].brick_scene
+        view_matrix = scene.get_view_matrix()
+        camera_pose = numpy.linalg.inv(view_matrix)
+        
+        instance = scene.instances[instance_id]
+        snap = instance.snaps[snap_id]
+        
+        pivot_a, pivot_b = projected_global_pivot(
+            snap.transform, offset=camera_pose)
+        
+        os = orthogonal_orientations()
+        candidates = [pivot_a @ o @ pivot_b @ instance.transform for o in os]
+        ts = [surrogate_angle(target_transform, c) for c in candidates]
+        best_i = numpy.argmax(ts)
+        
+        return best_i
+        
+        '''
         candidates = []
         for r in range(rotation_steps):
             c = math.cos(r * math.pi * 2 / rotation_steps)
@@ -280,8 +330,9 @@ class BuildStepExpert(ObservationWrapper):
                 offset_r = unscale_transform(offset_transform)[:3,:3]
                 t = numpy.trace(offset_r.T @ target_r)
                 candidates.append((t,r+rotation_steps,offset_transform))
-
-        return max(candidates)[1]
+        '''
+        
+        #return max(candidates)[1]
     
     def pick_and_place_actions(self,
         observation,
