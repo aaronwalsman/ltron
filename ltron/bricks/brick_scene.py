@@ -30,7 +30,12 @@ try:
     collision_available = True
 except ImportError:
     collision_available = False
-from ltron.geometry.utils import unscale_transform
+from ltron.geometry.utils import (
+    unscale_transform,
+    local_pivot,
+    global_pivot,
+    projected_global_pivot,
+)
 from ltron.exceptions import LtronException
 
 class MissingClassError(LtronException):
@@ -726,10 +731,11 @@ class BrickScene:
     def transform_about_snap(self,
         instances,
         snap,
-        local_transform,
+        transform,
         check_collision=False,
+        space='local',
     ):
-        
+        instances = [self.instances[i] for i in instances]
         if check_collision:
             collision = self.check_snap_collision(
                 target_instances=instances, snap=snap)
@@ -737,11 +743,41 @@ class BrickScene:
                 return False
         
         original_transforms = [i.transform for i in instances]
-        offset = (
-            snap.transform @
-            local_transform @
-            numpy.linalg.inv(snap.transform)
-        )
+        if space == 'local':
+            pivot_a, pivot_b = local_pivot(snap.transform)
+            #offset = (
+            #    snap.transform @
+            #    transform @
+            #    numpy.linalg.inv(snap.transform)
+            #)
+        elif space == 'global':
+            pivot_a, pivot_b = global_pivot(snap.transform)
+            #snap_translate = numpy.eye(4)
+            #snap_translate[:3,3] = snap.transform[:3,3]
+            #offset = (
+            #    snap_translate @
+            #    transform @
+            #    numpy.linalg.inv(snap_translate)
+            #)
+        elif space == 'projected_global':
+            pivot_a, pivot_b = projected_global_pivot(snap.transform)
+            #orthogonals = orthogonal_orientations()
+            #_, orthogonal = max([
+            #    (surrogate_angle(snap.transform, o), o)
+            #    for o in orthogonals
+            #])
+            #orthogonal[:3,3] = snap.transform[:3,3]
+            #offset = (
+            #    orthogonal @
+            #    transform @
+            #    numpy.linalg.inv(orthogonal)
+            #)
+        elif space == 'projected_camera':
+            camera_pose = numpy.linalg.inv(self.get_view_matrix())
+            pivot_a, pivot_b = projected_global_pivot(
+                snap.transform, offset=camera_pose)
+        
+        offset = pivot_a @ transform @ pivot_b
         for instance in instances:
             self.move_instance(instance, offset @ instance.transform)
         

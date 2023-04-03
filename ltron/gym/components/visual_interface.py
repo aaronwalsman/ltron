@@ -14,7 +14,8 @@ from ltron.gym.components import (
     SnapCursorComponent,
     CursorRemoveBrickComponent,
     CursorPickAndPlaceComponent,
-    CursorRotateSnapComponent,
+    CursorRotateSnapAboutAxisComponent,
+    CursorOrthogonalCameraSpaceRotationComponent,
     DoneComponent,
     SnapMaskRenderComponent,
     InsertBrickComponent,
@@ -149,11 +150,17 @@ def make_visual_interface(
     
     # rotate
     if config.include_rotate:
-        action_primitives['rotate'] = CursorRotateSnapComponent(
-            scene_component,
-            components['cursor'],
-            check_collision=config.check_collision,
-        )
+        #action_primitives['rotate'] = CursorRotateSnapComponent(
+        #    scene_component,
+        #    components['cursor'],
+        #    check_collision=config.check_collision,
+        #)
+        action_primitives['rotate'] = (
+            CursorOrthogonalCameraSpaceRotationComponent(
+                scene_component,
+                components['cursor'],
+                check_collision=config.check_collision,
+        ))
     
     # removal
     if config.include_remove:
