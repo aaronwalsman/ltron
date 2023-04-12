@@ -10,10 +10,12 @@ class PlaceAboveScene(SuperMechaComponent):
         scene_component,
         offset=(0,48,0),
         randomize_orientation=False,
+        randomize_orientation_mode=24,
     ):
         self.scene_component = scene_component
         self.offset = offset
         self.randomize_orientation = randomize_orientation
+        self.randomize_orientation_mode = randomize_orientation_mode
     
     def reset(self, seed=None, options=None):
         super().reset(seed)
@@ -34,30 +36,33 @@ class PlaceAboveScene(SuperMechaComponent):
                 [instance], offset=self.offset)
             if self.randomize_orientation:
                 instance_transform = instance.transform.copy()
-                orientations = orthogonal_orientations()
-                #orientations = [
-                #    #scene.upright @
-                #    #snap_inv,
-                #    numpy.eye(4),
-                #    #scene.upright @
-                #    numpy.array([
-                #        [ 0, 0, 1, 0],
-                #        [ 0, 1, 0, 0],
-                #        [-1, 0, 0, 0],
-                #        [ 0, 0, 0, 1]]) @ instance.transform,
-                #    #scene.upright @
-                #    numpy.array([
-                #        [-1, 0, 0, 0],
-                #        [ 0, 1, 0, 0],
-                #        [ 0, 0,-1, 0],
-                #        [ 0, 0, 0, 1]]) @ instance.transform,
-                #    #scene.upright @
-                #    numpy.array([
-                #        [ 0, 0,-1, 0],
-                #        [ 0, 1, 0, 0],
-                #        [ 1, 0, 0, 0],
-                #        [ 0, 0, 0, 1]]) @ instance.transform,
-                #]
+                if self.randomize_orientation_mode == 24:
+                    orientations = orthogonal_orientations()
+                else:
+                    orientations = [
+                        #scene.upright @
+                        #snap_inv,
+                        #numpy.eye(4),
+                        scene.upright,
+                        scene.upright @
+                        numpy.array([
+                            [ 0, 0, 1, 0],
+                            [ 0, 1, 0, 0],
+                            [-1, 0, 0, 0],
+                            [ 0, 0, 0, 1]]),
+                        scene.upright @
+                        numpy.array([
+                            [-1, 0, 0, 0],
+                            [ 0, 1, 0, 0],
+                            [ 0, 0,-1, 0],
+                            [ 0, 0, 0, 1]]),
+                        scene.upright @
+                        numpy.array([
+                            [ 0, 0,-1, 0],
+                            [ 0, 1, 0, 0],
+                            [ 1, 0, 0, 0],
+                            [ 0, 0, 0, 1]]),
+                    ]
                 orientation = self.np_random.choice(orientations)
                 instance_transform[:3,:3] = orientation[:3,:3]
                 scene.move_instance(instance, instance_transform)

@@ -102,6 +102,8 @@ def sample_shard(
     except LtronMissingDatasetException:
         dataset_info = {}
     
+    # this is a global class list now
+    '''
     # add the color_ids and shape_ids to the dataset info
     colors = sorted(colors)
     shapes = sorted(get_all_brick_shapes(subassembly_samplers))
@@ -116,6 +118,7 @@ def sample_shard(
         # if ids do not exist, add them
         else:
             dataset_info['%s_ids'%color_shape] = ids
+    '''
     
     # open the shard tar file
     if compress:

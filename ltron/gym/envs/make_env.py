@@ -43,6 +43,7 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     image_based_target = False
     use_place_above_for_start = False
     randomize_place_above_orientation = False
+    place_above_orientation_mode = 24
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -121,6 +122,7 @@ class MakeEnv(SuperMechaContainer):
                 components['scene'],
                 offset=(-96,48,-96),
                 randomize_orientation=config.randomize_place_above_orientation,
+                randomize_orientation_mode=config.place_above_orientation_mode,
             )
         else:
             if config.load_start_scene is None:
