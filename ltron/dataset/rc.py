@@ -1,9 +1,11 @@
 from argparse import ArgumentParser
 
 import ltron.dataset.rca as rca
+import ltron.dataset.rcb as rcb
 
 modules = {
     'rca':rca,
+    'rcb':rcb,
 }
 known_datasets = modules.keys()
 
