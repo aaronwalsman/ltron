@@ -64,6 +64,16 @@ class OrthogonalCameraSpaceRotationComponent(TransformSnapComponent):
     def no_op_action(self):
         return 0
 
+class ReducedOrthogonalCameraSpaceRotationComponent(TransformSnapComponent):
+    def __init__(self, scene_component, check_collisions):
+        transforms = []
+        super().__init__(
+            scene_component,
+            check_collisions,
+            transforms,
+            space='projected_camera',
+        )
+
 class RotateSnapAboutAxisComponent(TransformSnapComponent):
     def __init__(
         self,
@@ -85,7 +95,7 @@ class RotateSnapAboutAxisComponent(TransformSnapComponent):
             for i in range(rotate_steps)
         ]
         #self.action_space = Discrete(rotate_steps)
-        super.__init__(
+        super().__init__(
             scene_component, check_collision, transforms, space='local')
     
     '''

@@ -161,6 +161,12 @@ def make_visual_interface(
                 components['cursor'],
                 check_collision=config.check_collision,
         ))
+        #action_primitives['rotate'] = (
+        #    CursorRotateSnapAboutAxisComponent(
+        #        scene_component,
+        #        components['cursor'],
+        #        check_collision=config.check_collision,
+        #))
     
     # removal
     if config.include_remove:
