@@ -19,7 +19,6 @@ from ltron.gym.components import (
     DoneComponent,
     SnapMaskRenderComponent,
     InsertBrickComponent,
-    #SnapIslandRenderComponent,
 )
 
 class VisualInterfaceConfig(Config):
@@ -55,11 +54,6 @@ class VisualInterfaceConfig(Config):
     viewpoint_far_clip = 50000.
     viewpoint_observable = True
     
-    shape_class_labels = None
-    color_class_labels = None
-    
-#class VisualInterface(SuperMechaContainer):
-#def __init__(self,
 def make_visual_interface(
     config,
     scene_component,
@@ -144,7 +138,6 @@ def make_visual_interface(
         action_primitives['pick_and_place'] = CursorPickAndPlaceComponent(
             scene_component,
             components['cursor'],
-            #overlay_brick_component = action_primitives['overlay_brick'],
             check_collision=config.check_collision,
         )
     
@@ -178,11 +171,7 @@ def make_visual_interface(
     
     # insert
     if config.include_insert:
-        action_primitives['insert'] = InsertBrickComponent(
-            scene_component,
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
-        )
+        action_primitives['insert'] = InsertBrickComponent(scene_component)
     
     # done
     if config.include_done:
@@ -194,27 +183,5 @@ def make_visual_interface(
     
     components['pos_snap_render'] = pos_snap_render_component
     components['neg_snap_render'] = neg_snap_render_component
-    #components['pos_equivalence'] = SnapIslandRenderComponent(
-    #    scene_component,
-    #    pos_snap_render_component,
-    #    config.image_height,
-    #    config.image_width,
-    #    update_on_init=False,
-    #    update_on_reset=True,
-    #    update_on_step=True,
-    #    observable=True,
-    #)
-    #components['neg_equivalence'] = SnapIslandRenderComponent(
-    #    scene_component,
-    #    neg_snap_render_component,
-    #    config.image_height,
-    #    config.image_width,
-    #    update_on_init=False,
-    #    update_on_reset=True,
-    #    update_on_step=True,
-    #    observable=True,
-    #)
-    
-    #super().__init__(components)
     
     return components

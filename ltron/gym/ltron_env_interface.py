@@ -17,15 +17,17 @@ class LtronInterfaceConfig(FreebuildEnvConfig, BreakEnvConfig, MakeEnvConfig):
     seed = 1234567890
     env_name = 'LTRON/Freebuild-v0'
     train = True
+    auto_reset = True
 
 class LtronInterface:
     def __init__(self, config):
-        print(config.env_name)
         self.env = gym.make(
             config.env_name,
             config=config,
             train=config.train,
         )
+        if config.auto_reset:
+            self.env = gym.wrappers.AutoResetWrapper(self.env)
         self.env.reset(seed=config.seed)
         
         self.scene = self.env.components['scene'].brick_scene
@@ -44,9 +46,6 @@ class LtronInterface:
             glutMouseFunc = self.mouse_button,
             glutMotionFunc = self.mouse_move,
         )
-        
-        #self.dumped_images = 0
-        #self.dumped_scenes = 0
     
     def render(self):
         self.window.set_active()
@@ -58,14 +57,11 @@ class LtronInterface:
         self.window.enable_window()
         self.scene.color_render(flip_y=False)
         image = self.window.read_pixels()[::-1]
-        #image_path = './ltron_interface_%06i.png'%self.dumped_images
         print('Saving image to: %s'%image_path)
         save_image(image, image_path)
-        #self.dumped_images += 1
     
     def dump_scene(self, scene_path):
         self.scene.export_ldraw(scene_path)
-        #self.dumped_scenes += 1
     
     def key_press(self, key, x, y):
         if key == b'r':
@@ -158,7 +154,7 @@ class LtronInterface:
         
         
         o,r,t,u,i = self.env.step(action)
-        print('Reward:%.04f'%r)
+        print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_press(self, key, x, y):
         
@@ -184,7 +180,7 @@ class LtronInterface:
                 ViewpointActions.Y_NEG.value)
         
         o,r,t,u,i = self.env.step(action)
-        print('Reward: %.04f'%r)
+        print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def mouse_button(self, button, button_state, x, y):
         if button == 0 or button == 2:

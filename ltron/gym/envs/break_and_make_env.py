@@ -11,22 +11,26 @@ from ltron.gym.components import (
     EmptySceneComponent,
     LoaderConfig,
     make_loader,
+    ClearScene,
     VisualInterfaceConfig,
     make_visual_interface,
     ColorRenderComponent,
     AssemblyComponent,
+    BuildScore,
+    PlaceAboveScene,
 )
 
-class FreebuildEnvConfig(VisualInterfaceConfig, LoaderConfig):
-    max_time_steps = 20
+class BreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     image_height = 256
     image_width = 256
     render_mode = 'egl'
+    
+    image_based_target = True
 
-class FreebuildEnv(SuperMechaContainer):
+class BreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
         config,
-        train=True,
+        train=False,
     ):
         components = OrderedDict()
         
@@ -53,7 +57,7 @@ class FreebuildEnv(SuperMechaContainer):
         
         # time step
         components['time'] = TimeStepComponent(
-            config.max_time_steps, observe_step=False)
+            config.max_time_steps, observe_step=True)
         
         # visual interface
         interface_components = make_visual_interface(
@@ -61,25 +65,12 @@ class FreebuildEnv(SuperMechaContainer):
             components['scene'],
             train=train,
         )
-        components.update(interface_components)
-        
-        # color render
-        components['image'] = ColorRenderComponent(
-            components['scene'],
-            config.image_height,
-            config.image_width,
-            anti_alias=True,
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=True,
-            observable=True,
-        )
-        components['assembly'] = AssemblyComponent(
-            components['scene'],
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=True,
-            observable=True,
-        )
-        
-        super().__init__(components)
+        render_components = {
+            k:v for k,v in interface_components.items()
+            if 'render' in k
+        }
+        nonrender_components = {
+            k:v for k,v in interface_components.items()
+            if 'render' not in k
+        }
+        components.update(nonrender_components)

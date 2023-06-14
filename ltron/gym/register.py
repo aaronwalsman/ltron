@@ -12,6 +12,11 @@ def register_ltron_envs():
     )
     
     register(
+        id='LTRON/Detect-v0',
+        entry_point='ltron.gym.envs:DetectEnv',
+    )
+    
+    register(
         id='LTRON/Break-v0',
         entry_point='ltron.gym.envs:BreakEnv',
     )

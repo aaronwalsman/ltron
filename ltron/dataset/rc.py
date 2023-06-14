@@ -13,6 +13,7 @@ parser = ArgumentParser()
 parser.add_argument('dataset', type=str)
 parser.add_argument('--size', type=str, nargs='*', default='all')
 parser.add_argument('--split', type=str, nargs='*', default='all')
+parser.add_argument('--shard', type=int, default=None)
 #parser.add_argument('--info', action='store_true')
 
 def build_rc_dataset():
@@ -36,7 +37,10 @@ def build_rc_dataset():
         min_instances = int(min_instances)
         max_instances = int(max_instances)
         for split in splits:
-            collections.append((min_instances, max_instances, split))
+            collection = [min_instances, max_instances, split]
+            if args.shard is not None:
+                collection.append(args.shard)
+            collections.append(collection)
     
     module.build(collections)
     

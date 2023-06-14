@@ -21,24 +21,12 @@ from ltron.gym.components import (
 )
 
 class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
-    load_scene = None
     load_start_scene = None
-    train_dataset = None
-    train_split = None
-    eval_dataset = None
-    eval_split = None
-    dataset_subset = None
-    dataset_repeat = 1
-    dataset_shuffle = True
     
     max_time_steps = 20
-    
     image_height = 256
     image_width = 256
     render_mode = 'egl'
-    
-    shape_class_labels = None
-    color_class_labels = None
     
     image_based_target = False
     use_place_above_for_start = False
@@ -51,7 +39,6 @@ class MakeEnv(SuperMechaContainer):
         train=False,
     ):
         components = OrderedDict()
-        #dataset_info = get_dataset_info(config.dataset_name)
         
         # scene
         if config.render_mode == 'egl':
@@ -107,10 +94,6 @@ class MakeEnv(SuperMechaContainer):
         )
         components['target_assembly'] = AssemblyComponent(
             components['scene'],
-            #dataset_info['max_instances_per_scene'],
-            #dataset_info['max_edges_per_scene'],
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
             update_on_init=False,
             update_on_reset=True,
             update_on_step=False,
@@ -126,7 +109,11 @@ class MakeEnv(SuperMechaContainer):
             )
         else:
             if config.load_start_scene is None:
-                components['clear_scene'] = ClearScene(components['scene'])
+                components['clear_scene'] = ClearScene(
+                    components['scene'],
+                    update_on_init=True,
+                    update_on_reset=True,
+                )
             else:
                 components['start_loader'] = make_loader(
                     config,
@@ -148,16 +135,14 @@ class MakeEnv(SuperMechaContainer):
         )
         components['assembly'] = AssemblyComponent(
             components['scene'],
-            #max_instances = dataset_info['max_instances_per_scene'],
-            #max_edges = dataset_info['max_edges_per_scene'],
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
             update_on_init=False,
             update_on_reset=True,
             update_on_step=True,
             observable=True,
         )
         components.update(render_components)
+        
+        # score
         components['score'] = BuildScore(
             components['target_assembly'],
             components['assembly'],

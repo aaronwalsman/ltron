@@ -8,6 +8,11 @@ from ltron.gym.envs.freebuild_env import (
     FreebuildEnv,
 )
 
+from ltron.gym.envs.detect_env import (
+    DetectEnvConfig,
+    DetectEnv,
+)
+
 from ltron.gym.envs.break_env import (
     BreakEnvConfig,
     BreakEnv,

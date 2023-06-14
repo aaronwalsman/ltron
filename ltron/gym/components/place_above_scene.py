@@ -27,8 +27,17 @@ class PlaceAboveScene(SuperMechaComponent):
         ]
         #instances = list(scene.instances.values())
         if len(removable_instances):
-            instance = scene.instances[
-                self.np_random.choice(removable_instances)]
+            if False:
+                instance = scene.instances[
+                    self.np_random.choice(removable_instances)]
+            else:
+                heights = [
+                    scene.instances[i].transform[1,3]
+                    for i in removable_instances
+                ]
+                i = numpy.argmax(heights)
+                instance = scene.instances[removable_instances[i]]
+            
             #connections = scene.get_instance_snap_connections(instance)
             #snap, _ = self.np_random.choice(connections)
             #snap_inv = numpy.linalg.inv(snap.transform)

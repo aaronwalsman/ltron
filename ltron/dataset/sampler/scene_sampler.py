@@ -89,10 +89,15 @@ def sample_shard(
     min_instances,
     max_instances,
     num_scenes,
-    compress=False
+    compress=False,
+    shard_id=None,
 ):
     size_name = '%i_%i'%(min_instances, max_instances)
-    shard_name = '%s_%s_%s'%(dataset_name, size_name, split_name)
+    if shard_id is None:
+        shard_name = '%s_%s_%s'%(dataset_name, size_name, split_name)
+    else:
+        shard_name = '%s_%s_%s_%i'%(
+            dataset_name, size_name, split_name, shard_id)
     print('-'*80)
     print('Building Shard: %s'%shard_name)
     

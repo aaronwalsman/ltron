@@ -80,7 +80,7 @@ class DiscreteLayoutSpace(Discrete):
 #
 #class InstanceMaskSpace(Box):
 #    '''
-#    A height x width array, where each pixel contains a long refering to
+#    A height x width array, where each pixel contains an int refering to
 #    a segmentation index.
 #    
 #    Used by:
@@ -91,7 +91,7 @@ class DiscreteLayoutSpace(Discrete):
 #        self.height = height
 #        self.max_instances = max_instances
 #        super().__init__(
-#            low=0, high=max_instances, shape=(height, width), dtype=numpy.long)
+#            low=0, high=max_instances, shape=(height, width), dtype=int)
 
 class InstanceMaskSpace(IntegerMaskSpace):
     def __init__(self, width, height, max_instances=masks.NUM_MASKS-1):
@@ -99,8 +99,8 @@ class InstanceMaskSpace(IntegerMaskSpace):
 
 class SnapMaskSpace(Box):
     '''
-    A height x width x 2 array, where each pixel contains a long refering to
-    a brick instance index, and another long referring to a connection point
+    A height x width x 2 array, where each pixel contains a int refering to
+    a brick instance index, and another int referring to a connection point
     index.
     
     Used by:
@@ -111,7 +111,7 @@ class SnapMaskSpace(Box):
         self.height = height
         self.max_id = max_id
         super().__init__(
-            low=0, high=max_id, shape=(height, width, 2), dtype=numpy.long)
+            low=0, high=max_id, shape=(height, width, 2), dtype=int)
 
 class MaskedTiledImageSpace(Dict):
     '''
@@ -243,15 +243,15 @@ class EdgeSpace(Box):
     spaces.AssemblySpace (component)
     '''
     def __init__(self, max_instances, max_edges):
-        low = numpy.zeros((4, max_edges), dtype=numpy.long)
-        high = numpy.zeros((4, max_edges), dtype=numpy.long)
+        low = numpy.zeros((4, max_edges), dtype=int)
+        high = numpy.zeros((4, max_edges), dtype=int)
         high[:2,:] = max_instances
         high[2:,:] = MAX_SNAPS_PER_BRICK-1
         super().__init__(
             low=low,
             high=high,
             shape=(4, max_edges),
-            dtype=numpy.long,
+            dtype=int,
         )
 
 class AssemblySpace(Dict):
@@ -280,19 +280,27 @@ class AssemblySpace(Dict):
                 low=0,
                 high=NUM_SHAPE_CLASSES,
                 shape=(max_instances+1,),
-                dtype=numpy.long,
+                dtype=int,
             ),
             'color' : Box(
                 low=0,
                 high=NUM_COLOR_CLASSES,
                 shape=(max_instances+1,),
-                dtype=numpy.long,
+                dtype=int,
             ),
             'pose' : MultiSE3Space(max_instances+1, world_bbox),
             'edges' : EdgeSpace(max_instances, max_edges),
         }
         
         super().__init__(self.space_dict)
+    
+    def empty(self):
+        return {
+            'shape' : numpy.zeros((self.max_instances+1,), dtype=int),
+            'color' : numpy.zeros((self.max_instances+1,), dtype=int),
+            'pose' : numpy.zeros((self.max_instances+1,4,4)),
+            'edges' : numpy.zeros((4, self.max_edges), dtype=int),
+        }
     
     def from_scene(self, scene):
         return scene.get_assembly()

@@ -42,7 +42,7 @@ class DatasetLoader(SuperMechaComponent):
         rank=0,
         size=1,
         shuffle=False,
-        shuffle_buffer=1000,
+        shuffle_buffer=10000,
         repeat=False,
     ):
         self.scene_component = scene_component
