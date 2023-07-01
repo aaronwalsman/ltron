@@ -51,3 +51,5 @@ from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.build_score import BuildScore
 from ltron.gym.components.place_above_scene import PlaceAboveScene
 from ltron.gym.components.detect_objective import DetectObjective
+from ltron.gym.components.break_and_make import (
+    BreakAndMakePhaseSwitchComponent, PhaseScoreComponent)

@@ -17,15 +17,14 @@ from ltron.gym.components import (
     ColorRenderComponent,
     AssemblyComponent,
     BuildScore,
-    PlaceAboveScene,
+    BreakAndMakePhaseSwitchComponent,
+    PhaseScoreComponent,
 )
 
 class BreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     image_height = 256
     image_width = 256
     render_mode = 'egl'
-    
-    image_based_target = True
 
 class BreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -55,9 +54,14 @@ class BreakAndMakeEnv(SuperMechaContainer):
         components['loader'] = make_loader(
             config, components['scene'], train=train)
         
-        # time step
-        components['time'] = TimeStepComponent(
-            config.max_time_steps, observe_step=True)
+        # target assembly
+        components['target_assembly'] = AssemblyComponent(
+            components['scene'],
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=False,
+            observable=True,
+        )
         
         # visual interface
         interface_components = make_visual_interface(
@@ -65,6 +69,11 @@ class BreakAndMakeEnv(SuperMechaContainer):
             components['scene'],
             train=train,
         )
+        interface_components['phase'] = BreakAndMakePhaseSwitchComponent(
+            components['scene'],
+        )
+        
+        # separate out the render and nonrender components from the interface
         render_components = {
             k:v for k,v in interface_components.items()
             if 'render' in k
@@ -74,3 +83,35 @@ class BreakAndMakeEnv(SuperMechaContainer):
             if 'render' not in k
         }
         components.update(nonrender_components)
+        
+        # color render
+        components['image'] = ColorRenderComponent(
+            components['scene'],
+            config.image_height,
+            config.image_width,
+            anti_alias=True,
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=True,
+            observable=True,
+        )
+        components['assembly'] = AssemblyComponent(
+            components['scene'],
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=True,
+            observable=True,
+        )
+        components.update(render_components)
+        
+        # score
+        score_component = BuildScore(
+            components['target_assembly'],
+            components['assembly'],
+        )
+        components['score'] = PhaseScoreComponent(
+            components['phase'],
+            score_component,
+        )
+        
+        super().__init__(components)

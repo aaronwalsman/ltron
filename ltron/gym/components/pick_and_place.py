@@ -9,12 +9,10 @@ from ltron.geometry.utils import unscale_transform
 class PickAndPlaceComponent(SuperMechaComponent):
     def __init__(self,
         scene_component,
-        #overlay_brick_component=None,
         check_collision=True,
         place_above_scene_offset=48,
     ):
         self.scene_component = scene_component
-        #self.overlay_brick_component = overlay_brick_component
         self.check_collision = check_collision
         self.place_above_scene_offset = place_above_scene_offset
         if self.check_collision:

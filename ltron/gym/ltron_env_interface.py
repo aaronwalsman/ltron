@@ -91,11 +91,11 @@ class LtronInterface:
         # rotate
         elif key == b'[':
             action['action_primitives']['mode'] = 2
-            action['action_primitives']['rotate'] = 1
+            action['action_primitives']['rotate'] = 18 #1
         
         elif key == b']':
             action['action_primitives']['mode'] = 2
-            action['action_primitives']['rotate'] = 3
+            action['action_primitives']['rotate'] = 22 #3
         
         # table viewpoint
         elif key == b'w':
@@ -137,8 +137,6 @@ class LtronInterface:
             text = input()
             try:
                 s,c = text.split(',')
-                #s = int(s)
-                #c = int(c)
                 s = SHAPE_CLASS_LABELS[s]
                 c = COLOR_CLASS_LABELS[c]
             except:
@@ -178,6 +176,9 @@ class LtronInterface:
             action['action_primitives']['mode'] = 0
             action['action_primitives']['viewpoint'] = (
                 ViewpointActions.Y_NEG.value)
+        
+        if key == 107: # end
+            action['phase'] = 1
         
         o,r,t,u,i = self.env.step(action)
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))

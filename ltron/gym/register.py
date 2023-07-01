@@ -51,6 +51,11 @@ def register_ltron_envs():
         kwargs={'env_name':'LTRON/Make-v0'},
     )
     
+    register(
+        id='LTRON/BreakAndMake-v1',
+        entry_point='ltron.gym.envs.break_and_make_env:BreakAndMakeEnv',
+    )
+    
     #register(
     #    id='LTRON/IdentifyRedBrick-v0',
     #    entry_point='ltron.gym.envs:ColoredBrickPrediction',
