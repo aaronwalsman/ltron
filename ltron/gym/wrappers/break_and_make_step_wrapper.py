@@ -8,6 +8,7 @@ from gymnasium.spaces import Discrete, Dict
 from splendor.image import save_image
 
 from ltron.gym.envs.break_and_make_env import BreakAndMakeEnv
+from ltron.gym.wrappers.build_step_expert import BuildStepExpert
 
 BRICK_DONE_BONUS = 0.1
 BRICK_DONE_PENALTY = -1
@@ -87,7 +88,7 @@ class BreakAndMakeStepWrapper(Wrapper):
         self.target_images = [o['image']]
         self.target_assemblies = [o['assembly']]
         
-        self.save_debug(o)
+        #self.save_debug(o)
         
         return o, i
     
@@ -127,7 +128,7 @@ class BreakAndMakeStepWrapper(Wrapper):
         o = self.observation(o)
         
         self.total_steps += 1
-        self.save_debug(o)
+        #self.save_debug(o)
         
         if self.env.components['phase'].phase == 0:
             if action['brick_done']:
@@ -141,4 +142,6 @@ class BreakAndMakeStepWrapper(Wrapper):
 def break_and_make_step_wrapper_env(config, train=True):
     break_and_make_env = BreakAndMakeEnv(config, train)
     wrapped_env = BreakAndMakeStepWrapper(break_and_make_env)
+    wrapped_env = BuildStepExpert(wrapped_env)
+    
     return wrapped_env

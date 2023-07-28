@@ -40,12 +40,14 @@ class LtronInterface:
         self.button = 0
         self.click = (0,0)
         self.release = (0,0)
+        self.shift_down = False
         
         self.window.register_callbacks(
             glutDisplayFunc = self.render,
             glutIdleFunc = self.render,
             glutKeyboardFunc = self.key_press,
             glutSpecialFunc = self.special_key_press,
+            glutSpecialUpFunc = self.special_key_release,
             glutMouseFunc = self.mouse_button,
             glutMotionFunc = self.mouse_move,
         )
@@ -135,20 +137,6 @@ class LtronInterface:
             action['action_primitives']['mode'] = 3
             action['action_primitives']['remove'] = 1
         
-        elif key == b'\t':
-            print('Please enter the shape and color separated by commas:')
-            text = input()
-            try:
-                s,c = text.split(',')
-                s = SHAPE_CLASS_LABELS[s]
-                c = COLOR_CLASS_LABELS[c]
-            except:
-                print('Misformatted input, expected two comma-separated ints')
-                s = 0
-                c = 0
-            action['action_primitives']['mode'] = 4
-            action['action_primitives']['insert'] = numpy.array([s,c])
-        
         action['cursor']['button'] = self.button
         action['cursor']['click'] = self.click
         action['cursor']['release'] = self.release
@@ -186,8 +174,46 @@ class LtronInterface:
             elif 'brick_done' in action:
                 action['brick_done'] = 1
         
+        if key == 108: # insert
+            if self.shift_down:
+                print('Please enter the shape name (XXXX.dat) '
+                    'and LDRAW color index separated by whitespace:')
+                text = input()
+                try:
+                    s,c = text.split()
+                    s = SHAPE_CLASS_LABELS[s]
+                    c = COLOR_CLASS_LABELS[c]
+                except:
+                    print('Misformatted input, expected two whitespace '
+                        'separated names')
+                    s = 0
+                    c = 0
+            else:
+                print('Please enter the shape and color class labels '
+                    'separated by whitespace:')
+                text = input()
+                try:
+                    s,c = text.split()
+                    s = int(s)
+                    c = int(c)
+                except:
+                    print('Misformed input, expected two whitespace '
+                        'separated ints')
+                    s = 0
+                    c = 0
+            
+            action['action_primitives']['mode'] = 4
+            action['action_primitives']['insert'] = numpy.array([s,c])
+        
+        if key == 112: # shift
+            self.shift_down = True
+        
         o,r,t,u,i = self.env.step(action)
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
+    
+    def special_key_release(self, key, x, y):
+        if key == 112:
+            self.shift_down = False
     
     def mouse_button(self, button, button_state, x, y):
         if button == 0 or button == 2:

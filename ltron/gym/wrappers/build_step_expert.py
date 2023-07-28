@@ -84,9 +84,12 @@ class BuildStepExpert(ObservationWrapper):
         # 3. disconnected, incorrect orientation -> rotate
         # 4. disconnected, correct orientation -> pick_and_place
         
-        # this only connects bricks, and will not remove or insert them
-        if len(fp) != 0 or len(fn) != 0 or num_misplaced > 1:
+        # this only inserts and connects bricks, and will not remove them
+        if len(fp) != 0 or len(fn) > 1 or num_misplaced > 1:
             actions = []
+        
+        elif len(fn) == 1:
+            actions = self.insert_actions(current_assembly, target_assembly, fn)
         
         elif num_misplaced == 0:
             actions = self.done_actions()
@@ -155,6 +158,22 @@ class BuildStepExpert(ObservationWrapper):
         observation['num_expert_actions'] = num_expert_actions
         
         return observation
+    
+    def insert_actions(self, current_assembly, target_assembly, fn):
+        action = self.env.no_op_action()
+        mode_space = self.env.action_space['action_primitives']['mode']
+        try:
+            insert_index = mode_space.names.index('insert')
+        except ValueError:
+            print('Warning: no "insert" action primitive found')
+            return []
+        action['action_primitives']['mode'] = insert_index
+        fn = next(iter(fn))
+        shape = target_assembly['shape'][fn]
+        color = target_assembly['color'][fn]
+        action['action_primitives']['insert'][0] = shape
+        action['action_primitives']['insert'][1] = color
+        return [action]
     
     def done_actions(self):
         action = self.env.no_op_action()
