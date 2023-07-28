@@ -8,7 +8,7 @@ def register_ltron_envs():
     
     register(
         id='LTRON/Freebuild-v0',
-        entry_point='ltron.gym.envs:InterfaceEnv',
+        entry_point='ltron.gym.envs:FreebuildEnv',
     )
     
     register(
@@ -55,6 +55,13 @@ def register_ltron_envs():
         id='LTRON/BreakAndMake-v1',
         entry_point='ltron.gym.envs.break_and_make_env:BreakAndMakeEnv',
     )
+    
+    register(
+        id='LTRON/BreakAndMakeStepWrapper-v1',
+        entry_point='ltron.gym.wrappers.break_and_make_step_wrapper:'
+            'break_and_make_step_wrapper_env',
+    )
+
     
     #register(
     #    id='LTRON/IdentifyRedBrick-v0',

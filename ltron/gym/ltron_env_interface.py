@@ -10,10 +10,13 @@ from ltron.gym.envs import (
     FreebuildEnvConfig,
     BreakEnvConfig,
     MakeEnvConfig,
+    BreakAndMakeEnvConfig,
 )
 from ltron.gym.components import ViewpointActions
 
-class LtronInterfaceConfig(FreebuildEnvConfig, BreakEnvConfig, MakeEnvConfig):
+class LtronInterfaceConfig(
+    FreebuildEnvConfig, BreakEnvConfig, MakeEnvConfig, BreakAndMakeEnvConfig,
+):
     seed = 1234567890
     env_name = 'LTRON/Freebuild-v0'
     train = True
@@ -178,7 +181,10 @@ class LtronInterface:
                 ViewpointActions.Y_NEG.value)
         
         if key == 107: # end
-            action['phase'] = 1
+            if 'phase' in action:
+                action['phase'] = 1
+            elif 'brick_done' in action:
+                action['brick_done'] = 1
         
         o,r,t,u,i = self.env.step(action)
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
