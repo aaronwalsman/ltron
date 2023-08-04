@@ -5,15 +5,20 @@ import gymnasium as gym
 import splendor.contexts.glut as glut
 from splendor.image import save_image
 
+from steadfast.hierarchy import hierarchy_getitem
+
 from ltron.constants import SHAPE_CLASS_LABELS, COLOR_CLASS_LABELS
 from ltron.gym.envs import (
     FreebuildEnvConfig,
     BreakEnvConfig,
     MakeEnvConfig,
+    BreakAndMakeEnvConfig,
 )
 from ltron.gym.components import ViewpointActions
 
-class LtronInterfaceConfig(FreebuildEnvConfig, BreakEnvConfig, MakeEnvConfig):
+class LtronInterfaceConfig(
+    FreebuildEnvConfig, BreakEnvConfig, MakeEnvConfig, BreakAndMakeEnvConfig,
+):
     seed = 1234567890
     env_name = 'LTRON/Freebuild-v0'
     train = True
@@ -28,7 +33,8 @@ class LtronInterface:
         )
         if config.auto_reset:
             self.env = gym.wrappers.AutoResetWrapper(self.env)
-        self.env.reset(seed=config.seed)
+        o,i = self.env.reset(seed=config.seed)
+        self.recent_observation = o
         
         self.scene = self.env.components['scene'].brick_scene
         self.window = self.scene.render_environment.window
@@ -37,12 +43,14 @@ class LtronInterface:
         self.button = 0
         self.click = (0,0)
         self.release = (0,0)
+        self.shift_down = False
         
         self.window.register_callbacks(
             glutDisplayFunc = self.render,
             glutIdleFunc = self.render,
             glutKeyboardFunc = self.key_press,
             glutSpecialFunc = self.special_key_press,
+            glutSpecialUpFunc = self.special_key_release,
             glutMouseFunc = self.mouse_button,
             glutMotionFunc = self.mouse_move,
         )
@@ -53,12 +61,15 @@ class LtronInterface:
         self.scene.color_render(flip_y=False)
     
     def dump_image(self, image_path):
-        self.window.set_active()
-        self.window.enable_window()
-        self.scene.color_render(flip_y=False)
-        image = self.window.read_pixels()[::-1]
-        print('Saving image to: %s'%image_path)
+        #self.window.set_active()
+        #self.window.enable_window()
+        #self.scene.color_render(flip_y=False)
+        #image = self.window.read_pixels()[::-1]
+        #print('Saving image to: %s'%image_path)
+        image = self.recent_observation['image']
+        target_image = self.recent_observation['target_image']
         save_image(image, image_path)
+        save_image(target_image, image_path.replace('.', '_target.'))
     
     def dump_scene(self, scene_path):
         self.scene.export_ldraw(scene_path)
@@ -91,11 +102,11 @@ class LtronInterface:
         # rotate
         elif key == b'[':
             action['action_primitives']['mode'] = 2
-            action['action_primitives']['rotate'] = 1
+            action['action_primitives']['rotate'] = 18 #1
         
         elif key == b']':
             action['action_primitives']['mode'] = 2
-            action['action_primitives']['rotate'] = 3
+            action['action_primitives']['rotate'] = 22 #3
         
         # table viewpoint
         elif key == b'w':
@@ -132,28 +143,25 @@ class LtronInterface:
             action['action_primitives']['mode'] = 3
             action['action_primitives']['remove'] = 1
         
-        elif key == b'\t':
-            print('Please enter the shape and color separated by commas:')
-            text = input()
-            try:
-                s,c = text.split(',')
-                #s = int(s)
-                #c = int(c)
-                s = SHAPE_CLASS_LABELS[s]
-                c = COLOR_CLASS_LABELS[c]
-            except:
-                print('Misformatted input, expected two comma-separated ints')
-                s = 0
-                c = 0
-            action['action_primitives']['mode'] = 4
-            action['action_primitives']['insert'] = numpy.array([s,c])
-        
         action['cursor']['button'] = self.button
         action['cursor']['click'] = self.click
         action['cursor']['release'] = self.release
         
+        if key == b' ':
+            num_expert = self.recent_observation['num_expert_actions']
+            if num_expert:
+                expert_i = numpy.random.randint(num_expert)
+                action = hierarchy_getitem(
+                    self.recent_observation['expert'], expert_i)
+                mode_index = action['action_primitives']['mode']
+                action_primitives = self.env.action_space['action_primitives']
+                mode_space = action_primitives['mode']
+                mode_name = mode_space.names[mode_index]
+                print('Taking Expert Action: %s'%mode_name)
+                print(action)
         
         o,r,t,u,i = self.env.step(action)
+        self.recent_observation = o
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_press(self, key, x, y):
@@ -179,8 +187,65 @@ class LtronInterface:
             action['action_primitives']['viewpoint'] = (
                 ViewpointActions.Y_NEG.value)
         
+        if key == 105: # pgdn
+            mode_space = self.env.action_space['action_primitives']['mode']
+            assemble_step_index = mode_space.names.index('assemble_step')
+            action['action_primitives']['mode'] = assemble_step_index
+            action['action_primitives']['assemble_step'] = 1
+            print('!!!')
+        
+        if key == 107: # end
+            mode_space = self.env.action_space['action_primitives']['mode']
+            if 'phase' in action['action_primitives']:
+                phase_index = mode_space.names.index('phase')
+                action['action_primitives']['mode'] = phase_index
+                action['action_primitives']['phase'] = 1
+            elif 'done' in action['action_primitives']:
+                brick_done_index = mode_space.names.index('done')
+                action['action_primitives']['mode'] = brick_done_index
+                action['action_primitives']['done'] = 1
+        
+        if key == 108: # insert
+            if self.shift_down:
+                print('Please enter the shape name (XXXX.dat) '
+                    'and LDRAW color index separated by whitespace:')
+                text = input()
+                try:
+                    s,c = text.split()
+                    s = SHAPE_CLASS_LABELS[s]
+                    c = COLOR_CLASS_LABELS[c]
+                except:
+                    print('Misformatted input, expected two whitespace '
+                        'separated names')
+                    s = 0
+                    c = 0
+            else:
+                print('Please enter the shape and color class labels '
+                    'separated by whitespace:')
+                text = input()
+                try:
+                    s,c = text.split()
+                    s = int(s)
+                    c = int(c)
+                except:
+                    print('Misformed input, expected two whitespace '
+                        'separated ints')
+                    s = 0
+                    c = 0
+            
+            action['action_primitives']['mode'] = 4
+            action['action_primitives']['insert'] = numpy.array([s,c])
+        
+        if key == 112: # shift
+            self.shift_down = True
+        
         o,r,t,u,i = self.env.step(action)
+        self.recent_observation = o
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
+    
+    def special_key_release(self, key, x, y):
+        if key == 112:
+            self.shift_down = False
     
     def mouse_button(self, button, button_state, x, y):
         if button == 0 or button == 2:

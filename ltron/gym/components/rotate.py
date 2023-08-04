@@ -142,9 +142,7 @@ class CursorRotateSnapAboutAxisComponent(RotateSnapAboutAxisComponent):
     def __init__(self,
         scene_component,
         cursor_component,
-        #overlay_component,
         check_collision=True,
-        #rotate_step_size=math.radians(90.),
         rotate_steps=4,
         rotate_axis=(0,1,0),
     ):

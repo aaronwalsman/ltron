@@ -20,6 +20,7 @@ def match_assemblies(
     #part_names,
     kdtree=None,
     radius=0.01,
+    allow_rotations=True,
 ):
     '''
     Computes the rigid offset between two assemblies that brings as many of
@@ -100,6 +101,11 @@ def match_assemblies(
                     best_sym_matches = []
                     for symmetry_pose in symmetry_poses:
                         a_to_b = pose_b @ numpy.linalg.inv(symmetry_pose)
+                        
+                        if (not allow_rotations and
+                            not numpy.allclose(a_to_b[:3,:3], numpy.eye(3))
+                        ):
+                            continue
                         
                         valid_matches = find_matches_under_transform(
                             assembly_a,

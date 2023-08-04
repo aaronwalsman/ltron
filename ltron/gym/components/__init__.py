@@ -41,6 +41,10 @@ from ltron.gym.components.insert import (
     InsertBrickComponent,
 )
 from ltron.gym.components.done import DoneComponent
+from ltron.gym.components.break_and_make import (
+    BreakAndMakePhaseSwitchComponent, PhaseScoreComponent)
+from ltron.gym.components.assemble_step import (
+    AssembleStepComponent, AssembleStepTargetRecorder)
 from ltron.gym.components.snap_cursor import SnapCursorComponent
 from ltron.gym.components.visual_interface import (
     VisualInterfaceConfig,

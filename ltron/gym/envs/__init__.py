@@ -22,3 +22,8 @@ from ltron.gym.envs.make_env import (
     MakeEnvConfig,
     MakeEnv,
 )
+
+from ltron.gym.envs.break_and_make_env import (
+    BreakAndMakeEnvConfig,
+    BreakAndMakeEnv,
+)
