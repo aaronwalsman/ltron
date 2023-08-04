@@ -233,7 +233,7 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b): #, part_names):
 # 4. unmatched, wrong shape/color (list)
 
 def matching_edges(assembly, i1=None, i2=None, s1=None, s2=None):
-    matches = numpy.ones(assembly['edges'].shape[1], dtype=numpy.bool)
+    matches = numpy.ones(assembly['edges'].shape[1], dtype=bool)
     if i1 is not None:
         matches = matches & (assembly['edges'][0] == i1)
     if i2 is not None:

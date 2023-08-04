@@ -25,10 +25,10 @@ def main():
     install_assets(
         splendor_asset_installer.asset_urls['default_assets'], 'default_assets')
     installation.make_settings_cfg(overwrite=args.overwrite)
-    installation.make_blacklist_json(overwrite=args.overwrite)
+    #installation.make_blacklist_json(overwrite=args.overwrite)
     settings.reload_settings()
     installation.install_ldraw(overwrite=args.overwrite)
     installation.install_splendor_meshes(args.resolution)
     installation.install_ldcad(overwrite=args.overwrite)
-    installation.install_collection('omr', overwrite=args.overwrite)
-    installation.install_collection('random_six', overwrite=args.overwrite)
+    #installation.install_collection('omr', overwrite=args.overwrite)
+    #installation.install_collection('random_six', overwrite=args.overwrite)

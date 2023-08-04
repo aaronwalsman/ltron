@@ -59,7 +59,7 @@ def batch_deduplicate_tiled_seqs_old(seqs, *args, s_start = 0, **kwargs):
     padding_mask = numpy.zeros(
         #(max_len, len(frame_seqs)),
         (max_len, b),
-        dtype=numpy.bool
+        dtype=bool
     )
     for i, (seq, coords) in enumerate(zip(tile_seqs, tile_coords)):
         seq_len = len(seq)

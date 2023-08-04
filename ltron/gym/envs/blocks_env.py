@@ -141,13 +141,13 @@ class BlocksEnv(Env):
                 shape=config.table_image_shape, dtype=numpy.uint8),
             'table_tile_mask':Box(
                 low=0, high=1,
-                shape=config.table_tile_shape, dtype=numpy.bool),
+                shape=config.table_tile_shape, dtype=bool),
             'hand_render':Box(
                 low=0, high=255,
                 shape=config.hand_image_shape, dtype=numpy.uint8),
             'hand_tile_mask':Box(
                 low=0, high=1,
-                shape=config.hand_tile_shape, dtype=numpy.bool),
+                shape=config.hand_tile_shape, dtype=bool),
             'phase':Discrete(2),
             'step':Discrete(config.num_blocks*3+2),
         })

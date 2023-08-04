@@ -76,7 +76,7 @@ class DiscreteLayoutSpace(Discrete):
 #        self.width = width
 #        self.height = height
 #        super().__init__(
-#            low=0, high=1, shape=(height, width), dtype=numpy.bool)
+#            low=0, high=1, shape=(height, width), dtype=bool)
 #
 #class InstanceMaskSpace(Box):
 #    '''
@@ -320,7 +320,7 @@ class MaskedAssemblySpace(Box):
     '''
     def __init__(self, max_instances):
         super().__init__(
-            low=0, high=1, shape=(max_instances+1), dtype=numpy.bool)
+            low=0, high=1, shape=(max_instances+1), dtype=bool)
 
 class MultiScreenInstanceSnapSpace(MultiDiscrete):
     '''
