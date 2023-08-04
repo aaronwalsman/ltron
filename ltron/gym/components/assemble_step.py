@@ -31,11 +31,13 @@ class AssembleStepTargetRecorder(SuperMechaComponent):
         observation_component,
         assemble_step_component,
         phase_component,
+        zero_phase_zero=False,
     ):
         self.observation_component = observation_component
         self.assemble_step_component = assemble_step_component
         self.phase_component = phase_component
         self.observation_space = self.observation_component.observation_space
+        self.zero_phase_zero = zero_phase_zero
     
     def observe(self):
         if self.assemble_step_component.current_step == len(self.observations):
@@ -44,8 +46,8 @@ class AssembleStepTargetRecorder(SuperMechaComponent):
         current_step = max(0, current_step)
         current_step = min(len(self.observations)-1, current_step)
         o = self.observations[current_step]
-        #if self.phase_component.phase == 0:
-        #    o = map_hierarchies(numpy.zeros_like, o)
+        if self.phase_component.phase == 0 and self.zero_phase_zero:
+            o = map_hierarchies(numpy.zeros_like, o)
         return o
     
     def reset(self, seed=None, options=None):

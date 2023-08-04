@@ -121,6 +121,7 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             components['assembly'],
             components['action_primitives'].components['assemble_step'],
             components['action_primitives'].components['phase'],
+            zero_phase_zero=True,
         )
         components.update(render_components)
         
