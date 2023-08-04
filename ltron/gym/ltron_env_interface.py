@@ -5,6 +5,8 @@ import gymnasium as gym
 import splendor.contexts.glut as glut
 from splendor.image import save_image
 
+from steadfast.hierarchy import hierarchy_getitem
+
 from ltron.constants import SHAPE_CLASS_LABELS, COLOR_CLASS_LABELS
 from ltron.gym.envs import (
     FreebuildEnvConfig,
@@ -31,7 +33,8 @@ class LtronInterface:
         )
         if config.auto_reset:
             self.env = gym.wrappers.AutoResetWrapper(self.env)
-        self.env.reset(seed=config.seed)
+        o,i = self.env.reset(seed=config.seed)
+        self.recent_observation = o
         
         self.scene = self.env.components['scene'].brick_scene
         self.window = self.scene.render_environment.window
@@ -58,12 +61,15 @@ class LtronInterface:
         self.scene.color_render(flip_y=False)
     
     def dump_image(self, image_path):
-        self.window.set_active()
-        self.window.enable_window()
-        self.scene.color_render(flip_y=False)
-        image = self.window.read_pixels()[::-1]
-        print('Saving image to: %s'%image_path)
+        #self.window.set_active()
+        #self.window.enable_window()
+        #self.scene.color_render(flip_y=False)
+        #image = self.window.read_pixels()[::-1]
+        #print('Saving image to: %s'%image_path)
+        image = self.recent_observation['image']
+        target_image = self.recent_observation['target_image']
         save_image(image, image_path)
+        save_image(target_image, image_path.replace('.', '_target.'))
     
     def dump_scene(self, scene_path):
         self.scene.export_ldraw(scene_path)
@@ -141,8 +147,21 @@ class LtronInterface:
         action['cursor']['click'] = self.click
         action['cursor']['release'] = self.release
         
+        if key == b' ':
+            num_expert = self.recent_observation['num_expert_actions']
+            if num_expert:
+                expert_i = numpy.random.randint(num_expert)
+                action = hierarchy_getitem(
+                    self.recent_observation['expert'], expert_i)
+                mode_index = action['action_primitives']['mode']
+                action_primitives = self.env.action_space['action_primitives']
+                mode_space = action_primitives['mode']
+                mode_name = mode_space.names[mode_index]
+                print('Taking Expert Action: %s'%mode_name)
+                print(action)
         
         o,r,t,u,i = self.env.step(action)
+        self.recent_observation = o
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_press(self, key, x, y):
@@ -168,11 +187,23 @@ class LtronInterface:
             action['action_primitives']['viewpoint'] = (
                 ViewpointActions.Y_NEG.value)
         
+        if key == 105: # pgdn
+            mode_space = self.env.action_space['action_primitives']['mode']
+            assemble_step_index = mode_space.names.index('assemble_step')
+            action['action_primitives']['mode'] = assemble_step_index
+            action['action_primitives']['assemble_step'] = 1
+            print('!!!')
+        
         if key == 107: # end
-            if 'phase' in action:
-                action['phase'] = 1
-            elif 'brick_done' in action:
-                action['brick_done'] = 1
+            mode_space = self.env.action_space['action_primitives']['mode']
+            if 'phase' in action['action_primitives']:
+                phase_index = mode_space.names.index('phase')
+                action['action_primitives']['mode'] = phase_index
+                action['action_primitives']['phase'] = 1
+            elif 'done' in action['action_primitives']:
+                brick_done_index = mode_space.names.index('done')
+                action['action_primitives']['mode'] = brick_done_index
+                action['action_primitives']['done'] = 1
         
         if key == 108: # insert
             if self.shift_down:
@@ -209,6 +240,7 @@ class LtronInterface:
             self.shift_down = True
         
         o,r,t,u,i = self.env.step(action)
+        self.recent_observation = o
         print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_release(self, key, x, y):

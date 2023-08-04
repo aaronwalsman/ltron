@@ -56,12 +56,24 @@ def register_ltron_envs():
         entry_point='ltron.gym.envs.break_and_make_env:BreakAndMakeEnv',
     )
     
+    #register(
+    #    id='LTRON/BreakAndMakeStepWrapper-v1',
+    #    entry_point='ltron.gym.wrappers.break_and_make_step_wrapper:'
+    #        'break_and_make_step_wrapper_env',
+    #)
+    
     register(
-        id='LTRON/BreakAndMakeStepWrapper-v1',
-        entry_point='ltron.gym.wrappers.break_and_make_step_wrapper:'
-            'break_and_make_step_wrapper_env',
+        id='LTRON/SteppedBreakAndMake-v1',
+        entry_point=
+            'ltron.gym.envs.stepped_break_and_make_env:SteppedBreakAndMakeEnv'
     )
-
+    
+    register(
+        id='LTRON/SteppedBreakAndMakeWithExpert-v1',
+        entry_point='ltron.gym.wrappers.build_step_expert:'
+            'wrapped_build_step_expert',
+        kwargs={'env_name':'LTRON/SteppedBreakAndMake-v1'},
+    )
     
     #register(
     #    id='LTRON/IdentifyRedBrick-v0',

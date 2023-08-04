@@ -11,7 +11,7 @@ class BreakAndMakePhaseSwitchComponent(SuperMechaComponent):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
         self.phase = 0
-        return None, {}
+        return self.phase, {}
     
     def step(self, action):
         if action:
@@ -26,7 +26,7 @@ class BreakAndMakePhaseSwitchComponent(SuperMechaComponent):
         else:
             terminal = False
         
-        return None, 0., terminal, False, {}
+        return self.phase, 0., terminal, False, {}
     
     def no_op_action(self):
         return 0

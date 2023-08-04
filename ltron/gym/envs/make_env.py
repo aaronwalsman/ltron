@@ -32,6 +32,8 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     use_place_above_for_start = False
     randomize_place_above_orientation = False
     place_above_orientation_mode = 24
+    
+    compute_collision_map = False
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -98,6 +100,7 @@ class MakeEnv(SuperMechaContainer):
             update_on_reset=True,
             update_on_step=False,
             observable=True,
+            compute_collision_map=config.compute_collision_map
         )
         
         if config.use_place_above_for_start:

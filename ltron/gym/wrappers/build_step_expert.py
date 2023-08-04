@@ -13,6 +13,7 @@ from steadfast.hierarchy import (
     pad_numpy_hierarchy,
 )
 
+from ltron.matching import match_assemblies
 from ltron.constants import SHAPE_CLASS_NAMES
 from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.snap import SnapFinger
@@ -23,6 +24,7 @@ from ltron.geometry.utils import (
     projected_global_pivot,
     surrogate_angle,
 )
+from ltron.geometry.collision import build_collision_map
 from ltron.matching import (
     matching_edges,
     find_matches_under_transform,
@@ -52,13 +54,18 @@ class BuildStepExpert(ObservationWrapper):
         self.observation_space = observation_space
     
     def observation(self, observation):
+    
         # get assemblies
         current_assembly = observation['assembly']
         target_assembly = observation['target_assembly']
+        if 'initial_assembly' in observation:
+            initial_assembly = observation['initial_assembly']
         
         # get the current matches (assumes current and target are aligned)
-        matches = find_matches_under_transform(
-            current_assembly, target_assembly, numpy.eye(4))
+        #matches = find_matches_under_transform(
+        #    current_assembly, target_assembly, numpy.eye(4))
+        matches, matching_transform = match_assemblies(
+            current_assembly, target_assembly, allow_rotations=False)
         ct_matches = {c:t for c,t in matches}
         tc_matches = {t:c for c,t in matches}
         (ct_connected,
@@ -73,6 +80,8 @@ class BuildStepExpert(ObservationWrapper):
         num_disconnected = len(ct_disconnected)
         num_misplaced = num_connected + num_disconnected
         
+        '''
+        HISTORIC, IGNORE THIS BLOCK
         #assert num_misplaced <= 1
         #if num_misplaced > 1:
         #    breakpoint()
@@ -85,18 +94,131 @@ class BuildStepExpert(ObservationWrapper):
         # 4. disconnected, correct orientation -> pick_and_place
         
         # this only inserts and connects bricks, and will not remove them
-        if len(fp) != 0 or len(fn) > 1 or num_misplaced > 1:
+        #if len(fp) != 0 or len(fn) > 1 or num_misplaced > 1:
+        #    actions = []
+        '''
+        
+        # first compute whether or not the model has been assembled correctly
+        # (no missing bricks, no extra bricks, no misplaced bricks)
+        assembled_correctly = (
+            len(fp) == 0 and
+            len(fn) == 0 and
+            num_misplaced == 0
+        )
+        
+        # next compute whether or not we are done with an assembly step
+        assemble_step = False
+        action_primitives = self.env.action_space['action_primitives']
+        instance_ids = numpy.where(current_assembly['shape'])[0]
+        num_bricks = len(instance_ids)
+        if 'assemble_step' in set(action_primitives.keys()):
+            if observation['action_primitives']['phase'] == 0:
+                prev_assembly = (
+                    self.env.components['target_assembly'].observations[-1])
+                prev_num_bricks = len(numpy.where(prev_assembly['shape'])[0])
+                if num_bricks and num_bricks < prev_num_bricks:
+                    assemble_step = True
+                else:
+                    assemble_step = False
+            else:
+                num_target_bricks = len(
+                    numpy.where(target_assembly['shape'])[0])
+                num_initial_bricks = len(
+                    numpy.where(initial_assembly['shape'])[0])
+                #print('t/i')
+                #print(num_target_bricks)
+                #print(num_initial_bricks)
+                if (num_target_bricks != num_initial_bricks and
+                    assembled_correctly
+                ):
+                    assemble_step = True
+                else:
+                    assemble_step = False
+        
+        too_hard = len(fn) > 1 or num_misplaced > 1 or (len(fn) and len(fp))
+        
+        if too_hard:
+            #print('TOO HARD')
             actions = []
-        
-        elif len(fn) == 1:
-            actions = self.insert_actions(current_assembly, target_assembly, fn)
-        
-        elif num_misplaced == 0:
+        elif assemble_step:
+            #print('ASSEMBLE STEP')
+            actions = self.assemble_step_actions()
+        elif assembled_correctly:
+            #print('DONE')
             actions = self.done_actions()
         
+        ## first weed out cases that we can't handle
+        ## this can only handle single-brick misalignments and
+        ## can't handle both false positives and false negatives concurrently
+        #if len(fn) > 1 or num_misplaced > 1 or (len(fn) and len(fp)):
+        #    actions = []
+        #
+        #elif assemble_step:
+        #    breakpoint()
+        #    actions = self.assemble_step_actions()
+        
+        # if there are false positive bricks, remove them
+        elif len(fp) != 0:
+            #print('REMOVE')
+            actions = self.remove_actions(
+                observation,
+                current_assembly,
+                target_assembly,
+                fp,
+            )
+        
+        elif len(fn) == 1:
+            #print('INSERT')
+            actions = self.insert_actions(current_assembly, target_assembly, fn)
+        
+        #elif num_misplaced == 0:
+        #    actions = self.done_actions()
+        
+        elif num_bricks == 1:
+            #print('ROTATE_FIRST')
+            instance_id = instance_ids[0]
+            target_id = next(iter(ct_disconnected[instance_id]))
+            target_transform = target_assembly['pose'][target_id]
+            
+            scene = self.env.components['scene'].brick_scene
+            instance = scene.instances[instance_id]
+            snap_ids = [snap.snap_id for snap in instance.snaps]
+            actions = []
+            for snap_id in snap_ids:
+                click_loc = self.get_snap_locations(
+                    observation, instance_id, snap_id)
+                if (not(len(click_loc)) or
+                    'rotate' not in self.env.no_op_action()['action_primitives']
+                ):
+                    continue
+                
+                r = self.compute_discrete_rotation(
+                    instance_id,
+                    snap_id,
+                    target_transform,
+                )
+                
+                for p, y, x in click_loc:
+                    action = self.env.no_op_action()
+                    mode_space = (
+                        self.env.action_space['action_primitives']['mode'])
+                    try:
+                        rotate_index = mode_space.names.index('rotate')
+                    except ValueError:
+                        print('Warning: no "rotate" action primitive found')
+                        return []
+                    action['action_primitives']['mode'] = rotate_index
+                    action['action_primitives']['rotate'] = r
+                    action['cursor']['button'] = p
+                    action['cursor']['click'] = numpy.array(
+                        [y, x], dtype=numpy.int64)
+                    actions.append(action)
+        
         elif num_connected == 1:
+            #print('ROTATE')
             instance_to_rotate = next(iter(ct_connected.keys()))
             snap_set = next(iter(ct_connected.values()))
+        
             target_instance, snap_to_rotate, target_connected, _ = next(
                 iter(snap_set))
             actions = self.rotate_actions(
@@ -112,13 +234,24 @@ class BuildStepExpert(ObservationWrapper):
             )
         
         elif num_disconnected == 1:
+            #print('PICK AND PLACE')
+            #breakpoint()
+            #print('current:')
+            #print(current_assembly['pose'][1:3])
+            #print('target:')
+            #print(target_assembly['pose'][1:3])
+            #breakpoint()
+            
             misplaced_current = next(iter(ct_disconnected.keys()))
-            misplaced_target = next(iter(ct_disconnected.keys()))
+            #misplaced_target = next(iter(ct_disconnected.keys()))
+            misplaced_target = next(iter(ct_disconnected[misplaced_current]))
+            
             current_transform = current_assembly['pose'][misplaced_current]
             target_transform = target_assembly['pose'][misplaced_target]
             correct_orientation = matrix_angle_close_enough(
                 current_transform, target_transform, math.radians(30.))
             if correct_orientation:
+                #print('!!!')
                 actions = self.pick_and_place_actions(
                     observation,
                     current_assembly,
@@ -129,6 +262,9 @@ class BuildStepExpert(ObservationWrapper):
                     tc_disconnected,
                 )
             else:
+                #print('???')
+                #print(current_transform)
+                #print(target_transform)
                 instance_to_rotate = misplaced_current
                 actions = []
                 for tgt_dis_i in tc_disconnected:
@@ -178,13 +314,27 @@ class BuildStepExpert(ObservationWrapper):
     def done_actions(self):
         action = self.env.no_op_action()
         mode_space = self.env.action_space['action_primitives']['mode']
-        try:
+        if 'done' in mode_space.names:
             done_index = mode_space.names.index('done')
-        except ValueError:
+            action['action_primitives']['mode'] = done_index
+            action['action_primitives']['done'] = 1
+        elif 'phase' in mode_space.names:
+            phase_index = mode_space.names.index('phase')
+            action['action_primitives']['mode'] = phase_index
+            action['action_primitives']['phase'] = 1
+        else:
             print('Warning: no "done" action primitive found')
             return []
-        action['action_primitives']['mode'] = done_index
-        action['action_primitives']['done'] = 1
+        
+        
+        return [action]
+    
+    def assemble_step_actions(self):
+        action = self.env.no_op_action()
+        mode_space = self.env.action_space['action_primitives']['mode']
+        assemble_step_index = mode_space.names.index('assemble_step')
+        action['action_primitives']['mode'] = assemble_step_index
+        action['action_primitives']['assemble_step'] = 1
         
         return [action]
     
@@ -352,6 +502,58 @@ class BuildStepExpert(ObservationWrapper):
         '''
         
         #return max(candidates)[1]
+    
+    def remove_actions(self,
+        observation,
+        current_assembly,
+        target_assembly,
+        fn,
+    ):
+        # do a matching between the initial and current assembly
+        # so that we can map instance in current assembly
+        # to the collision map
+        initial_assembly = observation['initial_assembly']
+        matches, offset = match_assemblies(current_assembly, initial_assembly)
+        current_to_initial = {c:i for c,i in matches}
+        initial_to_current = {i:c for c,i in matches}
+        
+        # find what can be removed
+        removable_clicks = []
+        collision_map = self.env.components['initial_assembly'].collision_map
+        for c, i in current_to_initial.items():
+            if c not in fn:
+                continue
+            
+            for (_,p,snaps), blocking in collision_map[i].items():
+                for b in blocking:
+                    if b in initial_to_current:
+                        break
+                else:
+                    for s in snaps:
+                        removable_clicks.append((c,s))
+        
+        # NEXT:
+        # removable_clicks is a list of things that can be clicked on to
+        # remove something, find the locations where they can be clicked from
+        # the observed snap maps and send it off!
+        mode_space = self.env.action_space['action_primitives']['mode']
+        remove_index = mode_space.names.index('remove')
+        actions = []
+        for c,s in removable_clicks:
+            con_loc = self.get_snap_locations(observation, c, s)
+            num_loc = min(len(con_loc), self.max_instructions_per_cursor)
+            random.shuffle(con_loc)
+            con_loc = con_loc[:num_loc]
+        
+            for button, y, x in con_loc:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = remove_index
+                action['action_primitives']['remove'] = 1
+                action['cursor']['button'] = button
+                action['cursor']['click'] = numpy.array([y,x])
+                actions.append(action)
+        
+        return actions
     
     def pick_and_place_actions(self,
         observation,

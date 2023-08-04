@@ -19,6 +19,8 @@ from ltron.gym.components import (
     DoneComponent,
     SnapMaskRenderComponent,
     InsertBrickComponent,
+    BreakAndMakePhaseSwitchComponent,
+    AssembleStepComponent,
 )
 
 class VisualInterfaceConfig(Config):
@@ -39,6 +41,8 @@ class VisualInterfaceConfig(Config):
     include_remove = True
     include_insert = True
     include_done = True
+    include_phase = False
+    include_assemble_step = False
     
     # viewpoint
     viewpoint_azimuth_steps = 16
@@ -176,6 +180,17 @@ def make_visual_interface(
     # done
     if config.include_done:
         action_primitives['done'] = DoneComponent()
+    
+    # phase
+    if config.include_phase:
+        action_primitives['phase'] = BreakAndMakePhaseSwitchComponent(
+            scene_component)
+    
+    # assemble step
+    if config.include_assemble_step:
+        assert config.include_phase
+        action_primitives['assemble_step'] = AssembleStepComponent(
+            action_primitives['phase'])
     
     # make the mode switch
     components['action_primitives'] = SuperMechaComponentSwitch(
