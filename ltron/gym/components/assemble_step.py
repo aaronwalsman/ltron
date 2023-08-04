@@ -44,8 +44,8 @@ class AssembleStepTargetRecorder(SuperMechaComponent):
         current_step = max(0, current_step)
         current_step = min(len(self.observations)-1, current_step)
         o = self.observations[current_step]
-        if self.phase_component.phase == 0:
-            o = map_hierarchies(numpy.zeros_like, o)
+        #if self.phase_component.phase == 0:
+        #    o = map_hierarchies(numpy.zeros_like, o)
         return o
     
     def reset(self, seed=None, options=None):
