@@ -14,6 +14,9 @@ If you use LTRON in acadmic work, please cite our [ECCV 2022 Paper](https://arxi
 }
 ```
 
+### Versions
+The `v1.0.0` branch is the code associated with the ECCV '22 paper above.  The `master` branch contains active development towards version 2, which adds new features and streamlines some interface design issues, but is currently quite unstable and contains dependencies to non-public code.  Stay tuned for future releases.
+
 ### Examples
 8661-1 - Carbon Star.mpd
 ![carbon_star](assets/carbon_star.png?raw=true)
