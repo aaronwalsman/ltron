@@ -13,6 +13,8 @@ from steadfast.hierarchy import (
     pad_numpy_hierarchy,
 )
 
+from supermecha.gym.supermecha_container import traceback_decorator
+
 from ltron.matching import match_assemblies
 from ltron.constants import SHAPE_CLASS_NAMES
 from ltron.bricks.brick_shape import BrickShape
@@ -35,6 +37,7 @@ def wrapped_build_step_expert(env_name, **kwargs):
     return BuildStepExpert(make(env_name, **kwargs))
 
 class BuildStepExpert(ObservationWrapper):
+    @traceback_decorator
     def __init__(self, env, max_instructions=16, max_instructions_per_cursor=1):
         super().__init__(env)
         self.max_instructions = max_instructions
@@ -53,6 +56,7 @@ class BuildStepExpert(ObservationWrapper):
         observation_space['num_expert_actions'] = Discrete(max_instructions)
         self.observation_space = observation_space
     
+    @traceback_decorator
     def observation(self, observation):
     
         # get assemblies
