@@ -80,6 +80,8 @@ class BuildStepExpert(ObservationWrapper):
          fn) = compute_misaligned(
             current_assembly, target_assembly, matches)
         
+        num_current = (current_assembly['shape'] != 0).sum()
+        num_target = (target_assembly['shape'] != 0).sum()
         num_connected = len(ct_connected)
         num_disconnected = len(ct_disconnected)
         num_misplaced = num_connected + num_disconnected
@@ -139,7 +141,12 @@ class BuildStepExpert(ObservationWrapper):
                 else:
                     assemble_step = False
         
-        too_hard = len(fn) > 1 or num_misplaced > 1 or (len(fn) and len(fp))
+        too_hard = (
+            len(fn) > 1 or
+            num_misplaced > 1 or
+            (num_misplaced and (num_current != num_target)) or 
+            (len(fn) and len(fp))
+        )
         
         if too_hard:
             #print('TOO HARD')
@@ -171,6 +178,7 @@ class BuildStepExpert(ObservationWrapper):
                 fp,
             )
         
+        # if there is a single false negative, insert it
         elif len(fn) == 1:
             #print('INSERT')
             actions = self.insert_actions(current_assembly, target_assembly, fn)
@@ -359,6 +367,11 @@ class BuildStepExpert(ObservationWrapper):
             'rotate' not in self.env.no_op_action()['action_primitives']
         ):
             return []
+        
+        try:
+            thing = tc_matches[target_connected]
+        except:
+            breakpoint()
         
         r = self.compute_attached_discrete_rotation(
             target_assembly,
