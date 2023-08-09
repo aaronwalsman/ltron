@@ -549,6 +549,15 @@ class BuildStepExpert(ObservationWrapper):
                     for s in snaps:
                         removable_clicks.append((c,s))
         
+        # sort the removable clicks by brick height
+        brick_height = [
+            current_assembly['pose'][c][1,3] for c, s in removable_clicks
+        ]
+        sorted_removable_clicks = reversed(sorted(
+            [(h,c,s) for h, (c,s) in zip(brick_height, removable_clicks)]
+        ))
+        removable_clicks = [(c,s) for (h,c,s) in sorted_removable_clicks]
+
         # NEXT:
         # removable_clicks is a list of things that can be clicked on to
         # remove something, find the locations where they can be clicked from
@@ -569,6 +578,12 @@ class BuildStepExpert(ObservationWrapper):
                 action['cursor']['button'] = button
                 action['cursor']['click'] = numpy.array([y,x])
                 actions.append(action)
+            
+            # if anything was added, don't consider any more bricks
+            # this is to make sure the expert tells the agent to remove
+            # the top brick first
+            if len(actions):
+                break
         
         return actions
     
