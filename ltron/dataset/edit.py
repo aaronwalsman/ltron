@@ -78,8 +78,8 @@ def generate_episodes_for_dataset(config=None):
             a.append(action)
             th, tw = observation['table_pos_snap_render'].shape[:2]
             hh, hw = observation['hand_pos_snap_render'].shape[:2]
-            table_zero = numpy.zeros((th, tw, 2), dtype=numpy.bool)
-            hand_zero = numpy.zeros((hh, hw, 2), dtype=numpy.bool)
+            table_zero = numpy.zeros((th, tw, 2), dtype=bool)
+            hand_zero = numpy.zeros((hh, hw, 2), dtype=bool)
             c.append((table_zero, hand_zero))
             r.append(reward)
             

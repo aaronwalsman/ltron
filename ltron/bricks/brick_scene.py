@@ -49,10 +49,10 @@ class TooManyInstancesError(LtronException):
 
 def make_empty_assembly(max_instances, max_edges):
     return {
-        'shape' : numpy.zeros((max_instances+1), dtype=numpy.long),
-        'color' : numpy.zeros((max_instances+1), dtype=numpy.long),
+        'shape' : numpy.zeros((max_instances+1), dtype=int),
+        'color' : numpy.zeros((max_instances+1), dtype=int),
         'pose' : numpy.zeros((max_instances+1, 4, 4)),
-        'edges' : numpy.zeros((4, max_edges), dtype=numpy.long),
+        'edges' : numpy.zeros((4, max_edges), dtype=int),
     }
 
 class BrickScene:
@@ -295,8 +295,8 @@ class BrickScene:
                     raise TooManyInstancesError(
                         'Instance ids %s larger than max_instances: %i'%(
                         list(self.instances.keys()), max_instances))
-        assembly['shape'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
-        assembly['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        assembly['shape'] = numpy.zeros((max_instances+1,), dtype=int)
+        assembly['color'] = numpy.zeros((max_instances+1,), dtype=int)
         assembly['pose'] = numpy.zeros(
             (max_instances+1, 4, 4), dtype=numpy.float32)
         for instance_id, instance in self.instances.items():
@@ -317,7 +317,7 @@ class BrickScene:
         if max_edges is not None:
             assert all_edges.shape[1] <= max_edges, 'Too many edges'
             extra_edges = numpy.zeros(
-                (4, max_edges - num_edges), dtype=numpy.long)
+                (4, max_edges - num_edges), dtype=int)
             all_edges = numpy.concatenate((all_edges, extra_edges), axis=1)
         assembly['edges'] = all_edges
         
@@ -546,7 +546,7 @@ class BrickScene:
                 all_edges.add((snap_a[0], snap_b[0], snap_a[1], snap_b[1]))
         num_edges = len(all_edges)
         all_edges = numpy.array(list(all_edges)).T.reshape(4, num_edges)
-        return all_edges.astype(numpy.long)
+        return all_edges.astype(int)
     
     def get_all_snaps(self):
         assert self.track_snaps
