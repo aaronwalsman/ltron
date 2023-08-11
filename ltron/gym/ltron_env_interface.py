@@ -43,7 +43,8 @@ class LtronInterface:
         self.button = 0
         self.click = (0,0)
         self.release = (0,0)
-        self.shift_down = False
+        self.left_shift_down = False
+        self.right_shift_down = False
         
         self.window.register_callbacks(
             glutDisplayFunc = self.render,
@@ -54,6 +55,8 @@ class LtronInterface:
             glutMouseFunc = self.mouse_button,
             glutMotionFunc = self.mouse_move,
         )
+        print('Left-click: hole')
+        print('Right-click: stud')
     
     def render(self):
         self.window.set_active()
@@ -61,11 +64,6 @@ class LtronInterface:
         self.scene.color_render(flip_y=False)
     
     def dump_image(self, image_path):
-        #self.window.set_active()
-        #self.window.enable_window()
-        #self.scene.color_render(flip_y=False)
-        #image = self.window.read_pixels()[::-1]
-        #print('Saving image to: %s'%image_path)
         image = self.recent_observation['image']
         target_image = self.recent_observation['target_image']
         save_image(image, image_path)
@@ -91,61 +89,114 @@ class LtronInterface:
             self.dump_scene(file_path)
             return
         
-        action = self.env.no_op_action()
+        action = None
+        
+        mode_space = self.env.action_space['action_primitives']['mode']
+        pick_and_place_mode = mode_space.names.index('pick_and_place')
+        rotate_mode = mode_space.names.index('rotate')
+        if 'viewpoint' in mode_space.names:
+            viewpoint_mode = mode_space.names.index('viewpoint')
+        remove_mode = mode_space.names.index('remove')
         
         # pick and place
         if key == b'p':
             # pick and place
-            action['action_primitives']['mode'] = 1
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = pick_and_place_mode
             action['action_primitives']['pick_and_place'] = 1
         
         # rotate
         elif key == b'[':
-            action['action_primitives']['mode'] = 2
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = rotate_mode
             action['action_primitives']['rotate'] = 18 #1
         
         elif key == b']':
-            action['action_primitives']['mode'] = 2
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = rotate_mode
             action['action_primitives']['rotate'] = 22 #3
         
         # table viewpoint
         elif key == b'w':
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.ELEVATION_NEG.value)
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.ELEVATION_NEG.value)
         
         elif key == b's':
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.ELEVATION_POS.value)
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.ELEVATION_POS.value)
         
         elif key == b'a':
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.AZIMUTH_NEG.value)
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.AZIMUTH_NEG.value)
         
         elif key == b'd':
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.AZIMUTH_POS.value)
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.AZIMUTH_POS.value)
+        
+        
+        elif key == b'A':
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.X_NEG.value)
+        
+        elif key == b'W':
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.Y_POS.value)
+        
+        elif key == b'D':
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.X_POS.value)
+        
+        elif key == b'S':
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.Y_NEG.value)
         
         elif key == b'q':
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.DISTANCE_NEG.value)
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.DISTANCE_NEG.value)
         
         elif key == b'e':
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.DISTANCE_POS.value)
+            if 'viewpoint' in mode_space.names:
+                action = self.env.no_op_action()
+                action['action_primitives']['mode'] = viewpoint_mode
+                action['action_primitives']['viewpoint'] = (
+                    ViewpointActions.DISTANCE_POS.value)
         
         elif key == b'\x08':
-            action['action_primitives']['mode'] = 3
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = remove_mode
             action['action_primitives']['remove'] = 1
         
-        action['cursor']['button'] = self.button
-        action['cursor']['click'] = self.click
-        action['cursor']['release'] = self.release
+        if action is not None:
+            action['cursor']['button'] = self.button
+            action['cursor']['click'] = self.click
+            action['cursor']['release'] = self.release
         
         if key == b' ':
             num_expert = self.recent_observation['num_expert_actions']
@@ -154,56 +205,69 @@ class LtronInterface:
                 action = hierarchy_getitem(
                     self.recent_observation['expert'], expert_i)
                 mode_index = action['action_primitives']['mode']
-                action_primitives = self.env.action_space['action_primitives']
-                mode_space = action_primitives['mode']
                 mode_name = mode_space.names[mode_index]
                 print('Taking Expert Action: %s'%mode_name)
                 print(action)
         
-        o,r,t,u,i = self.env.step(action)
-        self.recent_observation = o
-        print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
+        if action is not None:
+            o,r,t,u,i = self.env.step(action)
+            self.recent_observation = o
+            print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_press(self, key, x, y):
         
-        action = self.env.no_op_action()
+        mode_space = self.env.action_space['action_primitives']['mode']
+        translate_mode = mode_space.names.index('translate')
+        assemble_step_mode = mode_space.names.index('assemble_step')
+        if 'phase' in mode_space.names:
+            done_mode = mode_space.names.index('phase')
+        elif 'done' in mode_space.names:
+            done_mode = mode_space.names.index('done')
+        insert_mode = mode_space.names.index('insert')
+        
+        action = None
+        
+        # left arrow
         if key == 100:
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.X_NEG.value)
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = translate_mode
+            action['action_primitives']['translate'] = 5
         
+        # up arrow
         if key == 101:
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.Y_POS.value)
+            action = self.env.no_op_action()
+            if self.shift_down:
+                action['action_primitives']['mode'] = translate_mode
+                action['action_primitives']['translate'] = 21
+            else:
+                action['action_primitives']['mode'] = translate_mode
+                action['action_primitives']['translate'] = 12
         
+        # right arrow
         if key == 102:
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.X_POS.value)
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = translate_mode
+            action['action_primitives']['translate'] = 6
         
+        # down arrow
         if key == 103:
-            action['action_primitives']['mode'] = 0
-            action['action_primitives']['viewpoint'] = (
-                ViewpointActions.Y_NEG.value)
+            action = self.env.no_op_action()
+            if self.shift_down:
+                action['action_primitives']['mode'] = translate_mode
+                action['action_primitives']['translate'] = 22
+            else:
+                action['action_primitives']['mode'] = translate_mode
+                action['action_primitives']['translate'] = 11
         
         if key == 105: # pgdn
-            mode_space = self.env.action_space['action_primitives']['mode']
-            assemble_step_index = mode_space.names.index('assemble_step')
-            action['action_primitives']['mode'] = assemble_step_index
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = assemble_step_mode
             action['action_primitives']['assemble_step'] = 1
-            print('!!!')
         
         if key == 107: # end
-            mode_space = self.env.action_space['action_primitives']['mode']
-            if 'phase' in action['action_primitives']:
-                phase_index = mode_space.names.index('phase')
-                action['action_primitives']['mode'] = phase_index
-                action['action_primitives']['phase'] = 1
-            elif 'done' in action['action_primitives']:
-                brick_done_index = mode_space.names.index('done')
-                action['action_primitives']['mode'] = brick_done_index
-                action['action_primitives']['done'] = 1
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = done_mode
+            action['action_primitives']['phase'] = 1
         
         if key == 108: # insert
             if self.shift_down:
@@ -233,19 +297,33 @@ class LtronInterface:
                     s = 0
                     c = 0
             
-            action['action_primitives']['mode'] = 4
+            action = self.env.no_op_action()
+            action['action_primitives']['mode'] = insert_mode
             action['action_primitives']['insert'] = numpy.array([s,c])
         
         if key == 112: # shift
-            self.shift_down = True
+            self.left_shift_down = True
+        if key == 113:
+            self.right_shift_down = True
         
-        o,r,t,u,i = self.env.step(action)
-        self.recent_observation = o
-        print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
+        if action is not None:
+            action['cursor']['button'] = self.button
+            action['cursor']['click'] = self.click
+            action['cursor']['release'] = self.release
+            
+            o,r,t,u,i = self.env.step(action)
+            self.recent_observation = o
+            print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_release(self, key, x, y):
         if key == 112:
-            self.shift_down = False
+            self.left_shift_down = False
+        if key == 113:
+            self.right_shift_down = False
+    
+    @property
+    def shift_down(self):
+        return self.left_shift_down or self.right_shift_down
     
     def mouse_button(self, button, button_state, x, y):
         if button == 0 or button == 2:
@@ -264,6 +342,7 @@ class LtronInterface:
 def ltron_env_interface():
     config = LtronInterfaceConfig.from_commandline()
     config.render_mode = 'glut'
+    config.max_time_steps = 1000000
     interface = LtronInterface(config)
     
     glut.start_main_loop()

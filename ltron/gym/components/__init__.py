@@ -32,10 +32,14 @@ from ltron.gym.components.remove_brick import (
 from ltron.gym.components.pick_and_place import (
     CursorPickAndPlaceComponent,
 )
+from ltron.gym.components.transform import TransformSnapComponent
 from ltron.gym.components.rotate import (
     #CursorRotateSnapComponent,
     CursorRotateSnapAboutAxisComponent,
     CursorOrthogonalCameraSpaceRotationComponent,
+)
+from ltron.gym.components.translate import (
+    CursorOrthogonalCameraSpaceTranslateComponent,
 )
 from ltron.gym.components.insert import (
     InsertBrickComponent,

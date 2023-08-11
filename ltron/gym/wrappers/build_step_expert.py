@@ -26,7 +26,7 @@ from ltron.geometry.utils import (
     projected_global_pivot,
     surrogate_angle,
 )
-from ltron.geometry.collision import build_collision_map
+from ltron.geometry.utils import space_pivot
 from ltron.matching import (
     matching_edges,
     find_matches_under_transform,
@@ -131,9 +131,6 @@ class BuildStepExpert(ObservationWrapper):
                     numpy.where(target_assembly['shape'])[0])
                 num_initial_bricks = len(
                     numpy.where(initial_assembly['shape'])[0])
-                #print('t/i')
-                #print(num_target_bricks)
-                #print(num_initial_bricks)
                 if (num_target_bricks != num_initial_bricks and
                     assembled_correctly
                 ):
@@ -149,13 +146,10 @@ class BuildStepExpert(ObservationWrapper):
         )
         
         if too_hard:
-            #print('TOO HARD')
             actions = []
         elif assemble_step:
-            #print('ASSEMBLE STEP')
             actions = self.assemble_step_actions()
         elif assembled_correctly:
-            #print('DONE')
             actions = self.done_actions()
         
         ## first weed out cases that we can't handle
@@ -170,7 +164,6 @@ class BuildStepExpert(ObservationWrapper):
         
         # if there are false positive bricks, remove them
         elif len(fp) != 0:
-            #print('REMOVE')
             actions = self.remove_actions(
                 observation,
                 current_assembly,
@@ -180,14 +173,14 @@ class BuildStepExpert(ObservationWrapper):
         
         # if there is a single false negative, insert it
         elif len(fn) == 1:
-            #print('INSERT')
             actions = self.insert_actions(current_assembly, target_assembly, fn)
         
         #elif num_misplaced == 0:
         #    actions = self.done_actions()
         
+        # if there is only one brick present, but we are not assembled
+        # correctly, rotate that brick into place
         elif num_bricks == 1:
-            #print('ROTATE_FIRST')
             instance_id = instance_ids[0]
             target_id = next(iter(ct_disconnected[instance_id]))
             target_transform = target_assembly['pose'][target_id]
@@ -226,8 +219,9 @@ class BuildStepExpert(ObservationWrapper):
                         [y, x], dtype=numpy.int64)
                     actions.append(action)
         
+        # if there is a brick that is correctly connected, but not correctly
+        # oriented, rotate it into place
         elif num_connected == 1:
-            #print('ROTATE')
             instance_to_rotate = next(iter(ct_connected.keys()))
             snap_set = next(iter(ct_connected.values()))
         
@@ -237,63 +231,110 @@ class BuildStepExpert(ObservationWrapper):
                 observation,
                 current_assembly,
                 target_assembly,
-                ct_matches,
-                tc_matches,
+                matching_transform,
+                #ct_matches,
+                #tc_matches,
                 instance_to_rotate,
                 snap_to_rotate,
                 target_instance,
-                target_connected,
+                #target_connected,
             )
         
+        # if there is a brick that is not correctly connected and out of place,
+        # first match the orientation
+        # then either pick-and-place or translate it into place
         elif num_disconnected == 1:
-            #print('PICK AND PLACE')
-            #breakpoint()
-            #print('current:')
-            #print(current_assembly['pose'][1:3])
-            #print('target:')
-            #print(target_assembly['pose'][1:3])
-            #breakpoint()
             
             misplaced_current = next(iter(ct_disconnected.keys()))
-            #misplaced_target = next(iter(ct_disconnected.keys()))
             misplaced_target = next(iter(ct_disconnected[misplaced_current]))
             
             current_transform = current_assembly['pose'][misplaced_current]
             target_transform = target_assembly['pose'][misplaced_target]
             correct_orientation = matrix_angle_close_enough(
-                current_transform, target_transform, math.radians(30.))
-            if correct_orientation:
-                #print('!!!')
-                actions = self.pick_and_place_actions(
-                    observation,
-                    current_assembly,
-                    target_assembly,
-                    ct_matches,
-                    tc_matches,
-                    ct_disconnected,
-                    tc_disconnected,
-                )
+                current_transform @ matching_transform,
+                target_transform,
+                math.radians(30.),
+            )
+            
+            # find all points where the disconnected brick should be connected
+            # to the current model
+            missing_edges = []
+            for tgt_dis_i in tc_disconnected:
+                m = matching_edges(target_assembly, tgt_dis_i)
+                missing_edges.append(target_assembly['edges'][:,m])
+            if len(missing_edges):
+                missing_edges = numpy.concatenate(missing_edges, axis=1)
             else:
-                #print('???')
-                #print(current_transform)
-                #print(target_transform)
-                instance_to_rotate = misplaced_current
-                actions = []
-                for tgt_dis_i in tc_disconnected:
-                    missing_edges = matching_edges(target_assembly, tgt_dis_i)
-                    missing_edges = target_assembly['edges'][:,missing_edges]
-                    for _, tgt_con_i, dis_s, con_s in missing_edges.T:
-                        actions.extend(self.rotate_actions(
+                missing_edges = numpy.zeros(4,0)
+            
+            if missing_edges.shape[1]:
+                pickable_snaps = missing_edges[2,:]
+            else:
+                # if the brick is connected to something else
+                # then only use snaps that are currently connected
+                # otherwise use all snaps
+                current_edges = matching_edges(
+                    current_assembly, misplaced_current)
+                current_edges = current_assembly['edges'][:,current_edges]
+                if current_edges.shape[1]:
+                    pickable_snaps = current_edges[2,:]
+                else:
+                    scene = self.env.components['scene'].brick_scene
+                    instance = scene.instances[misplaced_current]
+                    pickable_snaps = range(len(instance.snaps))
+            
+            if correct_orientation:
+                print('translate?')
+                # if there are missing edges, pick and place
+                if missing_edges.shape[1]:
+                    actions = self.pick_and_place_actions(
+                        observation,
+                        current_assembly,
+                        target_assembly,
+                        ct_matches,
+                        tc_matches,
+                        ct_disconnected,
+                        tc_disconnected,
+                    )
+                
+                # otherwise translate
+                else:
+                    actions = []
+                    for snap in pickable_snaps:
+                        t = self.translate_actions(
                             observation,
                             current_assembly,
                             target_assembly,
-                            ct_matches,
-                            tc_matches,
-                            instance_to_rotate,
-                            dis_s,
-                            tgt_dis_i,
-                            tgt_con_i,
-                        ))
+                            matching_transform,
+                            misplaced_current,
+                            snap,
+                            misplaced_target,
+                        )
+                        actions.extend(t)
+                    print([
+                        action['action_primitives']['translate']
+                        for action in actions
+                    ])
+            else:
+                print('rotate?')
+                actions = []
+                for snap in pickable_snaps:
+                    r = self.rotate_actions(
+                        observation,
+                        current_assembly,
+                        target_assembly,
+                        matching_transform,
+                        misplaced_current,
+                        snap,
+                        misplaced_target,
+                    )
+                    actions.extend(r)
+                    
+        
+        print('NUM ACTIONS: %i'%len(actions))
+        
+        if len(actions) == 0:
+            breakpoint()
         
         num_expert_actions = min(len(actions), self.max_instructions)
         if len(actions) == 0:
@@ -354,12 +395,13 @@ class BuildStepExpert(ObservationWrapper):
         observation,
         current_assembly,
         target_assembly,
-        ct_matches,
-        tc_matches,
+        global_offset,
+        #ct_matches,
+        #tc_matches,
         instance_to_rotate,
         snap_to_rotate,
         target_instance,
-        target_connected,
+        #target_connected,
     ):
         click_loc = self.get_snap_locations(
             observation, instance_to_rotate, snap_to_rotate)
@@ -368,11 +410,7 @@ class BuildStepExpert(ObservationWrapper):
         ):
             return []
         
-        try:
-            thing = tc_matches[target_connected]
-        except:
-            breakpoint()
-        
+        '''
         r = self.compute_attached_discrete_rotation(
             target_assembly,
             current_assembly,
@@ -382,6 +420,16 @@ class BuildStepExpert(ObservationWrapper):
             instance_to_rotate,
             tc_matches[target_connected],
         )
+        '''
+        target_pose = target_assembly['pose'][target_instance]
+        current_target = numpy.linalg.inv(global_offset) @ target_pose
+        r = self.compute_discrete_rotation(
+            instance_to_rotate,
+            snap_to_rotate,
+            #current_transform,
+            current_target,
+        )
+        
         actions = []
         for p, y, x in click_loc:
             action = self.env.no_op_action()
@@ -396,9 +444,9 @@ class BuildStepExpert(ObservationWrapper):
             action['cursor']['button'] = p
             action['cursor']['click'] = numpy.array([y, x], dtype=numpy.int64)
             actions.append(action)
-        #return [action]
         return actions
     
+    '''
     def compute_attached_discrete_rotation(self,
         target_assembly,
         current_assembly,
@@ -435,6 +483,7 @@ class BuildStepExpert(ObservationWrapper):
             target_transform,
             #rotation_steps=rotate_space.n,
         )
+    '''
     
     def compute_discrete_rotation(self,
         #shape_id,
@@ -519,6 +568,111 @@ class BuildStepExpert(ObservationWrapper):
         '''
         
         #return max(candidates)[1]
+    
+    def translate_actions(self,
+        observation,
+        current_assembly,
+        target_assembly,
+        global_offset,
+        instance_to_translate,
+        snap_to_translate,
+        target_instance,
+    ):
+        click_loc = self.get_snap_locations(
+            observation, instance_to_translate, snap_to_translate)
+        if (not(len(click_loc)) or
+            'translate' not in self.env.no_op_action()['action_primitives']
+        ):
+            return []
+        
+        global_inv = numpy.linalg.inv(global_offset)
+        target_pose = global_inv @ target_assembly['pose'][target_instance]
+        target_translate = target_pose[:3,3]
+        current_target = numpy.linalg.inv(global_offset) @ target_pose
+        
+        # compute offset between current_target and current_pose
+        # this will give translation
+        # then find the closest translate action
+        manhattan_distances = []
+        primitives_component = self.env.components['action_primitives']
+        translate_component = primitives_component.components['translate']
+        scene = self.env.components['scene'].brick_scene
+        inv_camera_matrix = numpy.linalg.inv(scene.get_view_matrix())
+        instance = scene.instances[instance_to_translate]
+        snap = instance.snaps[snap_to_translate]
+        pivot_a, pivot_b = space_pivot(
+            'projected_camera', snap.transform, inv_camera_matrix)
+        inv_snap_transform = numpy.linalg.inv(snap.transform)
+        for (i, transform) in enumerate(translate_component.transforms):
+            if i == 0:
+                continue
+            offset = pivot_a @ transform @ pivot_b
+            global_translate_offset = offset[:4,3]
+            global_translate_offset[3] = 0
+            local_translate_offset = (
+                inv_snap_transform @ global_translate_offset)
+            try:
+                primary_axis = numpy.where(local_translate_offset)[0].item()
+            except:
+                breakpoint()
+            primary_value = local_translate_offset[primary_axis]
+            if primary_axis == 0 or primary_axis == 2:
+                if abs(round(primary_value)) not in (20,80):
+                    continue
+            if primary_axis == 1:
+                if abs(round(primary_value)) not in (8,24,48):
+                    continue
+            new_transform = pivot_a @ transform @ pivot_b @ instance.transform
+            new_translate = new_transform[:3,3]
+            manhattan_distance = numpy.abs(
+                (new_translate - target_translate)
+            ).sum()
+            manhattan_distances.append((manhattan_distance, i))
+        
+        manhattan_distances = sorted(manhattan_distances)
+        
+        for manhattan_distance, transform_index in manhattan_distances:
+            if translate_component.check_collision:
+                current_transform = instance.transform
+                avoided_collision = scene.transform_about_snap(
+                    [instance],
+                    snap,
+                    translate_component.transforms[transform_index],
+                    check_collision=True,
+                    space='projected_camera',
+                )
+                scene.move_instance(instance, current_transform)
+            else:
+                avoided_collision = True
+            
+            if avoided_collision:
+                found_collision_free_transform = True
+                break
+        else:
+            found_collision_free_transform = False
+        
+        if transform_index == 0:
+            if not hasattr(self, 'carry_on') or self.carry_on == False:
+                breakpoint()
+        
+        actions = []
+        if found_collision_free_transform:
+            for p, y, x in click_loc:
+                action = self.env.no_op_action()
+                mode_space = self.env.action_space['action_primitives']['mode']
+                try:
+                    translate_index = mode_space.names.index('translate')
+                except ValueError:
+                    print('Warning: no "rotate" action primitive found')
+                    return []
+                action['action_primitives']['mode'] = translate_index
+                action['action_primitives']['translate'] = transform_index
+                action['cursor']['button'] = p
+                action['cursor']['click'] = numpy.array(
+                    [y, x], dtype=numpy.int64)
+                actions.append(action)
+        
+        return actions
     
     def remove_actions(self,
         observation,

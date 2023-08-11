@@ -32,9 +32,10 @@ except ImportError:
     collision_available = False
 from ltron.geometry.utils import (
     unscale_transform,
-    local_pivot,
-    global_pivot,
-    projected_global_pivot,
+    #local_pivot,
+    #global_pivot,
+    #projected_global_pivot,
+    space_pivot,
 )
 from ltron.exceptions import LtronException
 
@@ -428,7 +429,14 @@ class BrickScene:
             vmax = numpy.zeros(3)
         return vmin, vmax
     
-    def place_above_scene(self, instances, offset=48):
+    def place_above_scene(
+        self,
+        instances,
+        offset=48,
+        #x_spacing=20,
+        y_spacing=24,
+        #z_spacing=20,
+    ):
         try:
             _ = len(offset)
         except TypeError:
@@ -443,15 +451,22 @@ class BrickScene:
         
         instances_min_y = instances_min[1]
         background_max_y = background_max[1]
+        background_offset = background_max_y - instances_min_y
+        background_steps = round(background_offset / y_spacing)
+        if background_steps == 0:
+            background_steps += 1
+        background_offset = background_steps * y_spacing
+        
         #y_offset = background_max_y - instances_min_y + offset
         offset = (
             offset[0],
-            offset[1] + background_max_y - instances_min_y,
+            offset[1] + background_offset,
             offset[2],
         )
         
         transform = numpy.eye(4)
-        transform[:3,3] = offset
+        if len(self.instances) > len(instances):
+            transform[:3,3] = offset
         
         for instance in instances:
             self.move_instance(instance, transform @ instance.transform)
@@ -743,40 +758,20 @@ class BrickScene:
                 return False
         
         original_transforms = [i.transform for i in instances]
+        pivot_a, pivot_b = space_pivot(
+            space, snap.transform, numpy.linalg.inv(self.get_view_matrix()))
+        '''
         if space == 'local':
             pivot_a, pivot_b = local_pivot(snap.transform)
-            #offset = (
-            #    snap.transform @
-            #    transform @
-            #    numpy.linalg.inv(snap.transform)
-            #)
         elif space == 'global':
             pivot_a, pivot_b = global_pivot(snap.transform)
-            #snap_translate = numpy.eye(4)
-            #snap_translate[:3,3] = snap.transform[:3,3]
-            #offset = (
-            #    snap_translate @
-            #    transform @
-            #    numpy.linalg.inv(snap_translate)
-            #)
         elif space == 'projected_global':
             pivot_a, pivot_b = projected_global_pivot(snap.transform)
-            #orthogonals = orthogonal_orientations()
-            #_, orthogonal = max([
-            #    (surrogate_angle(snap.transform, o), o)
-            #    for o in orthogonals
-            #])
-            #orthogonal[:3,3] = snap.transform[:3,3]
-            #offset = (
-            #    orthogonal @
-            #    transform @
-            #    numpy.linalg.inv(orthogonal)
-            #)
         elif space == 'projected_camera':
             camera_pose = numpy.linalg.inv(self.get_view_matrix())
             pivot_a, pivot_b = projected_global_pivot(
                 snap.transform, offset=camera_pose)
-        
+        '''
         offset = pivot_a @ transform @ pivot_b
         for instance in instances:
             self.move_instance(instance, offset @ instance.transform)
