@@ -33,15 +33,21 @@ from ltron.matching import (
     compute_misaligned,
 )
 
-def wrapped_build_step_expert(env_name, **kwargs):
-    return BuildStepExpert(make(env_name, **kwargs))
+def wrapped_build_step_expert(env_name, train=True, **kwargs):
+    return BuildStepExpert(make(env_name, **kwargs), train=train)
 
 class BuildStepExpert(ObservationWrapper):
     @traceback_decorator
-    def __init__(self, env, max_instructions=16, max_instructions_per_cursor=1):
+    def __init__(self,
+        env,
+        max_instructions=16,
+        max_instructions_per_cursor=1,
+        train=True,
+    ):
         super().__init__(env)
         self.max_instructions = max_instructions
         self.max_instructions_per_cursor = max_instructions_per_cursor
+        self.train=train
         
         '''
         options
@@ -55,6 +61,13 @@ class BuildStepExpert(ObservationWrapper):
             self.env.action_space, max_instructions)
         observation_space['num_expert_actions'] = Discrete(max_instructions)
         self.observation_space = observation_space
+    
+    def step(self, *args, **kwargs):
+        o,r,t,u,i = super().step(*args, **kwargs)
+        if self.train and o['num_expert_actions'] == 0:
+            u = True
+        
+        return o,r,t,u,i
     
     @traceback_decorator
     def observation(self, observation):
@@ -284,7 +297,6 @@ class BuildStepExpert(ObservationWrapper):
                     pickable_snaps = range(len(instance.snaps))
             
             if correct_orientation:
-                print('translate?')
                 # if there are missing edges, pick and place
                 if missing_edges.shape[1]:
                     actions = self.pick_and_place_actions(
@@ -311,12 +323,9 @@ class BuildStepExpert(ObservationWrapper):
                             misplaced_target,
                         )
                         actions.extend(t)
-                    print([
-                        action['action_primitives']['translate']
-                        for action in actions
-                    ])
+                        if len(actions):
+                            break
             else:
-                print('rotate?')
                 actions = []
                 for snap in pickable_snaps:
                     r = self.rotate_actions(
@@ -329,12 +338,6 @@ class BuildStepExpert(ObservationWrapper):
                         misplaced_target,
                     )
                     actions.extend(r)
-                    
-        
-        print('NUM ACTIONS: %i'%len(actions))
-        
-        if len(actions) == 0:
-            breakpoint()
         
         num_expert_actions = min(len(actions), self.max_instructions)
         if len(actions) == 0:
@@ -611,10 +614,7 @@ class BuildStepExpert(ObservationWrapper):
             global_translate_offset[3] = 0
             local_translate_offset = (
                 inv_snap_transform @ global_translate_offset)
-            try:
-                primary_axis = numpy.where(local_translate_offset)[0].item()
-            except:
-                breakpoint()
+            primary_axis = numpy.where(local_translate_offset)[0].item()
             primary_value = local_translate_offset[primary_axis]
             if primary_axis == 0 or primary_axis == 2:
                 if abs(round(primary_value)) not in (20,80):
@@ -650,10 +650,6 @@ class BuildStepExpert(ObservationWrapper):
                 break
         else:
             found_collision_free_transform = False
-        
-        if transform_index == 0:
-            if not hasattr(self, 'carry_on') or self.carry_on == False:
-                breakpoint()
         
         actions = []
         if found_collision_free_transform:
