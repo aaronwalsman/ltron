@@ -28,7 +28,7 @@ class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     render_mode = 'egl'
     compute_collision_map = False
     
-    max_time_steps = 24
+    max_time_steps = 48
 
 class SteppedBreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,

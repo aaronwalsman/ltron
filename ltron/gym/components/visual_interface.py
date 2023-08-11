@@ -16,6 +16,7 @@ from ltron.gym.components import (
     CursorPickAndPlaceComponent,
     CursorRotateSnapAboutAxisComponent,
     CursorOrthogonalCameraSpaceRotationComponent,
+    CursorOrthogonalCameraSpaceTranslateComponent,
     DoneComponent,
     SnapMaskRenderComponent,
     InsertBrickComponent,
@@ -38,6 +39,7 @@ class VisualInterfaceConfig(Config):
     include_viewpoint = True
     include_pick_and_place = True
     include_rotate = True
+    include_translate = True
     include_remove = True
     include_insert = True
     include_done = True
@@ -164,6 +166,14 @@ def make_visual_interface(
         #        components['cursor'],
         #        check_collision=config.check_collision,
         #))
+    
+    if config.include_translate:
+        action_primitives['translate'] = (
+            CursorOrthogonalCameraSpaceTranslateComponent(
+                scene_component,
+                components['cursor'],
+                check_collision=config.check_collision,
+        ))
     
     # removal
     if config.include_remove:

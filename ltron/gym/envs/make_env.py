@@ -23,7 +23,7 @@ from ltron.gym.components import (
 class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     load_start_scene = None
     
-    max_time_steps = 20
+    max_time_steps = 1000000
     image_height = 256
     image_width = 256
     render_mode = 'egl'
