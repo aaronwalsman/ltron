@@ -614,7 +614,8 @@ class BuildStepExpert(ObservationWrapper):
             global_translate_offset[3] = 0
             local_translate_offset = (
                 inv_snap_transform @ global_translate_offset)
-            primary_axis = numpy.where(local_translate_offset)[0].item()
+            primary_axis = numpy.where(
+                numpy.abs(local_translate_offset) > 0.01)[0].item()
             primary_value = local_translate_offset[primary_axis]
             if primary_axis == 0 or primary_axis == 2:
                 if abs(round(primary_value)) not in (20,80):
