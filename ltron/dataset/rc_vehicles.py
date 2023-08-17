@@ -118,6 +118,8 @@ def sample_two_wide_chassis(scene):
             start='min_xz',
         )
     
+    dimensions = -1, 1, -chassis_length//2, chassis_length//2, body_height
+    
     # 2926.dat 4 wide single small axle
     # (see 10128-1 - Train Level Crossing.mpd)
     # 6157.dat 2+wide single small axles
@@ -195,17 +197,18 @@ def sample_two_wide_chassis(scene):
         logp += fender_color_logp
     
     # sample fender instances
-    fender_instances, fender_height = sample_two_wide_fenders(
+    fender_instances, dimensions = sample_two_wide_fenders(
         scene,
         axle_shape,
         tire_shape,
         fender_color,
-        body_height,
+        #body_height,
         (rear_axle_z, fore_axle_z),
-        (2,chassis_length)
+        dimensions,
+        #(2,chassis_length)
     )
     
-    return None, None, logp
+    return None, dimensions, logp
 
 def make_axle(scene, axle_shape, axle_color, x, y, z):
     translate = translate_matrix((x*20,y*8,z*20))
@@ -229,21 +232,32 @@ def sample_two_wide_fenders(
     axle_shape,
     tire_shape,
     color,
-    y,
+    #y,
     zs,
-    chassis_shape,
+    #chassis_shape,
+    dimensions,
 ):
-    w,l = chassis_shape
+    x1,x2,z1,z2,y = dimensions
+    
     if tire_shape == '3641.dat' and axle_shape in ('6157.dat', '4600.dat'):
         # if 6157, and y == 1 add another layer to the chassis
+        if axle_shape == '6157.dat' and y == 1:
+            brick_fill.brick_fill(
+                scene,
+                x1,x2,y,y+1,z1,z2,
+                color,
+                instances=list(scene.instances.values()),
+            )
+            y += 1
         
+        # pick a fender shape
         fender_shape = '3788.dat'
         z_offset = 1
         y_offset = 1
         fender_height = 2
         
+        # make the fender instances
         fender_instances = []
-        prev_z = -l//2
         for z in zs:
                     
             fender_translate = translate_matrix(
@@ -252,19 +266,32 @@ def sample_two_wide_fenders(
             fender_instance = scene.add_instance(
                 fender_shape,color, fender_transform)
             fender_instances.append(fender_instance)
-            
-            prev_z = z + 2
         
-        z = l//2
-        layer_mask = numpy.ones((w,l), dtype=bool)
-        brick_fill.update_mask(scene, layer_mask, -w/2, y+1.5, -l/2)
-        
+        # fill the chassis between the fenders
         brick_fill.brick_fill(
             scene,
-            -w/2, w/2, y, y+1, -l/2, l/2,
+            x1, x2, y, y+1, z1, z2,
             color,
-            layer_mask,
+            #layer_mask,
+            instances=list(scene.instances.values()),
         )
+        y += 1
+        
+        # expand the fenders
+        expand_fenders = 1
+        if expand_fenders:
+            brick_fill.brick_fill(
+                scene,
+                x1-1, x2+1, y, y+1, z1, z2,
+                color,
+                instances=list(scene.instances.values()),
+            )
+            
+            for z in zs:
+                brick_fill.make_and_place(scene, -1, 1, y, y+1, z, z+2, color)
+            
+            y += 1
+        
     else:
         fender_instances = []
         fender_height = 0
@@ -338,210 +365,6 @@ def add_wheels_to_axle(
         tire_instances.append(tire_instance)
     
     return wheel_instances, tire_instances
-
-#def fill_plate_2w(
-#    scene,
-#    color,
-#    y,
-#    length_span,
-#):
-#    l = length_span[1] - length_span[0]
-#    instances = []
-#    if (2,l) in ldraw_plate_sizes:
-#        shape = ldraw_plate_sizes[(2,l)]
-#        z = l/2. + length_span[0]
-#        rotate = numpy.array([
-#            [ 0, 0,-1, 0],
-#            [ 0, 1, 0, 0],
-#            [ 1, 0, 0, 0],
-#            [ 0, 0, 0, 1],
-#        ])
-#        transform = translate_matrix((0,y*8,z*20)) @ rotate @ scene.upright
-#        instance = scene.add_instance(
-#            shape, color, transform)
-#        instances.append(instance)
-#    
-#    return instances
-
-#def fill_plate_rectangle(
-#    scene,
-#    color,
-#    y,
-#    mask,
-#    orientation='random',
-#    fill='largest_area',
-#    first_coord='x',
-#    start_x='random_min',
-#    start_z='random_min',
-#):
-#    xs,zs = numpy.where(~mask)
-#    num_open = xs.shape[0]
-#    if not num_open:
-#        return []
-#    
-#    if first_coord == 'x':
-#        if start_x == 'random_min' or start_x == 'random_max':
-#            i = numpy.random.randint(len(xs))
-#            x,z = xs[i],zs[i]
-#        elif start_x == 'min':
-#            i = numpy.argmin(xs)
-#            x = xs[i]
-#        elif start_x == 'max':
-#            i = numpy.argmax(xs)
-#            x = xs[i]
-#        x_i = numpy.where(xs == i)
-#        zs = zs[x_i]
-#            
-#        if start_z == 'random_min' or start_z == 'random_max':
-#            z = numpy.random.choice(zs)
-#        elif start_z == 'min':
-#            z = numpy.min(zs)
-#        elif start_z == 'max':
-#            z = numpy.max(zs)
-#    elif first_coord == 'z':
-#        if start_z == 'random_min' or start_z == 'random_max':
-#            j = numpy.random.randint(len(zs))
-#            x,z = xs[j],zs[j]
-#        elif start_z == 'min':
-#            j = numpy.argmin(zs)
-#            z = zs[j]
-#        elif start_z == 'max':
-#            j = numpy.argmax(zs)
-#            z = zs[j]
-#        z_j = numpy.where(zs == i)
-#        xs = xs[z_j]
-#        
-#        if start_x == 'random_min' or start_x == 'random_max':
-#            x = numpy.random.choice(xs)
-#        elif start_x == 'min':
-#            x = numpy.min(xs)
-#        elif start_x == 'max':
-#            x = numpy.max(xs)
-#    
-#    start=(x,z)
-#    if orientation == 'random':
-#        o = numpy.random.choice(('x','z'))
-#    else:
-#        o = orientation
-#    brick_shapes = {reorient_size(k,o) : v for k,v in ldraw_plate_shapes}
-#    
-#    if fill == 'largest':
-#        brick_areas = [(w*l, w, l) for (w,l) in brick_shapes.keys()]
-#        brick_areas = reversed(sorted(brick_areas))
-#        for area, w, l in brick_areas:
-#            if 'min' in start_x:
-#                x2 = x + w
-#            elif 'max' in start_x:
-#                x2 = x - w
-#            if 'min' in start_z:
-#                z2 = z + l
-#            elif 'max' in start_z:
-#                z2 = z - l
-#            if mask[x:x2,z:z2].sum() == area:
-#                break
-
-#def make_tiled_primitives(
-#    scene,
-#    primitive,
-#    color,
-#    size,
-#    tile_width,
-#    tile_length,
-#    tile_height=0,
-#    center=True,
-#    transform=None
-#):
-#    instances = []
-#    if transform is None:
-#        transform = numpy.eye(4)
-#    if center:
-#        center_offset = translate_matrix((
-#            -(tile_width-1) * size[0] * 20 * 0.5,
-#            tile_height * 8,
-#            -(tile_length-1) * size[1] * 20 * 0.5,
-#        ))
-#        transform = transform @ center_offset
-#    
-#    for w in range(tile_width):
-#        for l in range(tile_length):
-#            primitive_name = sized_primitive_name(primitive, size)
-#            local_transform = translate_matrix((w*20,0,l*20))
-#            z_length = numpy.array([
-#                [ 0, 0,-1, 0],
-#                [ 0, 1, 0, 0],
-#                [ 1, 0, 0, 0],
-#                [ 0, 0, 0, 1],
-#            ])
-#            instance = scene.add_instance(
-#                primitive_name,
-#                color,
-#                transform @ local_transform @ z_length @ scene.upright,
-#            )
-#            instances.append(instance)
-#    
-#    return instances
-#
-#def sized_primitive_name(primitive, size):
-#    if primitive == 'plate':
-#        return sized_plate_name(size)
-#    elif primitive == 'brick':
-#        return sized_brick_name(size)
-#
-#ldraw_plate_sizes = {
-#    (1, 1): "3024.dat",
-#    (1, 2): "3023.dat",
-#    (1, 4): "3710.dat",
-#    (1, 6): "3666.dat",
-#    (1, 8): "3460.dat",
-#    (1, 10): "4477.dat",
-#    (1, 12): "60479.dat",
-#    
-#    (2, 2): "3022.dat",
-#    (2, 3): "3021.dat",
-#    (2, 4): "3020.dat",
-#    (2, 6): "3795.dat",
-#    (2, 8): "3034.dat",
-#    (2, 10): "3832.dat",
-#    (2, 12): "2445.dat",
-#    (2, 16): "4282.dat",
-#    
-#    (4, 4): "3031.dat",
-#    (4, 6): "3032.dat",
-#    (4, 8): "3035.dat",
-#    (4, 12): "3029.dat",
-#}
-#
-#def sized_plate_name(size):
-#    w,l = size
-#    if l < w:
-#        l,w = w,l
-#
-#    return ldraw_plate_sizes[w,l]
-#
-#ldraw_brick_sizes = {
-#    (1, 1): "3005.dat",
-#    (1, 2): "3004.dat",
-#    (1, 4): "3010.dat",
-#    (1, 6): "3009.dat",
-#    (1, 8): "3008.dat",
-#    (1, 10): "6111.dat",
-#    (1, 12): "6112.dat",
-#    
-#    (2, 2): "3003.dat",
-#    (2, 3): "3002.dat",
-#    (2, 4): "3001.dat",
-#    (2, 6): "2456.dat",
-#    (2, 8): "3007.dat",
-#    (2, 10): "3006.dat",
-#    (2, 16): "4282.dat",
-#}
-#
-#def sized_brick_name(size):
-#    w,l = size
-#    if l < w:
-#        l,w = w,l
-#    
-#    return ldraw_brick_sizes[w,l]
 
 if __name__ == '__main__':
     scene, logp = sample_vehicle()

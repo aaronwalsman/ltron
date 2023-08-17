@@ -91,12 +91,17 @@ def brick_fill(
     use_l=True,
     start='min_xz',
     size_selection='largest',
+    instances = None,
 ):
-    instances = []
-    
     if mask is None:
         mask = numpy.ones((x2-x1,z2-z1), dtype=bool)
-    mask = numpy.copy(mask)
+    else:
+        mask = numpy.copy(mask)
+    
+    if instances is None:
+        instances = []
+    else:
+        update_mask(scene, mask, x1, y1*0.25+y2*0.75, z1, instances)
     
     h = y2 - y1
     available_sizes = []
@@ -145,10 +150,29 @@ def brick_fill(
                     best_area = area
             ww,hh,ll = best_size
         
+        elif size_selection == 'widest':
+            best_size = None
+            best_width = 0.
+            for ww,hh,ll in available_sizes:
+                area = ww*ll
+                if ww > best_width and mask[x:x+ww,z:z+ll].sum() == area:
+                    best_size = ww,hh,ll
+                    best_width = ww
+            ww,hh,ll = best_size
+        
+        elif size_selectino == 'longest':
+            best_size = None
+            best_length = 0.
+            for ww,hh,ll in available_sizes:
+                area = ww*ll
+                if ll > best_length and mask[x:x+ww,z:z+ll].sum() == area:
+                    best_size = ww,hh,ll
+                    best_length = ll
+            ww,hh,ll = best_size
+        
         instance = make_and_place(
             scene, x+x1, x+x1+ww, y1, y2, z+z1, z+z1+ll, color)
-        update_mask(scene, mask, x1, (y1+y2)*0.5, z1, [instance])
-        print(mask.astype(int))
+        update_mask(scene, mask, x1, y1*0.25+y2*0.75, z1, [instance])
         instances.append(instance)
     
     return instances
