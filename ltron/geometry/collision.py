@@ -28,11 +28,9 @@ class CollisionChecker:
     def __init__(
         self,
         scene,
-        #resolution=(128,128),
-        max_intersection=1, #=4
+        max_intersection=1,
     ):
         self.scene = scene
-        #self.frame_buffer = make_collision_frame_buffer(resolution)
         self.frame_buffers = {}
         self.max_intersection = max_intersection
     
@@ -101,51 +99,11 @@ def check_snap_collision(
         else:
             if not collision:
                 return collision
-            
-        #if not collision:
-        #    return collision
-        #elif return_colliding_instances:
-        #    num_collision = len(collision)
-        #    if num_collision < min_num_collisions:
-        #        min_num_collisions = num_collision
-        #        min_collision = collision
     
     if return_colliding_instances:
         return min_collision
     else:
         return True
-    
-    '''
-    if return_colliding_instances:
-        all_collisions = [
-            check_collision(
-                scene,
-                target_instances,
-                render_transform,
-                *args,
-                return_colliding_instances=return_colliding_instances,
-                **kwargs,
-            )
-            for render_transform in snap.collision_direction_transforms
-        ]
-        len_collisions = [(len(c), c) for c in all_collisions]
-        return min(len_collisions)[1]
-    
-    else:
-        collision = all(
-            check_collision(
-                scene,
-                target_instances,
-                render_transform,
-                *args,
-                return_colliding_instances=return_colliding_instances,
-                **kwargs,
-            )
-            for render_transform in snap.collision_direction_transforms
-        )
-    
-    return collision
-    '''
 
 def check_collision(
     scene,
@@ -334,7 +292,6 @@ def build_collision_map(
     target_instances=None,
     scene_instances=None,
     frame_buffer=None,
-    #resolution=(128,128),
     *args,
     **kwargs,
 ):
