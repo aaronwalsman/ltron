@@ -717,14 +717,15 @@ class BrickScene:
         
         # compute proximity to the brick's current orientation
         angles = [
-            (surrogate_angle(t, pick_snap.brick_instance.transform), t)
-            for t in pick_and_place_transforms
+            (surrogate_angle(t, pick_snap.brick_instance.transform), i)
+            for i, t in enumerate(pick_and_place_transforms)
         ]
         
         if check_collision:
             # (reversed because surrogate_angle is large when angles are small)
             sorted_angles = sorted(angles, reverse=True)
-            sorted_transforms = [t for _,t in sorted_angles]
+            sorted_transforms = [
+                pick_and_place_transforms[i] for _,i in sorted_angles]
             
             best_transform = self.check_multiple_transforms_for_snap_collisions(
                 pick_snap,
@@ -734,7 +735,9 @@ class BrickScene:
                 ignore_instances=ignore_collision_instances,
             )
         else:
-            _, best_transform = max(angles)
+            #_, best_transform = max(angles)
+            _, i = max(angles)
+            best_transform = pick_and_place_transforms[i]
         
         return best_transform
     

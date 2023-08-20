@@ -368,9 +368,6 @@ class BuildStepExpert(ObservationWrapper):
         observation['expert'] = actions
         observation['num_expert_actions'] = num_expert_actions
         
-        if num_expert_actions == 0:
-            breakpoint()
-        
         return observation
     
     def insert_actions(self, current_assembly, target_assembly, fn):
@@ -796,9 +793,6 @@ class BuildStepExpert(ObservationWrapper):
                         action['cursor']['click'] = numpy.array([y,x])
                         action['cursor']['release'] = numpy.array([ry, rx])
                         actions.append(action)
-        
-        if not len(actions):
-            breakpoint()
         
         return actions
     
