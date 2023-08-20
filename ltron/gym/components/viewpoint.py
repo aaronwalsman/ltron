@@ -44,6 +44,7 @@ class FixedViewpointComponent(SuperMechaComponent):
         aspect_ratio=1.,
         near_clip=10.,
         far_clip=50000.,
+        jiggle=None,
     ):
         self.scene_component = scene_component
         self.azimuth = azimuth
@@ -65,6 +66,7 @@ class FixedViewpointComponent(SuperMechaComponent):
         self.aspect_ratio = aspect_ratio
         self.near_clip = near_clip
         self.far_clip = far_clip
+        self.jiggle = jiggle
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=None)
@@ -83,10 +85,14 @@ class FixedViewpointComponent(SuperMechaComponent):
         
         # compute the view matrix
         azimuth = self.azimuth * self.azimuth_step_size
+        if self.jiggle:
+            azimuth += (numpy.random.rand() * 2. - 1.) * self.jiggle
         elevation = (
             self.elevation * self.elevation_step_size +
             self.elevation_range[0]
         )
+        if self.jiggle:
+            elevation += (numpy.random.rand() * 2. - 1.) * self.jiggle
         distance = (
             self.distance * self.distance_step_size +
             self.distance_range[0]
@@ -101,10 +107,15 @@ class FixedViewpointComponent(SuperMechaComponent):
             scene.set_projection(self.projection)
             scene.set_view_matrix(self.view_matrix)
     
+    def step(self, action):
+        if self.jiggle:
+            self.set_camera()
+        return None, 0., False, False, {}
+    
     # TODO get/set state
     
     def no_op_action(self):
-        return 0
+        return None
         
 
 class ViewpointComponent(SuperMechaComponent):
