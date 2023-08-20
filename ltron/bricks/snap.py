@@ -339,10 +339,11 @@ class SnapCylinder(SnapStyle):
                 # axle 4 12
                 if (c == 'r' and
                     r == 4 and
-                    l == 11 and
+                    #l in (10, 11) and
                     not last and
-                    radius[i+1] == 5 and
-                    length[i+1] == 1
+                    (l,length[i+1] == 10,2 or l,length[i+1] == 11,1) and
+                    radius[i+1] == 5 #and
+                    #length[i+1] in (1,2)
                 ):
                     snaps.append(AxleHole_4_12(command, transform))
                 
@@ -440,19 +441,36 @@ class SnapCylinder(SnapStyle):
     
     def get_collision_direction_transforms(self):
         # return a list of directions that this snap can be pushed onto another
-        if self.polarity == '+':
-            sign = 1
-        elif self.polarity == '-':
-            sign = -1
         
+        # is this a dangerous change?
         return [
             numpy.array([
-                [ 1, 0,    0, 0],
-                [ 0, 0, sign, 0],
-                [ 0, 1,    0, 0],
-                [ 0, 0,    0, 1]
-            ])
+                [ 1, 0, 0, 0],
+                [ 0, 0, 1, 0],
+                [ 0, 1, 0, 0],
+                [ 0, 0, 0, 1],
+            ]),
+            numpy.array([
+                [ 1, 0, 0, 0],
+                [ 0, 0,-1, 0],
+                [ 0, 1, 0, 0],
+                [ 0, 0, 0, 1],
+            ]),
         ]
+        
+        #if self.polarity == '+':
+        #    sign = 1
+        #elif self.polarity == '-':
+        #    sign = -1
+        #
+        #return [
+        #    numpy.array([
+        #        [ 1, 0,    0, 0],
+        #        [ 0, 0, sign, 0],
+        #        [ 0, 1,    0, 0],
+        #        [ 0, 0,    0, 1]
+        #    ])
+        #]
     
     collision_direction_transforms = property(
         get_collision_direction_transforms)
