@@ -90,6 +90,7 @@ class DatasetLoader(SuperMechaComponent):
             except StopIteration:
                 self.finished = True
             else:
+                self.file_name = datapoint['__key__']
                 text = datapoint['mpd']
                 self.scene_component.brick_scene.import_text(
                     datapoint['__key__'] + '.mpd', text)
