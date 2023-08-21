@@ -57,6 +57,7 @@ class AssemblyComponent(SensorComponent):
             max_instances=self.max_instances,
             max_edges=self.max_edges,
         )
+        
         if self.compute_collision_map:
             self.collision_map = build_collision_map(
                 self.scene_component.brick_scene,

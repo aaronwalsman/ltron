@@ -9,6 +9,7 @@ from supermecha import (
 from ltron.dataset.info import get_dataset_info
 from ltron.gym.components import (
     EmptySceneComponent,
+    LoaderConfig,
     make_loader,
     VisualInterfaceConfig,
     make_visual_interface,
@@ -17,23 +18,10 @@ from ltron.gym.components import (
 )
 
 class BreakEnvConfig(VisualInterfaceConfig):
-    load_scene = None
-    train_dataset_name = None
-    train_split = None
-    eval_dataset_name = None
-    eval_split = None
-    dataset_subset = None
-    dataset_repeat = 1
-    dataset_shuffle = True
-    
     max_time_steps = 20
-    
     image_height = 256
     image_width = 256
     render_mode = 'egl'
-    
-    shape_class_labels = None
-    color_class_labels = None
 
 class BreakEnv(SuperMechaContainer):
     def __init__(self,
@@ -65,7 +53,7 @@ class BreakEnv(SuperMechaContainer):
         
         # time step
         components['time'] = TimeStepComponent(
-            config.max_time_steps, observe_step=True)
+            config.max_time_steps, observe_step=False)
         
         # visual interface
         interface_components = make_visual_interface(
@@ -89,10 +77,6 @@ class BreakEnv(SuperMechaContainer):
         
         components['assembly'] = AssemblyComponent(
             components['scene'],
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
-            #max_instances=dataset_info['max_instances_per_scene'],
-            #max_edges=dataset_info['max_edges_per_scene'],
             update_on_init=False,
             update_on_reset=True,
             update_on_step=True,

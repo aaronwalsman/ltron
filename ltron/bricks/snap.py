@@ -114,6 +114,7 @@ class Snap:
             return SnapStyle.construct_snaps(command, reference_transform)
     
     def __init__(self, command):
+        self.command = command
         self.type_id = command.id
 
 class SnapClear(Snap):
@@ -206,6 +207,9 @@ class UnsupportedSnap(SnapStyle):
 class UnsupportedCylinderSnap(UnsupportedSnap):
     pass
 
+class UnnecessaryCylinderSnap(UnsupportedCylinderSnap):
+    pass
+
 class UnsupportedFingerSnap(UnsupportedSnap):
     pass
 
@@ -264,7 +268,7 @@ class SnapCylinder(SnapStyle):
                 
                 # stud
                 elif c == 'r' and r == 6 and (first or last) and caps != 'both':
-                    if not(caps == 'one' and first and num_sections > 1):
+                    if not (caps == 'one' and first and num_sections > 1):
                         if caps == 'none' and first:
                             t = translate_matrix([0,ty-l,0])
                             flip = numpy.array([
@@ -279,6 +283,40 @@ class SnapCylinder(SnapStyle):
                             stud_transform = transform @ t
                         snaps.append(Stud(command, l, stud_transform))
                 
+                # small stud
+                elif c == 'r' and r == 4 and (first or last) and caps != 'both':
+                    if not (caps == 'one' and first and num_sections > 1):
+                        if caps == 'none' and first:
+                            t = translate_matrix([0,ty-l,0])
+                            flip = numpy.array([
+                                [-1, 0, 0, 0],
+                                [ 0,-1, 0, 0],
+                                [ 0, 0, 1, 0],
+                                [ 0, 0, 0, 1]]
+                            )
+                            stud_transform = transform @ t @ flip
+                        else:
+                            t = translate_matrix([0,ty,0])
+                            stud_transform = transform @ t
+                        snaps.append(SmallStud(command, l, stud_transform))
+                
+                # duplo stud
+                elif c == 'r' and r==12 and (first or last) and caps != 'both':
+                    if not (caps == 'one' and first and num_sections > 1):
+                        if caps == 'none' and first:
+                            t = translate_matrix([0,ty-l,0])
+                            flip = numpy.array([
+                                [-1, 0, 0, 0],
+                                [ 0,-1, 0, 0],
+                                [ 0, 0, 1, 0],
+                                [ 0, 0, 0, 1]]
+                            )
+                            stud_transform = transform @ t @ flip
+                        else:
+                            t = translate_matrix([0,ty,0])
+                            stud_transform = transform @ t
+                        snaps.append(DuploStud(command, l, stud_transform))
+                                
                 # bar
                 elif p == '+' and c == 'r' and r == 4 and l >= 8:
                     # skip bars for now
@@ -301,10 +339,11 @@ class SnapCylinder(SnapStyle):
                 # axle 4 12
                 if (c == 'r' and
                     r == 4 and
-                    l == 11 and
+                    #l in (10, 11) and
                     not last and
-                    radius[i+1] == 5 and
-                    length[i+1] == 1
+                    (l,length[i+1] == 10,2 or l,length[i+1] == 11,1) and
+                    radius[i+1] == 5 #and
+                    #length[i+1] in (1,2)
                 ):
                     snaps.append(AxleHole_4_12(command, transform))
                 
@@ -340,9 +379,25 @@ class SnapCylinder(SnapStyle):
                 
                 # stud hole
                 elif r == 6 and (first or last) and caps != 'both':
-                    if not(caps == 'one' and first and num_sections > 1):
+                    if not (caps == 'one' and first and num_sections > 1):
                         hole_transform = transform @ translate_matrix([0,ty,0])
                         snaps.append(StudHole(command, l, hole_transform))
+                
+                # small stud hole
+                elif r == 4 and (first or last) and caps != 'both':
+                    if not (caps == 'one' and first and num_sections > 1):
+                        hole_transform = transform @ translate_matrix([0,ty,0])
+                        snaps.append(SmallStudHole(command, l, hole_transform))
+                
+                # duplo stud hole
+                elif r == 12 and (first or last) and caps != 'both':
+                    if not (caps == 'one' and first and num_sections > 1):
+                        hole_transform = transform @ translate_matrix([0,ty,0])
+                        snaps.append(DuploStudHole(command, l, hole_transform))
+                
+                # duplo stud inner hole
+                elif r == 9:
+                    snaps.append(UnnecessaryCylinderSnap(command, transform))
                 
                 cumulative_length += l
         
@@ -386,19 +441,36 @@ class SnapCylinder(SnapStyle):
     
     def get_collision_direction_transforms(self):
         # return a list of directions that this snap can be pushed onto another
-        if self.polarity == '+':
-            sign = 1
-        elif self.polarity == '-':
-            sign = -1
         
+        # is this a dangerous change?
         return [
             numpy.array([
-                [ 1, 0,    0, 0],
-                [ 0, 0, sign, 0],
-                [ 0, 1,    0, 0],
-                [ 0, 0,    0, 1]
-            ])
+                [ 1, 0, 0, 0],
+                [ 0, 0, 1, 0],
+                [ 0, 1, 0, 0],
+                [ 0, 0, 0, 1],
+            ]),
+            numpy.array([
+                [ 1, 0, 0, 0],
+                [ 0, 0,-1, 0],
+                [ 0, 1, 0, 0],
+                [ 0, 0, 0, 1],
+            ]),
         ]
+        
+        #if self.polarity == '+':
+        #    sign = 1
+        #elif self.polarity == '-':
+        #    sign = -1
+        #
+        #return [
+        #    numpy.array([
+        #        [ 1, 0,    0, 0],
+        #        [ 0, 0, sign, 0],
+        #        [ 0, 1,    0, 0],
+        #        [ 0, 0,    0, 1]
+        #    ])
+        #]
     
     collision_direction_transforms = property(
         get_collision_direction_transforms)
@@ -576,6 +648,184 @@ class StudHole(SnapCylinder):
         
         elif isinstance(other_instance.snap_style, HalfPin):
             return studhole_halfpin_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+                start_height=0,
+                sections=((self.radius, -self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
+
+class SmallStud(SnapCylinder):
+    polarity = '+'
+    radius = 4
+    search_radius = 10
+    def __init__(self, command, length, transform):
+        super().__init__(command)
+        self.length = length
+        self.transform = transform
+        self.subtype_id = 'cylinder(%.01f,%.01f,u)'%(
+            round(self.radius, 1), round(self.length, 1))
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, (SmallStudHole, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, SmallStudHole):
+            return stud_studhole_connected(my_instance, other_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, SmallStudHole):
+            return stud_studhole_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+
+class SmallStudHole(SnapCylinder):
+    polarity = '-'
+    radius = 4
+    search_radius = 10
+    def __init__(self, command, length, transform):
+        super().__init__(command)
+        self.length = length
+        self.transform = transform
+        self.subtype_id = 'cylinder(4,%.01f,u)'%(round(self.length, 1))
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        
+        return isinstance(other, (SmallStud, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, SmallStud):
+            return stud_studhole_connected(other_instance, my_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, SmallStud):
+            return studhole_stud_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+                start_height=0,
+                sections=((self.radius, -self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True)
+
+class DuploStud(SnapCylinder):
+    polarity = '+'
+    radius = 12
+    search_radius = 10
+    def __init__(self, command, length, transform):
+        super().__init__(command)
+        self.length = length
+        self.transform = transform
+        self.subtype_id = 'cylinder(%.01f,%.01f,u)'%(
+            round(self.radius, 1), round(self.length, 1))
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, (DuploStudHole, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, DuploStudHole):
+            return stud_studhole_connected(my_instance, other_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, DuploStudHole):
+            return stud_studhole_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        elif isinstance(other_instance.snap_style, UniversalSnap):
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+
+class DuploStudHole(SnapCylinder):
+    polarity = '-'
+    radius = 12
+    search_radius = 10
+    def __init__(self, command, length, transform):
+        super().__init__(command)
+        self.length = length
+        self.transform = transform
+        self.subtype_id = 'cylinder(4,%.01f,u)'%(round(self.length, 1))
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        
+        return isinstance(other, (DuploStud, UniversalSnap))
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        if isinstance(other_instance.snap_style, DuploStud):
+            return stud_studhole_connected(other_instance, my_instance)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        if isinstance(other_instance.snap_style, DuploStud):
+            return studhole_stud_pick_and_place_transforms(
                 my_instance, other_instance)
         
         elif isinstance(other_instance.snap_style, UniversalSnap):

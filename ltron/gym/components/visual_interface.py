@@ -16,10 +16,12 @@ from ltron.gym.components import (
     CursorPickAndPlaceComponent,
     CursorRotateSnapAboutAxisComponent,
     CursorOrthogonalCameraSpaceRotationComponent,
+    CursorOrthogonalCameraSpaceTranslateComponent,
     DoneComponent,
     SnapMaskRenderComponent,
     InsertBrickComponent,
-    #SnapIslandRenderComponent,
+    BreakAndMakePhaseSwitchComponent,
+    AssembleStepComponent,
 )
 
 class VisualInterfaceConfig(Config):
@@ -37,9 +39,12 @@ class VisualInterfaceConfig(Config):
     include_viewpoint = True
     include_pick_and_place = True
     include_rotate = True
+    include_translate = True
     include_remove = True
     include_insert = True
     include_done = True
+    include_phase = False
+    include_assemble_step = False
     
     # viewpoint
     viewpoint_azimuth_steps = 16
@@ -55,11 +60,6 @@ class VisualInterfaceConfig(Config):
     viewpoint_far_clip = 50000.
     viewpoint_observable = True
     
-    shape_class_labels = None
-    color_class_labels = None
-    
-#class VisualInterface(SuperMechaContainer):
-#def __init__(self,
 def make_visual_interface(
     config,
     scene_component,
@@ -144,7 +144,6 @@ def make_visual_interface(
         action_primitives['pick_and_place'] = CursorPickAndPlaceComponent(
             scene_component,
             components['cursor'],
-            #overlay_brick_component = action_primitives['overlay_brick'],
             check_collision=config.check_collision,
         )
     
@@ -161,6 +160,20 @@ def make_visual_interface(
                 components['cursor'],
                 check_collision=config.check_collision,
         ))
+        #action_primitives['rotate'] = (
+        #    CursorRotateSnapAboutAxisComponent(
+        #        scene_component,
+        #        components['cursor'],
+        #        check_collision=config.check_collision,
+        #))
+    
+    if config.include_translate:
+        action_primitives['translate'] = (
+            CursorOrthogonalCameraSpaceTranslateComponent(
+                scene_component,
+                components['cursor'],
+                check_collision=config.check_collision,
+        ))
     
     # removal
     if config.include_remove:
@@ -172,15 +185,22 @@ def make_visual_interface(
     
     # insert
     if config.include_insert:
-        action_primitives['insert'] = InsertBrickComponent(
-            scene_component,
-            shape_class_labels=config.shape_class_labels,
-            color_class_labels=config.color_class_labels,
-        )
+        action_primitives['insert'] = InsertBrickComponent(scene_component)
     
     # done
     if config.include_done:
         action_primitives['done'] = DoneComponent()
+    
+    # phase
+    if config.include_phase:
+        action_primitives['phase'] = BreakAndMakePhaseSwitchComponent(
+            scene_component)
+    
+    # assemble step
+    if config.include_assemble_step:
+        assert config.include_phase
+        action_primitives['assemble_step'] = AssembleStepComponent(
+            action_primitives['phase'])
     
     # make the mode switch
     components['action_primitives'] = SuperMechaComponentSwitch(
@@ -188,27 +208,5 @@ def make_visual_interface(
     
     components['pos_snap_render'] = pos_snap_render_component
     components['neg_snap_render'] = neg_snap_render_component
-    #components['pos_equivalence'] = SnapIslandRenderComponent(
-    #    scene_component,
-    #    pos_snap_render_component,
-    #    config.image_height,
-    #    config.image_width,
-    #    update_on_init=False,
-    #    update_on_reset=True,
-    #    update_on_step=True,
-    #    observable=True,
-    #)
-    #components['neg_equivalence'] = SnapIslandRenderComponent(
-    #    scene_component,
-    #    neg_snap_render_component,
-    #    config.image_height,
-    #    config.image_width,
-    #    update_on_init=False,
-    #    update_on_reset=True,
-    #    update_on_step=True,
-    #    observable=True,
-    #)
-    
-    #super().__init__(components)
     
     return components

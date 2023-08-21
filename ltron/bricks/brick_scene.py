@@ -32,9 +32,11 @@ except ImportError:
     collision_available = False
 from ltron.geometry.utils import (
     unscale_transform,
-    local_pivot,
-    global_pivot,
-    projected_global_pivot,
+    #local_pivot,
+    #global_pivot,
+    #projected_global_pivot,
+    space_pivot,
+    surrogate_angle,
 )
 from ltron.exceptions import LtronException
 
@@ -49,10 +51,10 @@ class TooManyInstancesError(LtronException):
 
 def make_empty_assembly(max_instances, max_edges):
     return {
-        'shape' : numpy.zeros((max_instances+1), dtype=numpy.long),
-        'color' : numpy.zeros((max_instances+1), dtype=numpy.long),
+        'shape' : numpy.zeros((max_instances+1), dtype=int),
+        'color' : numpy.zeros((max_instances+1), dtype=int),
         'pose' : numpy.zeros((max_instances+1, 4, 4)),
-        'edges' : numpy.zeros((4, max_edges), dtype=numpy.long),
+        'edges' : numpy.zeros((4, max_edges), dtype=int),
     }
 
 class BrickScene:
@@ -94,6 +96,7 @@ class BrickScene:
         # collision_checker
         self.collision_checker = None
         if collision_checker:
+            assert renderable
             if collision_checker_args is None:
                 collision_checker_args = {}
             self.make_collision_checker(**collision_checker_args)
@@ -295,8 +298,8 @@ class BrickScene:
                     raise TooManyInstancesError(
                         'Instance ids %s larger than max_instances: %i'%(
                         list(self.instances.keys()), max_instances))
-        assembly['shape'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
-        assembly['color'] = numpy.zeros((max_instances+1,), dtype=numpy.long)
+        assembly['shape'] = numpy.zeros((max_instances+1,), dtype=int)
+        assembly['color'] = numpy.zeros((max_instances+1,), dtype=int)
         assembly['pose'] = numpy.zeros(
             (max_instances+1, 4, 4), dtype=numpy.float32)
         for instance_id, instance in self.instances.items():
@@ -317,7 +320,7 @@ class BrickScene:
         if max_edges is not None:
             assert all_edges.shape[1] <= max_edges, 'Too many edges'
             extra_edges = numpy.zeros(
-                (4, max_edges - num_edges), dtype=numpy.long)
+                (4, max_edges - num_edges), dtype=int)
             all_edges = numpy.concatenate((all_edges, extra_edges), axis=1)
         assembly['edges'] = all_edges
         
@@ -363,6 +366,7 @@ class BrickScene:
         return brick_instance
     
     def move_instance(self, instance, transform):
+        assert numpy.shape(transform) == (4,4)
         instance = self.instances[instance]
         instance.transform = transform
         if self.renderable:
@@ -371,6 +375,16 @@ class BrickScene:
             self.update_instance_snaps(instance)
         
         self.assembly_cache = None
+    
+    def duplicate_instances(self, instances):
+        new_instances = []
+        for instance in instances:
+            instance = self.instances[instance]
+            new_instance = self.add_instance(
+                instance.brick_shape, instance.color, instance.transform.copy())
+            new_instances.append(new_instance)
+        
+        return new_instances
     
     def hide_instance(self, instance):
         self.renderer.hide_instance(str(instance))
@@ -428,7 +442,14 @@ class BrickScene:
             vmax = numpy.zeros(3)
         return vmin, vmax
     
-    def place_above_scene(self, instances, offset=48):
+    def place_above_scene(
+        self,
+        instances,
+        offset=48,
+        #x_spacing=20,
+        y_spacing=24,
+        #z_spacing=20,
+    ):
         try:
             _ = len(offset)
         except TypeError:
@@ -443,15 +464,22 @@ class BrickScene:
         
         instances_min_y = instances_min[1]
         background_max_y = background_max[1]
+        background_offset = background_max_y - instances_min_y
+        background_steps = round(background_offset / y_spacing)
+        if background_steps == 0:
+            background_steps += 1
+        background_offset = background_steps * y_spacing
+        
         #y_offset = background_max_y - instances_min_y + offset
         offset = (
             offset[0],
-            offset[1] + background_max_y - instances_min_y,
+            offset[1] + background_offset,
             offset[2],
         )
         
         transform = numpy.eye(4)
-        transform[:3,3] = offset
+        if len(self.instances) > len(instances):
+            transform[:3,3] = offset
         
         for instance in instances:
             self.move_instance(instance, transform @ instance.transform)
@@ -546,7 +574,7 @@ class BrickScene:
                 all_edges.add((snap_a[0], snap_b[0], snap_a[1], snap_b[1]))
         num_edges = len(all_edges)
         all_edges = numpy.array(list(all_edges)).T.reshape(4, num_edges)
-        return all_edges.astype(numpy.long)
+        return all_edges.astype(int)
     
     def get_all_snaps(self):
         assert self.track_snaps
@@ -583,95 +611,55 @@ class BrickScene:
         
         return unoccupied_snaps
     
+    # brick transformations
     def all_pick_and_place_transforms(self,
-        pick,
-        place,
+        pick_snap,
+        place_snap,
+        instances=None,
         check_collision=False,
         ignore_collision_instances=None
     ):
         if check_collision:
             assert self.collision_checker is not None
         
-        if place is None:
-            place = UniversalSnap(self.upright)
+        if place_snap is None:
+            place_snap = UniversalSnap(self.upright)
         
-        candidate_transforms = pick.pick_and_place_transforms(pick, place)
-        
-        pick_instance_transform = pick.brick_instance.transform
+        candidate_transforms = pick_snap.pick_and_place_transforms(
+            pick_snap, place_snap)
         
         if check_collision:
+            transforms = self.check_multiple_transforms_for_snap_collisions(
+                pick_snap,
+                candidate_transforms,
+                instances=instances,
+                return_first=False,
+                ignore_instances=ignore_collision_instances,
+            )
+            '''
+            pick_instance_transform = pick_snap.brick_instance.transform
             transforms = []
             for transform in candidate_transforms:
-                self.move_instance(pick.brick_instance, transform)
+                self.move_instance(pick_snap.brick_instance, transform)
                 collision = self.check_snap_collision(
-                    [pick.brick_instance],
-                    pick,
+                    instances,
+                    pick_snap,
                     ignore_instances=ignore_collision_instances,
                 )
-                self.move_instance(pick.brick_instance, pick_instance_transform)
+                self.move_instance(
+                    pick_snap.brick_instance, pick_instance_transform)
                 if not collision:
                     transforms.append(transform)
+            '''
         else:
             transforms = candidate_transforms
         
         return transforms
     
-    def all_pick_and_place_transforms_old(self,
-        pick,
-        place,
-        check_collision=False,
-    ):
-        assert pyquaternion_available
-        
-        if check_collision:
-            assert self.collision_checker is not None
-        
-        if isinstance(pick, SnapInstance):
-            pick_instance_id = int(pick.brick_instance)
-            pick_snap = pick
-        else:
-            pick_instance_id, pick_snap = pick
-        pick_instance = self.instances[pick_instance_id]
-        pick_transform = unscale_transform(pick_snap.transform.copy())
-        inv_pick_transform = numpy.linalg.inv(pick_transform)
-        pick_instance_transform = pick_instance.transform.copy()
-        if place is None:
-            place_transform = self.upright
-        else:
-            if isinstance(place, SnapInstance):
-                place_transform = unscale_transform(place.transform.copy())
-            else:
-                place_instance_id, place_snap_id = place
-                place_instance = self.instances[place_instance_id]
-                place_snap = place_instance.snaps[place_snap_id]
-                place_transform = unscale_transform(place_snap.transform.copy())
-        
-        pick_and_place_transforms = []
-        for i in range(4):
-            angle = i * math.pi/2.
-            rotation = Quaternion(axis=(0,1,0), angle=angle)
-            candidate_transform = (
-                place_transform @
-                rotation.transformation_matrix @
-                inv_pick_transform @
-                pick_instance_transform
-            )
-            
-            if check_collision:
-                self.move_instance(pick_instance, candidate_transform)
-                collision = self.check_snap_collision(
-                    [pick_instance],
-                    pick_snap,
-                )
-                self.move_instance(pick_instance, pick_instance_transform)
-                if collision:
-                    continue
-            
-            pick_and_place_transforms.append(candidate_transform)
-        
-        return pick_and_place_transforms
-    
-    def pick_and_place_snap_transform(self,
+    # this would be faster if we did not check all collisions
+    # but instead ranked the transforms by distance, then checked collisions
+    # on the nearest one until we find a non-collider
+    def pick_and_place_snap_transform_old(self,
         pick,
         place,
         check_collision=False,
@@ -696,6 +684,60 @@ class BrickScene:
             if pseudo_angle > best_pseudo_angle:
                 best_transform = candidate_transform
                 best_pseudo_angle = pseudo_angle
+        
+        return best_transform
+    
+    def pick_and_place_snap_transform(self,
+        pick_snap,
+        place_snap,
+        instances=None,
+        check_collision=False,
+        ignore_collision_instances=None,
+    ):
+        # get all possible pick and place transforms
+        # skip collisions because we will test them greedily here
+        pick_and_place_transforms = self.all_pick_and_place_transforms(
+            pick_snap, place_snap, check_collision=False,
+        )
+        
+        #inv_pick_instance_transform = numpy.linalg.inv(
+        #    pick_snap.brick_instance.transform)
+        
+        #best_transform = None
+        #best_pseudo_angle = -float('inf')
+        #for candidate_transform in pick_and_place_transforms:
+        #    #offset = candidate_transform @ inv_pick_instance_transform
+        #    #pseudo_angle = numpy.trace(offset[:3,:3])
+        #    #if pseudo_angle > best_pseudo_angle:
+        #    pseudo_angle = surrogate_angle(
+        #        candidate_transform, pick_snap.brick_instance.transform)
+        #    if a > best_surrogate_angle:
+        #        best_transform = candidate_transform
+        #        best_pseudo_angle = pseudo_angle
+        
+        # compute proximity to the brick's current orientation
+        angles = [
+            (surrogate_angle(t, pick_snap.brick_instance.transform), i)
+            for i, t in enumerate(pick_and_place_transforms)
+        ]
+        
+        if check_collision:
+            # (reversed because surrogate_angle is large when angles are small)
+            sorted_angles = sorted(angles, reverse=True)
+            sorted_transforms = [
+                pick_and_place_transforms[i] for _,i in sorted_angles]
+            
+            best_transform = self.check_multiple_transforms_for_snap_collisions(
+                pick_snap,
+                sorted_transforms,
+                instances=instances,
+                return_first=True,
+                ignore_instances=ignore_collision_instances,
+            )
+        else:
+            #_, best_transform = max(angles)
+            _, i = max(angles)
+            best_transform = pick_and_place_transforms[i]
         
         return best_transform
     
@@ -743,39 +785,8 @@ class BrickScene:
                 return False
         
         original_transforms = [i.transform for i in instances]
-        if space == 'local':
-            pivot_a, pivot_b = local_pivot(snap.transform)
-            #offset = (
-            #    snap.transform @
-            #    transform @
-            #    numpy.linalg.inv(snap.transform)
-            #)
-        elif space == 'global':
-            pivot_a, pivot_b = global_pivot(snap.transform)
-            #snap_translate = numpy.eye(4)
-            #snap_translate[:3,3] = snap.transform[:3,3]
-            #offset = (
-            #    snap_translate @
-            #    transform @
-            #    numpy.linalg.inv(snap_translate)
-            #)
-        elif space == 'projected_global':
-            pivot_a, pivot_b = projected_global_pivot(snap.transform)
-            #orthogonals = orthogonal_orientations()
-            #_, orthogonal = max([
-            #    (surrogate_angle(snap.transform, o), o)
-            #    for o in orthogonals
-            #])
-            #orthogonal[:3,3] = snap.transform[:3,3]
-            #offset = (
-            #    orthogonal @
-            #    transform @
-            #    numpy.linalg.inv(orthogonal)
-            #)
-        elif space == 'projected_camera':
-            camera_pose = numpy.linalg.inv(self.get_view_matrix())
-            pivot_a, pivot_b = projected_global_pivot(
-                snap.transform, offset=camera_pose)
+        pivot_a, pivot_b = space_pivot(
+            space, snap.transform, numpy.linalg.inv(self.get_view_matrix()))
         
         offset = pivot_a @ transform @ pivot_b
         for instance in instances:
@@ -851,3 +862,60 @@ class BrickScene:
             self.render_environment.window.set_active()
         return self.collision_checker.check_snap_collision(
             target_instances, snap, *args, **kwargs)
+    
+    def check_multiple_transforms_for_snap_collisions(
+        self,
+        snap,
+        transforms,
+        instances=None,
+        return_first=False,
+        *args,
+        **kwargs,
+    ):
+        '''
+        Given a snap and a list of transforms, check if moving the snap to
+        any of the specified transform results in collision.
+        Can return either a list of non-colliding transforms or the first
+        noncolliding transform.
+        '''
+        if instances is None:
+            instances = [snap.brick_instance]
+        if not return_first:
+            non_colliders = []
+        
+        primary_transform = snap.brick_instance.transform
+        inv_primary_transform = numpy.linalg.inv(primary_transform)
+        
+        # record the original transforms
+        original_transforms = []
+        instance_offsets = []
+        for instance in instances:
+            t = instance.transform.copy()
+            original_transforms.append(t)
+            instance_offsets.append(inv_primary_transform @ t)
+        
+        for transform in transforms:
+            # move the instances into place
+            for instance, offset in zip(instances, instance_offsets):
+                new_transform = transform @ offset
+                self.move_instance(instance, new_transform)
+            
+            # check collision
+            collision = self.check_snap_collision(
+                instances, snap, *args, **kwargs)
+            
+            # return the instances to their original position
+            for instance, t in zip(instances, original_transforms):
+                self.move_instance(instance, t)
+            
+            # record/return
+            if not collision:
+                if return_first:
+                    return transform
+                else:
+                    non_colliders.append(transform)
+        
+        if return_first:
+            return None
+        else:
+            return non_colliders

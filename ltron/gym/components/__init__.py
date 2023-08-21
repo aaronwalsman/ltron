@@ -32,15 +32,23 @@ from ltron.gym.components.remove_brick import (
 from ltron.gym.components.pick_and_place import (
     CursorPickAndPlaceComponent,
 )
+from ltron.gym.components.transform import TransformSnapComponent
 from ltron.gym.components.rotate import (
     #CursorRotateSnapComponent,
     CursorRotateSnapAboutAxisComponent,
     CursorOrthogonalCameraSpaceRotationComponent,
 )
+from ltron.gym.components.translate import (
+    CursorOrthogonalCameraSpaceTranslateComponent,
+)
 from ltron.gym.components.insert import (
     InsertBrickComponent,
 )
 from ltron.gym.components.done import DoneComponent
+from ltron.gym.components.break_and_make import (
+    BreakAndMakePhaseSwitchComponent, PhaseScoreComponent)
+from ltron.gym.components.assemble_step import (
+    AssembleStepComponent, AssembleStepTargetRecorder)
 from ltron.gym.components.snap_cursor import SnapCursorComponent
 from ltron.gym.components.visual_interface import (
     VisualInterfaceConfig,
@@ -50,3 +58,4 @@ from ltron.gym.components.visual_interface import (
 from ltron.gym.components.assembly import AssemblyComponent
 from ltron.gym.components.build_score import BuildScore
 from ltron.gym.components.place_above_scene import PlaceAboveScene
+from ltron.gym.components.detect_objective import DetectObjective

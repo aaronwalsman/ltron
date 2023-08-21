@@ -14,7 +14,7 @@ def standard_transforms(
     rank=0,
     size=1,
     shuffle=False,
-    shuffle_buffer=100,
+    shuffle_buffer=10000,
     repeat=False,
 ):
     if subset is not None:
@@ -22,7 +22,8 @@ def standard_transforms(
         dataset = dataset.slice(subset)
     if rank != 0 and size != 1:
         dataset = dataset.slice(rank, None, size)
-    dataset = dataset.shuffle(shuffle * shuffle_buffer)
+    if shuffle:
+        dataset = dataset.shuffle(shuffle_buffer, initial=shuffle_buffer)
     if repeat:
         dataset = dataset.repeat()
     

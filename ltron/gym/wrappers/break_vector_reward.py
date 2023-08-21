@@ -39,7 +39,7 @@ class BreakVectorEnvAssemblyRewardWrapper:
             obs[self.current_assembly_component]['shape'] != 0,
             axis=1,
         )
-        #self.mask = numpy.ones(self.vector_env.num_envs, dtype=numpy.bool)
+        #self.mask = numpy.ones(self.vector_env.num_envs, dtype=bool)
         self.initial_instance_count = self.previous_instance_count
         return obs, info
     

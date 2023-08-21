@@ -16,71 +16,6 @@ from ltron.dataset.info import get_dataset_info
 from ltron.dataset.sampler.subassembly_sampler import get_all_brick_shapes
 from ltron.bricks.brick_scene import BrickScene
 
-#def sample_dataset(
-#    name,
-#    subassembly_samplers,
-#    colors,
-#    min_max_instances_per_scene,
-#    train_scenes,
-#    test_scenes,
-#):
-#    dataset_metadata = {
-#        'splits':{}
-#    }
-#    
-#    colors = sorted(colors)
-#    
-#    max_instances = 0
-#    max_edges = 0
-#    train_collections = []
-#    test_collections = []
-#    all_collections = []
-#    for min_instances, max_instances in min_max_instances_per_scene:
-#        size_collections = []
-#        for split, num_scenes in ('train', train_scenes), ('test', test_scenes):
-#            split_name = '%i_%i_%s'%(min_instances, max_instances, split)
-#            collection_name = '%s_%s'%(name, split_name)
-#            size_collections.append(collection_name)
-#            all_collections.append(collection_name)
-#            if split == 'train':
-#                train_collections.append(collection_name)
-#            elif split == 'test':
-#                test_collections.append(collection_name)
-#            collection_max_instances, collection_max_edges = sample_collection(
-#                collection_name,
-#                subassembly_samplers,
-#                colors,
-#                min_instances,
-#                max_instances,
-#                num_scenes,
-#            )
-#            max_instances = max(max_instances, collection_max_instances)
-#            max_edges = max(max_edges, collection_max_edges)
-#            
-#            dataset_metadata['splits'][split_name] = {
-#                'sources':[collection_name],
-#            }
-#        
-#        size_all_split_name = '%i_%i_all'%(min_instances, max_instances)
-#        dataset_metadata['splits'][size_all_split_name] = {
-#            'sources':size_collections,
-#        }
-#        
-#    dataset_metadata['splits']['train_all'] = train_collections
-#    dataset_metadata['splits']['test_all'] = test_collections
-#    dataset_metadata['splits']['all'] = all_collections
-#    
-#    dataset_metadata['max_instances_per_scene'] = max_instances
-#    dataset_metadata['max_edges_per_scene'] = max_edges
-#    all_shapes = sorted(get_all_brick_shapes(subassembly_samplers))
-#    num_shapes = len(all_shapes)
-#    dataset_metadata['shape_ids'] = dict(zip(all_shapes, range(1, num_shapes)))
-#    dataset_metadata['color_ids'] = dict(zip(colors, range(1, len(colors)+1)))
-#    
-#    dataset_path = os.path.join(settings.PATHS['datasets'], '%s.json'%name)
-#    with open(dataset_path, 'w') as f:
-#        json.dump(dataset_metadata, f, indent=2)
-
 def sample_shard(
     dataset_name,
     split_name,
@@ -89,10 +24,15 @@ def sample_shard(
     min_instances,
     max_instances,
     num_scenes,
-    compress=False
+    compress=False,
+    shard_id=None,
 ):
     size_name = '%i_%i'%(min_instances, max_instances)
-    shard_name = '%s_%s_%s'%(dataset_name, size_name, split_name)
+    if shard_id is None:
+        shard_name = '%s_%s_%s'%(dataset_name, size_name, split_name)
+    else:
+        shard_name = '%s_%s_%s_%i'%(
+            dataset_name, size_name, split_name, shard_id)
     print('-'*80)
     print('Building Shard: %s'%shard_name)
     
@@ -101,24 +41,6 @@ def sample_shard(
         dataset_info = get_dataset_info(dataset_name)
     except LtronMissingDatasetException:
         dataset_info = {}
-    
-    # this is a global class list now
-    '''
-    # add the color_ids and shape_ids to the dataset info
-    colors = sorted(colors)
-    shapes = sorted(get_all_brick_shapes(subassembly_samplers))
-    for color_shape, values in ('color', colors), ('shape', shapes):
-        ids = dict(zip(values, range(1, len(values)+1)))
-        # if the ids exist in dataset_info, make sure they match the new ids
-        if '%s_ids'%color_shape in dataset_info:
-            if dataset_info['%s_ids'%color_shape] != ids:
-                raise ValueError('New %ss (%s) does not match existing (%s)'%(
-                    color_shape, colors, existing_colors))
-        
-        # if ids do not exist, add them
-        else:
-            dataset_info['%s_ids'%color_shape] = ids
-    '''
     
     # open the shard tar file
     if compress:

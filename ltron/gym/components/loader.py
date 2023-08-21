@@ -42,7 +42,7 @@ class DatasetLoader(SuperMechaComponent):
         rank=0,
         size=1,
         shuffle=False,
-        shuffle_buffer=1000,
+        shuffle_buffer=10000,
         repeat=False,
     ):
         self.scene_component = scene_component
@@ -90,6 +90,7 @@ class DatasetLoader(SuperMechaComponent):
             except StopIteration:
                 self.finished = True
             else:
+                self.file_name = datapoint['__key__']
                 text = datapoint['mpd']
                 data_name = datapoint['__key__'] + '.mpd'
                 self.scene_component.brick_scene.import_text(data_name, text)

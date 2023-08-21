@@ -15,21 +15,13 @@ class InsertBrickComponent(SuperMechaComponent):
     def __init__(self,
         scene_component,
         place_above_scene_offset=48,
-        shape_class_labels=None,
-        color_class_labels=None,
     ):
         self.scene_component = scene_component
-        if shape_class_labels is None:
-            shape_class_labels = SHAPE_CLASS_LABELS
-            num_shape_classes = NUM_SHAPE_CLASSES
-        else:
-            num_shape_classes = len(shape_class_labels)+1
+        shape_class_labels = SHAPE_CLASS_LABELS
+        num_shape_classes = NUM_SHAPE_CLASSES
         
-        if color_class_labels is None:
-            color_class_labels = COLOR_CLASS_LABELS
-            num_color_classes = NUM_COLOR_CLASSES
-        else:
-            num_color_classes = len(color_class_labels)+1
+        color_class_labels = COLOR_CLASS_LABELS
+        num_color_classes = NUM_COLOR_CLASSES
         
         self.id_to_shape = {
             value:key for key,value in shape_class_labels.items()}
@@ -49,6 +41,14 @@ class InsertBrickComponent(SuperMechaComponent):
             shape_name = self.id_to_shape[shape_id]
             color_name = self.id_to_color[color_id]
             instance = scene.add_instance(shape_name, color_name, scene.upright)
+            # find the first upright snap and use that as the brick center
+            for snap in instance.snaps:
+                if abs(snap.transform[1,1]) > 0.999:
+                    adjust_center = numpy.eye(4)
+                    adjust_center[:3,3] = -snap.transform[:3,3]
+                    scene.move_instance(
+                        instance, adjust_center @ instance.transform)
+                    break
             scene.place_above_scene(
                 [instance], offset=self.place_above_scene_offset)
         

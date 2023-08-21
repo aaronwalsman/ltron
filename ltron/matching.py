@@ -20,6 +20,7 @@ def match_assemblies(
     #part_names,
     kdtree=None,
     radius=0.01,
+    allow_rotations=True,
 ):
     '''
     Computes the rigid offset between two assemblies that brings as many of
@@ -100,6 +101,11 @@ def match_assemblies(
                     best_sym_matches = []
                     for symmetry_pose in symmetry_poses:
                         a_to_b = pose_b @ numpy.linalg.inv(symmetry_pose)
+                        
+                        if (not allow_rotations and
+                            not numpy.allclose(a_to_b[:3,:3], numpy.eye(3))
+                        ):
+                            continue
                         
                         valid_matches = find_matches_under_transform(
                             assembly_a,
@@ -233,7 +239,7 @@ def validate_matches(assembly_a, assembly_b, matches, a_to_b): #, part_names):
 # 4. unmatched, wrong shape/color (list)
 
 def matching_edges(assembly, i1=None, i2=None, s1=None, s2=None):
-    matches = numpy.ones(assembly['edges'].shape[1], dtype=numpy.bool)
+    matches = numpy.ones(assembly['edges'].shape[1], dtype=bool)
     if i1 is not None:
         matches = matches & (assembly['edges'][0] == i1)
     if i2 is not None:

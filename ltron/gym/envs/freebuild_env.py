@@ -26,7 +26,7 @@ class FreebuildEnvConfig(VisualInterfaceConfig, LoaderConfig):
 class FreebuildEnv(SuperMechaContainer):
     def __init__(self,
         config,
-        train=False,
+        train=True,
     ):
         components = OrderedDict()
         
@@ -48,11 +48,8 @@ class FreebuildEnv(SuperMechaContainer):
         )
         
         # loader
-        if config.load_scene is not None:
-            components['loader'] = SingleFileLoader(
-                components['scene'],
-                config.load_scene,
-            )
+        components['loader'] = make_loader(
+            config, components['scene'], train=train)
         
         # time step
         components['time'] = TimeStepComponent(

@@ -17,25 +17,20 @@ from ltron.gym.components import (
     ColorRenderComponent,
     AssemblyComponent,
     BuildScore,
-    PlaceAboveScene,
+    BreakAndMakePhaseSwitchComponent,
+    PhaseScoreComponent,
+    AssembleStepTargetRecorder,
 )
 
-class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
-    load_start_scene = None
-    
-    max_time_steps = 1000000
+class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     image_height = 256
     image_width = 256
     render_mode = 'egl'
-    
-    image_based_target = False
-    use_place_above_for_start = False
-    randomize_place_above_orientation = False
-    place_above_orientation_mode = 24
-    place_above_selection = 'highest'
     compute_collision_map = False
+    
+    max_time_steps = 48
 
-class MakeEnv(SuperMechaContainer):
+class SteppedBreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
         config,
         train=False,
@@ -65,14 +60,29 @@ class MakeEnv(SuperMechaContainer):
         
         # time step
         components['time'] = TimeStepComponent(
-            config.max_time_steps, observe_step=True)
+            config.max_time_steps, observe_step=False)
+        
+        # initial assembly
+        components['initial_assembly'] = AssemblyComponent(
+            components['scene'],
+            update_on_init=False,
+            update_on_reset=True,
+            update_on_step=False,
+            observable=True,
+            compute_collision_map=True,
+        )
         
         # visual interface
+        config.include_done = False
+        config.include_phase = True
+        config.include_assemble_step = True
         interface_components = make_visual_interface(
             config,
             components['scene'],
             train=train,
         )
+        
+        # separate out the render and nonrender components from the interface
         render_components = {
             k:v for k,v in interface_components.items()
             if 'render' in k
@@ -82,49 +92,6 @@ class MakeEnv(SuperMechaContainer):
             if 'render' not in k
         }
         components.update(nonrender_components)
-        
-        if config.image_based_target:
-            components['target_image'] = ColorRenderComponent(
-            components['scene'],
-            config.image_height,
-            config.image_width,
-            anti_alias=True,
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=False,
-            observable=True,
-        )
-        components['target_assembly'] = AssemblyComponent(
-            components['scene'],
-            update_on_init=False,
-            update_on_reset=True,
-            update_on_step=False,
-            observable=True,
-            compute_collision_map=config.compute_collision_map
-        )
-        
-        if config.use_place_above_for_start:
-            components['place_above_scene'] = PlaceAboveScene(
-                components['scene'],
-                offset=(-96,48,-96),
-                randomize_orientation=config.randomize_place_above_orientation,
-                randomize_orientation_mode=config.place_above_orientation_mode,
-                selection_mode=config.place_above_selection,
-            )
-        else:
-            if config.load_start_scene is None:
-                components['clear_scene'] = ClearScene(
-                    components['scene'],
-                    update_on_init=True,
-                    update_on_reset=True,
-                )
-            else:
-                components['start_loader'] = make_loader(
-                    config,
-                    components['scene'],
-                    train=train,
-                    load_key='load_start_scene',
-                )
         
         # color render
         components['image'] = ColorRenderComponent(
@@ -143,13 +110,30 @@ class MakeEnv(SuperMechaContainer):
             update_on_reset=True,
             update_on_step=True,
             observable=True,
+            compute_collision_map=config.compute_collision_map,
+        )
+        components['target_image'] = AssembleStepTargetRecorder(
+            components['image'],
+            components['action_primitives'].components['assemble_step'],
+            components['action_primitives'].components['phase'],
+        )
+        components['target_assembly'] = AssembleStepTargetRecorder(
+            components['assembly'],
+            components['action_primitives'].components['assemble_step'],
+            components['action_primitives'].components['phase'],
+            zero_phase_zero=True,
         )
         components.update(render_components)
         
         # score
-        components['score'] = BuildScore(
-            components['target_assembly'],
+        score_component = BuildScore(
+            components['initial_assembly'],
             components['assembly'],
+        )
+        components['score'] = PhaseScoreComponent(
+            #components['phase'],
+            components['action_primitives'].components['phase'],
+            score_component,
         )
         
         super().__init__(components)

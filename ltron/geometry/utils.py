@@ -108,10 +108,22 @@ def global_pivot(transform):
     return offset, numpy.linalg.inv(offset)
 
 def projected_global_pivot(transform, offset=None):
-    os = orthogonal_orientations()
-    sas = [surrogate_angle(transform@o, offset) for o in os]
+    if offset is None:
+        offset = numpy.eye(4)
+    orthos = orthogonal_orientations()
+    sas = [surrogate_angle(transform@o, offset) for o in orthos]
     i = numpy.argmax(sas)
-    closest_orthogonal = os[i]
-    offset = transform @ closest_orthogonal
-    offset[:3,3] = transform[:3,3]
-    return offset, numpy.linalg.inv(offset)
+    closest_orthogonal = orthos[i]
+    closest_offset = transform @ closest_orthogonal
+    closest_offset[:3,3] = transform[:3,3]
+    return closest_offset, numpy.linalg.inv(closest_offset)
+
+def space_pivot(space, transform, offset=None):
+    if space == 'local':
+        return local_pivot(transform)
+    elif space == 'global':
+        return global_pivot(transform)
+    elif space == 'projected_global':
+        return projected_global_pivot(transform)
+    elif space == 'projected_camera':
+        return projected_global_pivot(transform, offset=offset)
