@@ -105,6 +105,7 @@ class CursorPickAndPlaceComponent(PickAndPlaceComponent):
         cursor_component,
         #overlay_brick_component=None,
         check_collision=False,
+        truncate_on_failure=False,
     ):
         super().__init__(
             scene_component,
@@ -112,16 +113,20 @@ class CursorPickAndPlaceComponent(PickAndPlaceComponent):
             check_collision=check_collision,
         )
         self.cursor_component = cursor_component
+        self.truncate_on_failure = truncate_on_failure
         
         self.action_space = Discrete(2)
     
     def step(self, action):
+        truncate = False
         if action:
             ci, cs = self.cursor_component.click_snap
             ri, rs = self.cursor_component.release_snap
-            self.pick_and_place(ci, cs, ri, rs)
+            success = self.pick_and_place(ci, cs, ri, rs)
+            if self.truncate_on_failure and not success:
+                truncate = True
         
-        return None, 0., False, False, {}
+        return None, 0., False, truncate, {}
     
     def no_op_action(self):
         return 0

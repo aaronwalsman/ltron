@@ -30,7 +30,7 @@ ViewpointActions = Enum('ViewpointActions', [
 class FixedViewpointComponent(SuperMechaComponent):
     def __init__(self,
         scene_component=None,
-        azimuth=0,
+        azimuth=4,
         azimuth_steps=16,
         elevation=0,
         elevation_steps=5,
@@ -44,7 +44,9 @@ class FixedViewpointComponent(SuperMechaComponent):
         aspect_ratio=1.,
         near_clip=10.,
         far_clip=50000.,
-        jiggle=None,
+        orientation_jiggle=None,
+        translation_jiggle=None,
+        center_on_reset=False,
     ):
         self.scene_component = scene_component
         self.azimuth = azimuth
@@ -66,10 +68,22 @@ class FixedViewpointComponent(SuperMechaComponent):
         self.aspect_ratio = aspect_ratio
         self.near_clip = near_clip
         self.far_clip = far_clip
-        self.jiggle = jiggle
+        self.orientation_jiggle = orientation_jiggle
+        self.translation_jiggle = translation_jiggle
+        self.center_on_reset = center_on_reset
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=None)
+        if self.center_on_reset:
+            scene = self.scene_component.brick_scene
+            box_min, box_max = scene.get_bbox()
+            center = (box_min + box_max)*0.5
+            x_center = round(center[0] / 20.) * 20.
+            y_center = round(center[1] / 8.) * 8.
+            z_center = round(center[2] / 20.) * 20.
+            self.x = x_center
+            self.y = y_center
+            self.z = z_center
         self.set_camera()
         return None, {}
     
@@ -85,20 +99,26 @@ class FixedViewpointComponent(SuperMechaComponent):
         
         # compute the view matrix
         azimuth = self.azimuth * self.azimuth_step_size
-        if self.jiggle:
-            azimuth += (numpy.random.rand() * 2. - 1.) * self.jiggle
+        if self.orientation_jiggle:
+            azimuth += (numpy.random.rand() * 2. - 1.) * self.orientation_jiggle
         elevation = (
             self.elevation * self.elevation_step_size +
             self.elevation_range[0]
         )
-        if self.jiggle:
-            elevation += (numpy.random.rand() * 2. - 1.) * self.jiggle
+        if self.orientation_jiggle:
+            elevation += (
+                numpy.random.rand() * 2. - 1.) * self.orientation_jiggle
         distance = (
             self.distance * self.distance_step_size +
             self.distance_range[0]
         )
+        x,y,z = self.x, self.y, self.z
+        if self.translation_jiggle:
+            x += (numpy.random.rand() * 2. - 1.) * self.translation_jiggle
+            y += (numpy.random.rand() * 2. - 1.) * self.translation_jiggle
+            z += (numpy.random.rand() * 2. - 1.) * self.translation_jiggle
         self.camera_matrix = camera.azimuthal_parameters_to_matrix(
-            azimuth, elevation, 0, distance, 0, 0, self.x, self.y, self.z)
+            azimuth, elevation, 0, distance, 0, 0, x, y, z)
         self.view_matrix = numpy.linalg.inv(self.camera_matrix)
         
         # set the projection and view matrix
@@ -108,7 +128,7 @@ class FixedViewpointComponent(SuperMechaComponent):
             scene.set_view_matrix(self.view_matrix)
     
     def step(self, action):
-        if self.jiggle:
+        if self.orientation_jiggle or self.translation_jiggle:
             self.set_camera()
         return None, 0., False, False, {}
     

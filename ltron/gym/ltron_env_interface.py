@@ -77,6 +77,10 @@ class LtronInterface:
             self.env.reset()
             return
         
+        if key == b'\x1b':
+            breakpoint()
+            return
+        
         elif key == b'\r':
             print('Please specify an output image file path:')
             file_path = input()
@@ -215,6 +219,8 @@ class LtronInterface:
             print('Reward:%.02f Terminal:%s Truncated:%s'%(r, t, u))
     
     def special_key_press(self, key, x, y):
+        
+        print(key)
         
         mode_space = self.env.action_space['action_primitives']['mode']
         translate_mode = mode_space.names.index('translate')

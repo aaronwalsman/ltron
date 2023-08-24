@@ -58,15 +58,24 @@ class OrthogonalCameraSpaceTranslateComponent(TransformSnapComponent):
 class CursorOrthogonalCameraSpaceTranslateComponent(
     OrthogonalCameraSpaceTranslateComponent
 ):
-    def __init__(self, scene_component, cursor_component, check_collision):
+    def __init__(self,
+        scene_component,
+        cursor_component,
+        check_collision,
+        truncate_on_failure=False,
+    ):
         super().__init__(scene_component, check_collision)
         self.cursor_component = cursor_component
+        self.truncate_on_failure = truncate_on_failure
     
     def step(self, action):
         if not action:
             return None, 0, False, False, {}
         
         instance_id, snap_id = self.cursor_component.click_snap
-        avoid_collision = super().transform_snap(instance_id, snap_id, action)
+        success = super().transform_snap(instance_id, snap_id, action)
+        truncate = False
+        if not success and self.truncate_on_failure:
+            truncate = True
         
-        return None, 0., False, False, {}
+        return None, 0., False, truncate, {}
