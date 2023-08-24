@@ -251,7 +251,7 @@ class SnapCylinder(SnapStyle):
                     snaps.append(Axle_4_12(command, transform))
                 
                 # pin
-                if c == 'r' and r == 6 and l == 16 and caps != 'both':
+                elif c == 'r' and r == 6 and l == 16 and caps != 'both':
                     ty -= 3
                     first_transform = transform @ translate_matrix([0,ty,0])
                     snaps.append(HalfPin(command, first_transform))
