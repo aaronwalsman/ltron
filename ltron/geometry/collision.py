@@ -122,6 +122,10 @@ def check_snap_collision(
     
     if return_colliding_instances:
         colliding_instances = []
+    
+    connected_snaps = scene.get_snap_connections(snap)
+    collision_transforms = snap.get_collision_direction_transforms(
+        connected_snaps=connected_snaps)
     for i, render_transform in enumerate(snap.collision_direction_transforms):
         if directional_scene_instances is not None:
             scene_instances = directional_scene_instances[i]

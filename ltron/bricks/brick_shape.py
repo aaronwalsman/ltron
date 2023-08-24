@@ -92,79 +92,6 @@ class BrickShape:
         return mesh_entry
     
     def construct_snaps_and_vertices(self):
-        def snaps_and_vertices_from_nested_document(document, transform=None):
-            # Due to how snap clearing works, everything in this function
-            # must be computed from scratch for each part.  Do not attempt
-            # cache intermediate results for sub-files.
-            if transform is None:
-                transform = numpy.eye(4)
-            reference_table = document.reference_table
-            snaps = []
-            vertices = [numpy.zeros((4,0))]
-            for command in document.commands:
-                if isinstance(command, LDrawImportCommand):
-                    reference_name = command.reference_name
-                    reference_document = (
-                            reference_table['ldraw'][reference_name])
-                    reference_transform = transform @ command.transform
-                    try:
-                        s, v = snaps_and_vertices_from_nested_document(
-                                reference_document, reference_transform)
-                        snaps.extend(s)
-                        vertices.append(v)
-                    except:
-                        print('Error while importing: %s'%reference_name)
-                        raise
-                elif isinstance(command, LDCadSnapInclCommand):
-                    reference_name = command.reference_name
-                    try:
-                        reference_document = (
-                                reference_table['shadow'][reference_name])
-                    except:
-                        print('Could not find shadow file %s'%
-                            reference_name)
-                        raise
-                    #reference_transform = transform @ command.transform
-                    if 'grid' in command.flags:
-                        reference_transforms = griderate(
-                            command.flags['grid'],
-                            transform @ command.transform
-                        )
-                    else:
-                        reference_transforms = [transform @ command.transform]
-                    try:
-                        for reference_transform in reference_transforms:
-                            s, v = snaps_and_vertices_from_nested_document(
-                                    reference_document, reference_transform)
-                            snaps.extend(s)
-                            vertices.append(v)
-                    except:
-                        print('Error while importing: %s'%reference_name)
-                        raise
-                elif isinstance(
-                        command,
-                        (LDCadSnapStyleCommand, LDCadSnapClearCommand)):
-                    new_snaps = Snap.construct_snaps(command, transform)
-                    snaps.extend(new_snaps)
-                elif isinstance(command, LDrawContentCommand):
-                    vertices.append(transform @ command.vertices)
-            
-            if not document.shadow:
-                reference_name = document.reference_name
-                if reference_name in reference_table['shadow']:
-                    shadow_document = reference_table['shadow'][reference_name]
-                    try:
-                        s,v = snaps_and_vertices_from_nested_document(
-                                shadow_document, transform)
-                        snaps.extend(s)
-                        vertices.append(v)
-                    except:
-                        print('Error while importing shadow: %s'%reference_name)
-                        raise
-            
-            vertices = numpy.concatenate(vertices, axis=1)
-            return snaps, vertices
-        
         try:
             snaps, self.vertices = snaps_and_vertices_from_nested_document(
                 self.document)
@@ -209,3 +136,77 @@ class BrickShape:
     
     def get_upright_snaps(self):
         return [snap for snap in self.snaps if snap.is_upright()]
+
+def snaps_and_vertices_from_nested_document(document, transform=None):
+    # Due to how snap clearing works, everything in this function
+    # must be computed from scratch for each part.  Do not attempt
+    # cache intermediate results for sub-files.
+    if transform is None:
+        transform = numpy.eye(4)
+    reference_table = document.reference_table
+    snaps = []
+    vertices = [numpy.zeros((4,0))]
+    for command in document.commands:
+        if isinstance(command, LDrawImportCommand):
+            reference_name = command.reference_name
+            reference_document = (
+                    reference_table['ldraw'][reference_name])
+            reference_transform = transform @ command.transform
+            try:
+                s, v = snaps_and_vertices_from_nested_document(
+                        reference_document, reference_transform)
+                snaps.extend(s)
+                vertices.append(v)
+            except:
+                print('Error while importing: %s'%reference_name)
+                raise
+        elif isinstance(command, LDCadSnapInclCommand):
+            reference_name = command.reference_name
+            try:
+                reference_document = (
+                        reference_table['shadow'][reference_name])
+            except:
+                print('Could not find shadow file %s'%
+                    reference_name)
+                raise
+            #reference_transform = transform @ command.transform
+            if 'grid' in command.flags:
+                reference_transforms = griderate(
+                    command.flags['grid'],
+                    transform @ command.transform
+                )
+            else:
+                reference_transforms = [transform @ command.transform]
+            try:
+                for reference_transform in reference_transforms:
+                    s, v = snaps_and_vertices_from_nested_document(
+                            reference_document, reference_transform)
+                    snaps.extend(s)
+                    vertices.append(v)
+            except:
+                print('Error while importing: %s'%reference_name)
+                raise
+        elif isinstance(
+                command,
+                (LDCadSnapStyleCommand, LDCadSnapClearCommand)):
+            new_snaps = Snap.construct_snaps(command, transform)
+            snaps.extend(new_snaps)
+        elif isinstance(command, LDrawContentCommand):
+            vertices.append(transform @ command.vertices)
+    
+    if not document.shadow:
+        reference_name = document.reference_name
+        if reference_name in reference_table['shadow']:
+            shadow_document = reference_table['shadow'][reference_name]
+            try:
+                s,v = snaps_and_vertices_from_nested_document(
+                        shadow_document, transform)
+                snaps.extend(s)
+                vertices.append(v)
+            except:
+                print('Error while importing shadow: %s'%reference_name)
+                raise
+    
+    vertices = numpy.concatenate(vertices, axis=1)
+    return snaps, vertices
+

@@ -179,11 +179,11 @@ class UnsupportedSnap(SnapStyle):
     def equivalent(self, other):
         return False
     
-    def get_collision_direction_transforms(self):
+    def get_collision_direction_transforms(self, connected_snaps=None):
         return []
     
-    collision_direction_transforms = property(
-        get_collision_direction_transforms)
+    #collision_direction_transforms = property(
+    #    get_collision_direction_transforms)
     
     def get_snap_mesh(self):
         assert splendor_available
@@ -439,7 +439,43 @@ class SnapCylinder(SnapStyle):
         
         return True
     
-    def get_collision_direction_transforms(self):
+    def get_collision_direction_transforms(self, connected_snaps=None):
+        if connected_snaps:
+            if self.polarity == '+':
+                return [
+                    numpy.array([
+                        [ 1, 0, 0, 0],
+                        [ 0, 0,-1, 0],
+                        [ 0, 1, 0, 0],
+                        [ 0, 0, 0, 1],
+                    ]),
+                ]
+            else:
+                return [
+                    numpy.array([
+                        [ 1, 0, 0, 0],
+                        [ 0, 0, 1, 0],
+                        [ 0, 1, 0, 0],
+                        [ 0, 0, 0, 1],
+                    ]),
+                ]
+        else:
+            return [
+                numpy.array([
+                    [ 1, 0, 0, 0],
+                    [ 0, 0, 1, 0],
+                    [ 0, 1, 0, 0],
+                    [ 0, 0, 0, 1],
+                ]),
+                numpy.array([
+                    [ 1, 0, 0, 0],
+                    [ 0, 0,-1, 0],
+                    [ 0, 1, 0, 0],
+                    [ 0, 0, 0, 1],
+                ]),
+            ]
+    
+    def get_collision_direction_transforms_old(self):
         # return a list of directions that this snap can be pushed onto another
         
         # is this a dangerous change?
@@ -472,8 +508,8 @@ class SnapCylinder(SnapStyle):
         #    ])
         #]
     
-    collision_direction_transforms = property(
-        get_collision_direction_transforms)
+    #collision_direction_transforms = property(
+    #    get_collision_direction_transforms)
 
 class UniversalSnap(SnapStyle):
     group = None
@@ -554,6 +590,81 @@ class AxleHole_4_12(SnapCylinder):
         return metric_close_enough(p, q, 1.)
     
     def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        t = default_pick_and_place_transforms(my_instance, other_instance)
+        return t
+
+class Wheel_10_16(SnapCylinder):
+    polarity = '+'
+    radius = 10
+    search_radius = 1
+    length = 16
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+        self.subtype_id = 'cylinder(10,16,u)'
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, Tire_10_16)
+    
+    def connected(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return False
+        
+        p = my_instance.transform[:3,3]
+        q = other_instance.transform[:3,3]
+        return metric_close_enough(p, q, 1.)
+    
+    def pick_and_place_transforms(self, my_instance, other_instance):
+        if not self.compatible(other_instance.snap_style):
+            return []
+        
+        return default_pick_and_place_transforms(my_instance, other_instance)
+
+class Tire_10_16(SnapCylinder):
+    polarity = '-'
+    radius = 10
+    search_radius = 1
+    length = 16
+    def __init__(self, command, transform):
+        super().__init__(command)
+        self.transform = transform
+        self.subtype_id = 'cylinder(4,12,u)'
+    
+    def get_snap_mesh(self):
+        assert splendor_available
+        return primitives.multi_cylinder(
+            start_height=0,
+            sections=((self.radius, -self.length),),
+            radial_resolution=16,
+            start_cap=True,
+            end_cap=True,
+        )
+    
+    def compatible(self, other):
+        if not super().compatible(other):
+            return False
+        return isinstance(other, Wheel_10_16)
+        
+        p = my_instance.transform[:3,3]
+        q = otehr_instance.transform[:3,3]
+        return metric_close_enough(p, q, 1.)
+    
+    def pick_and_place_transforms(self, my_instance, other_intance):
         if not self.compatible(other_instance.snap_style):
             return []
         
@@ -1035,7 +1146,7 @@ class SnapFinger(SnapStyle):
         
         return True
     
-    def get_collision_direction_transforms(self):
+    def get_collision_direction_transforms(self, connected_snaps=None):
         # return a list of directions that this snap can be pushed onto another
         if self.polarity == '+':
             sign = 1
@@ -1069,8 +1180,8 @@ class SnapFinger(SnapStyle):
             ]),
         ]
 
-    collision_direction_transforms = property(
-        get_collision_direction_transforms)
+    #collision_direction_transforms = property(
+    #    get_collision_direction_transforms)
 
 def make_finger_pair(radius, length, subtype_id):
     class SharedFinger(SnapFinger):
@@ -2004,8 +2115,9 @@ class SnapInstance:
     def __getattr__(self, attr):
         return getattr(self.snap_style, attr)
     
-    def get_collision_direction_transforms(self):
-        directions = self.snap_style.get_collision_direction_transforms()
+    def get_collision_direction_transforms(self, connected_snaps=None):
+        directions = self.snap_style.get_collision_direction_transforms(
+            connected_snaps=connected_snaps)
         return [self.transform @ direction for direction in directions]
     
     collision_direction_transforms = property(
