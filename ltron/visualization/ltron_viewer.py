@@ -265,7 +265,9 @@ def start_viewer(
                 instance = scene.instances[instance_id]
                 transform = instance.transform
                 type_name = instance.brick_shape.reference_name
+                color_name = str(instance.color)
                 print('Part Name: %s'%type_name)
+                print('Color: %s'%color_name)
                 #print('Translation: %f, %f, %f'%(
                 #        transform[0,3],
                 #        transform[1,3],
@@ -278,6 +280,7 @@ def start_viewer(
                 if snap_id is not None:
                     print('Snap ID: %i'%snap_id)
                     snap = instance.snaps[snap_id]
+                    print('Snap Style: %s'%snap.snap_style.__class__.__name__)
                     transform = snap.transform
                     print('Snap Transform:')
                     print(transform)
@@ -474,6 +477,22 @@ def start_viewer(
         
         elif key == b'b':
             breakpoint()
+        
+        elif key == b'x':
+            i,s = get_snap_under_mouse(x, y, '-')
+            i = scene.instances[i]
+            s = i.snaps[s]
+            collision = scene.check_snap_collision(
+                [i], s, return_colliding_instances=True)
+            print('Collisions %s (-):'%s, collision)
+        
+        elif key == b'X':
+            i,s = get_snap_under_mouse(x, y, '+')
+            i = scene.instances[i]
+            s = i.snaps[s]
+            collision = scene.check_snap_collision(
+                [i], s, return_colliding_instances=True)
+            print('Collisions %s (+):'%s, collision)
     
     def special_key(key, x, y):
         if key == glut.GLUT.GLUT_KEY_DOWN:
@@ -570,7 +589,7 @@ def start_viewer(
         
         elif key == b'P' or key == b'N':
             # render negative snaps in mask mode
-            if key == b'p':
+            if key == b'P':
                 p = '-'
             else:
                 p = '+'

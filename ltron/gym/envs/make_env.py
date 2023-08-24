@@ -34,6 +34,8 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     place_above_orientation_mode = 24
     
     compute_collision_map = False
+    
+    truncate_if_assembly_unchanged = False
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -142,6 +144,7 @@ class MakeEnv(SuperMechaContainer):
             update_on_reset=True,
             update_on_step=True,
             observable=True,
+            truncate_if_unchanged=truncate_if_assembly_unchanged,
         )
         components.update(render_components)
         

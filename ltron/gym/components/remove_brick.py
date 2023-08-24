@@ -44,18 +44,23 @@ class CursorRemoveBrickComponent(RemoveBrickComponent):
         scene_component,
         cursor_component,
         check_collision=False,
+        truncate_on_failure=False,
     ):
         super().__init__(scene_component, check_collision=check_collision)
         self.cursor_component = cursor_component
+        self.truncate_on_failure = truncate_on_failure
         
         self.action_space = Discrete(2)
     
     def step(self, action):
+        truncate = False
         if action:
             i, s = self.cursor_component.click_snap
-            self.disassemble(i, s)
+            success, index = self.disassemble(i, s)
+            if not success and self.truncate_on_failure:
+                truncate = True
         
-        return None, 0., False, False, {}
+        return None, 0., False, truncate, {}
     
     def no_op_action(self):
         return 0

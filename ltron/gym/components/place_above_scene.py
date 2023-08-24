@@ -21,10 +21,17 @@ class PlaceAboveScene(SuperMechaComponent):
         super().reset(seed)
         scene = self.scene_component.brick_scene
         collision_map = build_collision_map(scene)
-        removable_instances = [
-            i for i, groups in collision_map.items()
-            if all([len(v) == 0 for v in groups.values()])
-        ]
+        #removable_instances = [
+        #    i for i, groups in collision_map.items()
+        #    if all([len(v) == 0 for v in groups.values()])
+        #]
+        removable_instances = []
+        for i, groups in collision_map.items():
+            for c in groups.values():
+                if not len(c):
+                    removable_instances.append(i)
+                    break
+        
         #instances = list(scene.instances.values())
         if len(removable_instances):
             if False:

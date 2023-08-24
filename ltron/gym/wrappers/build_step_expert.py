@@ -130,13 +130,22 @@ class BuildStepExpert(ObservationWrapper):
         action_primitives = self.env.action_space['action_primitives']
         instance_ids = numpy.where(current_assembly['shape'])[0]
         num_bricks = len(instance_ids)
+        too_hard = False
         if 'assemble_step' in set(action_primitives.keys()):
             if observation['action_primitives']['phase'] == 0:
                 prev_assembly = (
                     self.env.components['target_assembly'].observations[-1])
                 prev_num_bricks = len(numpy.where(prev_assembly['shape'])[0])
-                if num_bricks and num_bricks < prev_num_bricks:
-                    assemble_step = True
+                #if num_bricks and num_bricks < prev_num_bricks:
+                if num_bricks:
+                    if prev_num_bricks - num_bricks > 1:
+                        too_hard = True
+                    elif prev_num_bricks - num_bricks == 1:
+                        assemble_step = True
+                    elif prev_num_bricks == num_bricks:
+                        assemble_step = False
+                    else:
+                        too_hard = True
                 else:
                     assemble_step = False
             else:
@@ -150,8 +159,9 @@ class BuildStepExpert(ObservationWrapper):
                     assemble_step = True
                 else:
                     assemble_step = False
+                
         
-        too_hard = (
+        too_hard |= (
             len(fn) > 1 or
             num_misplaced > 1 or
             (num_misplaced and (num_current != num_target)) or 
@@ -817,13 +827,18 @@ class BuildStepExpert(ObservationWrapper):
             if c not in fn:
                 continue
             
-            for (_,p,snaps), blocking in collision_map[i].items():
-                for b in blocking:
-                    if b in initial_to_current:
+            for (_,_,snaps), blocking_sets in collision_map[i].items():
+                for blocking_set in blocking_sets:
+                    blocked = False
+                    for b in blocking_set:
+                        if b in initial_to_current:
+                            blocked = True
+                            break
+                    
+                    if not blocked:
+                        for s in snaps:
+                            removable_clicks.append((c,s))
                         break
-                else:
-                    for s in snaps:
-                        removable_clicks.append((c,s))
         
         # sort the removable clicks by brick height
         brick_height = [

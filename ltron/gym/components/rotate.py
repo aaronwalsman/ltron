@@ -46,18 +46,28 @@ class RotateSnapAboutAxisComponent(TransformSnapComponent):
 class CursorOrthogonalCameraSpaceRotationComponent(
     OrthogonalCameraSpaceRotationComponent
 ):
-    def __init__(self, scene_component, cursor_component, check_collision):
+    def __init__(self,
+            scene_component,
+            cursor_component,
+            check_collision,
+            truncate_on_failure=False
+        ):
         super().__init__(scene_component, check_collision)
         self.cursor_component = cursor_component
+        self.truncate_on_failure=truncate_on_failure
     
     def step(self, action):
         if not action:
             return None, 0, False, False, {}
         
         instance_id, snap_id = self.cursor_component.click_snap
-        super().transform_snap(instance_id, snap_id, action)
+        success = super().transform_snap(instance_id, snap_id, action)
         
-        return None, 0., False, False, {}
+        truncate = False
+        if not success and self.truncate_on_failure:
+            truncate = True
+        
+        return None, 0., False, truncate, {}
 
 class CursorRotateSnapAboutAxisComponent(RotateSnapAboutAxisComponent):
     def __init__(self,

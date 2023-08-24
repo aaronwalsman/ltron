@@ -21,7 +21,7 @@ class TransformSnapComponent(SuperMechaComponent):
             return False
 
         transform = self.transforms[action]
-
+        
         scene = self.scene_component.brick_scene
         instance = scene.instances[instance_id]
         if snap_id >= len(instance.snaps):
@@ -35,5 +35,5 @@ class TransformSnapComponent(SuperMechaComponent):
             check_collision=self.check_collision,
             space=self.space,
         )
-
+        
         return avoided_collision
