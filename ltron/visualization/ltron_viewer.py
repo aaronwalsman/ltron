@@ -280,6 +280,7 @@ def start_viewer(
                 if snap_id is not None:
                     print('Snap ID: %i'%snap_id)
                     snap = instance.snaps[snap_id]
+                    print('Snap Style: %s'%snap.snap_style.__class__.__name__)
                     transform = snap.transform
                     print('Snap Transform:')
                     print(transform)

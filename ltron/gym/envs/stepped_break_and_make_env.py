@@ -29,6 +29,8 @@ class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     compute_collision_map = False
     
     max_time_steps = 48
+    
+    truncate_if_assembly_unchanged = False
 
 class SteppedBreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -111,6 +113,7 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             update_on_step=True,
             observable=True,
             compute_collision_map=config.compute_collision_map,
+            truncate_if_unchanged=config.truncate_if_assembly_unchanged,
         )
         components['target_image'] = AssembleStepTargetRecorder(
             components['image'],

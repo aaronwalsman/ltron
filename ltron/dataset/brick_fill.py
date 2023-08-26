@@ -70,7 +70,7 @@ def make_and_place(scene, x1, x2, y1, y2, z1, z2, color):
     elif (l,h,w) in brick_sizes:
         brick_shape = brick_sizes[l,h,w]
         rotate = numpy.array([
-            [ 0, 0,-1, 0],
+            [ 0, 0, 1, 0],
             [ 0, 1, 0, 0],
             [-1, 0, 0, 0],
             [ 0, 0, 0, 1]

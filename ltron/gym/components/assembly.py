@@ -24,12 +24,14 @@ class AssemblyComponent(SensorComponent):
         update_on_reset=False,
         update_on_step=False,
         observable=True,
+        truncate_if_unchanged=False,
     ):
         super().__init__(
             update_on_init=update_on_init,
             update_on_reset=update_on_reset,
             update_on_step=update_on_step,
             observable=observable,
+            truncate_if_unchanged=truncate_if_unchanged,
         )
         
         self.scene_component = scene_component

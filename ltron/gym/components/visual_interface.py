@@ -59,7 +59,12 @@ class VisualInterfaceConfig(Config):
     viewpoint_near_clip = 10.
     viewpoint_far_clip = 50000.
     viewpoint_observable = True
+    viewpoint_orientation_jiggle = False
+    viewpoint_translation_jiggle = False
+    viewpoint_center_on_reset = False
     
+    truncate_on_failure = False
+
 def make_visual_interface(
     config,
     scene_component,
@@ -119,14 +124,17 @@ def make_visual_interface(
             near_clip=config.viewpoint_near_clip,
             far_clip=config.viewpoint_far_clip,
             observable=config.viewpoint_observable,
+            orientation_jiggle=config.viewpoint_orientation_jiggle,
+            translation_jiggle=config.viewpoint_translation_jiggle,
+            center_on_reset=config.viewpoint_center_on_reset
         )
     else:
         aspect_ratio = config.image_width / config.image_height
         components['viewpoint'] = FixedViewpointComponent(
             scene_component=scene_component,
-            azimuth=0,
+            azimuth=5,
             azimuth_steps=config.viewpoint_azimuth_steps,
-            elevation=0,
+            elevation=1,
             elevation_steps=config.viewpoint_elevation_steps,
             elevation_range=config.viewpoint_elevation_range,
             distance=1,
@@ -137,6 +145,9 @@ def make_visual_interface(
             aspect_ratio=aspect_ratio,
             near_clip=config.viewpoint_near_clip,
             far_clip=config.viewpoint_far_clip,
+            orientation_jiggle=config.viewpoint_orientation_jiggle,
+            translation_jiggle=config.viewpoint_translation_jiggle,
+            center_on_reset=config.viewpoint_center_on_reset,
         )
     
     # pick and place
@@ -145,6 +156,7 @@ def make_visual_interface(
             scene_component,
             components['cursor'],
             check_collision=config.check_collision,
+            truncate_on_failure=config.truncate_on_failure,
         )
     
     # rotate
@@ -159,6 +171,7 @@ def make_visual_interface(
                 scene_component,
                 components['cursor'],
                 check_collision=config.check_collision,
+                truncate_on_failure=config.truncate_on_failure,
         ))
         #action_primitives['rotate'] = (
         #    CursorRotateSnapAboutAxisComponent(
@@ -173,6 +186,7 @@ def make_visual_interface(
                 scene_component,
                 components['cursor'],
                 check_collision=config.check_collision,
+                truncate_on_failure=config.truncate_on_failure,
         ))
     
     # removal
@@ -181,6 +195,7 @@ def make_visual_interface(
             scene_component,
             components['cursor'],
             check_collision=config.check_collision,
+            truncate_on_failure=config.truncate_on_failure,
         )
     
     # insert

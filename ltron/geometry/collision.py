@@ -9,7 +9,9 @@ from splendor.camera import orthographic_matrix
 from splendor.image import save_image, save_depth
 from splendor.masks import color_byte_to_index
 
-from ltron.geometry.utils import unscale_transform, default_allclose
+from ltron.geometry.utils import (
+    unscale_transform, default_allclose, matrix_angle_close_enough)
+from ltron.bricks.snap import UnsupportedSnap
 
 from ltron.exceptions import ThisShouldNeverHappen
 
@@ -66,7 +68,7 @@ class CollisionChecker:
             **kwargs,
         )
 
-def check_snap_collision(
+def check_snap_collision_old(
     scene,
     target_instances,
     snap,
@@ -102,6 +104,49 @@ def check_snap_collision(
     
     if return_colliding_instances:
         return min_collision
+    else:
+        return True
+
+def check_snap_collision(
+    scene,
+    target_instances,
+    snap,
+    *args,
+    return_colliding_instances=False,
+    directional_scene_instances=None,
+    **kwargs,
+):
+    
+    if directional_scene_instances is not None:
+        assert 'scene_instances' not in kwargs
+    
+    if return_colliding_instances:
+        colliding_instances = []
+    
+    connected_snaps = scene.get_snap_connections(snap)
+    collision_transforms = snap.get_collision_direction_transforms(
+        connected_snaps=connected_snaps)
+    for i, render_transform in enumerate(snap.collision_direction_transforms):
+        if directional_scene_instances is not None:
+            scene_instances = directional_scene_instances[i]
+            kwargs['scene_instances'] = scene_instances
+        collision = check_collision(
+            scene,
+            target_instances,
+            render_transform,
+            *args,
+            return_colliding_instances=return_colliding_instances,
+            **kwargs,
+        )
+        
+        if return_colliding_instances:
+            colliding_instances.append(collision)
+        else:
+            if not collision:
+                return collision
+    
+    if return_colliding_instances:
+        return colliding_instances
     else:
         return True
 
@@ -287,7 +332,7 @@ def check_collision(
         
         return collision
 
-def build_collision_map(
+def build_collision_map_old(
     scene,
     target_instances=None,
     scene_instances=None,
@@ -356,3 +401,98 @@ def build_collision_map(
     
     return collision_map
 
+def build_collision_map(
+    scene,
+    target_instances=None,
+    scene_instances=None,
+    frame_buffer=None,
+    *args,
+    **kwargs,
+):
+    
+    # process arguments
+    if target_instances is None:
+        target_instances = set(int(i) for i in scene.instances)
+    
+    if scene_instances is None:
+        scene_instances = set(int(i) for i in scene.instances)
+    else:
+        scene_instances = set(
+            int(scene_instance) for scene_instance in scene_instances)
+    
+    #edges = scene.get_assembly_edges(unidirectional=False)
+    collision_map = {}
+    for instance in target_instances:
+        instance = scene.instances[instance]
+        instance_id = instance.instance_id
+        collision_map[instance_id] = {}
+        #source_edges = edges[0] == instance_id
+        #snaps_to_check = edges[2, source_edges]
+        
+        # build the snap groups
+        snap_groups = {}
+        #for snap_id in snaps_to_check:
+        for snap in instance.snaps:
+            if isinstance(snap, UnsupportedSnap):
+                continue
+            
+            snap_id = snap.snap_id
+            snap_classname = snap.snap_style.__class__.__name__
+            
+            orientation = tuple(snap.transform[:3,:3].reshape(-1))
+            #feature = snap_classname, tuple(orientation)
+            #feature = (tuple(axis) + (snap.polarity == '+',))
+            for other_classname, other_orientation in snap_groups:
+                if (snap_classname == other_classname and
+                    matrix_angle_close_enough(
+                        numpy.reshape(orientation, (3,3)),
+                        numpy.reshape(other_orientation, (3,3)),
+                        math.radians(5.),
+                    )
+                ):
+                    snap_groups[other_classname, other_orientation].append(
+                        snap_id)
+                    break
+            else:
+                snap_groups[snap_classname, orientation] = [snap_id]
+        
+        for (classname, orientation), snap_ids in snap_groups.items():
+            snap_id = snap_ids[0]
+            snap = instance.snaps[snap_id]
+            #map_key = (feature[:3], feature[3], tuple(snap_ids))
+            map_key = (classname, orientation, tuple(snap_ids))
+            collision_map[instance_id][map_key] = [
+                set() for _ in snap.collision_direction_transforms
+            ]
+            current_scene_instances = [
+                scene_instances - set([instance_id])
+                for _ in snap.collision_direction_transforms
+            ]
+            while any(len(c) for c in current_scene_instances):
+                colliders = scene.check_snap_collision(
+                    [instance],
+                    snap,
+                    directional_scene_instances=current_scene_instances,
+                    return_colliding_instances=True,
+                    *args,
+                    **kwargs,
+                )
+                all_colliders = set()
+                for i, c in enumerate(colliders):
+                    collision_map[instance_id][map_key][i] |= set(c)
+                    all_colliders |= set(c)
+                    current_scene_instances[i] -= set(c)
+                if not len(all_colliders):
+                    break
+                '''
+                if len(colliders):
+                    colliders = set(int(i) for i in colliders)
+                    if 0 in colliders:
+                        raise ThisShouldNeverHappen
+                    collision_map[instance_id][map_key] |= colliders
+                    current_scene_instances -= colliders
+                else:
+                    break
+                '''
+    
+    return collision_map
