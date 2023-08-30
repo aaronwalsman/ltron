@@ -812,6 +812,43 @@ class BuildStepExpert(ObservationWrapper):
         target_assembly,
         fn,
     ):
+        instance_heights = [
+            (current_assembly['pose'][2,3], i)
+            for i in range(current_assembly['pose'].shape[0])
+            if current_assembly['shape'][i]
+        ]
+        sorted_instance_heights = sorted(instance_heights)
+        for h,i in sorted_instance_heights:
+            free_snaps = scene.instance_captive(i)
+            if len(free_snaps):
+                actions = []
+                for snap in free_snaps:
+                    con_loc = self.get_snap_locations(
+                        observation, i, snap.snap_id)
+                    num_loc = min(
+                        len(con_loc), self.max_instructions_per_cursor)
+                    random.shuffle(con_loc)
+                    con_loc = con_loc[:num_loc]
+                    
+                    for button, y, x in con_loc:
+                        action = self.env.no_op_action()
+                        action['action_primitives']['mode'] = remove_index
+                        action['action_primitives']['remove'] = 1
+                        action['cursor']['button'] = button
+                        action['cursor']['click'] = numpy.array([y,x])
+                        actions.append(action)
+                    
+                if actions:
+                    return actions
+        
+        return []
+    
+    def remove_actions_collision_map(self,
+        observation,
+        current_assembly,
+        target_assembly,
+        fn,
+    ):
         # do a matching between the initial and current assembly
         # so that we can map instance in current assembly
         # to the collision map

@@ -429,6 +429,8 @@ def build_collision_map(
         #source_edges = edges[0] == instance_id
         #snaps_to_check = edges[2, source_edges]
         
+        # LOOK INTO USING scene.instance_captive here
+        
         # build the snap groups
         snap_groups = {}
         #for snap_id in snaps_to_check:
