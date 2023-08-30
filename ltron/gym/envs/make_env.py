@@ -32,7 +32,7 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     use_place_above_for_start = False
     randomize_place_above_orientation = False
     place_above_orientation_mode = 24
-    
+    place_above_selection = 'highest'
     compute_collision_map = False
     
     truncate_if_assembly_unchanged = False
@@ -111,6 +111,7 @@ class MakeEnv(SuperMechaContainer):
                 offset=(-96,48,-96),
                 randomize_orientation=config.randomize_place_above_orientation,
                 randomize_orientation_mode=config.place_above_orientation_mode,
+                selection_mode=config.place_above_selection,
             )
         else:
             if config.load_start_scene is None:

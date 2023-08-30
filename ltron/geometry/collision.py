@@ -80,7 +80,7 @@ def check_snap_collision_old(
     if return_colliding_instances:
         min_num_collisions = float('inf')
         min_collision = None
-    for render_transform in snap.collision_direction_transforms:
+    for render_transform in snap.get_collision_direction_transforms():
         collision = check_collision(
             scene,
             target_instances,
@@ -114,6 +114,7 @@ def check_snap_collision(
     *args,
     return_colliding_instances=False,
     directional_scene_instances=None,
+    ignore_instances=None,
     **kwargs,
 ):
     
@@ -122,20 +123,38 @@ def check_snap_collision(
     
     if return_colliding_instances:
         colliding_instances = []
-    for i, render_transform in enumerate(snap.collision_direction_transforms):
+    
+    connected_snaps = scene.get_snap_connections(snap)
+    cols, transforms, igs = snap.get_collision_direction_transforms(
+        connected_snaps=connected_snaps)
+    
+    if cols:
+        if return_colliding_instances:
+            return cols
+        else:
+            return True
+    
+    for i, (render_transform, ig) in enumerate(zip(transforms, igs)):
         if directional_scene_instances is not None:
             scene_instances = directional_scene_instances[i]
             kwargs['scene_instances'] = scene_instances
+        if ignore_instances is not None:
+            ig = ig + ignore_instances
         collision = check_collision(
             scene,
             target_instances,
             render_transform,
             *args,
             return_colliding_instances=return_colliding_instances,
+            ignore_instances=ig,
             **kwargs,
         )
         
         if return_colliding_instances:
+            #if len(collision):
+            #    colliding_instances.extend(collision)
+            #else:
+            #    return []
             colliding_instances.append(collision)
         else:
             if not collision:
@@ -425,6 +444,8 @@ def build_collision_map(
         #source_edges = edges[0] == instance_id
         #snaps_to_check = edges[2, source_edges]
         
+        # LOOK INTO USING scene.instance_captive here
+        
         # build the snap groups
         snap_groups = {}
         #for snap_id in snaps_to_check:
@@ -458,11 +479,11 @@ def build_collision_map(
             #map_key = (feature[:3], feature[3], tuple(snap_ids))
             map_key = (classname, orientation, tuple(snap_ids))
             collision_map[instance_id][map_key] = [
-                set() for _ in snap.collision_direction_transforms
+                set() for _ in snap.get_collision_direction_transforms()
             ]
             current_scene_instances = [
                 scene_instances - set([instance_id])
-                for _ in snap.collision_direction_transforms
+                for _ in snap.get_collision_direction_transforms()
             ]
             while any(len(c) for c in current_scene_instances):
                 colliders = scene.check_snap_collision(

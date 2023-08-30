@@ -71,7 +71,7 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             update_on_reset=True,
             update_on_step=False,
             observable=True,
-            compute_collision_map=True,
+            compute_collision_map=False, #True,
         )
         
         # visual interface

@@ -60,6 +60,7 @@ class DatasetLoader(SuperMechaComponent):
         shuffle=False,
         shuffle_buffer=10000,
         repeat=False,
+        center_assembly=False,
     ):
         self.scene_component = scene_component
         self.dataset_name = dataset_name
@@ -70,6 +71,7 @@ class DatasetLoader(SuperMechaComponent):
         self.shuffle = shuffle
         self.shuffle_buffer = shuffle_buffer
         self.repeat = repeat
+        self.center_assembly = center_assembly
         
         self.initialized = False
         
