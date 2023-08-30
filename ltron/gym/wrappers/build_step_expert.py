@@ -815,16 +815,23 @@ class BuildStepExpert(ObservationWrapper):
         fn,
     ):
         instance_heights = [
-            (current_assembly['pose'][2,3], i)
+            (current_assembly['pose'][i,1,3], i)
             for i in range(current_assembly['pose'].shape[0])
             if current_assembly['shape'][i]
         ]
-        sorted_instance_heights = sorted(instance_heights)
+        sorted_instance_heights = sorted(instance_heights, reverse=True)
+        scene = self.env.components['scene'].brick_scene
+        num_tries = 0
+        mode_space = self.env.action_space['action_primitives']['mode']
+        remove_index = mode_space.names.index('remove')
         for h,i in sorted_instance_heights:
+            num_tries += 1
+            instance = scene.instances[i]
             free_snaps = scene.instance_captive(i)
             if len(free_snaps):
                 actions = []
                 for snap in free_snaps:
+                    snap = instance.snaps[snap]
                     con_loc = self.get_snap_locations(
                         observation, i, snap.snap_id)
                     num_loc = min(
@@ -839,7 +846,7 @@ class BuildStepExpert(ObservationWrapper):
                         action['cursor']['button'] = button
                         action['cursor']['click'] = numpy.array([y,x])
                         actions.append(action)
-                    
+                
                 if actions:
                     return actions
         

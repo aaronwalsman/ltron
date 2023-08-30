@@ -151,6 +151,10 @@ def check_snap_collision(
         )
         
         if return_colliding_instances:
+            #if len(collision):
+            #    colliding_instances.extend(collision)
+            #else:
+            #    return []
             colliding_instances.append(collision)
         else:
             if not collision:

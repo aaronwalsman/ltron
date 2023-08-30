@@ -452,7 +452,7 @@ class BrickScene:
                         snap.snap_id)
                     break
             else:
-                snap_groups[snap_classname, orientation] = [snap.snap_id]
+                snap_groups[snap_class_name, orientation] = [snap.snap_id]
         
         removable_snaps = []
         for (classname, orientation), snap_ids in snap_groups.items():
@@ -460,7 +460,8 @@ class BrickScene:
             snap = instance.snaps[snap_id]
             colliders = self.check_snap_collision(
                 [instance], snap, return_colliding_instances=True)
-            if not len(colliders):
+            #if not len(colliders):
+            if any(len(c) == 0 for c in colliders):
                 removable_snaps.extend(snap_ids)
         
         return removable_snaps
