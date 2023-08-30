@@ -18,8 +18,17 @@ from ltron.ldraw.documents import (
     LDrawLDR,
     LDrawDAT,
 )
+from ltron.ldraw.commands import LDrawCommand
 from ltron.bricks.snap import (
-    Snap, SnapStyle, SnapStyleSequence, SnapClear, deduplicate_snaps, griderate)
+    Snap,
+    SnapStyle,
+    SnapStyleSequence,
+    SnapClear,
+    deduplicate_snaps,
+    griderate,
+    Tire_10_16,
+    Wheel_10_16,
+)
 
 class BrickShapeLibrary(collections.abc.MutableMapping):
     def __init__(self, brick_shapes=None):
@@ -32,7 +41,7 @@ class BrickShapeLibrary(collections.abc.MutableMapping):
             return self[new_shape]
         
         if not isinstance(new_shape, BrickShape):
-            new_shape = BrickShape(new_shape)
+            new_shape = BrickShape.construct_shape(new_shape)
         self[new_shape.reference_name] = new_shape
         return new_shape
     
@@ -72,6 +81,13 @@ class BrickShapeLibrary(collections.abc.MutableMapping):
         return len(self.brick_shapes)
 
 class BrickShape:
+    @staticmethod
+    def construct_shape(document):
+        if str(document) in custom_brick_shapes:
+            return custom_brick_shapes[document.reference_name](document)
+        else:
+            return BrickShape(document)
+    
     def __init__(self, document):
         if isinstance(document, str):
             document = LDrawDocument.parse_document(document)
@@ -111,7 +127,6 @@ class BrickShape:
                             p for p in resolved_snaps
                             if p.type_id != snap.type_id]
         
-        #self.snaps = list(set(resolved_snaps))
         self.snaps = SnapStyleSequence(deduplicate_snaps(resolved_snaps))
         
         try:
@@ -137,10 +152,39 @@ class BrickShape:
     def get_upright_snaps(self):
         return [snap for snap in self.snaps if snap.is_upright()]
 
+class BrickShape_3641(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        tire_transform = numpy.array([
+            [ 1, 0, 0, 0],
+            [ 0, 0,-1, 0],
+            [ 0, 1, 0, 8],
+            [ 0, 0, 0, 1]
+        ])
+        command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 10 16]')
+        self.snaps.append(Tire_10_16(command, tire_transform))
+
+class BrickShape_4624(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        wheel_transform = numpy.array([
+            [ 1, 0, 0, 0],
+            [ 0, 0,-1, 0],
+            [ 0, 1, 0, 8],
+            [ 0, 0, 0, 1]
+        ])
+        command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=M] [caps=one] [secs=R 10 16]')
+        self.snaps.append(Wheel_10_16(command, wheel_transform))
+
+custom_brick_shapes = {}
+custom_brick_shapes['4624.dat'] = BrickShape_4624
+custom_brick_shapes['3641.dat'] = BrickShape_3641
+
 def snaps_and_vertices_from_nested_document(document, transform=None):
     # Due to how snap clearing works, everything in this function
     # must be computed from scratch for each part.  Do not attempt
-    # cache intermediate results for sub-files.
     if transform is None:
         transform = numpy.eye(4)
     reference_table = document.reference_table
@@ -163,8 +207,7 @@ def snaps_and_vertices_from_nested_document(document, transform=None):
         elif isinstance(command, LDCadSnapInclCommand):
             reference_name = command.reference_name
             try:
-                reference_document = (
-                        reference_table['shadow'][reference_name])
+                reference_document = reference_table['shadow'][reference_name]
             except:
                 print('Could not find shadow file %s'%
                     reference_name)
@@ -180,15 +223,13 @@ def snaps_and_vertices_from_nested_document(document, transform=None):
             try:
                 for reference_transform in reference_transforms:
                     s, v = snaps_and_vertices_from_nested_document(
-                            reference_document, reference_transform)
+                        reference_document, reference_transform)
                     snaps.extend(s)
                     vertices.append(v)
             except:
                 print('Error while importing: %s'%reference_name)
                 raise
-        elif isinstance(
-                command,
-                (LDCadSnapStyleCommand, LDCadSnapClearCommand)):
+        elif isinstance(command, (LDCadSnapStyleCommand,LDCadSnapClearCommand)):
             new_snaps = Snap.construct_snaps(command, transform)
             snaps.extend(new_snaps)
         elif isinstance(command, LDrawContentCommand):
@@ -200,7 +241,7 @@ def snaps_and_vertices_from_nested_document(document, transform=None):
             shadow_document = reference_table['shadow'][reference_name]
             try:
                 s,v = snaps_and_vertices_from_nested_document(
-                        shadow_document, transform)
+                    shadow_document, transform)
                 snaps.extend(s)
                 vertices.append(v)
             except:

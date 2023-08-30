@@ -304,6 +304,7 @@ class BrickScene:
                 raise MissingColorError
             assembly['pose'][instance_id] = instance.transform
         
+        all_edges = self.get_assembly_edges(unidirectional=unidirectional)
         num_edges = all_edges.shape[1]
         if max_edges is not None:
             assert all_edges.shape[1] <= max_edges, 'Too many edges'
@@ -521,7 +522,7 @@ class BrickScene:
         connections = []
         for other_snap_tuple in snap_tuples_in_radius:
             other_snap = self.snap_tuple_to_snap(other_snap_tuple)
-            if snap.connected(other_snap, unidirectional=True):
+            if snap.connected(other_snap, unidirectional=False):
                 connections.append(other_snap)
         
         return connections

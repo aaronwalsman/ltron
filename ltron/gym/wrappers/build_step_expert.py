@@ -683,8 +683,10 @@ class BuildStepExpert(ObservationWrapper):
                 other_instance = scene.instances[other_instance_id]
                 for other_snap in other_instance.snaps:
                     if other_snap.compatible(snap):
-                        moved_transform = scene.pick_and_place_snap_transform(
-                            snap, other_snap)
+                        moved_transform = (
+                            scene.best_pick_and_place_snap_transform(
+                                snap, other_snap)
+                        )
                         if matrix_angle_close_enough(
                             moved_transform,
                             instance.transform,
