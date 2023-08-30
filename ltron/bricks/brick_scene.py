@@ -37,6 +37,7 @@ from ltron.geometry.utils import (
     #projected_global_pivot,
     space_pivot,
     surrogate_angle,
+    matrix_angle_close_enough,
 )
 from ltron.exceptions import LtronException
 
@@ -427,6 +428,43 @@ class BrickScene:
             vmax = numpy.zeros(3)
         return vmin, vmax
     
+    def instance_captive(self, instance):
+        assert self.collision_checker is not None
+        
+        instance = self.instances[instance]
+        snap_groups = {}
+        for snap in instance.snaps:
+            if isinstance(snap, UnsupportedSnap):
+                continue
+            
+            snap_class_name = snap.snap_style.__class__.__name__
+            
+            orientation = tuple(snap.transform[:3,:3].reshape(-1))
+            for other_class_name, other_orientation in snap_groups:
+                if (snap_class_name == other_class_name and
+                    matrix_angle_close_enough(
+                        numpy.reshape(orientation, (3,3)),
+                        numpy.reshape(other_orientation, (3,3)),
+                        math.radians(5.),
+                    )
+                ):
+                    snap_groups[other_class_name, other_orientation].append(
+                        snap.snap_id)
+                    break
+            else:
+                snap_groups[snap_classname, orientation] = [snap.snap_id]
+        
+        removable_snaps = []
+        for (classname, orientation), snap_ids in snap_groups.items():
+            snap_id = snap_ids[0]
+            snap = instance.snaps[snap_id]
+            colliders = self.check_snap_collision(
+                [instance], snap, return_colliding_instances=True)
+            if not len(colliders):
+                removable_snaps.extend(snap_ids)
+        
+        return removable_snaps
+        
     def place_above_scene(
         self,
         instances,

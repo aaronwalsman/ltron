@@ -11,11 +11,13 @@ class PlaceAboveScene(SuperMechaComponent):
         offset=(0,48,0),
         randomize_orientation=False,
         randomize_orientation_mode=24,
+        selection_mode='random',
     ):
         self.scene_component = scene_component
         self.offset = offset
         self.randomize_orientation = randomize_orientation
         self.randomize_orientation_mode = randomize_orientation_mode
+        self.selection_mode = selection_mode
     
     def reset(self, seed=None, options=None):
         super().reset(seed)
@@ -34,17 +36,21 @@ class PlaceAboveScene(SuperMechaComponent):
         
         #instances = list(scene.instances.values())
         if len(removable_instances):
-            if False:
-                instance = scene.instances[
-                    self.np_random.choice(removable_instances)]
-            else:
+            if self.selection_mode == 'random':
+                instance = self.np_random.choice(removable_instances)
+                instance = scene.instances[instance]
+            elif self.selection_mode == 'highest':
+                #removable_instances = [
+                #    scene.instances[i] for i in removable_instances]
                 heights = [
-                    scene.instances[i].transform[1,3]
+                    (scene.instances[i].transform[1,3], i)
                     for i in removable_instances
                 ]
-                i = numpy.argmax(heights)
-                instance = scene.instances[removable_instances[i]]
-            
+                instance = max(heights)[1]
+                instance = scene.instances[instance]
+            else:
+                raise ValueError(
+                    'Unknown selection_mode: %s'%self.selection_mode)
             #connections = scene.get_instance_snap_connections(instance)
             #snap, _ = self.np_random.choice(connections)
             #snap_inv = numpy.linalg.inv(snap.transform)
