@@ -153,13 +153,21 @@ class BuildStepExpert(ObservationWrapper):
                     numpy.where(target_assembly['shape'])[0])
                 num_initial_bricks = len(
                     numpy.where(initial_assembly['shape'])[0])
-                if (num_target_bricks != num_initial_bricks and
-                    assembled_correctly
-                ):
+                #if (num_target_bricks != num_initial_bricks and
+                #    assembled_correctly
+                #):
+                #    assemble_step = True
+                #else:
+                #    assemble_step = False
+                primitives_component = self.env.components['action_primitives']
+                assemble_step_component = (
+                    primitives_component.components['assemble_step'])
+                if assemble_step_component.current_step < 0:
+                    assemble_step = False
+                elif assembled_correctly:
                     assemble_step = True
                 else:
-                    assemble_step = False
-                
+                    assembly_step = False
         
         too_hard |= (
             len(fn) > 1 or
@@ -410,7 +418,6 @@ class BuildStepExpert(ObservationWrapper):
         else:
             print('Warning: no "done" action primitive found')
             return []
-        
         
         return [action]
     
