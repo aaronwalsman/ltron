@@ -32,20 +32,26 @@ class AssembleStepTargetRecorder(SuperMechaComponent):
         assemble_step_component,
         phase_component,
         zero_phase_zero=False,
+        zero_out_of_bounds=False,
     ):
         self.observation_component = observation_component
         self.assemble_step_component = assemble_step_component
         self.phase_component = phase_component
         self.observation_space = self.observation_component.observation_space
         self.zero_phase_zero = zero_phase_zero
+        self.zero_out_of_bounds = zero_out_of_bounds
     
     def observe(self):
         if self.assemble_step_component.current_step == len(self.observations):
             self.observations.append(self.observation_component.observation)
         current_step = self.assemble_step_component.current_step
-        current_step = max(0, current_step)
-        current_step = min(len(self.observations)-1, current_step)
-        o = self.observations[current_step]
+        if not self.zero_out_of_bounds:
+            current_step = max(0, current_step)
+            current_step = min(len(self.observations)-1, current_step)
+        if current_step < 0 or current_step >= len(self.observations):
+            o = map_hierarchies(numpy.zeros_like, self.observations[0])
+        else:
+            o = self.observations[current_step]
         if self.phase_component.phase == 0 and self.zero_phase_zero:
             o = map_hierarchies(numpy.zeros_like, o)
         return o

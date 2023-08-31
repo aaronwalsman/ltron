@@ -119,6 +119,7 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             components['image'],
             components['action_primitives'].components['assemble_step'],
             components['action_primitives'].components['phase'],
+            zero_out_of_bounds=True,
         )
         components['target_assembly'] = AssembleStepTargetRecorder(
             components['assembly'],
