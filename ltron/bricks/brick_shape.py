@@ -28,6 +28,8 @@ from ltron.bricks.snap import (
     griderate,
     Tire_10_16,
     Wheel_10_16,
+    Tire_13_28,
+    Wheel_13_28,
 )
 
 class BrickShapeLibrary(collections.abc.MutableMapping):
@@ -84,7 +86,7 @@ class BrickShape:
     @staticmethod
     def construct_shape(document):
         if str(document) in custom_brick_shapes:
-            return custom_brick_shapes[document.reference_name](document)
+            return custom_brick_shapes[str(document)](document)
         else:
             return BrickShape(document)
     
@@ -165,6 +167,19 @@ class BrickShape_3641(BrickShape):
             '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 10 16]')
         self.snaps.append(Tire_10_16(command, tire_transform))
 
+class BrickShape_4084(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        tire_transform = numpy.array([
+            [ 1, 0, 0, 0],
+            [ 0, 0,-1, 0],
+            [ 0, 1, 0, 8],
+            [ 0, 0, 0, 1]
+        ])
+        command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 10 16]')
+        self.snaps.append(Tire_10_16(command, tire_transform))
+
 class BrickShape_4624(BrickShape):
     def construct_snaps_and_vertices(self):
         super().construct_snaps_and_vertices()
@@ -178,9 +193,38 @@ class BrickShape_4624(BrickShape):
             '0 !LDCAD SNAP_CYL [gender=M] [caps=one] [secs=R 10 16]')
         self.snaps.append(Wheel_10_16(command, wheel_transform))
 
+class BrickShape_6014(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        wheel_transform = numpy.array([
+            [ 1, 0, 0, 0],
+            [ 0, 0,-1, 0],
+            [ 0, 1, 0, 8],
+            [ 0, 0, 0, 1]
+        ])
+        command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=M] [caps=one] [secs=R 13 28]')
+        self.snaps.append(Wheel_13_28(command, wheel_transform))
+
+class BrickShape_6015(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        tire_transform = numpy.array([
+            [ 1, 0, 0, 0],
+            [ 0, 0,-1, 0],
+            [ 0, 1, 0, 14],
+            [ 0, 0, 0, 1]
+        ])
+        command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 13 28]')
+        self.snaps.append(Tire_13_28(command, tire_transform))
+
 custom_brick_shapes = {}
 custom_brick_shapes['4624.dat'] = BrickShape_4624
 custom_brick_shapes['3641.dat'] = BrickShape_3641
+custom_brick_shapes['4084.dat'] = BrickShape_4084
+custom_brick_shapes['6014.dat'] = BrickShape_6014
+custom_brick_shapes['6015.dat'] = BrickShape_6015
 
 def snaps_and_vertices_from_nested_document(document, transform=None):
     # Due to how snap clearing works, everything in this function
