@@ -75,6 +75,37 @@ def register_ltron_envs():
         kwargs={'env_name':'LTRON/SteppedBreakAndMake-v1'},
     )
     
+    register(
+        id='LTRON/MakeAndBreakAutoStepPhaseClick-v1',
+        entry_point='ltron.gym.wrappers.build_step_expert:'
+            'wrapped_build_step_expert',
+        kwargs={
+            'env_name':'LTRON/SteppedBreakAndMake-v1',
+            'execute_expert_primitives':(
+                'remove',
+                'assemble_step',
+                'phase',
+                'rotate',
+                'translate',
+                'pick_and_place',
+            ),
+        },
+    )
+    
+    register(
+        id='LTRON/MakeAndBreakAutoStepPhaseInsert-v1',
+        entry_point='ltron.gym.wrappers.build_step_expert:'
+            'wrapped_build_step_expert',
+        kwargs={
+            'env_name':'LTRON/SteppedBreakAndMake-v1',
+            'execute_expert_primitives':(
+                'assemble_step',
+                'phase',
+                'insert',
+            ),
+        },
+    )
+    
     #register(
     #    id='LTRON/IdentifyRedBrick-v0',
     #    entry_point='ltron.gym.envs:ColoredBrickPrediction',

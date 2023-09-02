@@ -4,13 +4,14 @@ from copy import deepcopy
 
 import numpy
 
-from gymnasium import make, ObservationWrapper
+from gymnasium import make, Wrapper, ObservationWrapper
 from gymnasium.spaces import Discrete
 from gymnasium.vector.utils.spaces import batch_space
 
 from steadfast.hierarchy import (
     stack_numpy_hierarchies,
     pad_numpy_hierarchy,
+    hierarchy_getitem,
 )
 
 from supermecha.gym.supermecha_container import traceback_decorator
@@ -33,21 +34,32 @@ from ltron.matching import (
     compute_misaligned,
 )
 
-def wrapped_build_step_expert(env_name, train=True, **kwargs):
-    return BuildStepExpert(make(env_name, train=train, **kwargs), train=train)
+def wrapped_build_step_expert(
+    env_name,
+    train=True,
+    execute_expert_primitives=None,
+    **kwargs,
+):
+    return BuildStepExpert(
+        make(env_name, train=train, **kwargs),
+        train=train,
+        execute_expert_primitives=execute_expert_primitives,
+    )
 
-class BuildStepExpert(ObservationWrapper):
+class BuildStepExpert(Wrapper): #ObservationWrapper):
     @traceback_decorator
     def __init__(self,
         env,
         max_instructions=16,
         max_instructions_per_cursor=1,
         train=True,
+        execute_expert_primitives=None,
     ):
         super().__init__(env)
         self.max_instructions = max_instructions
         self.max_instructions_per_cursor = max_instructions_per_cursor
         self.train=train
+        self.execute_expert_primitives = execute_expert_primitives
         
         '''
         options
@@ -62,10 +74,51 @@ class BuildStepExpert(ObservationWrapper):
         observation_space['num_expert_actions'] = Discrete(max_instructions)
         self.observation_space = observation_space
     
-    def step(self, *args, **kwargs):
-        o,r,t,u,i = super().step(*args, **kwargs)
-        if self.train and o['num_expert_actions'] == 0:
-            u = True
+    #def step(self, action, *args, **kwargs):
+    #    o,r,t,u,i = super().step(action, *args, **kwargs)
+    #    if self.train and o['num_expert_actions'] == 0:
+    #        u = True
+    #    
+    #    return o,r,t,u,i
+    
+    def auto_execute(self,o,r,t,u,i):
+        while True:
+            for j in range(o['num_expert_actions']):
+                expert_action = hierarchy_getitem(o['expert'], j)
+                mode_space = self.env.action_space['action_primitives']['mode']
+                mode = expert_action['action_primitives']['mode']
+                mode_name = mode_space.names[mode]
+                if mode_name in self.execute_expert_primitives:
+                    o,rr,t,u,i = self.env.step(expert_action)
+                    o = self.observation(o)
+                    r += rr
+                    break
+                
+            else:
+                break
+            
+            if t or u:
+                break
+        
+        return o,r,t,u,i
+    
+    def reset(self, seed=None, options=None):
+        o,i = self.env.reset(seed=seed, options=options)
+        o = self.observation(o)
+        if self.execute_expert_primitives is not None:
+            o,r,t,u,i = self.auto_execute(o,0,False,False,i)
+            assert not (t or u)
+        
+        return o,i
+    
+    def step(self, action):
+        o,r,t,u,i = self.env.step(action)
+        o = self.observation(o)
+        if t or u:
+            return o,r,t,u,i
+        
+        if self.execute_expert_primitives is not None:
+            o,r,t,u,i = self.auto_execute(o,r,t,u,i)
         
         return o,r,t,u,i
     
