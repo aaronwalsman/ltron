@@ -62,6 +62,7 @@ class VisualInterfaceConfig(Config):
     viewpoint_orientation_jiggle = False
     viewpoint_translation_jiggle = False
     viewpoint_center_on_reset = False
+    viewpoint_fixed_elevation = 1
     
     truncate_on_failure = False
 
@@ -134,7 +135,7 @@ def make_visual_interface(
             scene_component=scene_component,
             azimuth=5,
             azimuth_steps=config.viewpoint_azimuth_steps,
-            elevation=1,
+            elevation=config.viewpoint_fixed_elevation,
             elevation_steps=config.viewpoint_elevation_steps,
             elevation_range=config.viewpoint_elevation_range,
             distance=1,
