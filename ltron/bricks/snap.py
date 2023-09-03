@@ -596,49 +596,113 @@ class AxleHole_4_12(SnapCylinder):
         t = default_pick_and_place_transforms(my_instance, other_instance)
         return t
 
-class Wheel_10_16(SnapCylinder):
-    polarity = '+'
-    radius = 10
-    search_radius = 1
-    length = 16
-    def __init__(self, command, transform):
-        super().__init__(command)
-        self.transform = transform
-        self.subtype_id = 'cylinder(10,16,u)'
-    
-    def get_snap_mesh(self):
-        assert splendor_available
-        return primitives.multi_cylinder(
-            start_height=0,
-            sections=((self.radius, -self.length),),
-            radial_resolution=16,
-            start_cap=True,
-            end_cap=True,
-        )
-    
-    def compatible(self, other):
-        if not super().compatible(other):
-            return False
-        return isinstance(other, Tire_10_16)
-    
-    def connected(self, my_instance, other_instance):
-        if not self.compatible(other_instance.snap_style):
-            return False
+def make_wheel_tire_pair(pair_radius, pair_length):
+    class Wheel(SnapCylinder):
+        polarity = '+'
+        radius = pair_radius
+        search_radius = 1
+        length = pair_length
+        def __init__(self, command, transform):
+            super().__init__(command)
+            self.transform = transform
+            self.subtype_id = 'cylinder(%i,%i,u)'%(pair_radius, pair_length)
         
-        p = my_instance.transform[:3,3]
-        q = other_instance.transform[:3,3]
-        return metric_close_enough(p, q, 1.)
-    
-    def pick_and_place_transforms(self, my_instance, other_instance):
-        if not self.compatible(other_instance.snap_style):
-            return []
+        def get_snap_mesh(self):
+            assert splendor_available
+            return primitives.multi_cylinder(
+                start_height=0,
+                sections=((self.radius, -self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True,
+            )
         
-        return default_pick_and_place_transforms(my_instance, other_instance)
-    
-    def get_collision_direction_transforms(self, connected_snaps=None):
-        if connected_snaps:
-            return [c.brick_instance for c in connected_snaps], [], []
-        else:
+        def compatible(self, other):
+            if not super().compatible(other):
+                return False
+            return isinstance(other, Tire)
+        
+        def connected(self, my_instance, other_instance):
+            if not self.compatible(other_instance.snap_style):
+                return False
+            
+            p = my_instance.transform[:3,3]
+            q = other_instance.transform[:3,3]
+            return metric_close_enough(p, q, 1.)
+        
+        def pick_and_place_transforms(self, my_instance, other_instance):
+            if not self.compatible(other_instance.snap_style):
+                return []
+            return default_pick_and_place_transforms(
+                my_instance, other_instance)
+        
+        def get_collision_direction_transforms(self, connected_snaps=None):
+            if connected_snaps:
+                return [c.brick_instance for c in connected_snaps], [], []
+            else:
+                c = []
+                t = [
+                    numpy.array([
+                        [ 1., 0., 0., 0.],
+                        [ 0., 0., 1., 0.],
+                        [ 0., 1., 0., 0.],
+                        [ 0., 0., 0., 1.],
+                    ]),
+                    numpy.array([
+                        [ 1., 0., 0., 0.],
+                        [ 0., 0.,-1., 0.],
+                        [ 0., 1., 0., 0.],
+                        [ 0., 0., 0., 1.],
+                    ]),
+                ]
+                igs = [] * len(t)
+                
+            return c, t, igs
+
+    class Tire(SnapCylinder):
+        polarity = '-'
+        radius = pair_radius
+        search_radius = 1
+        length = pair_length
+        def __init__(self, command, transform):
+            super().__init__(command)
+            self.transform = transform
+            self.subtype_id = 'cylinder(%i,%i,u)'%(pair_radius, pair_length)
+        
+        def get_snap_mesh(self):
+            assert splendor_available
+            return primitives.multi_cylinder(
+                start_height=0,
+                sections=((self.radius, -self.length),),
+                radial_resolution=16,
+                start_cap=True,
+                end_cap=True,
+            )
+        
+        def compatible(self, other):
+            if not super().compatible(other):
+                return False
+            return isinstance(other, Wheel)
+        
+        def connected(self, my_instance, other_instance):
+            if not self.compatible(other_instance.snap_style):
+                return False
+            
+            p = my_instance.transform[:3,3]
+            q = other_instance.transform[:3,3]
+            return metric_close_enough(p, q, 1.)
+        
+        def pick_and_place_transforms(self, my_instance, other_instance):
+            if not self.compatible(other_instance.snap_style):
+                return []
+            
+            t = default_pick_and_place_transforms(my_instance, other_instance)
+            return t
+        
+        def get_collision_direction_transforms(self, connected_snaps=None):
+            #c, t, igs = super().get_collision_direction_transforms(
+            #    connected_snaps=connected_snaps)
+            
             c = []
             t = [
                 numpy.array([
@@ -654,72 +718,139 @@ class Wheel_10_16(SnapCylinder):
                     [ 0., 0., 0., 1.],
                 ]),
             ]
-            igs = [] * len(t)
+            igs = [connected_snaps] * len(t)
             
-        return c, t, igs
+            return c, t, igs
+    
+    return Wheel, Tire
 
-class Tire_10_16(SnapCylinder):
-    polarity = '-'
-    radius = 10
-    search_radius = 1
-    length = 16
-    def __init__(self, command, transform):
-        super().__init__(command)
-        self.transform = transform
-        self.subtype_id = 'cylinder(10,16,u)'
-    
-    def get_snap_mesh(self):
-        assert splendor_available
-        return primitives.multi_cylinder(
-            start_height=0,
-            sections=((self.radius, -self.length),),
-            radial_resolution=16,
-            start_cap=True,
-            end_cap=True,
-        )
-    
-    def compatible(self, other):
-        if not super().compatible(other):
-            return False
-        return isinstance(other, Wheel_10_16)
-    
-    def connected(self, my_instance, other_instance):
-        if not self.compatible(other_instance.snap_style):
-            return False
-        
-        p = my_instance.transform[:3,3]
-        q = other_instance.transform[:3,3]
-        return metric_close_enough(p, q, 1.)
-    
-    def pick_and_place_transforms(self, my_instance, other_instance):
-        if not self.compatible(other_instance.snap_style):
-            return []
-        
-        t = default_pick_and_place_transforms(my_instance, other_instance)
-        return t
-    
-    def get_collision_direction_transforms(self, connected_snaps=None):
-        #c, t, igs = super().get_collision_direction_transforms(
-        #    connected_snaps=connected_snaps)
-        
-        c = []
-        t = [
-            numpy.array([
-                [ 1., 0., 0., 0.],
-                [ 0., 0., 1., 0.],
-                [ 0., 1., 0., 0.],
-                [ 0., 0., 0., 1.],
-            ]),
-            numpy.array([
-                [ 1., 0., 0., 0.],
-                [ 0., 0.,-1., 0.],
-                [ 0., 1., 0., 0.],
-                [ 0., 0., 0., 1.],
-            ]),
-        ]
-        igs = [connected_snaps] * len(t)
-        
-        return c, t, igs
+Wheel_10_16, Tire_10_16 = make_wheel_tire_pair(10, 16)
+Wheel_13_28, Tire_13_28 = make_wheel_tire_pair(13, 28)
+
+#class Wheel_10_16(SnapCylinder):
+#    polarity = '+'
+#    radius = 10
+#    search_radius = 1
+#    length = 16
+#    def __init__(self, command, transform):
+#        super().__init__(command)
+#        self.transform = transform
+#        self.subtype_id = 'cylinder(10,16,u)'
+#    
+#    def get_snap_mesh(self):
+#        assert splendor_available
+#        return primitives.multi_cylinder(
+#            start_height=0,
+#            sections=((self.radius, -self.length),),
+#            radial_resolution=16,
+#            start_cap=True,
+#            end_cap=True,
+#        )
+#    
+#    def compatible(self, other):
+#        if not super().compatible(other):
+#            return False
+#        return isinstance(other, Tire_10_16)
+#    
+#    def connected(self, my_instance, other_instance):
+#        if not self.compatible(other_instance.snap_style):
+#            return False
+#        
+#        p = my_instance.transform[:3,3]
+#        q = other_instance.transform[:3,3]
+#        return metric_close_enough(p, q, 1.)
+#    
+#    def pick_and_place_transforms(self, my_instance, other_instance):
+#        if not self.compatible(other_instance.snap_style):
+#            return []
+#        
+#        return default_pick_and_place_transforms(my_instance, other_instance)
+#    
+#    def get_collision_direction_transforms(self, connected_snaps=None):
+#        if connected_snaps:
+#            return [c.brick_instance for c in connected_snaps], [], []
+#        else:
+#            c = []
+#            t = [
+#                numpy.array([
+#                    [ 1., 0., 0., 0.],
+#                    [ 0., 0., 1., 0.],
+#                    [ 0., 1., 0., 0.],
+#                    [ 0., 0., 0., 1.],
+#                ]),
+#                numpy.array([
+#                    [ 1., 0., 0., 0.],
+#                    [ 0., 0.,-1., 0.],
+#                    [ 0., 1., 0., 0.],
+#                    [ 0., 0., 0., 1.],
+#                ]),
+#            ]
+#            igs = [] * len(t)
+#            
+#        return c, t, igs
+#
+#class Tire_10_16(SnapCylinder):
+#    polarity = '-'
+#    radius = 10
+#    search_radius = 1
+#    length = 16
+#    def __init__(self, command, transform):
+#        super().__init__(command)
+#        self.transform = transform
+#        self.subtype_id = 'cylinder(10,16,u)'
+#    
+#    def get_snap_mesh(self):
+#        assert splendor_available
+#        return primitives.multi_cylinder(
+#            start_height=0,
+#            sections=((self.radius, -self.length),),
+#            radial_resolution=16,
+#            start_cap=True,
+#            end_cap=True,
+#        )
+#    
+#    def compatible(self, other):
+#        if not super().compatible(other):
+#            return False
+#        return isinstance(other, Wheel_10_16)
+#    
+#    def connected(self, my_instance, other_instance):
+#        if not self.compatible(other_instance.snap_style):
+#            return False
+#        
+#        p = my_instance.transform[:3,3]
+#        q = other_instance.transform[:3,3]
+#        return metric_close_enough(p, q, 1.)
+#    
+#    def pick_and_place_transforms(self, my_instance, other_instance):
+#        if not self.compatible(other_instance.snap_style):
+#            return []
+#        
+#        t = default_pick_and_place_transforms(my_instance, other_instance)
+#        return t
+#    
+#    def get_collision_direction_transforms(self, connected_snaps=None):
+#        #c, t, igs = super().get_collision_direction_transforms(
+#        #    connected_snaps=connected_snaps)
+#        
+#        c = []
+#        t = [
+#            numpy.array([
+#                [ 1., 0., 0., 0.],
+#                [ 0., 0., 1., 0.],
+#                [ 0., 1., 0., 0.],
+#                [ 0., 0., 0., 1.],
+#            ]),
+#            numpy.array([
+#                [ 1., 0., 0., 0.],
+#                [ 0., 0.,-1., 0.],
+#                [ 0., 1., 0., 0.],
+#                [ 0., 0., 0., 1.],
+#            ]),
+#        ]
+#        igs = [connected_snaps] * len(t)
+#        
+#        return c, t, igs
 
 class Stud(SnapCylinder):
     polarity = '+'

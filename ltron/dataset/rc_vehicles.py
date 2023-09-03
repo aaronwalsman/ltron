@@ -1,6 +1,7 @@
 import numpy
 
 from ltron.bricks.brick_scene import BrickScene
+from ltron.bricks.snap import StudHole
 from ltron.geometry.utils import translate_matrix
 import ltron.dataset.brick_fill as brick_fill
 
@@ -17,7 +18,61 @@ def choice_logp(choices, p=None):
     return choice, logp
 
 def sample_opaque_color():
-    return choice_logp((0,1,2,4,5,6,7,8,10,12,14))
+    return choice_logp((
+        0,  # black
+        1,  # blue
+        4,  # red
+        5,  # pink
+        7,  # light gray
+        8,  # dark gray
+        9,  # light blue
+        10, # green
+        11, # cyan
+        12, # salmon
+        14, # yellow
+        15, # white
+        22, # purple
+        25, # orange
+        29, # light pink
+        31, # light purple
+        70, # brown
+        128,# light brown
+        288,# dark green
+        308,# dark brown
+        320,# dark red
+    ))
+
+def sample_light_color():
+    return choice_logp((
+        36, # red
+        38, # orange
+        46, # yellow
+        35, # green,
+        33, # blue,
+    ))
+
+def add_doodads(scene, snaps):
+    logp = 0.
+    doodad_shape, doodad_shape_logp = choice_logp(
+        ('6141.dat','3062.dat', '3070.dat', '4589.dat'),
+        (0.25,0.25,0.25,0.25),
+    )
+    logp += doodad_shape_logp
+    doodad_color, doodad_color_logp = sample_light_color()
+    logp += doodad_color_logp
+    
+    for snap in snaps:
+        instance = scene.add_instance(
+            doodad_shape, doodad_color, scene.upright)
+        
+        doodad_snap = [
+            snap for snap in instance.snaps
+            if isinstance(snap.snap_style, StudHole)
+        ][0]
+        
+        scene.pick_and_place_snap(doodad_snap, snap)
+    
+    return instance, logp
 
 def sample_windshield_color():
     return choice_logp((40,43,47))
@@ -170,7 +225,7 @@ def sample_two_wide_chassis(scene):
         scene, axle_shape, axle_color, 0, 0, fore_axle_z)
     
     wheel_shape, wheel_color, tire_shape, tire_color, wheel_logp = (
-        sample_wheel_for_axle(axle_shape))
+        sample_wheel_for_axle(axle_shape, [rear_axle_z, fore_axle_z]))
     logp += wheel_logp
     
     rear_wheels, rear_tires = add_wheels_to_axle(
@@ -206,11 +261,10 @@ def sample_two_wide_chassis(scene):
         scene,
         axle_shape,
         tire_shape,
+        rear_tires+fore_tires,
         fender_color,
-        #body_height,
         (rear_axle_z, fore_axle_z),
         dimensions,
-        #(2,chassis_length)
     )
     logp += fender_logp
     
@@ -237,16 +291,34 @@ def sample_two_wide_fenders(
     scene,
     axle_shape,
     tire_shape,
+    tire_instances,
     color,
-    #y,
     zs,
-    #chassis_shape,
     dimensions,
 ):
     logp = 0.
     x1,x2,z1,z2,y = dimensions
     
-    if tire_shape == '3641.dat' and axle_shape in ('6157.dat', '4600.dat'):
+    fender_instances = []
+    
+    # build the chassis up higher if the tires are large
+    if tire_shape in ('4084.dat', '6015.dat'):
+        while y < tire_instances[0].transform[1,3] // 8 + 3:
+            if y - tire_instances[0].transform[1,3] // 8 >= 3:
+                step = 3
+            else:
+                step = 1
+            brick_fill.brick_fill(
+                scene,
+                x1, x2, y, y+step,z1,z2,
+                color,
+                instances=list(scene.instances.values()),
+            )
+            y += step
+    
+    if (tire_shape in ('3641.dat', '4084.dat', '6015.dat') and
+        axle_shape in ('6157.dat', '4600.dat')
+    ):
         # if 6157, and y == 1 add another layer to the chassis
         if axle_shape == '6157.dat' and y == 1:
             brick_fill.brick_fill(
@@ -258,51 +330,81 @@ def sample_two_wide_fenders(
             y += 1
         
         # pick a fender shape
-        fender_shape = '3788.dat'
+        fender_shape, fender_shape_logp = choice_logp(
+            ('3788.dat', 'fill'), (0.75, 0.25))
+        logp == fender_shape_logp
         z_offset = 1
         y_offset = 1
-        fender_height = 2
         
-        # make the fender instances
-        fender_instances = []
-        for z in zs:
-                    
-            fender_translate = translate_matrix(
-                (0,(y+1+y_offset)*8,(z+z_offset)*20))
-            fender_transform = fender_translate @ scene.upright
-            fender_instance = scene.add_instance(
-                fender_shape,color, fender_transform)
-            fender_instances.append(fender_instance)
-        
-        # fill the chassis between the fenders
-        brick_fill.brick_fill(
-            scene,
-            x1, x2, y, y+1, z1, z2,
-            color,
-            #layer_mask,
-            instances=list(scene.instances.values()),
-        )
-        y += 1
-        
-        # expand the fenders
-        expand_fenders, expand_fenders_logp = choice_logp(
-            (0,1), (0.,1.))
-        logp += expand_fenders_logp
-        if expand_fenders:
-            x1 -= 1
-            x2 += 1
-        
-        brick_fill.brick_fill(
-            scene,
-            x1, x2, y, y+1, z1, z2,
-            color,
-            instances=list(scene.instances.values()),
-        )
-        
-        for z in zs:
-            brick_fill.make_and_place(scene, -1, 1, y, y+1, z, z+2, color)
+        if fender_shape == 'fill':
+            # add another layer to the chassis
+            brick_fill.brick_fill(
+                scene,
+                x1,x2,y,y+1,z1,z2,
+                color,
+                instances=list(scene.instances.values()),
+            )
+            y += 1
             
-        y += 1
+            # expand the fenders
+            expand_fenders, expand_fenders_logp = choice_logp(
+                (0,1), (0.25,0.75))
+            logp += expand_fenders_logp
+            if expand_fenders:
+                x1 -= 1
+                x2 += 1
+            
+            brick_fill.brick_fill(
+                scene,
+                x1, x2, y, y+1, z1, z2,
+                color,
+                instances=list(scene.instances.values()),
+            )
+            y += 1
+            
+        elif fender_shape == '3788.dat':
+            # make the fender instances
+            for z in zs:
+                fender_translate = translate_matrix(
+                    (0,(y+1+y_offset)*8,(z+z_offset)*20))
+                fender_transform = fender_translate @ scene.upright
+                fender_instance = scene.add_instance(
+                    fender_shape,color, fender_transform)
+                fender_instances.append(fender_instance)
+            
+            # fill the chassis between the fenders
+            brick_fill.brick_fill(
+                scene,
+                x1, x2, y, y+1, z1, z2,
+                color,
+                #layer_mask,
+                instances=list(scene.instances.values()),
+            )
+            y += 1
+            
+            # expand the fenders
+            expand_fenders, expand_fenders_logp = choice_logp(
+                (0,1), (0.25,0.75))
+            logp += expand_fenders_logp
+            if expand_fenders:
+                x1 -= 1
+                x2 += 1
+            
+            brick_fill.brick_fill(
+                scene,
+                x1, x2, y, y+1, z1, z2,
+                color,
+                instances=list(scene.instances.values()),
+            )
+            
+            for z in zs:
+                brick_fill.make_and_place(
+                    scene,
+                    -1, 1, y, y+1, z, z+2,
+                    color,
+                )
+            
+            y += 1
         
         dimensions = x1,x2,z1,z2,y
         
@@ -311,23 +413,33 @@ def sample_two_wide_fenders(
     
     return fender_instances, dimensions, logp
 
-def sample_wheel_for_axle(axle_shape):
+def sample_wheel_for_axle(axle_shape, axle_zs):
     logp = 0.
+    axle_spacing = min(z2-z1 for z1,z2 in zip(axle_zs[:-1], axle_zs[1:]))
     if axle_shape in ('2926.dat', '6157.dat', '4600.dat'):
         
         # pick a wheel shape
-        wheel_shape, wheel_shape_logp = choice_logp(
-            ('4624.dat',), (1.0,))
-        logp += wheel_shape_logp
+        if axle_spacing >= 3:
+            wheel_shape, wheel_shape_logp = choice_logp(
+                ('4624.dat','6014.dat'), (0.5,0.5))
+            logp += wheel_shape_logp
+        else:
+            wheel_shape = '4624.dat'
         
         # pick a wheel color
         wheel_color, wheel_color_logp = choice_logp((15,), (1.,))
         logp += wheel_color_logp
         
         # pick a tire shape
-        tire_shape, tire_shape_logp = choice_logp(
-            ('3641.dat',), (1.,))
-        logp += tire_shape_logp
+        if axle_spacing >= 3:
+            if wheel_shape == '4624.dat':
+                tire_shape, tire_shape_logp = choice_logp(
+                    ('3641.dat','4084.dat'), (0.5,0.5))
+                logp += tire_shape_logp
+            else:
+                tire_shape = '6015.dat'
+        else:
+            tire_shape = '3641.dat'
         
         # pick a tire color
         tire_color, tire_color_logp = choice_logp((0,), (1.,))
@@ -357,23 +469,33 @@ def add_wheels_to_axle(
             tire_shape, tire_color, numpy.eye(4))
         
         compatible_axle_snaps = [
-            (i, snap) for (i, snap) in enumerate(axle_instance.snaps)
+            (j, snap) for (j, snap) in enumerate(axle_instance.snaps)
             if snap.compatible(wheel_instance.snaps[0])
-            and i not in used_snaps
+            and j not in used_snaps
         ]
         
-        if not len(compatible_axle_snaps) == i:
-            breakpoint()
         assert len(compatible_axle_snaps) == i
-        i, compatible_axle_snap = compatible_axle_snaps[0]
-        used_snaps.add(i)
+        j, compatible_axle_snap = compatible_axle_snaps[0]
+        used_snaps.add(j)
         
         scene.pick_and_place_snap(
             wheel_instance.snaps[0],
             compatible_axle_snap,
         )
         
-        scene.move_instance(tire_instance, wheel_instance.transform)
+        compatible_wheel_snaps = [
+            (j, snap) for (j, snap) in enumerate(wheel_instance.snaps)
+            if snap.compatible(tire_instance.snaps[0])
+        ]
+        assert len(compatible_wheel_snaps) == 1
+        j, compatible_wheel_snap = compatible_wheel_snaps[0]
+        
+        scene.pick_and_place_snap(
+            tire_instance.snaps[0],
+            compatible_wheel_snap,
+        )
+        
+        #scene.move_instance(tire_instance, wheel_instance.transform)
         
         wheel_instances.append(wheel_instance)
         tire_instances.append(tire_instance)
@@ -417,6 +539,115 @@ def sample_body(scene, dimensions):
     
     body_color, color_logp = sample_opaque_color()
     logp += color_logp
+    
+    make_lower_wings, make_lower_wings_logp = choice_logp((0,1), (0.5,0.5))
+    logp += make_lower_wings_logp
+    if make_lower_wings:
+        lower_wing_shapes, lower_wing_shapes_logp = choice_logp(
+            ('50304.dat,50305.dat',
+             '2450.dat,2450.dat'),
+            (0.5, 0.5),
+        )
+        logp += lower_wing_shapes_logp
+        
+        wing_copy_body_color, wing_copy_body_color_logp = choice_logp(
+            (0,1), (0.25, 0.75))
+        logp += wing_copy_body_color_logp
+        if wing_copy_body_color:
+            wing_color = body_color
+        else:
+            wing_color, wing_color_logp = sample_opaque_color()
+            logp += wing_color_logp
+        
+        wing_shape_a, wing_shape_b = lower_wing_shapes.split(',')
+        #if lower_wing_shapes == '54383.dat,54384.dat':
+        if lower_wing_shapes == '50304.dat,50305.dat':
+            wing_z, wing_z_logp = choice_logp(list(range(z1+2, z2-1)))
+            logp += wing_z_logp
+            rotate_a = numpy.array([
+                [ 0, 0, 1, 0],
+                [ 0, 1, 0, 0],
+                [-1, 0, 0, 0],
+                [ 0, 0, 0, 1],
+            ])
+            if x2-x1 == 2:
+                x_offset=3
+            else:
+                x_offset=2
+            transform_a = rotate_a @ scene.upright
+            transform_a[0,3] = (x1-x_offset) * 20
+            transform_a[1,3] = (y+1) * 8
+            transform_a[2,3] = (wing_z-0.5) * 20
+            
+            rotate_b = numpy.array([
+                [ 0, 0,-1, 0],
+                [ 0, 1, 0, 0],
+                [ 1, 0, 0, 0],
+                [ 0, 0, 0, 1],
+            ])
+            transform_b = rotate_b @ scene.upright
+            transform_b[0,3] = (x2+x_offset)*20
+            transform_b[1,3] = (y+1)*8
+            transform_b[2,3] = (wing_z-0.5) * 20
+            
+            instance_a = scene.add_instance(
+                wing_shape_a, wing_color, transform_a)
+            instance_b = scene.add_instance(
+                wing_shape_b, wing_color, transform_b)
+            
+            do_wing_doodad, do_wing_doodad_logp = choice_logp((0,1), (0.5,0.5))
+            logp += do_wing_doodad_logp
+            if do_wing_doodad:
+                wing_doodad, wing_doodad_logp = add_doodads(
+                    scene, [instance_a.snaps[2], instance_b.snaps[2]])
+                logp += wing_doodad_logp
+        
+        elif lower_wing_shapes == '2450.dat,2450.dat':
+            wing_z, wing_z_logp = choice_logp(list(range(z1+2, z2-1)))
+            logp += wing_z_logp
+            rotate_a = numpy.array([
+                [ 1, 0, 0, 0],
+                [ 0, 1, 0, 0],
+                [ 0, 0, 1, 0],
+                [ 0, 0, 0, 1],
+            ])
+            transform_a = rotate_a @ scene.upright
+            transform_a[0,3] = (x1-0.5) * 20
+            transform_a[1,3] = (y+1) * 8
+            transform_a[2,3] = (wing_z-0.5) * 20
+            
+            rotate_b = numpy.array([
+                [ 0, 0,-1, 0],
+                [ 0, 1, 0, 0],
+                [ 1, 0, 0, 0],
+                [ 0, 0, 0, 1],
+            ])
+            transform_b = rotate_b @ scene.upright
+            transform_b[0,3] = (x2+0.5)*20
+            transform_b[1,3] = (y+1)*8
+            transform_b[2,3] = (wing_z-0.5) * 20
+            
+            instance_a = scene.add_instance(
+                wing_shape_a, wing_color, transform_a)
+            instance_b = scene.add_instance(
+                wing_shape_b, wing_color, transform_b)
+            
+            do_wing_doodad, do_wing_doodad_logp = choice_logp((0,1), (0.5,0.5))
+            logp += do_wing_doodad_logp
+            if do_wing_doodad:
+                wing_doodad, wing_doodad_logp = add_doodads(
+                    scene, [instance_a.snaps[0], instance_b.snaps[5]])
+                logp += wing_doodad_logp
+                
+        
+        brick_fill.brick_fill(
+            scene,
+            x1, x2, y, y+1, z1, z2,
+            body_color,
+            instances=list(scene.instances.values()),
+        )
+        
+        y += 1
     
     lower_height, lower_height_logp = choice_logp(
         (1,3,6,9), (0.1, 0.6, 0.2, 0.1))
@@ -484,8 +715,8 @@ def sample_windshield(scene, dimensions):
     
     if width == 4:
         windshield_shape, windshield_shape_logp = choice_logp(
-            ('3823.dat','4594.dat','2437.dat', '4866.dat'),
-            (0.25,0.25,0.25,0.25),
+            ('3823.dat','4594.dat','2437.dat', '4866.dat', '4215.dat'),
+            (0.2,0.2,0.2,0.2,0.2),
         )
         logp += windshield_shape_logp
         windshield_color, windshield_color_logp = sample_windshield_color()
@@ -515,13 +746,46 @@ def sample_windshield(scene, dimensions):
             roof_y = y+4
             roof_z1 = z1+1
             rear_z1 = z1+3
-            
+        elif windshield_shape == '4215.dat':
+            windshield_transform[0,0] *= -1
+            windshield_transform[2,2] *= -1
+            windshield_transform[1,3] = (y+9)*8
+            windshield_transform[2,3] = (z1+0.5)*20
+            roof_y = y+9
+            roof_z1 = z1
+            rear_z1 = z1+3
+        
         i = scene.add_instance(
             windshield_shape, windshield_color, windshield_transform)
         instances.append(i)
     
     elif width == 2:
-        pass
+        windshield_shape, windshield_shape_logp = choice_logp(
+            ('2466.dat', '4864.dat'), (0.,1.)
+        )
+        logp += windshield_shape_logp
+        windshield_color, windshield_color_logp = sample_windshield_color()
+        logp += windshield_color_logp
+        windshield_transform = scene.upright.copy()
+        if windshield_shape == '2466.dat':
+            windshield_transform[1,3] = (y+17)*8
+            windshield_transform[2,3] = (z1+0.5)*20
+            roof_y = y + 17
+            roof_z1 = z1
+            rear_z1 = z1+3
+        
+        if windshield_shape == '4864.dat':
+            windshield_transform[0,0] *= -1
+            windshield_transform[2,2] *= -1
+            windshield_transform[1,3] = (y+6)*8
+            windshield_transform[2,3] = (z1+0.5)*20
+            roof_y = y + 6
+            roof_z1 = z1
+            rear_z1 = z1+3
+        
+        i = scene.add_instance(
+            windshield_shape, windshield_color, windshield_transform)
+        instances.append(i)
     
     rear_dimensions = (x1,x2,rear_z1,z2,y)
     roof_dimensions = (x1,x2,roof_z1,z2,roof_y)
