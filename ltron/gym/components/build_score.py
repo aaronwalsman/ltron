@@ -1,3 +1,5 @@
+import numpy
+
 from ltron.matching import match_assemblies, compute_misaligned
 
 from supermecha import SuperMechaComponent
@@ -6,9 +8,11 @@ class BuildScore(SuperMechaComponent):
     def __init__(self,
         target_assembly_component,
         current_assembly_component,
+        normalize=False,
     ):
         self.target_assembly_component = target_assembly_component
         self.current_assembly_component = current_assembly_component
+        self.normalize = normalize
     
     def compute_error(self):
         target_assembly = self.target_assembly_component.observation
@@ -40,6 +44,10 @@ class BuildScore(SuperMechaComponent):
     def step(self, action):
         error = self.compute_error()
         improvement = self.previous_error - error
+        if self.normalize:
+            target_assembly = self.target_assembly_component.observation
+            num_target = numpy.sum(target_assembly['shape'] != 0)
+            improvement /= (num_target * 3.)
         self.previous_error = error
         return None, improvement, False, False, {}
     

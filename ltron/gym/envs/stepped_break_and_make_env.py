@@ -20,6 +20,7 @@ from ltron.gym.components import (
     BreakAndMakePhaseSwitchComponent,
     PhaseScoreComponent,
     AssembleStepTargetRecorder,
+    MaxInstances,
 )
 
 class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
@@ -29,7 +30,8 @@ class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     compute_collision_map = False
     
     max_time_steps = 48
-    
+    max_instances = None
+
     truncate_if_assembly_unchanged = False
 
 class SteppedBreakAndMakeEnv(SuperMechaContainer):
@@ -133,6 +135,7 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
         score_component = BuildScore(
             components['initial_assembly'],
             components['assembly'],
+            normalize=True,
         )
         components['score'] = PhaseScoreComponent(
             #components['phase'],
@@ -140,4 +143,8 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             score_component,
         )
         
+        if config.max_instances is not None:
+            components['max_instances'] = MaxInstances(
+                components['scene'], config.max_instances)
+
         super().__init__(components)

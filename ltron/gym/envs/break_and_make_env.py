@@ -27,6 +27,8 @@ class BreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     render_mode = 'egl'
     compute_collision_map = False
 
+    max_instances = None
+
 class BreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
         config,

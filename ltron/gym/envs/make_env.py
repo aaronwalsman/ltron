@@ -37,6 +37,8 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     
     truncate_if_assembly_unchanged = False
 
+    max_instances = None
+
 class MakeEnv(SuperMechaContainer):
     def __init__(self,
         config,
