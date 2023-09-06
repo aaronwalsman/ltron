@@ -114,6 +114,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     def step(self, action):
         o,r,t,u,i = self.env.step(action)
         o = self.observation(o)
+        if self.train and o['num_expert_actions'] == 0:
+            u = True
+        
         if t or u:
             return o,r,t,u,i
         
@@ -501,6 +504,10 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             'rotate' not in self.env.no_op_action()['action_primitives']
         ):
             return []
+        
+        num_clicks = min(len(click_loc), self.max_instructions_per_cursor)
+        random.shuffle(click_loc)
+        click_loc = click_loc[:num_clicks]
         
         '''
         r = self.compute_attached_discrete_rotation(
