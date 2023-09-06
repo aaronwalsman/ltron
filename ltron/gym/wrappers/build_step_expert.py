@@ -114,6 +114,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     def step(self, action):
         o,r,t,u,i = self.env.step(action)
         o = self.observation(o)
+        if self.train and o['num_expert_actions'] == 0:
+            u = True
+
         if t or u:
             return o,r,t,u,i
         
@@ -228,6 +231,12 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             (num_misplaced and (num_current != num_target)) or 
             (len(fn) and len(fp))
         )
+        # VERSION WITH REMOVE BAD INSERTS
+        #too_hard |= (
+        #    len(fn) > 1 or
+        #    num_misplaced > 1 or
+        #    (num_misplaced and (num_current != num_target))
+        #)
         
         if too_hard:
             actions = []
@@ -872,11 +881,12 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         observation,
         current_assembly,
         target_assembly,
-        fn,
+        fp,
     ):
         instance_heights = [
             (current_assembly['pose'][i,1,3], i)
-            for i in range(current_assembly['pose'].shape[0])
+            #for i in range(current_assembly['pose'].shape[0])
+            for i in fp
             if current_assembly['shape'][i]
         ]
         sorted_instance_heights = sorted(instance_heights, reverse=True)
