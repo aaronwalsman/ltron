@@ -505,6 +505,10 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         ):
             return []
         
+        num_clicks = min(len(click_loc), self.max_instructions_per_cursor)
+        random.shuffle(click_loc)
+        click_loc = click_loc[:num_clicks]
+        
         '''
         r = self.compute_attached_discrete_rotation(
             target_assembly,
