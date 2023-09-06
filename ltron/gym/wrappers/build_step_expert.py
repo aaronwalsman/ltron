@@ -114,6 +114,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     def step(self, action):
         o,r,t,u,i = self.env.step(action)
         o = self.observation(o)
+        if self.train and o['num_expert_actions'] == 0:
+            u = True
+        
         if t or u:
             return o,r,t,u,i
         
