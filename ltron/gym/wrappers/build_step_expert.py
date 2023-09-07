@@ -363,25 +363,28 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             scene = self.env.components['scene'].brick_scene
             instance = scene.instances[misplaced_current]
             
+            # this whole thing was only used for the rotate, which should be
+            # able to pick anything if it's disconnected, so we're removing
+            # the code below
             # if there are missing edges, try to pick and place those first
-            if missing_edges.shape[1]:
-                pickable_snaps = missing_edges[2,:]
-            else:
-                # if the brick is connected to something else
-                # then only use snaps that are currently connected
-                # otherwise use all snaps
-                # I THINK THIS IS WRONG, I THINK WE ALWAYS NEED ALL SNAPS
-                # DUE TO VISIBILITY ISSUES AND MORE GENEROUS PNP NOW
-                #current_edges = matching_edges(
-                #    current_assembly, misplaced_current)
-                #current_edges = current_assembly['edges'][:,current_edges]
-                #if current_edges.shape[1]:
-                #    pickable_snaps = current_edges[2,:]
-                #else:
-                #    scene = self.env.components['scene'].brick_scene
-                #    instance = scene.instances[misplaced_current]
-                #    pickable_snaps = list(range(len(instance.snaps)))
-                pickable_snaps = list(range(len(instance.snaps)))
+            #if missing_edges.shape[1]:
+            #    pickable_snaps = missing_edges[2,:]
+            #else:
+            #    # if the brick is connected to something else
+            #    # then only use snaps that are currently connected
+            #    # otherwise use all snaps
+            #    # I THINK THIS IS WRONG, I THINK WE ALWAYS NEED ALL SNAPS
+            #    # DUE TO VISIBILITY ISSUES AND MORE GENEROUS PNP NOW
+            #    #current_edges = matching_edges(
+            #    #    current_assembly, misplaced_current)
+            #    #current_edges = current_assembly['edges'][:,current_edges]
+            #    #if current_edges.shape[1]:
+            #    #    pickable_snaps = current_edges[2,:]
+            #    #else:
+            #    #    scene = self.env.components['scene'].brick_scene
+            #    #    instance = scene.instances[misplaced_current]
+            #    #    pickable_snaps = list(range(len(instance.snaps)))
+            #    pickable_snaps = list(range(len(instance.snaps)))
             
             if correct_orientation:
                 # if there are missing edges, try pick and place to connect
@@ -425,6 +428,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                     #    #if len(actions):
                     #    #    break
             else:
+                pickable_snaps = list(range(len(instance.snaps)))
                 actions = []
                 for snap in pickable_snaps:
                     r = self.rotate_actions(
@@ -701,7 +705,6 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         # not another
         random.shuffle(snaps_to_translate)
         
-        checked_translate = False
         manhattan_distances = []
         for snap_to_translate in snaps_to_translate:
             click_loc = self.get_snap_locations(
@@ -718,36 +721,34 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 'projected_camera', snap.transform, inv_camera_matrix)
             inv_snap_transform = numpy.linalg.inv(snap.transform)
             
-            if not checked_translate:
-                for (i, transform) in enumerate(translate_component.transforms):
-                    if i == 0:
+            for (i, transform) in enumerate(translate_component.transforms):
+                if i == 0:
+                    continue
+                offset = pivot_a @ transform @ pivot_b
+                global_translate_offset = offset[:4,3]
+                global_translate_offset[3] = 0
+                local_translate_offset = (
+                    inv_snap_transform @ global_translate_offset)
+                primary_axis = numpy.where(
+                    numpy.abs(local_translate_offset) > 0.01)[0].item()
+                primary_value = local_translate_offset[primary_axis]
+                if primary_axis == 0 or primary_axis == 2:
+                    if abs(round(primary_value)) not in (20,80):
                         continue
-                    offset = pivot_a @ transform @ pivot_b
-                    global_translate_offset = offset[:4,3]
-                    global_translate_offset[3] = 0
-                    local_translate_offset = (
-                        inv_snap_transform @ global_translate_offset)
-                    primary_axis = numpy.where(
-                        numpy.abs(local_translate_offset) > 0.01)[0].item()
-                    primary_value = local_translate_offset[primary_axis]
-                    if primary_axis == 0 or primary_axis == 2:
-                        if abs(round(primary_value)) not in (20,80):
-                            continue
-                    if primary_axis == 1:
-                        if abs(round(primary_value)) not in (8,24,48):
-                            continue
-                    new_transform = (
-                        pivot_a @ transform @ pivot_b @ instance.transform)
-                    new_translate = new_transform[:3,3]
-                    manhattan_distance = numpy.abs(
-                        (new_translate - target_translate)
-                    ).sum()
-                    manhattan_distances.append((
-                        manhattan_distance,
-                        'translate',
-                        (i, snap_to_translate, click_loc),
-                    ))
-                #checked_translate = True
+                if primary_axis == 1:
+                    if abs(round(primary_value)) not in (8,24,48):
+                        continue
+                new_transform = (
+                    pivot_a @ transform @ pivot_b @ instance.transform)
+                new_translate = new_transform[:3,3]
+                manhattan_distance = numpy.abs(
+                    (new_translate - target_translate)
+                ).sum()
+                manhattan_distances.append((
+                    manhattan_distance,
+                    'translate',
+                    (i, snap_to_translate, click_loc),
+                ))
         
             for other_instance_id in scene.instances.keys():
                 if other_instance_id == int(instance_to_translate):
@@ -828,56 +829,54 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                     avoided_collision = True
             
             if avoided_collision:
-                found_collision_free_transform = True
                 break
         else:
-            found_collision_free_transform = False
+            return []
         
         actions = []
-        if found_collision_free_transform:
-            for p, y, x in click_loc:
-                mode_space = self.env.action_space['action_primitives']['mode']
-                if transform_type == 'translate':
-                    try:
-                        translate_index = mode_space.names.index('translate')
-                    except ValueError:
-                        print('Warning: no "translate" action primitive found')
-                        return []
+        for p, y, x in click_loc:
+            mode_space = self.env.action_space['action_primitives']['mode']
+            if transform_type == 'translate':
+                try:
+                    translate_index = mode_space.names.index('translate')
+                except ValueError:
+                    print('Warning: no "translate" action primitive found')
+                    return []
+                action = self.env.no_op_action()
+                action['cursor']['button'] = p
+                action['cursor']['click'] = numpy.array(
+                    [y, x], dtype=numpy.int64)
+                action['action_primitives']['mode'] = translate_index
+                action['action_primitives']['translate'] = i
+                actions.append(action)
+            elif transform_type == 'pick_and_place':
+                try:
+                    pnp_index = mode_space.names.index(
+                        'pick_and_place')
+                except ValueError:
+                    print('Warning: no "pick_and_place" action primitive '
+                        'found')
+                    return []
+                (s, release_instance_id, release_snap_id), click_loc = (
+                    transform_info)
+                release_loc = self.get_snap_locations(
+                    observation, release_instance_id, release_snap_id)
+                
+                num_combos = min(
+                    len(release_loc),
+                    self.max_instructions_per_cursor,
+                )
+                random.shuffle(release_loc)
+                release_loc = release_loc[:num_combos]
+                
+                for _, ry, rx in release_loc:
                     action = self.env.no_op_action()
+                    action['action_primitives']['mode'] = pnp_index
+                    action['action_primitives']['pick_and_place'] = 1
                     action['cursor']['button'] = p
-                    action['cursor']['click'] = numpy.array(
-                        [y, x], dtype=numpy.int64)
-                    action['action_primitives']['mode'] = translate_index
-                    action['action_primitives']['translate'] = i
+                    action['cursor']['click'] = numpy.array([y,x])
+                    action['cursor']['release'] = numpy.array([ry, rx])
                     actions.append(action)
-                elif transform_type == 'pick_and_place':
-                    try:
-                        pnp_index = mode_space.names.index(
-                            'pick_and_place')
-                    except ValueError:
-                        print('Warning: no "pick_and_place" action primitive '
-                            'found')
-                        return []
-                    (s, release_instance_id, release_snap_id), click_loc = (
-                        transform_info)
-                    release_loc = self.get_snap_locations(
-                        observation, release_instance_id, release_snap_id)
-                    
-                    num_combos = min(
-                        len(release_loc),
-                        self.max_instructions_per_cursor,
-                    )
-                    random.shuffle(release_loc)
-                    release_loc = release_loc[:num_combos]
-                    
-                    for _, ry, rx in release_loc:
-                        action = self.env.no_op_action()
-                        action['action_primitives']['mode'] = pnp_index
-                        action['action_primitives']['pick_and_place'] = 1
-                        action['cursor']['button'] = p
-                        action['cursor']['click'] = numpy.array([y,x])
-                        action['cursor']['release'] = numpy.array([ry, rx])
-                        actions.append(action)
         
         return actions
     
