@@ -63,6 +63,7 @@ class VisualInterfaceConfig(Config):
     viewpoint_translation_jiggle = False
     viewpoint_center_on_reset = False
     viewpoint_fixed_elevation = 1
+    viewpoint_fixed_azimuth = 5
     
     truncate_on_failure = False
 
@@ -133,7 +134,7 @@ def make_visual_interface(
         aspect_ratio = config.image_width / config.image_height
         components['viewpoint'] = FixedViewpointComponent(
             scene_component=scene_component,
-            azimuth=5,
+            azimuth=config.viewpoint_fixed_azimuth,
             azimuth_steps=config.viewpoint_azimuth_steps,
             elevation=config.viewpoint_fixed_elevation,
             elevation_steps=config.viewpoint_elevation_steps,
