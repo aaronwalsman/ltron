@@ -7,13 +7,15 @@ from steadfast.hierarchy import map_hierarchies
 from supermecha import SuperMechaComponent
 
 class AssembleStepComponent(SuperMechaComponent):
-    def __init__(self, phase_component):
+    def __init__(self, phase_component, max_steps_per_assemble_step=None):
         self.phase_component = phase_component
         self.action_space = Discrete(2)
+        self.max_steps_per_assemble_step = max_steps_per_assemble_step
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
         self.current_step = 0
+        self.steps_since_assemble_step = 0
         return None, {}
     
     def step(self, action):
@@ -21,7 +23,18 @@ class AssembleStepComponent(SuperMechaComponent):
             self.current_step += action
         else:
             self.current_step -= action
-        return None, 0., False, False, {}
+        
+        self.steps_since_assemble_step += 1
+        u = False
+        if self.max_steps_per_assemble_step is not None and (
+            self.steps_since_assemble_step > self.max_steps_per_assemble_step
+        ):
+            u = True
+        
+        if action:
+            self.steps_since_assemble_step = 0
+        
+        return None, 0., False, u, {}
     
     def no_op_action(self):
         return 0

@@ -115,7 +115,8 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             update_on_step=True,
             observable=True,
             compute_collision_map=config.compute_collision_map,
-            truncate_if_unchanged=config.truncate_if_assembly_unchanged,
+            truncate_if_unchanged=(
+                config.truncate_if_assembly_unchanged * train),
         )
         components['target_image'] = AssembleStepTargetRecorder(
             components['image'],
