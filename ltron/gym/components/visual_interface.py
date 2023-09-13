@@ -217,7 +217,9 @@ def make_visual_interface(
     if config.include_assemble_step:
         assert config.include_phase
         action_primitives['assemble_step'] = AssembleStepComponent(
-            action_primitives['phase'])
+            action_primitives['phase'],
+            max_steps_per_assemble_step=12,
+        )
     
     # make the mode switch
     components['action_primitives'] = SuperMechaComponentSwitch(

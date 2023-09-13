@@ -1,11 +1,12 @@
 import random
+import time
 import math
 from copy import deepcopy
 
 import numpy
 
 from gymnasium import make, Wrapper, ObservationWrapper
-from gymnasium.spaces import Discrete
+from gymnasium.spaces import Discrete, Tuple
 from gymnasium.vector.utils.spaces import batch_space
 
 from steadfast.hierarchy import (
@@ -15,6 +16,7 @@ from steadfast.hierarchy import (
 )
 
 from supermecha.gym.supermecha_container import traceback_decorator
+from supermecha.gym.spaces import IntegerMaskSpace
 
 from ltron.matching import match_assemblies
 from ltron.constants import SHAPE_CLASS_NAMES
@@ -69,10 +71,18 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             2.1. would need mode, click, release, rotate angle
         '''
         observation_space = deepcopy(self.env.observation_space)
-        observation_space['expert'] = batch_space(
-            self.env.action_space, max_instructions)
-        observation_space['num_expert_actions'] = Discrete(max_instructions)
-        self.observation_space = observation_space
+        #observation_space['expert'] = batch_space(
+        #    self.env.action_space, max_instructions)
+        #observation_space['num_expert_actions'] = Discrete(max_instructions)
+        #self.observation_space = observation_space
+        h,w,_ = observation_space['image'].shape
+        observation_space['expert'] = Tuple((
+            Discrete(2),
+            self.env.action_space,
+            IntegerMaskSpace(w,h,65536),
+            IntegerMaskSpace(w,h,65536),
+        ))
+        self.observation_space = observation_space   
     
     #def step(self, action, *args, **kwargs):
     #    o,r,t,u,i = super().step(action, *args, **kwargs)
@@ -83,8 +93,8 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     
     def auto_execute(self,o,r,t,u,i):
         while True:
-            for j in range(o['num_expert_actions']):
-                expert_action = hierarchy_getitem(o['expert'], j)
+            expert_valid, expert_action = o['expert'][:2]
+            if expert_valid:
                 mode_space = self.env.action_space['action_primitives']['mode']
                 mode = expert_action['action_primitives']['mode']
                 mode_name = mode_space.names[mode]
@@ -92,6 +102,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                     o,rr,t,u,i = self.env.step(expert_action)
                     o = self.observation(o)
                     r += rr
+                else:
                     break
                 
             else:
@@ -114,7 +125,8 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     def step(self, action):
         o,r,t,u,i = self.env.step(action)
         o = self.observation(o)
-        if self.train and o['num_expert_actions'] == 0:
+        #if self.train and o['num_expert_actions'] == 0:
+        if self.train and not o['expert'][0]:
             u = True
         
         if t or u:
@@ -225,24 +237,27 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 else:
                     assembly_step = False
         
-        too_hard |= (
-            len(fn) > 1 or
-            num_misplaced > 1 or
-            (num_misplaced and (num_current != num_target)) or 
-            (len(fn) and len(fp))
-        )
-        # VERSION WITH REMOVE BAD INSERTS
         #too_hard |= (
         #    len(fn) > 1 or
         #    num_misplaced > 1 or
-        #    (num_misplaced and (num_current != num_target))
+        #    (num_misplaced and (num_current != num_target)) or 
+        #    (len(fn) and len(fp))
         #)
+        # VERSION WITH REMOVE BAD INSERTS
+        too_hard |= (
+            len(fn) > 1 or
+            num_misplaced > 1 or
+            (num_misplaced and (num_current != num_target))
+        )
+        
+        target_image = observation['target_image']
+        target_empty = numpy.all(target_image == 0)
         
         if too_hard:
             actions = []
         elif assemble_step:
             actions = self.assemble_step_actions()
-        elif assembled_correctly:
+        elif assembled_correctly or target_empty:
             actions = self.done_actions()
         
         ## first weed out cases that we can't handle
@@ -389,17 +404,20 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             if correct_orientation:
                 # if there are missing edges, try pick and place to connect
                 # correctly
+                
                 actions = []
-                if missing_edges.shape[1]:
-                    actions = self.pick_and_place_actions(
-                        observation,
-                        current_assembly,
-                        target_assembly,
-                        ct_matches,
-                        tc_matches,
-                        ct_disconnected,
-                        tc_disconnected,
-                    )
+                # TEST, TURNING THIS OFF, SO WE JUST DEFAULT TO TRANSLATE
+                # TRANSLATE ALSO TRIES PNP ACTIONS THOUGH
+                #if missing_edges.shape[1]:
+                #    actions = self.pick_and_place_actions(
+                #        observation,
+                #        current_assembly,
+                #        target_assembly,
+                #        ct_matches,
+                #        tc_matches,
+                #        ct_disconnected,
+                #        tc_disconnected,
+                #    )
                 
                 # if there are no missing edges, or pnp failed, translate
                 if len(actions) == 0:
@@ -442,15 +460,63 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                     )
                     actions.extend(r)
         
-        num_expert_actions = min(len(actions), self.max_instructions)
+        #num_expert_actions = min(len(actions), self.max_instructions)
+        valid = True
         if len(actions) == 0:
             actions.append(self.env.no_op_action())
-        actions = actions[:self.max_instructions]
+            valid = False
+        #actions = actions[:self.max_instructions]
         
-        actions = stack_numpy_hierarchies(*actions)
-        actions = pad_numpy_hierarchy(actions, self.max_instructions)
-        observation['expert'] = actions
-        observation['num_expert_actions'] = num_expert_actions
+        #actions = stack_numpy_hierarchies(*actions)
+        #actions = pad_numpy_hierarchy(actions, self.max_instructions)
+        #observation['expert'] = actions
+        #observation['num_expert_actions'] = num_expert_actions
+        
+        primary_action = random.choice(actions)
+        #click_snaps = []
+        #release_snaps = []
+        primary_mode = primary_action['action_primitives']['mode']
+        primary_button = primary_action['cursor']['button']
+        primary_click = primary_action['cursor']['click']
+        h,w,_ = observation['pos_snap_render'].shape
+        click_islands = numpy.zeros((h,w), dtype=bool)
+        release_islands = numpy.zeros((h,w), dtype=int)
+        if primary_button:
+            pi, ps = observation['pos_snap_render'][tuple(primary_click)]
+        else:
+            pi, ps = observation['neg_snap_render'][tuple(primary_click)]
+        
+        for action in actions:
+            if (action['action_primitives']['mode'] == primary_mode and
+                action['cursor']['button'] == primary_button
+            ):
+                action_click = action['cursor']['click']
+                if primary_button:
+                    render = observation['pos_snap_render']
+                else:
+                    render = observation['neg_snap_render']
+                ci, cs = render[tuple(action_click)]
+                click_islands |= (render[:,:,0] == ci) & (render[:,:,1] == cs)
+                #click_snaps.append((ci,cs))
+                
+                if pi == ci and ps == cs:
+                    release_click = action['cursor']['release']
+                    if primary_button:
+                        render = observation['neg_snap_render']
+                    else:
+                        render = observation['pos_snap_render']
+                    ri, rs = render[tuple(release_click)]
+                    #if ri == 0 and rs == 0:
+                    #    breakpoint()
+                    release_islands |= (
+                        (render[:,:,0] == ri) & (render[:,:,1] == rs))
+        
+        observation['expert'] = (
+            valid,
+            primary_action,
+            click_islands.astype(int),
+            release_islands.astype(int),
+        )
         
         return observation
     
@@ -745,7 +811,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                     (new_translate - target_translate)
                 ).sum()
                 manhattan_distances.append((
-                    manhattan_distance,
+                    (manhattan_distance, 0), # prefer translate
                     'translate',
                     (i, snap_to_translate, click_loc),
                 ))
@@ -776,7 +842,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                                 other_snap.snap_id,
                             )
                             manhattan_distances.append((
-                                manhattan_distance,
+                                (manhattan_distance,1), # prefer translate
                                 'pick_and_place',
                                 (snap_id, click_loc),
                             ))
@@ -1061,3 +1127,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         )
         return [(1, y, x) for y, x in zip(py, px)]
 
+def cursor_islands(snaps):
+    b,h,w,_ = snaps.shape
+    islands = snaps[...,0] * MAX_SNAPS_PER_BRICK + snaps[...,1]
+    _, islands = numpy.unique(islands, return_inverse=True)
+    islands = islands.reshape(b, h, w)
+    return islands
