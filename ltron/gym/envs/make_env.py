@@ -42,6 +42,7 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     multi_click_map = False
     old_island_style = False
     log_prob_losses = False
+    expert_matches_at_identity = True
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,

@@ -40,10 +40,12 @@ def wrapped_build_step_expert(
     env_name,
     train=True,
     execute_expert_primitives=None,
+    config=None,
     **kwargs,
 ):
     return BuildStepExpert(
-        make(env_name, train=train, **kwargs),
+        make(env_name, config=config, train=train, **kwargs),
+        config,
         train=train,
         execute_expert_primitives=execute_expert_primitives,
     )
@@ -52,6 +54,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     @traceback_decorator
     def __init__(self,
         env,
+        config,
         max_instructions=16,
         max_instructions_per_cursor=1,
         train=True,
@@ -60,6 +63,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         super().__init__(env)
         self.max_instructions = max_instructions
         self.max_instructions_per_cursor = max_instructions_per_cursor
+        self.config = config
         self.train=train
         self.execute_expert_primitives = execute_expert_primitives
         
@@ -147,10 +151,13 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             initial_assembly = observation['initial_assembly']
         
         # get the current matches (assumes current and target are aligned)
-        #matches = find_matches_under_transform(
-        #    current_assembly, target_assembly, numpy.eye(4))
-        matches, matching_transform = match_assemblies(
-            current_assembly, target_assembly, allow_rotations=False)
+        if config.expert_matches_at_identity:
+            matches = find_matches_under_transform(
+                current_assembly, target_assembly, numpy.eye(4))
+            matching_transform = numpy.eye(4)
+        else:
+            matches, matching_transform = match_assemblies(
+                current_assembly, target_assembly, allow_rotations=False)
         ct_matches = {c:t for c,t in matches}
         tc_matches = {t:c for c,t in matches}
         (ct_connected,
@@ -408,19 +415,21 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 actions = []
                 # TEST, TURNING THIS OFF, SO WE JUST DEFAULT TO TRANSLATE
                 # TRANSLATE ALSO TRIES PNP ACTIONS THOUGH
-                #if missing_edges.shape[1]:
-                #    actions = self.pick_and_place_actions(
-                #        observation,
-                #        current_assembly,
-                #        target_assembly,
-                #        ct_matches,
-                #        tc_matches,
-                #        ct_disconnected,
-                #        tc_disconnected,
-                #    )
+                if missing_edges.shape[1]:
+                    actions = self.pick_and_place_actions(
+                        observation,
+                        current_assembly,
+                        target_assembly,
+                        ct_matches,
+                        tc_matches,
+                        ct_disconnected,
+                        tc_disconnected,
+                    )
                 
                 # if there are no missing edges, or pnp failed, translate
-                if len(actions) == 0:
+                if len(actions) == 0 and 'translate' in set(
+                    self.env.action_space['action_primitives'].keys()
+                ):
                     actions = self.translate_actions(
                         observation,
                         current_assembly,
@@ -482,34 +491,44 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         click_islands = numpy.zeros((h,w), dtype=bool)
         release_islands = numpy.zeros((h,w), dtype=int)
         if primary_button:
-            pi, ps = observation['pos_snap_render'][tuple(primary_click)]
+            click_render = observation['pos_snap_render']
+            release_render = observation['neg_snap_render']
         else:
-            pi, ps = observation['neg_snap_render'][tuple(primary_click)]
+            click_render = observation['neg_snap_render']
+            release_render = observation['pos_snap_render']
+        pi, ps = click_render[tuple(primary_click)]
         
-        for action in actions:
-            if (action['action_primitives']['mode'] == primary_mode and
-                action['cursor']['button'] == primary_button
-            ):
-                action_click = action['cursor']['click']
-                if primary_button:
-                    render = observation['pos_snap_render']
-                else:
-                    render = observation['neg_snap_render']
-                ci, cs = render[tuple(action_click)]
-                click_islands |= (render[:,:,0] == ci) & (render[:,:,1] == cs)
-                #click_snaps.append((ci,cs))
-                
-                if pi == ci and ps == cs:
-                    release_click = action['cursor']['release']
-                    if primary_button:
-                        render = observation['neg_snap_render']
-                    else:
-                        render = observation['pos_snap_render']
-                    ri, rs = render[tuple(release_click)]
-                    #if ri == 0 and rs == 0:
-                    #    breakpoint()
-                    release_islands |= (
-                        (render[:,:,0] == ri) & (render[:,:,1] == rs))
+        if self.config.multi_click_map:
+            for action in actions:
+                if (action['action_primitives']['mode'] == primary_mode and
+                    action['cursor']['button'] == primary_button
+                ):
+                    action_click = action['cursor']['click']
+                    ci, cs = click_render[tuple(action_click)]
+                    click_islands |= (
+                        (click_render[:,:,0] == ci) &
+                        (click_render[:,:,1] == cs)
+                    )
+                    #click_snaps.append((ci,cs))
+                    
+                    if pi == ci and ps == cs:
+                        release_click = action['cursor']['release']
+                        ri, rs = release_render[tuple(release_click)]
+                        #if ri == 0 and rs == 0:
+                        #    breakpoint()
+                        release_islands |= (
+                            (release_render[:,:,0] == ri) &
+                            (release_render[:,:,1] == rs)
+                        )
+        else:
+            click_islands = (
+                (click_render[:,:,0] == pi) & (click_render[:,:,1] == ps))
+            primary_release = primary_action['cursor']['release']
+            pri, prs = release_render[tuple(primary_release)]
+            release_islands = (
+                (release_render[:,:,0] == pri) &
+                (release_render[:,:,1] == prs)
+            )
         
         observation['expert'] = (
             valid,
