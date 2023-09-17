@@ -64,6 +64,7 @@ class VisualInterfaceConfig(Config):
     viewpoint_center_on_reset = False
     viewpoint_fixed_elevation = 1
     viewpoint_fixed_azimuth = 5
+    viewpoint_fixed_distance = 1
     
     truncate_on_failure = False
 
@@ -139,9 +140,10 @@ def make_visual_interface(
             elevation=config.viewpoint_fixed_elevation,
             elevation_steps=config.viewpoint_elevation_steps,
             elevation_range=config.viewpoint_elevation_range,
-            distance=1,
+            distance=config.viewpoint_fixed_distance,
             distance_steps=config.viewpoint_distance_steps,
             distance_range=config.viewpoint_distance_range,
+            center=config.viewpoint_center_reset[0],
             world_bbox=config.world_bbox,
             field_of_view=config.viewpoint_field_of_view,
             aspect_ratio=aspect_ratio,
