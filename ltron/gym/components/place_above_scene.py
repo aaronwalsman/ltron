@@ -54,7 +54,6 @@ class PlaceAboveScene(SuperMechaComponent):
                 ]
                 instance = max(heights)[1]
                 instance = scene.instances[instance]
-                breakpoint()
             else:
                 raise ValueError(
                     'Unknown selection_mode: %s'%self.selection_mode)
