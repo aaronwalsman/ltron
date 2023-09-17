@@ -38,6 +38,11 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     truncate_if_assembly_unchanged = False
 
     max_instances = None
+    
+    multi_click_map = False
+    old_island_style = False
+    log_prob_losses = False
+    expert_matches_at_identity = True
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -147,7 +152,7 @@ class MakeEnv(SuperMechaContainer):
             update_on_reset=True,
             update_on_step=True,
             observable=True,
-            truncate_if_unchanged=truncate_if_assembly_unchanged,
+            truncate_if_unchanged=config.truncate_if_assembly_unchanged,
         )
         components.update(render_components)
         
