@@ -151,7 +151,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             initial_assembly = observation['initial_assembly']
         
         # get the current matches (assumes current and target are aligned)
-        if config.expert_matches_at_identity:
+        if self.config.expert_matches_at_identity:
             matches = find_matches_under_transform(
                 current_assembly, target_assembly, numpy.eye(4))
             matching_transform = numpy.eye(4)
