@@ -37,7 +37,7 @@ class PlaceAboveScene(SuperMechaComponent):
         # not using collision maps anymore
         removable_instances = [
             int(i) for i in scene.instances
-            if not scene.instance_captive(i)
+            if scene.instance_captive(i)
         ]
         
         #instances = list(scene.instances.values())
@@ -54,6 +54,7 @@ class PlaceAboveScene(SuperMechaComponent):
                 ]
                 instance = max(heights)[1]
                 instance = scene.instances[instance]
+                breakpoint()
             else:
                 raise ValueError(
                     'Unknown selection_mode: %s'%self.selection_mode)
