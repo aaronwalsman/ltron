@@ -972,18 +972,18 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         fp,
     ):
         instance_heights = [
-            (current_assembly['pose'][i,1,3], i)
+            ((current_assembly['pose'][i,1,3],
+              current_assembly['pose'][i,0,3]), i)
+             if i != 1 else (((-10000,-100000), i))
             #for i in range(current_assembly['pose'].shape[0])
             for i in fp
             if current_assembly['shape'][i]
         ]
         sorted_instance_heights = sorted(instance_heights, reverse=True)
         scene = self.env.components['scene'].brick_scene
-        num_tries = 0
         mode_space = self.env.action_space['action_primitives']['mode']
         remove_index = mode_space.names.index('remove')
-        for h,i in sorted_instance_heights:
-            num_tries += 1
+        for _,i in sorted_instance_heights:
             instance = scene.instances[i]
             free_snaps = scene.instance_captive(i)
             if len(free_snaps):
