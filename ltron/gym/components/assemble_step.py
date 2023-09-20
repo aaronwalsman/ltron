@@ -25,14 +25,14 @@ class AssembleStepComponent(SuperMechaComponent):
             self.current_step -= action
         
         self.steps_since_assemble_step += 1
+        if action:
+            self.steps_since_assemble_step = 0
+        
         u = False
         if self.max_steps_per_assemble_step is not None and (
             self.steps_since_assemble_step > self.max_steps_per_assemble_step
         ):
             u = True
-        
-        if action:
-            self.steps_since_assemble_step = 0
         
         return None, 0., False, u, {}
     

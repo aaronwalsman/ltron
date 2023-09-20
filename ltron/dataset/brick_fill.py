@@ -58,9 +58,9 @@ def make_and_place(scene, x1, x2, y1, y2, z1, z2, color):
         y1, y2 = y2, y1
     if z2 < z1:
         z1, z2 = z2, z1
-    w = x2-x1
-    l = z2-z1
-    h = y2-y1
+    w = round(x2-x1)
+    l = round(z2-z1)
+    h = round(y2-y1)
     translate = translate_matrix(
         (((x2-x1)*0.5 + x1)*20, (y1 + h)*8, ((z2-z1)*0.5 + z1)*20))
     if (w,h,l) in brick_sizes:

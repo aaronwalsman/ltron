@@ -203,15 +203,18 @@ class LtronInterface:
             action['cursor']['release'] = self.release
         
         if key == b' ':
-            num_expert = self.recent_observation['num_expert_actions']
-            if num_expert:
-                expert_i = numpy.random.randint(num_expert)
-                action = hierarchy_getitem(
-                    self.recent_observation['expert'], expert_i)
-                mode_index = action['action_primitives']['mode']
-                mode_name = mode_space.names[mode_index]
-                print('Taking Expert Action: %s'%mode_name)
-                print(action)
+            #num_expert = self.recent_observation['num_expert_actions']
+            expert_data = self.recent_observation['expert']
+            if expert_data is not None:
+                expert_valid, action, *_ = expert_data
+                if expert_valid:
+                    #expert_i = numpy.random.randint(num_expert)
+                    #action = hierarchy_getitem(
+                    #    self.recent_observation['expert'], expert_i)
+                    mode_index = action['action_primitives']['mode']
+                    mode_name = mode_space.names[mode_index]
+                    print('Taking Expert Action: %s'%mode_name)
+                    print(action)
         
         if action is not None:
             o,r,t,u,i = self.env.step(action)
