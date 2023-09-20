@@ -440,26 +440,8 @@ class SnapCylinder(SnapStyle):
         return True
     
     def get_collision_direction_transforms(self, connected_snaps=None):
-        if connected_snaps:
-            if self.polarity == '+':
-                return [], [
-                    numpy.array([
-                        [ 1, 0, 0, 0],
-                        [ 0, 0, 1, 0],
-                        [ 0, 1, 0, 0],
-                        [ 0, 0, 0, 1],
-                    ]),
-                ], [[]]
-            else:
-                return [], [
-                    numpy.array([
-                        [ 1, 0, 0, 0],
-                        [ 0, 0,-1, 0],
-                        [ 0, 1, 0, 0],
-                        [ 0, 0, 0, 1],
-                    ]),
-                ], [[]]
-        else:
+        #if connected_snaps:
+        if self.polarity == '+':
             return [], [
                 numpy.array([
                     [ 1, 0, 0, 0],
@@ -467,13 +449,31 @@ class SnapCylinder(SnapStyle):
                     [ 0, 1, 0, 0],
                     [ 0, 0, 0, 1],
                 ]),
+            ], [[]]
+        else:
+            return [], [
                 numpy.array([
                     [ 1, 0, 0, 0],
                     [ 0, 0,-1, 0],
                     [ 0, 1, 0, 0],
                     [ 0, 0, 0, 1],
                 ]),
-            ], [[],[]]
+            ], [[]]
+        #else:
+        #    return [], [
+        #        numpy.array([
+        #            [ 1, 0, 0, 0],
+        #            [ 0, 0, 1, 0],
+        #            [ 0, 1, 0, 0],
+        #            [ 0, 0, 0, 1],
+        #        ]),
+        #        numpy.array([
+        #            [ 1, 0, 0, 0],
+        #            [ 0, 0,-1, 0],
+        #            [ 0, 1, 0, 0],
+        #            [ 0, 0, 0, 1],
+        #        ]),
+        #    ], [[],[]]
     
     def get_collision_direction_transforms_old(self):
         # return a list of directions that this snap can be pushed onto another
