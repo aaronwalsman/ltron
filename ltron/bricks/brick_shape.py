@@ -26,6 +26,7 @@ from ltron.bricks.snap import (
     SnapClear,
     deduplicate_snaps,
     griderate,
+    StudHole,
     Tire_10_16,
     Wheel_10_16,
     Tire_13_28,
@@ -219,12 +220,29 @@ class BrickShape_6015(BrickShape):
             '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 13 28]')
         self.snaps.append(Tire_13_28(command, tire_transform))
 
+class BrickShape_98138(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        #self.snaps[0].transform[1,:3] *= -1
+        command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 6 4]')
+        transform = numpy.array([
+            [1,0,0,0],
+            [0,1,0,8],
+            [0,0,1,0],
+            [0,0,0,1],
+        ])
+        
+        resolved_snaps = [StudHole(command, 4, transform)]
+        self.snaps = SnapStyleSequence(deduplicate_snaps(resolved_snaps))
+
 custom_brick_shapes = {}
 custom_brick_shapes['4624.dat'] = BrickShape_4624
 custom_brick_shapes['3641.dat'] = BrickShape_3641
 custom_brick_shapes['4084.dat'] = BrickShape_4084
 custom_brick_shapes['6014.dat'] = BrickShape_6014
 custom_brick_shapes['6015.dat'] = BrickShape_6015
+custom_brick_shapes['98138.dat'] = BrickShape_98138
 
 def snaps_and_vertices_from_nested_document(document, transform=None):
     # Due to how snap clearing works, everything in this function

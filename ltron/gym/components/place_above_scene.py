@@ -37,7 +37,7 @@ class PlaceAboveScene(SuperMechaComponent):
         # not using collision maps anymore
         removable_instances = [
             int(i) for i in scene.instances
-            if not scene.instance_captive(i)
+            if scene.instance_captive(i)
         ]
         
         #instances = list(scene.instances.values())

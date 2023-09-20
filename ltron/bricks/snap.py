@@ -284,21 +284,27 @@ class SnapCylinder(SnapStyle):
                         snaps.append(Stud(command, l, stud_transform))
                 
                 # small stud
-                elif c == 'r' and r == 4 and (first or last) and caps != 'both':
-                    if not (caps == 'one' and first and num_sections > 1):
-                        if caps == 'none' and first:
-                            t = translate_matrix([0,ty-l,0])
-                            flip = numpy.array([
-                                [-1, 0, 0, 0],
-                                [ 0,-1, 0, 0],
-                                [ 0, 0, 1, 0],
-                                [ 0, 0, 0, 1]]
-                            )
-                            stud_transform = transform @ t @ flip
-                        else:
-                            t = translate_matrix([0,ty,0])
-                            stud_transform = transform @ t
-                        snaps.append(SmallStud(command, l, stud_transform))
+                # table these until we can figure out what to do with
+                # overlapping snaps... too many large studs have holes in them
+                # so including small studs and small stud holes leads to
+                # overlappings snaps which might cause misclicks
+                #elif (c == 'r' and r == 4 and
+                #    (first or last) and caps != 'both'
+                #):
+                #    if not (caps == 'one' and first and num_sections > 1):
+                #        if caps == 'none' and first:
+                #            t = translate_matrix([0,ty-l,0])
+                #            flip = numpy.array([
+                #                [-1, 0, 0, 0],
+                #                [ 0,-1, 0, 0],
+                #                [ 0, 0, 1, 0],
+                #                [ 0, 0, 0, 1]]
+                #            )
+                #            stud_transform = transform @ t @ flip
+                #        else:
+                #            t = translate_matrix([0,ty,0])
+                #            stud_transform = transform @ t
+                #        snaps.append(SmallStud(command, l, stud_transform))
                 
                 # duplo stud
                 elif c == 'r' and r==12 and (first or last) and caps != 'both':
@@ -384,10 +390,12 @@ class SnapCylinder(SnapStyle):
                         snaps.append(StudHole(command, l, hole_transform))
                 
                 # small stud hole
-                elif r == 4 and (first or last) and caps != 'both':
-                    if not (caps == 'one' and first and num_sections > 1):
-                        hole_transform = transform @ translate_matrix([0,ty,0])
-                        snaps.append(SmallStudHole(command, l, hole_transform))
+                # come back to this when we figure out coincident snaps
+                # (see note on SmallStud)
+                #elif r == 4 and (first or last) and caps != 'both':
+                #    if not (caps == 'one' and first and num_sections > 1):
+                #        hole_transform = transform @ translate_matrix([0,ty,0])
+                #        snaps.append(SmallStudHole(command, l, hole_transform))
                 
                 # duplo stud hole
                 elif r == 12 and (first or last) and caps != 'both':
@@ -440,26 +448,8 @@ class SnapCylinder(SnapStyle):
         return True
     
     def get_collision_direction_transforms(self, connected_snaps=None):
-        if connected_snaps:
-            if self.polarity == '+':
-                return [], [
-                    numpy.array([
-                        [ 1, 0, 0, 0],
-                        [ 0, 0, 1, 0],
-                        [ 0, 1, 0, 0],
-                        [ 0, 0, 0, 1],
-                    ]),
-                ], [[]]
-            else:
-                return [], [
-                    numpy.array([
-                        [ 1, 0, 0, 0],
-                        [ 0, 0,-1, 0],
-                        [ 0, 1, 0, 0],
-                        [ 0, 0, 0, 1],
-                    ]),
-                ], [[]]
-        else:
+        #if connected_snaps:
+        if self.polarity == '+':
             return [], [
                 numpy.array([
                     [ 1, 0, 0, 0],
@@ -467,13 +457,31 @@ class SnapCylinder(SnapStyle):
                     [ 0, 1, 0, 0],
                     [ 0, 0, 0, 1],
                 ]),
+            ], [[]]
+        else:
+            return [], [
                 numpy.array([
                     [ 1, 0, 0, 0],
                     [ 0, 0,-1, 0],
                     [ 0, 1, 0, 0],
                     [ 0, 0, 0, 1],
                 ]),
-            ], [[],[]]
+            ], [[]]
+        #else:
+        #    return [], [
+        #        numpy.array([
+        #            [ 1, 0, 0, 0],
+        #            [ 0, 0, 1, 0],
+        #            [ 0, 1, 0, 0],
+        #            [ 0, 0, 0, 1],
+        #        ]),
+        #        numpy.array([
+        #            [ 1, 0, 0, 0],
+        #            [ 0, 0,-1, 0],
+        #            [ 0, 1, 0, 0],
+        #            [ 0, 0, 0, 1],
+        #        ]),
+        #    ], [[],[]]
     
     def get_collision_direction_transforms_old(self):
         # return a list of directions that this snap can be pushed onto another
@@ -638,7 +646,7 @@ def make_wheel_tire_pair(pair_radius, pair_length):
         
         def get_collision_direction_transforms(self, connected_snaps=None):
             if connected_snaps:
-                return [c.brick_instance for c in connected_snaps], [], []
+                return [[c.brick_instance] for c in connected_snaps], [], []
             else:
                 c = []
                 t = [
@@ -655,10 +663,10 @@ def make_wheel_tire_pair(pair_radius, pair_length):
                         [ 0., 0., 0., 1.],
                     ]),
                 ]
-                igs = [] * len(t)
-                
+                igs = [[]] * len(t)
+            
             return c, t, igs
-
+    
     class Tire(SnapCylinder):
         polarity = '-'
         radius = pair_radius

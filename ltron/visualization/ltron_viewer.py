@@ -161,7 +161,7 @@ def start_viewer(
                 if change_time != state['recent_file_change_time'] or force:
                     t_start_load = time.time()
                     view_matrix = scene.get_view_matrix()
-                    scene.instances.clear()
+                    scene.clear_instances()
                     scene.import_ldraw(file_path, subdocument=subdocument)
                     
                     #renderer.load_scene(scene, clear_scene=True)
