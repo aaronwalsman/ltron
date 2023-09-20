@@ -646,7 +646,7 @@ def make_wheel_tire_pair(pair_radius, pair_length):
         
         def get_collision_direction_transforms(self, connected_snaps=None):
             if connected_snaps:
-                return [c.brick_instance for c in connected_snaps], [], []
+                return [[c.brick_instance] for c in connected_snaps], [], []
             else:
                 c = []
                 t = [
