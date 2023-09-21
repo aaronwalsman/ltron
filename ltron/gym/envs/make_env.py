@@ -43,6 +43,7 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     old_island_style = False
     log_prob_losses = False
     expert_matches_at_identity = True
+    expert_action_selection = 'random'
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,

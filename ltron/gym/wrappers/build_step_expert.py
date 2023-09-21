@@ -481,7 +481,19 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         #observation['expert'] = actions
         #observation['num_expert_actions'] = num_expert_actions
         
-        primary_action = random.choice(actions)
+        if self.config.expert_action_selection == 'random':
+            primary_action = random.choice(actions)
+        elif self.config.expert_action_selection == 'lowest':
+            click_locations = [
+                tuple(a['cursor']['click']) + (i,)
+                for i,a in enumerate(actions)
+            ]
+            _, _, i = max(click_locations)
+            primary_action = actions[i]
+        else:
+            raise Exception('Unknown expert_action_selection: %'%
+                self.config.expert_action_selection)
+            
         #click_snaps = []
         #release_snaps = []
         primary_mode = primary_action['action_primitives']['mode']
