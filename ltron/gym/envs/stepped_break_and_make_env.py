@@ -38,6 +38,8 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
         config,
         train=False,
+        rank=None,
+        size=None,
     ):
         components = OrderedDict()
         
@@ -60,7 +62,7 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
         
         # loader
         components['loader'] = make_loader(
-            config, components['scene'], train=train)
+            config, components['scene'], train=train, rank=rank, size=size)
         
         # time step
         components['time'] = TimeStepComponent(
@@ -147,5 +149,16 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
         if config.max_instances is not None:
             components['max_instances'] = MaxInstances(
                 components['scene'], config.max_instances)
-
+        
         super().__init__(components)
+    
+    def reset_loader(self):
+        self.components['loader'].reset_iterator()
+    
+    def step(self, *args, **kwargs):
+        o,r,t,u,i = super().step(*args, **kwargs)
+        if self.components['loader'].finished:
+            t = False
+            u = False
+        
+        return o,r,t,u,i

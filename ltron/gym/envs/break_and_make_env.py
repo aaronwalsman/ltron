@@ -33,6 +33,8 @@ class BreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
         config,
         train=False,
+        rank=None,
+        size=None,
     ):
         components = OrderedDict()
         

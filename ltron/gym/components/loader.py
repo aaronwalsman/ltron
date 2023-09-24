@@ -1,5 +1,7 @@
 import random
 
+from gymnasium.spaces import Discrete
+
 from steadfast.config import Config
 
 from supermecha import SuperMechaComponent
@@ -66,8 +68,8 @@ class DatasetLoader(SuperMechaComponent):
         self.dataset_name = dataset_name
         self.split = split
         self.subset = subset
-        self.rank = 0
-        self.size = 1
+        self.rank = rank
+        self.size = size
         self.shuffle = shuffle
         self.shuffle_buffer = shuffle_buffer
         self.repeat = repeat
@@ -77,6 +79,12 @@ class DatasetLoader(SuperMechaComponent):
         
         self.loaded_scenes = 0
         self.finished = False
+        
+        #self.observation_space = Discrete(2)
+    
+    def reset_iterator(self):
+        self.iter = iter(self.dataset)
+        self.loaded_scenes = 0
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
@@ -95,6 +103,7 @@ class DatasetLoader(SuperMechaComponent):
                 repeat=self.repeat,
             )
             self.iter = iter(self.dataset)
+            
             self.initialized = True
             self.loaded_scenes = 0
         
@@ -125,7 +134,11 @@ class DatasetLoader(SuperMechaComponent):
                         t[2,3] -= z_center
                         scene.move_instance(instance, t)
         
+    #    return int(self.finished), {}
         return None, {}
+    
+    #def step(self, action):
+    #    return int(self.finished), 
     
     def get_state(self):
         print('WARNING: LOADER GET_STATE DOES NOT ACTUALLY WORK, NO RNG SAVED')
@@ -155,7 +168,15 @@ class LoaderConfig(Config):
     eval_shuffle = True
     center_assembly = False
 
-def make_loader(config, scene_component, train=False, load_key='load_scene'):
+def make_loader(
+    config,
+    scene_component,
+    train=False,
+    load_key='load_scene',
+    rank=None,
+    size=None,
+):
+    
     load_scene = getattr(config, load_key)
     if load_scene is not None:
         return SingleSceneLoader(
@@ -171,6 +192,8 @@ def make_loader(config, scene_component, train=False, load_key='load_scene'):
                 repeat=config.train_repeat,
                 shuffle=config.train_shuffle,
                 center_assembly=config.center_assembly,
+                rank=rank,
+                size=size,
             )
     else:
         if config.eval_dataset is not None:
@@ -182,6 +205,8 @@ def make_loader(config, scene_component, train=False, load_key='load_scene'):
                 repeat=config.eval_repeat,
                 shuffle=config.eval_shuffle,
                 center_assembly=config.center_assembly,
+                rank=rank,
+                size=size,
             )
     
     return ClearScene(scene_component)
