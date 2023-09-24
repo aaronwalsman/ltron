@@ -20,7 +20,7 @@ def standard_transforms(
     if subset is not None:
         assert subset >= size
         dataset = dataset.slice(subset)
-    if rank != 0 and size != 1:
+    if rank != 0 or size != 1:
         dataset = dataset.slice(rank, None, size)
     if shuffle:
         dataset = dataset.shuffle(shuffle_buffer, initial=shuffle_buffer)
