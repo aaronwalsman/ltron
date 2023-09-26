@@ -29,9 +29,7 @@ class SingleSceneLoader(SuperMechaComponent):
         super().reset(seed)
         scene = self.scene_component.brick_scene
         self.scene_component.clear_scene()
-        #file_path = self.file_paths[self.loads%len(self.file_paths)]
         file_path = self.np_random.choice(self.file_paths)
-        #print(file_path)
         scene.import_ldraw(file_path)
         
         if self.center_assembly:
@@ -79,8 +77,6 @@ class DatasetLoader(SuperMechaComponent):
         
         self.loaded_scenes = 0
         self.finished = False
-        
-        #self.observation_space = Discrete(2)
     
     def reset_iterator(self):
         self.iter = iter(self.dataset)
