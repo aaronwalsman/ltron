@@ -500,8 +500,12 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         primary_button = primary_action['cursor']['button']
         primary_click = primary_action['cursor']['click']
         h,w,_ = observation['pos_snap_render'].shape
-        click_islands = numpy.zeros((h,w), dtype=bool)
-        release_islands = numpy.zeros((h,w), dtype=int)
+        if self.config.cursor_losses == 'gaussian':
+            click_islands = numpy.zeros((h,w), dtype=int)
+            release_islands = numpy.zeros((h,w), dtype=int)
+        else:
+            click_islands = numpy.zeros((h,w), dtype=bool)
+            release_islands = numpy.zeros((h,w), dtype=bool)
         if primary_button:
             click_render = observation['pos_snap_render']
             release_render = observation['neg_snap_render']
@@ -517,21 +521,45 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 ):
                     action_click = action['cursor']['click']
                     ci, cs = click_render[tuple(action_click)]
-                    click_islands |= (
+                    matching_map = (
                         (click_render[:,:,0] == ci) &
                         (click_render[:,:,1] == cs)
                     )
-                    #click_snaps.append((ci,cs))
+                    if self.config.cursor_losses == 'gaussian':
+                        yy, xx = numpy.where(matching_map)
+                        y_mean = numpy.mean(yy.astype(float))
+                        x_mean = numpy.mean(xx.astype(float))
+                        y = numpy.arange(h)
+                        y_heat = numpy.exp(-(y-y_mean) ** 2 / (2*1.5**2))
+                        x = numpy.arange(w)
+                        x_heat = numpy.exp(-(x-x_mean) ** 2 / (2*1.5**2))
+                        yx_heat = y_heat.reshape(h,1) * x_heat.reshape(1,w)
+                        click_islands += (yx_heat * 65536).astype(int)
+                        
+                    else:
+                        click_islands |= matching_map
+                        #click_snaps.append((ci,cs))
                     
                     if pi == ci and ps == cs:
                         release_click = action['cursor']['release']
                         ri, rs = release_render[tuple(release_click)]
-                        #if ri == 0 and rs == 0:
-                        #    breakpoint()
-                        release_islands |= (
+                        matching_map = (
                             (release_render[:,:,0] == ri) &
                             (release_render[:,:,1] == rs)
                         )
+                        if self.config.cursor_losses == 'gaussian':
+                            yy, xx = numpy.where(matching_map)
+                            y_mean = numpy.mean(yy.astype(float))
+                            x_mean = numpy.mean(xx.astype(float))
+                            y = numpy.arange(h)
+                            y_heat = numpy.exp(-(y-y_mean) ** 2 / (2*1.5**2))
+                            x = numpy.arange(w)
+                            x_heat = numpy.exp(-(x-x_mean) ** 2 / (2*1.5**2))
+                            yx_heat = y_heat.reshape(h,1) * x_heat.reshape(1,w)
+                            release_islands += (yx_heat * 65536).astype(int)
+                            
+                        else:
+                            release_islands |= matching_map
         else:
             click_islands = (
                 (click_render[:,:,0] == pi) & (click_render[:,:,1] == ps))

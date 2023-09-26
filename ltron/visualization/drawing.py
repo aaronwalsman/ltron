@@ -150,7 +150,8 @@ def heatmap_overlay(
 ):
     if max_normalize:
         heatmap_max = numpy.max(heatmap)
-        heatmap /= heatmap_max
+        if heatmap_max:
+            heatmap /= heatmap_max
     overlay = (
         heatmap * [[color]] +
         background * background_scale * (1. - heatmap)

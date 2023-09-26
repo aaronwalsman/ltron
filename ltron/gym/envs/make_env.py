@@ -164,3 +164,17 @@ class MakeEnv(SuperMechaContainer):
         )
         
         super().__init__(components)
+    
+    def reset_loader(self):
+        self.components['loader'].reset_iterator()
+    
+    def get_loaded_scene(self):
+        return self.components['loader'].file_name
+    
+    def step(self, *args, **kwargs):
+        o,r,t,u,i = super().step(*args, **kwargs)
+        if self.components['loader'].finished:
+            t = False
+            u = False
+        
+        return o,r,t,u,i

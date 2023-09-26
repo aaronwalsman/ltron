@@ -1,9 +1,11 @@
 from argparse import ArgumentParser
 
+import ltron.dataset.rco as rco
 import ltron.dataset.rca as rca
 import ltron.dataset.rcb as rcb
 
 modules = {
+    'rco':rco,
     'rca':rca,
     'rcb':rcb,
 }
