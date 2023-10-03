@@ -1,20 +1,12 @@
+from multiset import Multiset
+
 import numpy
 
 import PIL.Image as Image
 
 import tqdm
 
-import ltron.utils as utils
-
-def tp_fp_fn(prediction, ground_truth, axis = -1):
-    count_difference = ground_truth - prediction
-    false_negative_locations = count_difference > 0
-    false_negatives = count_difference * false_negative_locations
-    false_positive_locations = count_difference < 0
-    false_positives = -count_difference * false_positive_locations
-    true_positives = prediction - false_positives
-    
-    return true_positives, false_positives, false_negatives
+from ltron.matching import match_assemblies, compute_unmatched
 
 def precision_recall(true_positives, false_positives, false_negatives):
     if true_positives + false_positives == 0:
@@ -28,7 +20,7 @@ def precision_recall(true_positives, false_positives, false_negatives):
     return precision, recall
 
 def f1(precision, recall):
-    if (precision + recall) == 0:
+    if (precision + recall) == 0.:
         return 0.
     return 2 * (precision * recall) / (precision + recall)
 
@@ -72,6 +64,27 @@ def ap(scores, ground_truth, false_negatives):
         ap_score = 0.0
     
     return pr_curve, concave_pr_curve, ap_score
+
+def f1b(predicted, ground_truth):
+    predicted_bricks = Multiset(zip(predicted['shape'], predicted['color'))
+    predicted_bricks.remove((0,0))
+    ground_truth_bricks = Multiset(
+        zip(ground_truth['shape'], ground_truth['color']))
+    ground_truth_bricks.remove((0,0))
+    tp = len(predicted_bricks & ground_truth_bricks)
+    fp = len(predicted_bricks - ground_truth_bricks)
+    fn = len(ground_truth_bricks - predicted_bricks)
+    p,r = precision_recall(tp, fp, fn)
+    return f1(p,r)
+
+def f1a(predicted, ground_truth):
+    matches, offset = match_assemblies(predicted, ground_truth)
+    tp, fn = compute_unmatched(predicted, ground_truth, matches)
+    tp = len(matches)
+    fp = len(mc_p) + len(md_p) + len(sc_p)
+    fn = len(mc_gt) + len(md_gt) + len(sc_gt)
+    p,r = precision_recall(tp, tp, fn)
+    return f1(p,r)
 
 def edge_ap(edges, ground_truth):
     scores = []
