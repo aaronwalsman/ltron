@@ -23,6 +23,7 @@ class LtronInterfaceConfig(
     env_name = 'LTRON/Freebuild-v0'
     train = True
     auto_reset = True
+    auto_play = False
 
 class LtronInterface:
     def __init__(self, config):
@@ -59,6 +60,11 @@ class LtronInterface:
         print('Right-click: stud')
     
     def render(self):
+        if self.env.config.auto_play:
+            _, action, *_ = self.recent_observation['expert']
+            o,r,t,u,i = self.env.step(action)
+            self.recent_observation = o
+        
         self.window.set_active()
         self.window.enable_window()
         self.scene.color_render(flip_y=False)

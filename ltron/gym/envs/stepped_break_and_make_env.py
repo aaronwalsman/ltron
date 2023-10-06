@@ -33,6 +33,8 @@ class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     max_instances = None
 
     truncate_if_assembly_unchanged = False
+    
+    cursor_losses = 'equivalence_cross_entropy' # TODO: get this out of here
 
 class SteppedBreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,

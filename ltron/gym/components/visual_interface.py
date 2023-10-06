@@ -63,7 +63,7 @@ class VisualInterfaceConfig(Config):
     viewpoint_translation_jiggle = False
     viewpoint_center_on_reset = False
     viewpoint_fixed_elevation = 1
-    viewpoint_fixed_azimuth = 5
+    viewpoint_fixed_azimuth = 6
     viewpoint_fixed_distance = 1
     
     truncate_on_failure = False

@@ -664,6 +664,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             current_target,
         )
         
+        if r == 0:
+            breakpoint()
+        
         actions = []
         for p, y, x in click_loc:
             action = self.env.no_op_action()
@@ -866,9 +869,31 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 new_transform = (
                     pivot_a @ transform @ pivot_b @ instance.transform)
                 new_translate = new_transform[:3,3]
+                
+                #manhattan_distance = numpy.abs(
+                #    (new_translate - target_translate)
+                #).sum()
+                manhattan_offset = new_translate - target_translate
+                rx = round(manhattan_offset[0])
+                ry = round(manhattan_offset[1])
+                rz = round(manhattan_offset[2])
+                if rx > 0 and rx < 8:
+                    continue
+                if ry > 0 and ry < 8:
+                    continue
+                if rz > 0 and rz < 8:
+                    continue
+                if rx > 8 and not (rx%8 == 0 or rx%20==0):
+                    continue
+                if rx > 8 and not (rx%8 == 0 or rx%20==0):
+                    continue
+                if rx > 8 and not (ry%8 == 0 or ry%20==0):
+                    continue
+                if rx > 8 and not (rz%8 == 0 or rz%20==0):
+                    continue
                 manhattan_distance = numpy.abs(
-                    (new_translate - target_translate)
-                ).sum()
+                    manhattan_offset).sum()
+                
                 manhattan_distances.append((
                     (manhattan_distance, 0), # prefer translate
                     'translate',
@@ -892,9 +917,31 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                             math.radians(5.),
                         ):
                             new_translate = moved_transform[:3,3]
+                            
+                            #manhattan_distance = numpy.abs(
+                            #    (new_translate - target_translate)
+                            #).sum()
+                            manhattan_offset = new_translate - target_translate
+                            rx = round(manhattan_offset[0])
+                            ry = round(manhattan_offset[1])
+                            rz = round(manhattan_offset[2])
+                            if rx > 0 and rx < 8:
+                                continue
+                            if ry > 0 and ry < 8:
+                                continue
+                            if rz > 0 and rz < 8:
+                                continue
+                            if rx > 8 and not (rx%8 == 0 or rx%20==0):
+                                continue
+                            if rx > 8 and not (rx%8 == 0 or rx%20==0):
+                                continue
+                            if rx > 8 and not (ry%8 == 0 or ry%20==0):
+                                continue
+                            if rx > 8 and not (rz%8 == 0 or rz%20==0):
+                                continue
                             manhattan_distance = numpy.abs(
-                                (new_translate - target_translate)
-                            ).sum()
+                                manhattan_offset).sum()
+                            
                             snap_id = (
                                 snap_to_translate,
                                 int(other_instance),

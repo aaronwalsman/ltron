@@ -47,7 +47,8 @@ class BuildScore(SuperMechaComponent):
         if self.normalize:
             target_assembly = self.target_assembly_component.observation
             num_target = numpy.sum(target_assembly['shape'] != 0)
-            improvement /= (num_target * 3.)
+            if num_target:
+                improvement /= (num_target * 3.)
         self.previous_error = error
         return None, improvement, False, False, {}
     
