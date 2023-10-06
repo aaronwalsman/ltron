@@ -28,6 +28,8 @@ class BreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     compute_collision_map = False
 
     max_instances = None
+    
+    cursor_losses = 'equivalence_cross_entropy' # TODO: get this out of here
 
 class BreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
