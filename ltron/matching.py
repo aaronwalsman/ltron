@@ -17,7 +17,6 @@ def initialize_kd_tree(assembly):
 def match_assemblies(
     assembly_a,
     assembly_b,
-    #part_names,
     kdtree=None,
     radius=0.01,
     allow_rotations=True,
@@ -27,7 +26,7 @@ def match_assemblies(
     their bricks into alignment as possible.  The naive implementation would
     use N^2 checks to test the offset between every pairwise combination of
     bricks in assembly_a and assembly_b.  However we throw a bunch of
-    hacks at this to make this much more manageable.  The worst case is
+    hacks at this to make it much more manageable.  The worst case is
     probably still N^2, but this should only come up in pathological cases.
     
     This is optimized for the case where assembly_b is larger than assembly_a.
@@ -95,8 +94,6 @@ def match_assemblies(
                     pose_b = assembly_b['pose'][b]
                     
                     # test the offset to each symmetric pose
-                    #symmetry_poses = brick_symmetry_poses(
-                    #    part_names[s], pose_a)
                     symmetry_poses = [pose_a]
                     best_sym_matches = []
                     for symmetry_pose in symmetry_poses:
@@ -110,7 +107,6 @@ def match_assemblies(
                         valid_matches = find_matches_under_transform(
                             assembly_a,
                             assembly_b,
-                            #part_names,
                             a_to_b,
                             kdtree,
                             radius,
@@ -163,7 +159,6 @@ def match_assemblies(
 def find_matches_under_transform(
     assembly_a,
     assembly_b,
-    #part_names,
     a_to_b,
     kdtree=None,
     radius=0.01,
@@ -189,12 +184,11 @@ def find_matches_under_transform(
         return []
     
     # Validate the matches.
-    valid_matches = validate_matches(
-        assembly_a, assembly_b, matches, a_to_b) #, part_names)
+    valid_matches = validate_matches(assembly_a, assembly_b, matches, a_to_b)
     
     return valid_matches
 
-def validate_matches(assembly_a, assembly_b, matches, a_to_b): #, part_names):
+def validate_matches(assembly_a, assembly_b, matches, a_to_b):
     # Ensure that shapes match, colors match, poses match and that each brick
     # is only matched to one other.
     valid_matches = set()
@@ -251,15 +245,36 @@ def matching_edges(assembly, i1=None, i2=None, s1=None, s2=None):
     
     return matches
 
-
-def compute_misaligned(assembly_a, assembly_b, matches):
+def compute_unmatched(assembly_a, assembly_b, matches):
+    '''
+    Given two assemblies and a list of matches between them, this computes
+    the bricks that were not matched from each assembly.
+    '''
     all_a = set(numpy.where(assembly_a['shape'] != 0)[0])
     all_b = set(numpy.where(assembly_b['shape'] != 0)[0])
     a_to_b = dict(matches)
     b_to_a = {b:a for a,b in matches}
-    
     unmatched_a = all_a - set(a_to_b.keys())
     unmatched_b = all_b - set(b_to_a.keys())
+    
+    return unmatched_a, unmatched_b
+
+def compute_misaligned(assembly_a, assembly_b, matches):
+    '''
+    Given two assemblies and a list of matches between them, this computes
+    which bricks could be matching but are not because they are misaligned
+    and which bricks cannot be matched due to shape and color mismatches.
+    '''
+    #all_a = set(numpy.where(assembly_a['shape'] != 0)[0])
+    #all_b = set(numpy.where(assembly_b['shape'] != 0)[0])
+    a_to_b = dict(matches)
+    b_to_a = {b:a for a,b in matches}
+    
+    #unmatched_a = all_a - set(a_to_b.keys())
+    #unmatched_b = all_b - set(b_to_a.keys())
+    
+    unmatched_a, unmatched_b = compute_unmatched(
+        assembly_a, assembly_b, matches)
     
     misaligned_connected_a = {}
     misaligned_connected_b = {}
@@ -317,6 +332,7 @@ def compute_misaligned(assembly_a, assembly_b, matches):
         shape_color_mismatch_b,
     )
 
+'''
 def compute_misaligned_old(matches, assembly_a, assembly_b):
     # find all instances in assembly_a and assembly_b that are not matched
     all_a = set(numpy.where(assembly_a['shape'] != 0)[0])
@@ -359,3 +375,4 @@ def match_lookup(matching, assembly_a, assembly_b):
     miss_b = set(b for b in b_instances if b not in b_to_a)
     
     return a_to_b, b_to_a, miss_a, miss_b
+'''
