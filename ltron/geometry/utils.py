@@ -99,6 +99,39 @@ def orthogonal_orientations(offset=None):
     
     return orientations
 
+def single_axis_orthogonal_orientations(offset=None):
+    if offset is None:
+        offset = numpy.eye(4)
+    else:
+        offset = offset.copy()
+        offset[:3,3] = 0
+    orientations = []
+    orientations.append(offset@numpy.eye(4))
+    for i in range(3):
+        j = (i+1)%3
+        k = (i+2)%3
+        
+        a = numpy.eye(4)
+        a[j,j] = 0
+        a[j,k] = 1
+        a[k,j] = -1
+        a[k,k] = 0
+        orientations.append(offset@a)
+        
+        b = numpy.eye(4)
+        b[j,j] = -1
+        b[k,k] = -1
+        orientations.append(offset@b)
+        
+        c = numpy.eye(4)
+        c[j,j] = 0
+        c[j,k] = -1
+        c[k,j] = 1
+        c[k,k] = 0
+        orientations.append(offset@c)
+    
+    return orientations
+
 def local_pivot(transform):
     return transform, numpy.linalg.inv(transform)
 
