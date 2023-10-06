@@ -17,6 +17,7 @@ setuptools.setup(
         #'gym==0.21.0',
         #'gym==0.26.0',
         'gymnasium>=0.26.3',
+        'multiset',
         'numpy',
         'scipy',
         'pyquaternion',
