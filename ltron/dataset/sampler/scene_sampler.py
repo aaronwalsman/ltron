@@ -24,6 +24,7 @@ def sample_shard(
     min_instances,
     max_instances,
     num_scenes,
+    place_on_top=False,
     compress=False,
     shard_id=None,
 ):
@@ -70,6 +71,7 @@ def sample_shard(
             colors,
             min_instances,
             max_instances,
+            place_on_top=place_on_top,
         )
         
         si = str(i).rjust(padding, '0')
@@ -134,14 +136,16 @@ def sample_shard(
         dataset_info = json.dump(dataset_info, f, indent=2)
 
 def sample_scene(
-        scene,
-        subassembly_samplers,
-        colors,
-        min_instances,
-        max_instances,
-        retries=20,
-        debug=False,
-        timeout=None):
+    scene,
+    subassembly_samplers,
+    colors,
+    min_instances,
+    max_instances,
+    retries=20,
+    place_on_top=False,
+    debug=False,
+    timeout=None,
+):
     
     t_start = time.time()
     
@@ -204,6 +208,11 @@ def sample_scene(
                     
                     if len(transforms):
                         transform = random.choice(transforms)
+                        if place_on_top:
+                            place_transform = place.brick_instance.transform
+                            if transform[1,3] <= place_transform[1,3]:
+                                continue
+                        
                         scene.move_instance(pick.brick_instance, transform)
                         
                         if debug:
