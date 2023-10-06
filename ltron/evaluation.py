@@ -1,10 +1,5 @@
+import copy
 from multiset import Multiset
-
-import numpy
-
-import PIL.Image as Image
-
-import tqdm
 
 from ltron.matching import match_assemblies, compute_unmatched
 
@@ -66,7 +61,7 @@ def ap(scores, ground_truth, false_negatives):
     return pr_curve, concave_pr_curve, ap_score
 
 def f1b(predicted, ground_truth):
-    predicted_bricks = Multiset(zip(predicted['shape'], predicted['color'))
+    predicted_bricks = Multiset(zip(predicted['shape'], predicted['color']))
     predicted_bricks.remove((0,0))
     ground_truth_bricks = Multiset(
         zip(ground_truth['shape'], ground_truth['color']))
@@ -79,127 +74,123 @@ def f1b(predicted, ground_truth):
 
 def f1a(predicted, ground_truth):
     matches, offset = match_assemblies(predicted, ground_truth)
-    tp, fn = compute_unmatched(predicted, ground_truth, matches)
-    tp = len(matches)
-    fp = len(mc_p) + len(md_p) + len(sc_p)
-    fn = len(mc_gt) + len(md_gt) + len(sc_gt)
-    p,r = precision_recall(tp, tp, fn)
+    fp, fn = compute_unmatched(predicted, ground_truth, matches)
+    p,r = precision_recall(len(matches), len(fp), len(fn))
     return f1(p,r)
 
-def edge_ap(edges, ground_truth):
-    scores = []
-    ground_truth_scores = []
-    for edge, score in edges.items():
-        scores.append(score)
-        ground_truth_scores.append(ground_truth.get(edge, 0.0))
-    false_negatives = len(set(ground_truth.keys()) - set(edges.keys()))
-    return ap(scores, ground_truth_scores, false_negatives)
+def aed(
+    predicted,
+    ground_truth,
+    radius=0.01,
+    miss_a_penalty=1,
+    miss_b_penalty=1,
+    pose_penalty=1,
+):
 
-def instance_map(
-        instance_class_predictions, class_false_negatives, extant_classes):
+    running_p_to_gt = {}
+
+    def remove_and_match(p, gt, remove):
+        new_p = copy.deepcopy(p)
+        new_gt = copy.deepcopy(gt)
+        for rp, rgt in remove.items():
+            new_p['shape'][rp] = 0
+            new_p['color'][rp] = 0
+            new_gt['shape'][rgt] = 0
+            new_gt['color'][rgt] = 0
+
+        matches, offset = match_assemblies(new_p, new_gt)
+        fp, fn = compute_unmatched(new_p, new_gt, matches)
+        
+        return new_p, new_gt, dict(matches), fp, fn
+
+    first_matches, _ = match_assemblies(predicted, ground_truth)
+    p_to_gt = dict(first_matches)
+    running_p_to_gt.update(p_to_gt)
+
+    predicted, ground_truth, p_to_gt, fp, fn = remove_and_match(
+        predicted, ground_truth, p_to_gt)
+    running_p_to_gt.update(p_to_gt)
+
+    edits = 0
+    while len(p_to_gt):
+        predicted, ground_truth, p_to_gt, fp, fn = remove_and_match(
+            predicted, ground_truth, p_to_gt)
+        running_p_to_gt.update(p_to_gt)
+
+        edits += 1
     
-    per_class_predictions = {}
-    per_class_ground_truth = {}
-    for (class_label, score), true_label in instance_class_predictions:
-        if class_label not in per_class_predictions:
-            per_class_predictions[class_label] = []
-            per_class_ground_truth[class_label] = []
-        per_class_predictions[class_label].append(float(score))
-        per_class_ground_truth[class_label].append(
-                float(class_label == true_label))
+    edits += len(fp) * 1
+    edits += len(fn) * 2
     
-    class_ap = {}
-    for class_label in per_class_predictions:
-        if class_label not in extant_classes:
+    return edits, running_p_to_gt
+
+def f1e(predicted, ground_truth, predicted_to_ground_truth):
+    predicted_edges = set()
+    for a, b in zip(predicted['edges'][0], predicted['edges'][1]):
+        # unidirectional only
+        if a == 0 or b == 0 or b < a:
             continue
-        _, _, class_ap[class_label] = ap(
-                per_class_predictions[class_label],
-                per_class_ground_truth[class_label],
-                class_false_negatives.get(class_label, 0))
+        gta = predicted_to_ground_truth.get(a, -1)
+        gtb = predicted_to_ground_truth.get(b, -1)
+        predicted_edges.add((gta, gtb))
     
-    return sum(class_ap.values())/len(class_ap), class_ap
+    ground_truth_edges = set()
+    for a, b in zip(ground_truth['edges'][0], ground_truth['edges'][1]):
+        # unidirectional only
+        if a == 0 or b == 0 or b < a:
+            continue
+        ground_truth_edges.add((a,b))
+    
+    tp = predicted_edges & ground_truth_edges
+    fp = predicted_edges - ground_truth_edges
+    fn = ground_truth_edges - predicted_edges
+    p,r = precision_recall(len(tp), len(fp), len(fn))
+    
+    return f1(p,r)
 
 '''
-def dataset_node_and_edge_ap(model, multi_env, dump_images=False):
+def aed(predicted, ground_truth):
+    edits = 0
+    working_predicted = copy_assembly(predicted)
+    working_ground_truth = copy_assembly(ground_truth)
+    matches = True
     
-    num_paths = multi_env.get_attr('num_paths')
-    multi_env.call_method(
-            'start_over',
-            [{'reset_mode' : 'sequential'}] * multi_env.num_processes)
-    
-    iterate = tqdm.tqdm(range(max(num_paths)))
-    predicted_step_edges = [{}]
-    ground_truth_edges = {}
-    episode_step_ap = []
-    for i in iterate:
+    # compute sub-assembly edits
+    while matches:
         
-        # start a new batch of episodes
-        observations = multi_env.call_method('reset')
+        # compute the best matches
+        matches, offset = match_assemblies(
+            working_predicted, working_ground_truth)
         
-        # get ground truth edges for each episode
-        node_and_edge_labels = multi_env.call_method('get_node_and_edge_labels')
-        episode_edge_labels = []
-        for j, (nodes, edges) in enumerate(node_and_edge_labels):
-            updated_labels = {
-                    ((i,j), a-1, b-1, c, d) : 1.0
-                    for a,b,c,d in edges}
-            ground_truth_edges.update(updated_labels)
-            episode_edge_labels.append(updated_labels)
+        # compute false positives and false negatives
+        fp, fn = compute_unmatched(
+            working_predicted, working_ground_truth, matches)
         
-        terminal = [False] * multi_env.num_processes
-        step = 0
-        hidden_state = None
-        while not all(terminal):
-            
-            # dump images
-            if dump_images:
-                frame_images, segment_images = zip(*observations)
-                for j in range(len(frame_images)):
-                    episode_id = i * len(frame_images) + j
-                    Image.fromarray(frame_images[j]).save(
-                            './frame_%i_%i.png'%(episode_id, step))
-                    for seg in range(len(segment_images[j])):
-                        Image.fromarray(segment_images[j][seg]).save(
-                                './seg_%i_%i_%i.png'%(episode_id, step, seg))
-            
-            # prediction
-            actions, node_predictions, edge_matrix, hidden_state = model(
-                    observations, hidden_state)
-            for j in range(multi_env.num_processes):
-                if not terminal[j]:
-                    edge_scores = utils.matrix_to_edge_scores(
-                            (i,j), node_predictions[j], edge_matrix[j])
-                    if len(predicted_step_edges) <= step:
-                        predicted_step_edges.append({})
-                    predicted_step_edges[step].update(edge_scores)
-                    _, _, ap = edge_ap(edge_scores, episode_edge_labels[j])
-                    #================
-                    #episode_id = i * multi_env.num_processes + j
-                    #print('STEP AP (%i, %i): %f'%(episode_id, step, ap))
-                    #print(node_predictions[j])
-                    #print(edge_matrix[j])
-                    #print(edge_scores)
-                    #print(episode_edge_labels[j])
-                    #================
-                    if len(episode_step_ap) <= step:
-                        episode_step_ap.append([])
-                    episode_step_ap[step].append(ap)
-            step_result = multi_env.call_method(
-                    'step', [{'action':{'hide':action}} for action in actions])
-            observations, _, terminal, _ = zip(*step_result)
-            
-            step += 1
+        # remove the matches from the predicted and ground truth assemblies
+        working_predicted['shape'][[p for p,gt in matches]] = 0
+        working_predicted['color'][[p for p,gt in matches]] = 0
+        working_ground_truth['shape'][[gt for p,gt in matches]] = 0
+        working_ground_truth['color'][[gt for p,gt in matches]] = 0
+        
+        edits += 1
     
-    step_edge_ap = []
-    for step_edges in predicted_step_edges:
-        pr, cpr, ap = edge_ap(step_edges, ground_truth_edges)
-        step_edge_ap.append(ap)
+    # first global matching is free
+    edits -= 1
     
-    print('Step Edge AP (all)')
-    print(step_edge_ap)
-    average_episode_step_ap = [sum(ap)/len(ap) for ap in episode_step_ap]
-    print('Step Edge AP (individual)')
-    print(average_episode_step_ap)
+    # at this point all the matches are gone and all we have left is
+    # false positives and false negatives
+    (connected_misaligned_predicted,
+     connected_misaligned_ground_truth,
+     disconnected_misaligned_predicted,
+     disconnected_misaligned_ground_truth,
+     false_positives,
+     false_negatives) = compute_misaligned(
+        working_predicted, working_ground_truth, matches)
     
-    return step_edge_ap
+    edits += len(connected_misaligned_predicted)
+    edits += len(disconnected_misaligned_predicted) * 2
+    edits += len(false_positives)
+    edits += len(false_negatives) * 3
+    
+    return edits
 '''
