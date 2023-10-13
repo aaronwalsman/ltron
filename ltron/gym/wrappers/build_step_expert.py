@@ -20,6 +20,7 @@ from supermecha.gym.spaces import IntegerMaskSpace
 
 from ltron.matching import match_assemblies
 from ltron.constants import SHAPE_CLASS_NAMES
+from ltron.bricks.brick_scene import make_empty_assembly
 from ltron.bricks.brick_shape import BrickShape
 from ltron.bricks.snap import SnapFinger
 from ltron.geometry.utils import (
@@ -146,7 +147,10 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     
         # get assemblies
         current_assembly = observation['assembly']
+        #if 'target_assembly' in observation:
         target_assembly = observation['target_assembly']
+        #else:
+        #    target_assembly = make_empty_assembly(0,0)
         if 'initial_assembly' in observation:
             initial_assembly = observation['initial_assembly']
         
@@ -207,22 +211,27 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         num_bricks = len(instance_ids)
         too_hard = False
         if 'assemble_step' in set(action_primitives.keys()):
-            if observation['action_primitives']['phase'] == 0:
+            if ('action_primitives' not in observation or
+                observation['action_primitives']['phase'] == 0
+            ):
+                #if 'target_assembly' in observation:
                 prev_assembly = (
                     self.env.components['target_assembly'].observations[-1])
+                #else:
+                #    prev_assembly = make_empty_assembly(0,0)
                 prev_num_bricks = len(numpy.where(prev_assembly['shape'])[0])
                 #if num_bricks and num_bricks < prev_num_bricks:
                 if num_bricks:
                     if prev_num_bricks - num_bricks > 1:
                         too_hard = True
                     elif prev_num_bricks - num_bricks == 1:
-                        assemble_step = True
+                        assemble_step = 1
                     elif prev_num_bricks == num_bricks:
-                        assemble_step = False
+                        assemble_step = 0
                     else:
                         too_hard = True
                 else:
-                    assemble_step = False
+                    assemble_step = 0
             else:
                 num_target_bricks = len(
                     numpy.where(target_assembly['shape'])[0])
@@ -238,11 +247,11 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 assemble_step_component = (
                     primitives_component.components['assemble_step'])
                 if assemble_step_component.current_step < 0:
-                    assemble_step = False
+                    assemble_step = 0
                 elif assembled_correctly:
-                    assemble_step = True
+                    assemble_step = 2
                 else:
-                    assembly_step = False
+                    assembly_step = 0
         
         #too_hard |= (
         #    len(fn) > 1 or
@@ -263,7 +272,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         if too_hard:
             actions = []
         elif assemble_step:
-            actions = self.assemble_step_actions()
+            actions = self.assemble_step_actions(assemble_step)
         elif assembled_correctly or target_empty:
             actions = self.done_actions()
         
@@ -612,12 +621,12 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         
         return [action]
     
-    def assemble_step_actions(self):
+    def assemble_step_actions(self, assemble_value):
         action = self.env.no_op_action()
         mode_space = self.env.action_space['action_primitives']['mode']
         assemble_step_index = mode_space.names.index('assemble_step')
         action['action_primitives']['mode'] = assemble_step_index
-        action['action_primitives']['assemble_step'] = 1
+        action['action_primitives']['assemble_step'] = assemble_value
         
         return [action]
     

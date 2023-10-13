@@ -7,9 +7,10 @@ from steadfast.hierarchy import map_hierarchies
 from supermecha import SuperMechaComponent
 
 class AssembleStepComponent(SuperMechaComponent):
-    def __init__(self, phase_component, max_steps_per_assemble_step=None):
-        self.phase_component = phase_component
-        self.action_space = Discrete(2)
+    #def __init__(self, phase_component, max_steps_per_assemble_step=None):
+    #    self.phase_component = phase_component
+    def __init__(self, max_steps_per_assemble_step=None):
+        self.action_space = Discrete(3)
         self.max_steps_per_assemble_step = max_steps_per_assemble_step
     
     def reset(self, seed=None, options=None):
@@ -19,10 +20,14 @@ class AssembleStepComponent(SuperMechaComponent):
         return None, {}
     
     def step(self, action):
-        if not self.phase_component.phase:
-            self.current_step += action
-        else:
-            self.current_step -= action
+        #if not self.phase_component.phase:
+        #    self.current_step += action
+        #else:
+        #    self.current_step -= action
+        if action == 1:
+            self.current_step += 1
+        elif action == 2:
+            self.current_step -= 1
         
         self.steps_since_assemble_step += 1
         if action:
@@ -65,8 +70,15 @@ class AssembleStepTargetRecorder(SuperMechaComponent):
             o = map_hierarchies(numpy.zeros_like, self.observations[0])
         else:
             o = self.observations[current_step]
-        if self.phase_component.phase == 0 and self.zero_phase_zero:
-            o = map_hierarchies(numpy.zeros_like, o)
+        #if (self.phase_component is not None and
+        #    self.phase_component.phase == 0 and
+        #    self.zero_phase_zero
+        #):
+        if self.zero_phase_zero:
+            if self.phase_component is None:
+                o = map_hierarchies(numpy.zeros_like, o)
+            elif self.phase_component.phase == 0:
+                o = map_hierarchies(numpy.zeros_like, o)
         return o
     
     def reset(self, seed=None, options=None):
