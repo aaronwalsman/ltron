@@ -217,9 +217,9 @@ def make_visual_interface(
     
     # assemble step
     if config.include_assemble_step:
-        assert config.include_phase
+        #assert config.include_phase
         action_primitives['assemble_step'] = AssembleStepComponent(
-            action_primitives['phase'],
+            #action_primitives['phase'],
             max_steps_per_assemble_step=12,
         )
     
