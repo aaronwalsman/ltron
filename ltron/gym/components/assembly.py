@@ -52,6 +52,19 @@ class AssemblyComponent(SensorComponent):
         
         self.compute_collision_map = compute_collision_map
     
+    def step(self, action):
+        #u = False
+        #if len(self.scene_component.brick_scene.instances) > self.max_instances:
+        #    o = EMPTY_ASSEMBLY
+        #    return o, 0., False, True, {}
+        #else:
+        #    return super().step(action)
+        o,r,t,u,i = super().step(action)
+        scene = self.scene_component.brick_scene
+        if len(scene.instances) == self.max_instances:
+            u = True
+        return o,r,t,u,i
+    
     def compute_observation(self):
         assembly = self.scene_component.brick_scene.get_assembly(
             shape_class_labels=self.shape_class_labels,
