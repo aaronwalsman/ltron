@@ -12,12 +12,14 @@ class PlaceAboveScene(SuperMechaComponent):
         randomize_orientation=False,
         randomize_orientation_mode=24,
         selection_mode='random',
+        #number_to_remove=1,
     ):
         self.scene_component = scene_component
         self.offset = offset
         self.randomize_orientation = randomize_orientation
         self.randomize_orientation_mode = randomize_orientation_mode
         self.selection_mode = selection_mode
+        #self.number_to_remove = number_to_remove
     
     def reset(self, seed=None, options=None):
         super().reset(seed)
@@ -34,7 +36,33 @@ class PlaceAboveScene(SuperMechaComponent):
         #            removable_instances.append(i)
         #            break
         
-        # not using collision maps anymore
+        #if self.number_to_remove == 'uniform':
+        #    number_to_remove = self.np_random.integers(
+        #        low=1, high=len(scene.instances), size=1)[0]
+        #else:
+        #    number_to_remove = self.number_to_remove
+        
+        #for i in range(number_to_remove):
+        #    # not using collision maps anymore
+        #    if self.selection_mode == 'highest':
+        #        removable_instances = [int(i) for i in scene.instances]
+        #    else:
+        #        removable_instances = [
+        #            int(i) for i in scene.instances
+        #            if scene.instance_captive(i)
+        #        ]
+        #    if i < number_to_remove-1:
+        #        if self.selection_mode == 'random':
+        #            instance = self.np_random.choice(removable_instances)
+        #            instance = scene.instances[instance]
+        #        elif self.selection_mode == 'highest':
+        #            heights = [
+        #                (scene.instances[i].transform[1,3], i)
+        #                for i in removable_instances
+        #            ]
+        #            instance = max(heights)[1]
+        #            instance = scene.instances[instance]
+        #        scene.remove_instance(instance)
         removable_instances = [
             int(i) for i in scene.instances
             if scene.instance_captive(i)
