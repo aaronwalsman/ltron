@@ -67,6 +67,7 @@ class VisualInterfaceConfig(Config):
     viewpoint_fixed_distance = 1
     
     truncate_on_failure = False
+    truncate_assemble_step = False
 
 def make_visual_interface(
     config,
@@ -221,6 +222,7 @@ def make_visual_interface(
         action_primitives['assemble_step'] = AssembleStepComponent(
             #action_primitives['phase'],
             max_steps_per_assemble_step=12,
+            truncate=config.truncate_assemble_step,
         )
     
     # make the mode switch
