@@ -21,6 +21,7 @@ from ltron.gym.components import (
     PhaseScoreComponent,
     AssembleStepTargetRecorder,
     MaxInstances,
+    PartialDisassemblyComponent
 )
 
 class BreakEnvConfig(VisualInterfaceConfig):
@@ -28,6 +29,9 @@ class BreakEnvConfig(VisualInterfaceConfig):
     image_width = 256
     render_mode = 'egl'
     compute_collision_map = False
+    min_removal_remaining = 1
+    
+    single_step_training = False
     
     max_time_steps = 48
     max_instances = None
@@ -84,6 +88,8 @@ class BreakEnv(SuperMechaContainer):
         config.include_done = True
         config.include_phase = False
         config.include_assemble_step = True
+        if config.single_step_training:
+            config.truncate_assemble_step = True
         interface_components = make_visual_interface(
             config,
             components['scene'],
@@ -100,6 +106,12 @@ class BreakEnv(SuperMechaContainer):
             if 'render' not in k
         }
         components.update(nonrender_components)
+        
+        # parital disassembly
+        if config.single_step_training:
+            components['partial_disassembly'] = PartialDisassemblyComponent(
+                components['scene'],
+                min_remaining=config.min_removal_remaining)
         
         # color render
         components['image'] = ColorRenderComponent(
@@ -140,7 +152,7 @@ class BreakEnv(SuperMechaContainer):
         score_component = BuildScore(
             None,
             components['assembly'],
-            normalize=True,
+            normalize=(not config.single_step_training),
         )
         components['score'] = score_component
         
