@@ -26,6 +26,7 @@ from ltron.bricks.snap import (
     SnapClear,
     deduplicate_snaps,
     griderate,
+    Stud,
     StudHole,
     Tire_10_16,
     Wheel_10_16,
@@ -236,6 +237,32 @@ class BrickShape_98138(BrickShape):
         resolved_snaps = [StudHole(command, 4, transform)]
         self.snaps = SnapStyleSequence(deduplicate_snaps(resolved_snaps))
 
+class BrickShape_3062(BrickShape):
+    def construct_snaps_and_vertices(self):
+        super().construct_snaps_and_vertices()
+        
+        hole_command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 6 4]')
+        hole_transform = numpy.array([
+            [1,0,0,0],
+            [0,1,0,24],
+            [0,0,1,0],
+            [0,0,0,1]
+        ])
+        stud_command = LDrawCommand.parse_command(
+            '0 !LDCAD SNAP_CYL [gender=F] [caps=one] [secs=R 6 4]')
+        stud_transform = numpy.array([
+            [1,0,0,0],
+            [0,1,0,0],
+            [0,0,1,0],
+            [0,0,0,1]
+        ])
+        resolved_snaps = [
+            Stud(stud_command, 4, stud_transform),
+            StudHole(hole_command, 4, hole_transform)
+        ]
+        self.snaps = SnapStyleSequence(deduplicate_snaps(resolved_snaps))
+
 custom_brick_shapes = {}
 custom_brick_shapes['4624.dat'] = BrickShape_4624
 custom_brick_shapes['3641.dat'] = BrickShape_3641
@@ -243,6 +270,7 @@ custom_brick_shapes['4084.dat'] = BrickShape_4084
 custom_brick_shapes['6014.dat'] = BrickShape_6014
 custom_brick_shapes['6015.dat'] = BrickShape_6015
 custom_brick_shapes['98138.dat'] = BrickShape_98138
+custom_brick_shapes['3062.dat'] = BrickShape_3062
 
 def snaps_and_vertices_from_nested_document(document, transform=None):
     # Due to how snap clearing works, everything in this function
