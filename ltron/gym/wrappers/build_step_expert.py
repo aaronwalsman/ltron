@@ -673,8 +673,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             current_target,
         )
         
-        if r == 0:
-            breakpoint()
+        #if r == 0:
+        #    breakpoint()
+        # THIS IS HAPPENING SOMETIMES?!?
         
         actions = []
         for p, y, x in click_loc:
