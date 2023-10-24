@@ -50,7 +50,7 @@ def get_mpd_webdataset_from_shards(
     else:
         shardshuffle=None
     dataset = WebDataset(
-        shards, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
+        shards, resampled=True, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
     dataset = standard_transforms(dataset, shuffle=shuffle, **kwargs)
     
     return dataset
