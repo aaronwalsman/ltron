@@ -9,9 +9,13 @@ from supermecha import SuperMechaComponent
 class AssembleStepComponent(SuperMechaComponent):
     #def __init__(self, phase_component, max_steps_per_assemble_step=None):
     #    self.phase_component = phase_component
-    def __init__(self, max_steps_per_assemble_step=None):
+    def __init__(self,
+        max_steps_per_assemble_step=None,
+        truncate=False
+    ):
         self.action_space = Discrete(3)
         self.max_steps_per_assemble_step = max_steps_per_assemble_step
+        self.truncate = truncate
     
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
@@ -37,6 +41,9 @@ class AssembleStepComponent(SuperMechaComponent):
         if self.max_steps_per_assemble_step is not None and (
             self.steps_since_assemble_step > self.max_steps_per_assemble_step
         ):
+            u = True
+        
+        if self.truncate and action != 0:
             u = True
         
         return None, 0., False, u, {}
