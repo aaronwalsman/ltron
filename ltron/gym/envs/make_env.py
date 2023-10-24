@@ -18,6 +18,7 @@ from ltron.gym.components import (
     AssemblyComponent,
     BuildScore,
     PlaceAboveScene,
+    PartialDisassemblyComponent,
 )
 
 class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
@@ -33,7 +34,9 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     randomize_place_above_orientation = False
     place_above_orientation_mode = 24
     place_above_selection = 'highest'
+    number_to_remove = 1
     compute_collision_map = False
+    min_removal_remaining = 1
     
     truncate_if_assembly_unchanged = False
 
@@ -93,6 +96,10 @@ class MakeEnv(SuperMechaContainer):
         }
         components.update(nonrender_components)
         
+        components['partial_disassembly'] = PartialDisassemblyComponent(
+            components['scene'],
+            min_remaining=config.min_removal_remaining)
+        
         if config.image_based_target:
             components['target_image'] = ColorRenderComponent(
             components['scene'],
@@ -120,6 +127,7 @@ class MakeEnv(SuperMechaContainer):
                 randomize_orientation=config.randomize_place_above_orientation,
                 randomize_orientation_mode=config.place_above_orientation_mode,
                 selection_mode=config.place_above_selection,
+                #number_to_remove=config.number_to_remove,
             )
         else:
             if config.load_start_scene is None:
