@@ -75,7 +75,8 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         2. shrink it down to just what we need to convey what we want
             2.1. would need mode, click, release, rotate angle
         '''
-        observation_space = deepcopy(self.env.observation_space)
+        unwrapped = self.env.unwrapped
+        observation_space = deepcopy(unwrapped.observation_space)
         #observation_space['expert'] = batch_space(
         #    self.env.action_space, max_instructions)
         #observation_space['num_expert_actions'] = Discrete(max_instructions)
@@ -83,7 +84,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         h,w,_ = observation_space['image'].shape
         observation_space['expert'] = Tuple((
             Discrete(2),
-            self.env.action_space,
+            unwrapped.action_space,
             IntegerMaskSpace(w,h,65536),
             IntegerMaskSpace(w,h,65536),
         ))
@@ -100,11 +101,12 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         while True:
             expert_valid, expert_action = o['expert'][:2]
             if expert_valid:
-                mode_space = self.env.action_space['action_primitives']['mode']
+                unwrapped = self.env.unwrapped
+                mode_space = unwrapped.action_space['action_primitives']['mode']
                 mode = expert_action['action_primitives']['mode']
                 mode_name = mode_space.names[mode]
                 if mode_name in self.execute_expert_primitives:
-                    o,rr,t,u,i = self.env.step(expert_action)
+                    o,rr,t,u,i = unwrapped.step(expert_action)
                     o = self.observation(o)
                     r += rr
                 else:
@@ -119,7 +121,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         return o,r,t,u,i
     
     def reset(self, seed=None, options=None):
-        o,i = self.env.reset(seed=seed, options=options)
+        o,i = self.env.unwrapped.reset(seed=seed, options=options)
         o = self.observation(o)
         if self.execute_expert_primitives is not None:
             o,r,t,u,i = self.auto_execute(o,0,False,False,i)
@@ -128,7 +130,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         return o,i
     
     def step(self, action):
-        o,r,t,u,i = self.env.step(action)
+        o,r,t,u,i = self.env.unwrapped.step(action)
         o = self.observation(o)
         #if self.train and o['num_expert_actions'] == 0:
         if self.train and not o['expert'][0]:
@@ -177,6 +179,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         num_connected = len(ct_connected)
         num_disconnected = len(ct_disconnected)
         num_misplaced = num_connected + num_disconnected
+        unwrapped = self.env.unwrapped
         
         '''
         HISTORIC, IGNORE THIS BLOCK
@@ -206,7 +209,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         
         # next compute whether or not we are done with an assembly step
         assemble_step = False
-        action_primitives = self.env.action_space['action_primitives']
+        action_primitives = unwrapped.action_space['action_primitives']
         instance_ids = numpy.where(current_assembly['shape'])[0]
         num_bricks = len(instance_ids)
         too_hard = False
@@ -216,7 +219,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             ):
                 #if 'target_assembly' in observation:
                 prev_assembly = (
-                    self.env.components['target_assembly'].observations[-1])
+                    unwrapped.components['target_assembly'].observations[-1])
                 #else:
                 #    prev_assembly = make_empty_assembly(0,0)
                 prev_num_bricks = len(numpy.where(prev_assembly['shape'])[0])
@@ -243,7 +246,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 #    assemble_step = True
                 #else:
                 #    assemble_step = False
-                primitives_component = self.env.components['action_primitives']
+                primitives_component = unwrapped.components['action_primitives']
                 assemble_step_component = (
                     primitives_component.components['assemble_step'])
                 if assemble_step_component.current_step < 0:
@@ -309,15 +312,16 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             target_id = next(iter(ct_disconnected[instance_id]))
             target_transform = target_assembly['pose'][target_id]
             
-            scene = self.env.components['scene'].brick_scene
+            scene = unwrapped.components['scene'].brick_scene
             instance = scene.instances[instance_id]
             snap_ids = [snap.snap_id for snap in instance.snaps]
             actions = []
+            no_op = unwrapped.no_op_action()
             for snap_id in snap_ids:
                 click_loc = self.get_snap_locations(
                     observation, instance_id, snap_id)
                 if (not(len(click_loc)) or
-                    'rotate' not in self.env.no_op_action()['action_primitives']
+                    'rotate' not in no_op['action_primitives']
                 ):
                     continue
                 
@@ -328,9 +332,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 )
                 
                 for p, y, x in click_loc:
-                    action = self.env.no_op_action()
+                    action = unwrapped.no_op_action()
                     mode_space = (
-                        self.env.action_space['action_primitives']['mode'])
+                        unwrapped.action_space['action_primitives']['mode'])
                     try:
                         rotate_index = mode_space.names.index('rotate')
                     except ValueError:
@@ -391,7 +395,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             else:
                 missing_edges = numpy.zeros(4,0)
             
-            scene = self.env.components['scene'].brick_scene
+            scene = unwrapped.components['scene'].brick_scene
             instance = scene.instances[misplaced_current]
             
             # this whole thing was only used for the rotate, which should be
@@ -437,7 +441,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 
                 # if there are no missing edges, or pnp failed, translate
                 if len(actions) == 0 and 'translate' in set(
-                    self.env.action_space['action_primitives'].keys()
+                    unwrapped.action_space['action_primitives'].keys()
                 ):
                     actions = self.translate_actions(
                         observation,
@@ -481,7 +485,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         #num_expert_actions = min(len(actions), self.max_instructions)
         valid = True
         if len(actions) == 0:
-            actions.append(self.env.no_op_action())
+            actions.append(unwrapped.no_op_action())
             valid = False
         #actions = actions[:self.max_instructions]
         
@@ -589,8 +593,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         return observation
     
     def insert_actions(self, current_assembly, target_assembly, fn):
-        action = self.env.no_op_action()
-        mode_space = self.env.action_space['action_primitives']['mode']
+        unwrapped = self.env.unwrapped
+        action = unwrapped.no_op_action()
+        mode_space = unwrapped.action_space['action_primitives']['mode']
         try:
             insert_index = mode_space.names.index('insert')
         except ValueError:
@@ -605,8 +610,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         return [action]
     
     def done_actions(self):
-        action = self.env.no_op_action()
-        mode_space = self.env.action_space['action_primitives']['mode']
+        unwrapped = self.env.unwrapped
+        action = unwrapped.no_op_action()
+        mode_space = unwrapped.action_space['action_primitives']['mode']
         if 'done' in mode_space.names:
             done_index = mode_space.names.index('done')
             action['action_primitives']['mode'] = done_index
@@ -622,8 +628,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         return [action]
     
     def assemble_step_actions(self, assemble_value):
-        action = self.env.no_op_action()
-        mode_space = self.env.action_space['action_primitives']['mode']
+        unwrapped = self.env.unwrapped
+        action = unwrapped.no_op_action()
+        mode_space = unwrapped.action_space['action_primitives']['mode']
         assemble_step_index = mode_space.names.index('assemble_step')
         action['action_primitives']['mode'] = assemble_step_index
         action['action_primitives']['assemble_step'] = assemble_value
@@ -642,10 +649,11 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         target_instance,
         #target_connected,
     ):
+        unwrapped = self.env.unwrapped
         click_loc = self.get_snap_locations(
             observation, instance_to_rotate, snap_to_rotate)
         if (not(len(click_loc)) or
-            'rotate' not in self.env.no_op_action()['action_primitives']
+            'rotate' not in unwrapped.no_op_action()['action_primitives']
         ):
             return []
         
@@ -679,8 +687,8 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         
         actions = []
         for p, y, x in click_loc:
-            action = self.env.no_op_action()
-            mode_space = self.env.action_space['action_primitives']['mode']
+            action = unwrapped.no_op_action()
+            mode_space = unwrapped.action_space['action_primitives']['mode']
             try:
                 rotate_index = mode_space.names.index('rotate')
             except ValueError:
@@ -748,7 +756,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         
         target_r = unscale_transform(target_transform)[:3,:3]
         
-        scene = self.env.components['scene'].brick_scene
+        scene = self.env.unwrapped.components['scene'].brick_scene
         view_matrix = scene.get_view_matrix()
         camera_pose = numpy.linalg.inv(view_matrix)
         
@@ -830,9 +838,10 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         target_translate = target_pose[:3,3]
         current_target = numpy.linalg.inv(global_offset) @ target_pose
         
-        primitives_component = self.env.components['action_primitives']
+        unwrapped = self.env.unwrapped
+        primitives_component = unwrapped.components['action_primitives']
         translate_component = primitives_component.components['translate']
-        scene = self.env.components['scene'].brick_scene
+        scene = unwrapped.components['scene'].brick_scene
         inv_camera_matrix = numpy.linalg.inv(scene.get_view_matrix())
         instance = scene.instances[instance_to_translate]
         
@@ -1017,14 +1026,14 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         
         actions = []
         for p, y, x in click_loc:
-            mode_space = self.env.action_space['action_primitives']['mode']
+            mode_space = unwrapped.action_space['action_primitives']['mode']
             if transform_type == 'translate':
                 try:
                     translate_index = mode_space.names.index('translate')
                 except ValueError:
                     print('Warning: no "translate" action primitive found')
                     return []
-                action = self.env.no_op_action()
+                action = unwrapped.no_op_action()
                 action['cursor']['button'] = p
                 action['cursor']['click'] = numpy.array(
                     [y, x], dtype=numpy.int64)
@@ -1052,7 +1061,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                 release_loc = release_loc[:num_combos]
                 
                 for _, ry, rx in release_loc:
-                    action = self.env.no_op_action()
+                    action = unwrapped.no_op_action()
                     action['action_primitives']['mode'] = pnp_index
                     action['action_primitives']['pick_and_place'] = 1
                     action['cursor']['button'] = p
@@ -1077,8 +1086,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             if current_assembly['shape'][i]
         ]
         sorted_instance_heights = sorted(instance_heights, reverse=True)
-        scene = self.env.components['scene'].brick_scene
-        mode_space = self.env.action_space['action_primitives']['mode']
+        unwrapped = self.env.unwrapped
+        scene = unwrapped.components['scene'].brick_scene
+        mode_space = unwrapped.action_space['action_primitives']['mode']
         remove_index = mode_space.names.index('remove')
         for _,i in sorted_instance_heights:
             instance = scene.instances[i]
@@ -1095,7 +1105,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                     con_loc = con_loc[:num_loc]
                     
                     for button, y, x in con_loc:
-                        action = self.env.no_op_action()
+                        action = unwrapped.no_op_action()
                         action['action_primitives']['mode'] = remove_index
                         action['action_primitives']['remove'] = 1
                         action['cursor']['button'] = button
@@ -1123,7 +1133,8 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         
         # find what can be removed
         removable_clicks = []
-        collision_map = self.env.components['initial_assembly'].collision_map
+        unwrapped = self.env.unwrapped
+        collision_map = unwrapped.components['initial_assembly'].collision_map
         for c, i in current_to_initial.items():
             if c not in fn:
                 continue
@@ -1154,7 +1165,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         # removable_clicks is a list of things that can be clicked on to
         # remove something, find the locations where they can be clicked from
         # the observed snap maps and send it off!
-        mode_space = self.env.action_space['action_primitives']['mode']
+        mode_space = unwrapped.action_space['action_primitives']['mode']
         remove_index = mode_space.names.index('remove')
         actions = []
         for c,s in removable_clicks:
@@ -1164,7 +1175,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
             con_loc = con_loc[:num_loc]
         
             for button, y, x in con_loc:
-                action = self.env.no_op_action()
+                action = unwrapped.no_op_action()
                 action['action_primitives']['mode'] = remove_index
                 action['action_primitives']['remove'] = 1
                 action['cursor']['button'] = button
@@ -1188,7 +1199,8 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         ct_disconnected,
         tc_disconnected,
     ):
-        mode_space = self.env.action_space['action_primitives']['mode']
+        unwrapped = self.env.unwrapped
+        mode_space = unwrapped.action_space['action_primitives']['mode']
         pnp_index = mode_space.names.index('pick_and_place')
         actions = []
         for tgt_dis_i in tc_disconnected:
@@ -1217,7 +1229,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
                         con_loc = con_loc[:num_combos]
                         
                         for d, c in zip(dis_loc, con_loc):
-                            action = self.env.no_op_action()
+                            action = unwrapped.no_op_action()
                             action['action_primitives']['mode'] = pnp_index
                             action['action_primitives']['pick_and_place'] = 1
                             action['cursor']['button'] = d[0]
