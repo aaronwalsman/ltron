@@ -293,7 +293,7 @@ def sample_chassis(scene, color_palette):
     
     # pick a chassis type
     chassis_type, chassis_logp = choice_logp(
-        ['two_wide', 'four_wide', 'helicopter'], [0.5, 0., 0.5])
+        ['two_wide', 'four_wide', 'helicopter'], [1., 0., 0.])
     shape_logp += chassis_logp
     
     # separate axles connected to central 2-wide base
@@ -406,7 +406,7 @@ def sample_two_wide_chassis(scene, color_palette):
     # pick an axle type
     #['2926.dat', '6157.dat', '4600.dat'],
     axle_shape, axle_shape_logp = choice_logp(
-       ['6157.dat', '4600.dat'], [0.5, 0.5])
+       ['6157.dat', '4600.dat'], [0., 1.])
     shape_logp += axle_shape_logp
     
     # pick a rear axle position
@@ -428,9 +428,28 @@ def sample_two_wide_chassis(scene, color_palette):
     
     # make the axles
     rear_axle_instance = make_axle(
-        scene, axle_shape, axle_color, 0, 0, rear_axle_z)
+        scene, axle_shape, axle_color, 0, 2, rear_axle_z)
     fore_axle_instance = make_axle(
-        scene, axle_shape, axle_color, 0, 0, fore_axle_z)
+        scene, axle_shape, axle_color, 0, 2, fore_axle_z)
+    
+    # make axle fill
+    axle_fill_instances = brick_fill.brick_fill(
+        scene,
+        -1, 1, 1, 2, -chassis_length//2, chassis_length//2,
+        chassis_color,
+        start='min_xz',
+        instances=list(scene.instances.values()),
+    )
+    
+    # make plate above axles
+    axle_top_instances = brick_fill.brick_fill(
+        scene,
+        -1, 1, 2, 3, -chassis_length//2, chassis_length//2,
+        chassis_color,
+        start='min_xz',
+        instances=list(scene.instances.values()),
+    )
+    dimensions = -1, 1, -chassis_length//2, chassis_length//2, body_height+2
     
     (wheel_shape,
      wheel_color,
