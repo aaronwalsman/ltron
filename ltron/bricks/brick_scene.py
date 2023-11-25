@@ -135,15 +135,15 @@ class BrickScene:
     
     def import_text(self, path, text, subdocument=None):
         document = LDrawDocument.parse_text(path, text)
-        self.import_document(document, subdocument=subdocument)
+        return self.import_document(document, subdocument=subdocument)
     
     def import_lines(self, path, lines, subdocument=None):
         document = LDrawDocument.parse_lines(path, lines)
-        self.import_document(document, subdocument=subdocument)
+        return self.import_document(document, subdocument=subdocument)
     
     def import_ldraw(self, path, subdocument=None):
         document = LDrawDocument.parse_document(path)
-        self.import_document(document, subdocument=subdocument)
+        return self.import_document(document, subdocument=subdocument)
     
     def import_document(self, document, subdocument=None):
         
@@ -167,6 +167,8 @@ class BrickScene:
                 self.update_instance_snaps(brick_instance)
         
         self.assembly_cache = None
+        
+        return new_instances
     
     def export_ldraw_text(self, file_name, instances=None):
         if instances is None:

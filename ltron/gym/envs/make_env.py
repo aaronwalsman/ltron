@@ -47,6 +47,8 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     log_prob_losses = False
     expert_matches_at_identity = True
     expert_action_selection = 'random'
+    
+    truncate_no_expert = True
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,

@@ -41,6 +41,7 @@ def wrapped_build_step_expert(
     env_name,
     train=True,
     execute_expert_primitives=None,
+    execute_expert_phase=None,
     config=None,
     **kwargs,
 ):
@@ -49,6 +50,7 @@ def wrapped_build_step_expert(
         config,
         train=train,
         execute_expert_primitives=execute_expert_primitives,
+        execute_expert_phase=execute_expert_phase,
     )
 
 class BuildStepExpert(Wrapper): #ObservationWrapper):
@@ -60,6 +62,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         max_instructions_per_cursor=1,
         train=True,
         execute_expert_primitives=None,
+        execute_expert_phase=None,
     ):
         super().__init__(env)
         self.max_instructions = max_instructions
@@ -67,6 +70,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         self.config = config
         self.train=train
         self.execute_expert_primitives = execute_expert_primitives
+        self.execute_expert_phase = execute_expert_phase
         
         '''
         options
@@ -100,6 +104,9 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
     def auto_execute(self,o,r,t,u,i):
         while True:
             expert_valid, expert_action = o['expert'][:2]
+            if self.execute_expert_phase is not None:
+                if o['action_primitives']['phase'] != self.execute_expert_phase:
+                    break
             if expert_valid:
                 unwrapped = self.env.unwrapped
                 mode_space = unwrapped.action_space['action_primitives']['mode']
@@ -133,7 +140,7 @@ class BuildStepExpert(Wrapper): #ObservationWrapper):
         o,r,t,u,i = self.env.unwrapped.step(action)
         o = self.observation(o)
         #if self.train and o['num_expert_actions'] == 0:
-        if self.train and not o['expert'][0]:
+        if self.train and not o['expert'][0] and self.config.truncate_no_expert:
             u = True
         
         if t or u:
