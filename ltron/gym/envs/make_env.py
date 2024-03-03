@@ -49,6 +49,10 @@ class MakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     expert_action_selection = 'random'
     
     truncate_no_expert = True
+    
+    highres_render = None
+    
+    remap_colors = False
 
 class MakeEnv(SuperMechaContainer):
     def __init__(self,

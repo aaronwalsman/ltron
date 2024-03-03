@@ -61,3 +61,4 @@ from ltron.gym.components.place_above_scene import PlaceAboveScene
 from ltron.gym.components.detect_objective import DetectObjective
 from ltron.gym.components.max_instances import MaxInstances
 from ltron.gym.components.partial_disassembly import PartialDisassemblyComponent
+from ltron.gym.components.remap_colors import RandomRemapColorComponent
