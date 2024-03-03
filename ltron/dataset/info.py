@@ -20,6 +20,9 @@ def get_split_length(dataset, split):
     for shard in shards:
         shard_path = settings.SHARDS[shard]
         shard_file = tarfile.TarFile(shard_path)
-        total += len(shard_file.getnames())
+        total += len([
+            name for name in shard_file.getnames()
+            if name.endswith('.mpd') or name.endswith('.ldr')
+        ])
     
     return total
