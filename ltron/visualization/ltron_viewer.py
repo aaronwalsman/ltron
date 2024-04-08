@@ -295,6 +295,14 @@ def start_viewer(
                 scene.hide_instance(str(instance_id))
                 print('Hiding Brick Instance %i'%instance_id)
         
+        elif key == b'\x08':
+            instance_id = get_instance_at_location(x, y)
+            if instance_id is None:
+                print('No Part Selected')
+            else:
+                scene.remove_instance(instance_id)
+                print('Deleting Brick Instance %i'%instance_id)
+        
         elif key == b'H':
             print('----')
             print('Hiding All Instances')

@@ -20,7 +20,7 @@ def standard_transforms(
     if subset is not None:
         assert subset >= size
         dataset = dataset.slice(subset)
-    if rank != 0 or size != 1:
+    if size != 1:
         dataset = dataset.slice(rank, None, size)
     if shuffle:
         dataset = dataset.shuffle(shuffle_buffer, initial=shuffle_buffer)
@@ -49,8 +49,11 @@ def get_mpd_webdataset_from_shards(
         shardshuffle=len(shards)
     else:
         shardshuffle=None
+    # version for distributed
+    #dataset = WebDataset(
+    #    shards, resampled=True, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
     dataset = WebDataset(
-        shards, resampled=True, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
+        shards, shardshuffle=shardshuffle).rename(mpd='mpd;ldr;l3b')
     dataset = standard_transforms(dataset, shuffle=shuffle, **kwargs)
     
     return dataset

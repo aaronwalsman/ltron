@@ -21,6 +21,7 @@ from ltron.gym.components import (
     PhaseScoreComponent,
     AssembleStepTargetRecorder,
     MaxInstances,
+    RandomRemapColorComponent
 )
 
 class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
@@ -35,6 +36,10 @@ class SteppedBreakAndMakeEnvConfig(VisualInterfaceConfig, LoaderConfig):
     truncate_if_assembly_unchanged = False
     
     cursor_losses = 'equivalence_cross_entropy' # TODO: get this out of here
+    
+    truncate_no_expert = True
+    
+    highres_render = None
 
 class SteppedBreakAndMakeEnv(SuperMechaContainer):
     def __init__(self,
@@ -112,6 +117,19 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             update_on_step=True,
             observable=True,
         )
+        if config.highres_render is not None:
+            h,w = config.highres_render
+            components['highres_image'] = ColorRenderComponent(
+                components['scene'],
+                h,
+                w,
+                anti_alias=True,
+                update_on_init=False,
+                update_on_reset=True,
+                update_on_step=True,
+                observable=True,
+            )
+        
         components['assembly'] = AssemblyComponent(
             components['scene'],
             update_on_init=False,
@@ -128,6 +146,14 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             components['action_primitives'].components['phase'],
             zero_out_of_bounds=True,
         )
+        if config.highres_render is not None:
+            h,w = config.highres_render
+            components['highres_target_image'] = AssembleStepTargetRecorder(
+                components['highres_image'],
+                components['action_primitives'].components['assemble_step'],
+                components['action_primitives'].components['phase'],
+                zero_out_of_bounds=True,
+            )
         components['target_assembly'] = AssembleStepTargetRecorder(
             components['assembly'],
             components['action_primitives'].components['assemble_step'],
@@ -135,6 +161,12 @@ class SteppedBreakAndMakeEnv(SuperMechaContainer):
             zero_phase_zero=True,
         )
         components.update(render_components)
+        
+        if config.remap_colors:
+            components['remap_colors'] = RandomRemapColorComponent(
+                components['initial_assembly'],
+                components['target_assembly'],
+            )
         
         # score
         score_component = BuildScore(

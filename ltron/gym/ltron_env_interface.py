@@ -80,7 +80,8 @@ class LtronInterface:
     
     def key_press(self, key, x, y):
         if key == b'r':
-            self.env.reset()
+            o,i = self.env.reset()
+            self.recent_observation = o
             return
         
         if key == b'\x1b':
